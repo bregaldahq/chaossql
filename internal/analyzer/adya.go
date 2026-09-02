@@ -266,6 +266,9 @@ func ClassifyCycle(c Cycle) domain.AnomalyType {
 		return domain.AnomalyLostUpdate
 	}
 	if hasRW && !hasWW && !hasWR {
+		if len(c) > 2 {
+			return domain.AnomalyG2AntiDependency
+		}
 		return domain.AnomalyWriteSkew
 	}
 

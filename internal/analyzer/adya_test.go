@@ -48,6 +48,32 @@ func TestAdyaWriteSkew(t *testing.T) {
 	}
 }
 
+func TestAdyaMultiTransaction_G2(t *testing.T) {
+	// G2 Anti-Dependency cycle across 3 transactions:
+	// T1 reads x, T2 updates x and reads y, T3 updates y and reads z, T1 updates z
+	// T1 -rw-> T2 -rw-> T3 -rw-> T1 (Length 3)
+	trace := domain.ExecutionTrace{
+		{WorkerID: 1, OpIndex: 1, Type: domain.EventExec, SQL: "SELECT balance FROM accounts WHERE id = 1"},
+		{WorkerID: 2, OpIndex: 1, Type: domain.EventExec, SQL: "UPDATE accounts SET balance = 10 WHERE id = 1"},
+		{WorkerID: 2, OpIndex: 1, Type: domain.EventExec, SQL: "SELECT balance FROM accounts WHERE id = 2"},
+		{WorkerID: 3, OpIndex: 1, Type: domain.EventExec, SQL: "UPDATE accounts SET balance = 20 WHERE id = 2"},
+		{WorkerID: 3, OpIndex: 1, Type: domain.EventExec, SQL: "SELECT balance FROM accounts WHERE id = 3"},
+		{WorkerID: 1, OpIndex: 1, Type: domain.EventExec, SQL: "UPDATE accounts SET balance = 30 WHERE id = 3"},
+	}
+
+	g := BuildGraph(trace)
+	cycles := FindCycles(g)
+
+	if len(cycles) == 0 {
+		t.Fatalf("Expected cycle, got none")
+	}
+
+	anomaly := ClassifyCycle(cycles[0])
+	if anomaly != domain.AnomalyG2AntiDependency {
+		t.Errorf("Expected %v, got %v", domain.AnomalyG2AntiDependency, anomaly)
+	}
+}
+
 func TestAdyaReadSkew(t *testing.T) {
 	trace := domain.ExecutionTrace{
 		{WorkerID: 1, OpIndex: 1, Type: domain.EventExec, SQL: "SELECT balance FROM accounts WHERE id = 1"},
@@ -162,6 +188,15 @@ func TestClassifyCycleDirect(t *testing.T) {
 				{From: "T2", To: "T1", Type: DepWR, Item: "accounts:2"},
 			},
 			expected: domain.AnomalyG1aDirtyRead,
+		},
+		{
+			name: "Multi-Transaction RW Cycle (G2 Anti-Dependency)",
+			cycle: Cycle{
+				{From: "T1", To: "T2", Type: DepRW, Item: "accounts:1"},
+				{From: "T2", To: "T3", Type: DepRW, Item: "accounts:2"},
+				{From: "T3", To: "T1", Type: DepRW, Item: "accounts:3"},
+			},
+			expected: domain.AnomalyG2AntiDependency,
 		},
 		{
 			name: "Only WW (G0 Dirty Write)",
