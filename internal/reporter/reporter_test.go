@@ -276,7 +276,13 @@ func TestGenerateStandaloneGoRepro_ExecutesWithGoTest(t *testing.T) {
 		t.Fatalf("failed to write repro_test.go: %v", err)
 	}
 
-	cmd := exec.Command("/usr/local/go/bin/go", "test", "-v", ".")
+	goBin := "go"
+	if p, err := exec.LookPath("go"); err == nil {
+		goBin = p
+	} else {
+		goBin = "/usr/local/go/bin/go"
+	}
+	cmd := exec.Command(goBin, "test", "-v", ".")
 	cmd.Dir = tmpDir
 	out, _ := cmd.CombinedOutput()
 	outStr := string(out)
