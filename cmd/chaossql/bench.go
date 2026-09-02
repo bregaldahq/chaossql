@@ -526,8 +526,17 @@ func benchmarkDatabaseConcurrency(ctx context.Context, cfg BenchmarkConfig, cust
 				amount := (rng.IntN(20)) + 1
 
 				// Execute transaction
+				if benchCtx.Err() != nil {
+					return
+				}
 				_, err1 := driver.Exec(benchCtx, fmt.Sprintf("UPDATE accounts SET balance = balance - %d WHERE id = %d", amount, acctA))
+				if benchCtx.Err() != nil {
+					return
+				}
 				_, err2 := driver.Exec(benchCtx, fmt.Sprintf("UPDATE accounts SET balance = balance + %d WHERE id = %d", amount, acctB))
+				if benchCtx.Err() != nil {
+					return
+				}
 				row := driver.QueryRow(benchCtx, fmt.Sprintf("SELECT balance FROM accounts WHERE id = %d", acctA))
 				var bal int
 				_ = row.Scan(&bal)
@@ -535,6 +544,7 @@ func benchmarkDatabaseConcurrency(ctx context.Context, cfg BenchmarkConfig, cust
 				if err1 == nil && err2 == nil {
 					atomic.AddInt64(&totalTx, 1)
 				}
+				runtime.Gosched()
 			}
 		}(w)
 	}
