@@ -52,6 +52,7 @@ func newMatrixCmd() *cobra.Command {
 				{"examples/dirty_write_auction/chaos.yaml", "G0", "Auction Dirty Write"},
 				{"examples/circular_info_crypto_arbitrage/chaos.yaml", "G1c", "Circular Information Flow"},
 				{"examples/dirty_read_flash_crash/chaos.yaml", "G1a", "Flash Crash Dirty Read"},
+				{"examples/ticket_booking_anti_dependency/chaos.yaml", "G2", "Ticket Booking Anti-Dependency"},
 			}
 
 			driver, err := drivers.GetDriver(driverName, dsn)
@@ -139,7 +140,7 @@ func renderMatrixTerminal(cmd *cobra.Command, rep MatrixReport) {
 	cmd.Println(headerStyle.Render(fmt.Sprintf("EMPIRICAL ISOLATION MATRIX — TARGET DRIVER: %s", rep.Driver)))
 
 	var lines string
-	lines += fmt.Sprintf("  %-6s  %-28s  %-12s  %s\n", "CODE", "ANOMALY PHENOMENON", "PERMITTED?", "ENGINE PROTECTION")
+	lines += fmt.Sprintf("  %-6s  %-32s  %-12s  %s\n", "CODE", "ANOMALY PHENOMENON", "PERMITTED?", "ENGINE PROTECTION")
 	lines += "  ────────────────────────────────────────────────────────────────────────────\n"
 
 	for _, r := range rep.Rows {
@@ -147,7 +148,7 @@ func renderMatrixTerminal(cmd *cobra.Command, rep MatrixReport) {
 		if r.Permitted {
 			statusStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("196"))
 		}
-		lines += fmt.Sprintf("  %-6s  %-28s  %-12v  %s\n", r.Code, r.Name, r.Permitted, statusStyle.Render(r.Status))
+		lines += fmt.Sprintf("  %-6s  %-32s  %-12v  %s\n", r.Code, r.Name, r.Permitted, statusStyle.Render(r.Status))
 	}
 
 	cmd.Println(cardStyle.Render(lines))

@@ -7,9 +7,9 @@ help:
 	@echo "  make bootstrap     - Baixa e verifica todas as dependencias Go"
 	@echo "  make test          - Executa suite de testes unitarios e de integracao (-race)"
 	@echo "  make lint          - Executa go vet e analise estatica"
-	@echo "  make check-harness - Valida integridade dos 27 documentos do harness"
+	@echo "  make check-harness - Valida integridade dos 28 documentos do harness"
 	@echo "  make build         - Compila o binario chaossql (Zero CGO)"
-	@echo "  make demo          - Executa as 7 demonstracoes interativas"
+	@echo "  make demo          - Executa as 8 demonstracoes interativas"
 	@echo "  make bench         - Executa benchmarks de performance e throughput"
 	@echo "  make matrix        - Executa a matriz empirica de isolamento Hermitage"
 	@echo "  make verify        - Gate unificado (check-harness + lint + test)"
@@ -57,6 +57,9 @@ demo: build
 	@echo ""
 	@echo "=== 7. Demonstrando Flash Crash Liquidation Dirty Read (G1a) ==="
 	@./bin/chaossql demo flash_crash || true
+	@echo ""
+	@echo "=== 8. Demonstrando Ticket Seat Reservation Anti-Dependency (G2) ==="
+	@./bin/chaossql demo ticket || true
 
 verify: check-harness lint test
 	@echo ""

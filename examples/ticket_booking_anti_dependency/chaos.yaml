@@ -1,0 +1,41 @@
+version: "1.0"
+name: "ticket_booking_anti_dependency"
+description: "Detects 3-Transaction Anti-Dependency Cycles (G2) in adjacent seat reservations"
+
+database:
+  driver: "sqlite"
+  schema: "schema.sql"
+  seed: "seed.sql"
+
+engine:
+  workers: 3
+  iterations: 15
+  seed: 42
+  jitter_ms: [0, 5]
+
+invariants:
+  - name: "adjacent_seat_isolation"
+    query: "SELECT count(*) AS total_booked FROM seats WHERE reserved_by IS NOT NULL;"
+    assert: "total_booked <= 2"
+
+operations:
+  - name: "book_seat_1_check_2"
+    weight: 1.0
+    steps:
+      - sql: "SELECT reserved_by FROM seats WHERE id = 2;"
+        capture: "s2"
+      - sql: "UPDATE seats SET reserved_by = 'User_1' WHERE id = 1;"
+
+  - name: "book_seat_2_check_3"
+    weight: 1.0
+    steps:
+      - sql: "SELECT reserved_by FROM seats WHERE id = 3;"
+        capture: "s3"
+      - sql: "UPDATE seats SET reserved_by = 'User_2' WHERE id = 2;"
+
+  - name: "book_seat_3_check_1"
+    weight: 1.0
+    steps:
+      - sql: "SELECT reserved_by FROM seats WHERE id = 1;"
+        capture: "s1"
+      - sql: "UPDATE seats SET reserved_by = 'User_3' WHERE id = 3;"
