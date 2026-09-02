@@ -1,17 +1,18 @@
 GO ?= $(shell which /usr/local/go/bin/go go 2>/dev/null | head -n 1)
 
-.PHONY: help bootstrap test lint verify check-harness build demo bench matrix diff replay
+.PHONY: help bootstrap test lint verify check-harness build demo bench matrix diff replay serve-site
 
 help:
 	@echo "ChaosSQL (Go 1.23+) Harness Commands:"
 	@echo "  make bootstrap     - Baixa e verifica todas as dependencias Go"
 	@echo "  make test          - Executa suite de testes unitarios e de integracao (-race)"
 	@echo "  make lint          - Executa go vet e analise estatica"
-	@echo "  make check-harness - Valida integridade dos 30 documentos do harness"
+	@echo "  make check-harness - Valida integridade dos 37 documentos do harness"
 	@echo "  make build         - Compila o binario chaossql (Zero CGO)"
 	@echo "  make demo          - Executa as 9 demonstracoes interativas"
 	@echo "  make bench         - Executa benchmarks de performance e throughput"
 	@echo "  make matrix        - Executa a matriz empirica de isolamento Hermitage"
+	@echo "  make serve-site    - Inicia servidor HTTP local para o portal de documentacao (porta 8080)"
 	@echo "  make verify        - Gate unificado (check-harness + lint + test)"
 
 check-harness:
@@ -21,7 +22,7 @@ bootstrap:
 	@$(GO) mod tidy
 
 test:
-	@$(GO) test -v -race ./internal/... ./cmd/...
+	@$(GO) test -v -race ./internal/... ./cmd/... ./pkg/...
 
 lint:
 	@$(GO) vet ./...
@@ -35,6 +36,10 @@ bench: build
 
 matrix: build
 	@./bin/chaossql matrix
+
+serve-site:
+	@echo "Iniciando portal de documentacao do ChaosSQL em http://localhost:8080 ..."
+	@python3 -m http.server 8080 --directory site
 
 demo: build
 	@echo "=== 1. Demonstrando Banking Lost Update (P4) ==="

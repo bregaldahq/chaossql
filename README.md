@@ -13,13 +13,27 @@
 > **Deterministic Concurrency & Invariant Fuzzer for SQL Databases**  
 > *Finding isolation anomalies (Lost Update, Write Skew, Read Skew, Dirty Write, Dirty Read, Circular Info, G2 Anti-Dependency, Deadlocks, Phantom Reads) and shrinking chaotic traces to 1-minimal reproductions.*
 
+[![Documentation Portal](https://img.shields.io/badge/Docs-chaossql.bregalda.com-4B2E83?style=flat&logo=cloudflare)](https://chaossql.bregalda.com)
 [![Go Version](https://img.shields.io/badge/Go-1.23+-00ADD8?style=flat&logo=go)](https://golang.org)
 [![Version](https://img.shields.io/badge/Version-1.1.0-blue?style=flat)](https://github.com/bregaldahq/chaossql/releases)
 [![Zero CGO](https://img.shields.io/badge/CGO-Disabled_(Pure_Go)-success)](https://modernc.org/sqlite)
 [![CI Pipeline](https://github.com/bregaldahq/chaossql/actions/workflows/ci.yml/badge.svg)](https://github.com/bregaldahq/chaossql/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Harness Engineering](https://img.shields.io/badge/Harness-Verified_(32_Artifacts)-blueviolet)](AGENTS.md)
+[![Harness Engineering](https://img.shields.io/badge/Harness-Verified_(37_Artifacts)-blueviolet)](AGENTS.md)
 [![Security Policy](https://img.shields.io/badge/Security-Defensive_Sandboxed-blue)](SECURITY.md)
+
+---
+
+## 🌐 Official Documentation & Interactive Portal
+
+👉 **Visit the live interactive documentation:** **[https://chaossql.bregalda.com](https://chaossql.bregalda.com)**
+
+Featuring:
+* **Interactive 9 Scenarios Explorer** (SQL schema, seed, workload, and $ddmin$ reduction).
+* **Live Terminal Simulator** (step-by-step causal trace reduction).
+* **Academic Isolation Theory** (Adya directed dependency graph interactive diagrams).
+* **Go SDK Playground** (`pkg/chaostest`).
+* **Hermitage Empirical Isolation Matrix** across SQLite, PostgreSQL, and MySQL.
 
 ---
 
@@ -143,24 +157,6 @@ ChaosSQL provides built-in declarative generators with deterministic PRNG replay
 
 ---
 
-## 🖥️ Live Terminal Interface (Lipgloss TUI)
-
-```text
-╭───────────────────────────────────────────────────────────────────────╮
-│ EXECUTION SUMMARY                                                     │
-│                                                                       │
-│   • Scenario: banking_lost_update                                     │
-│   • Description: Detects Lost Update (P4) under concurrent withdrawals │
-│   • Database Driver: sqlite (modernc.org/sqlite • Zero CGO)           │
-│   • Concurrency Engine: 4 workers | 20 iterations | seed=42           │
-│   • Elapsed Time: 86.4ms                                              │
-│                                                                       │
-│   Status:   ✘ ISOLATION ANOMALY DETECTED    [P4_LOST_UPDATE]          │
-╰───────────────────────────────────────────────────────────────────────╯
-```
-
----
-
 ## 📦 Quickstart & Commands
 
 ```bash
@@ -179,8 +175,8 @@ make demo
 # 5. Generate Hermitage empirical isolation matrix
 make matrix
 
-# 6. Run high-throughput stress benchmark (13.9M ops/s)
-make bench
+# 6. Preview official documentation site locally
+make serve-site
 ```
 
 ---
@@ -189,7 +185,7 @@ make bench
 
 | Quality Gate | Requirement | Status |
 | :--- | :--- | :--- |
-| **Contractual Integrity** | 32 mandatory architectural and security artifacts | `PASS` (`tools/harness_check.go`) |
+| **Contractual Integrity** | 37 mandatory architectural and security artifacts | `PASS` (`tools/harness_check.go`) |
 | **Static Analysis** | `go vet ./...` with zero warnings | `PASS` |
 | **Concurrency Safety** | `go test -race ./internal/... ./cmd/... ./pkg/...` | `PASS` (0 data races) |
 | **CGO Freedom** | Compiles with `CGO_ENABLED=0` | `PASS` (pure Go SQLite) |

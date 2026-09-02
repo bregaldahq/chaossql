@@ -15,6 +15,10 @@ func main() {
 		"Makefile",
 		"README.md",
 		"action.yml",
+		"site/index.html",
+		"site/app.js",
+		"site/assets/style.css",
+		"site/wrangler.toml",
 		".github/workflows/ci.yml",
 		"docs/THEORY.md",
 		"docs/ACADEMIC_FOUNDATIONS.md",
@@ -39,6 +43,7 @@ func main() {
 		"specs/09_temporal_invariants_and_g2_cycles.md",
 		"specs/10_developer_tooling_and_static_validator.md",
 		"specs/11_version_1_1_developer_sdk_and_smart_generators.md",
+		"specs/12_documentation_portal_and_branding_site.md",
 	}
 
 	missing := 0
