@@ -56,7 +56,7 @@ It executes PCT-scheduled concurrent transaction interleavings to detect isolati
 	runCmd.Flags().StringVar(&exportOTELFlag, "export-otel", "", "Export OpenTelemetry OTLP JSON trace to file (e.g. trace.json)")
 
 	demoCmd := &cobra.Command{
-		Use:   "demo [banking|inventory|hospital|financial]",
+		Use:   "demo [banking|inventory|hospital|financial|auction]",
 		Short: "Run an end-to-end interactive demo of a known concurrency anomaly",
 		Args:  cobra.MaximumNArgs(1),
 		RunE:  runDemo,
@@ -98,8 +98,10 @@ func runDemo(cmd *cobra.Command, args []string) error {
 		specPath = "examples/hospital_write_skew/chaos.yaml"
 	case "financial", "financial_audit", "read_skew", "read_skew_financial_audit":
 		specPath = "examples/read_skew_financial_audit/chaos.yaml"
+	case "auction", "dirty_write", "auction_dirty_write":
+		specPath = "examples/dirty_write_auction/chaos.yaml"
 	default:
-		return fmt.Errorf("unknown demo scenario %q. Available scenarios: banking, inventory, hospital, financial", scenario)
+		return fmt.Errorf("unknown demo scenario %q. Available scenarios: banking, inventory, hospital, financial, auction", scenario)
 	}
 
 	// If running from subfolder or root, locate the spec file
@@ -160,6 +162,10 @@ func executeChaos(specPath string) error {
 	anomaly := domain.AnomalyUnknown
 	for _, c := range cycles {
 		cls := analyzer.ClassifyCycle(c)
+		if cls == domain.AnomalyG0DirtyWrite {
+			anomaly = domain.AnomalyG0DirtyWrite
+			break
+		}
 		if cls == domain.AnomalyWriteSkew {
 			anomaly = domain.AnomalyWriteSkew
 			break
@@ -203,6 +209,10 @@ func executeChaos(specPath string) error {
 				minCycles := analyzer.FindCycles(minGraph)
 				for _, c := range minCycles {
 					cls := analyzer.ClassifyCycle(c)
+					if cls == domain.AnomalyG0DirtyWrite {
+						anomaly = domain.AnomalyG0DirtyWrite
+						break
+					}
 					if cls == domain.AnomalyA5AReadSkew {
 						anomaly = domain.AnomalyA5AReadSkew
 						break

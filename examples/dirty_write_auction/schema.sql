@@ -1,0 +1,14 @@
+CREATE TABLE IF NOT EXISTS auction_items (
+    id INTEGER PRIMARY KEY,
+    title TEXT NOT NULL,
+    highest_bid NUMERIC NOT NULL,
+    winner_id INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS bids_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    item_id INTEGER NOT NULL REFERENCES auction_items(id),
+    bidder_id INTEGER NOT NULL,
+    bid_amount NUMERIC NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);

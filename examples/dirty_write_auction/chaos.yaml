@@ -1,0 +1,49 @@
+version: "1.0"
+name: "dirty_write_auction"
+description: "Detects Dirty Write (G0) anomaly on uncoordinated concurrent auction bids"
+
+database:
+  driver: "sqlite"
+  schema: "schema.sql"
+  seed: "seed.sql"
+
+engine:
+  workers: 4
+  iterations: 20
+  seed: 42
+  jitter_ms: [2, 10]
+
+invariants:
+  - name: "winner_matches_highest_bid"
+    query: >
+      SELECT CASE 
+        WHEN a.winner_id = 0 AND a.highest_bid = 100 THEN 1
+        WHEN EXISTS (
+          SELECT 1 FROM bids_log b 
+          WHERE b.item_id = a.id 
+            AND b.bidder_id = a.winner_id 
+            AND b.bid_amount = a.highest_bid
+        ) THEN 1
+        ELSE 0 
+      END AS is_consistent
+      FROM auction_items a
+      WHERE a.id = 1;
+    assert: "is_consistent == 1"
+
+operations:
+  - name: "bid_bidder_1"
+    weight: 1.0
+    params:
+      bid_amount: "int(150, 250)"
+    steps:
+      - sql: "UPDATE auction_items SET winner_id = 101 WHERE id = 1;"
+      - sql: "INSERT INTO bids_log (item_id, bidder_id, bid_amount) VALUES (1, 101, {bid_amount});"
+      - sql: "UPDATE auction_items SET highest_bid = {bid_amount} WHERE id = 1;"
+  - name: "bid_bidder_2"
+    weight: 1.0
+    params:
+      bid_amount: "int(300, 450)"
+    steps:
+      - sql: "UPDATE auction_items SET highest_bid = {bid_amount} WHERE id = 1;"
+      - sql: "INSERT INTO bids_log (item_id, bidder_id, bid_amount) VALUES (1, 202, {bid_amount});"
+      - sql: "UPDATE auction_items SET winner_id = 202 WHERE id = 1;"

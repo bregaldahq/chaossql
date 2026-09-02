@@ -9,7 +9,7 @@ help:
 	@echo "  make lint          - Executa go vet e analise estatica"
 	@echo "  make check-harness - Valida integridade dos 24 documentos do harness"
 	@echo "  make build         - Compila o binario chaossql (Zero CGO)"
-	@echo "  make demo          - Executa as 4 demonstracoes interativas"
+	@echo "  make demo          - Executa as 5 demonstracoes interativas"
 	@echo "  make bench         - Executa benchmarks de performance e throughput"
 	@echo "  make verify        - Gate unificado (check-harness + lint + test)"
 
@@ -44,6 +44,9 @@ demo: build
 	@echo ""
 	@echo "=== 4. Demonstrando Financial Audit Read Skew (A5A) ==="
 	@./bin/chaossql demo financial || true
+	@echo ""
+	@echo "=== 5. Demonstrando Auction Bidding Dirty Write (G0) ==="
+	@./bin/chaossql demo auction || true
 
 verify: check-harness lint test
 	@echo ""

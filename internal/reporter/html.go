@@ -47,6 +47,10 @@ func GenerateStandaloneHTMLReport(
 		hasAnomaly = true
 		for _, c := range cycles {
 			cls := analyzer.ClassifyCycle(c)
+			if cls == domain.AnomalyG0DirtyWrite {
+				anomalyType = domain.AnomalyG0DirtyWrite
+				break
+			}
 			if cls == domain.AnomalyWriteSkew {
 				anomalyType = domain.AnomalyWriteSkew
 				break
