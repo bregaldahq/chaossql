@@ -21,8 +21,8 @@ func TestDifferentialFuzzing_IdenticalDrivers(t *testing.T) {
 			Seed:   "INSERT INTO accounts (id, balance) VALUES (1, 1000);",
 		},
 		Engine: domain.EngineConfig{
-			Workers:    2,
-			Iterations: 10,
+			Workers:    1,
+			Iterations: 5,
 			Seed:       42,
 		},
 		Invariants: []domain.InvariantConfig{

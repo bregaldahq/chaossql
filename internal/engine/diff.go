@@ -3,7 +3,6 @@ package engine
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/bregaldahq/chaossql/internal/domain"
 	"github.com/bregaldahq/chaossql/internal/drivers"
@@ -12,21 +11,21 @@ import (
 // RunDifferentialFuzzing executes the exact same schedule and seed against two database drivers,
 // comparing invariant verification results to detect isolation semantic divergence.
 func RunDifferentialFuzzing(ctx context.Context, spec domain.Spec, driverA, driverB drivers.DatabaseDriver, seed uint64) (*domain.DiffResult, error) {
+	prng := NewPRNG(seed)
+	scheduledOps := GenerateSchedule(spec, prng)
+
 	runnerA := NewRunner(driverA, seed)
 	runnerB := NewRunner(driverB, seed)
 
-	start := time.Now()
-	resA, errA := runnerA.Run(ctx, spec)
+	resA, errA := runnerA.RunSchedule(ctx, spec, scheduledOps)
 	if errA != nil {
 		return nil, fmt.Errorf("driver A (%s) execution error: %w", driverA.DriverName(), errA)
 	}
 
-	resB, errB := runnerB.Run(ctx, spec)
+	resB, errB := runnerB.RunSchedule(ctx, spec, scheduledOps)
 	if errB != nil {
 		return nil, fmt.Errorf("driver B (%s) execution error: %w", driverB.DriverName(), errB)
 	}
-
-	_ = start
 
 	divergent := false
 	var diffSummary string
