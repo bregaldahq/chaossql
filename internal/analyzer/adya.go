@@ -17,10 +17,11 @@ const (
 )
 
 type Edge struct {
-	From string
-	To   string
-	Type DependencyType
-	Item string
+	From            string
+	To              string
+	Type            DependencyType
+	Item            string
+	IsAbortedWriter bool
 }
 
 type Cycle []Edge
@@ -41,7 +42,7 @@ func (g *AdyaGraph) AddNode(node string) {
 	g.Nodes[node] = true
 }
 
-func (g *AdyaGraph) AddEdge(from, to string, depType DependencyType, item string) {
+func (g *AdyaGraph) AddEdge(from, to string, depType DependencyType, item string, isAbortedWriter bool) {
 	g.AddNode(from)
 	g.AddNode(to)
 	for _, e := range g.Edges[from] {
@@ -49,7 +50,13 @@ func (g *AdyaGraph) AddEdge(from, to string, depType DependencyType, item string
 			return
 		}
 	}
-	g.Edges[from] = append(g.Edges[from], Edge{From: from, To: to, Type: depType, Item: item})
+	g.Edges[from] = append(g.Edges[from], Edge{
+		From:            from,
+		To:              to,
+		Type:            depType,
+		Item:            item,
+		IsAbortedWriter: isAbortedWriter,
+	})
 }
 
 var (
@@ -84,6 +91,14 @@ func BuildGraph(trace domain.ExecutionTrace) *AdyaGraph {
 	g := NewAdyaGraph()
 	lastWriter := make(map[string]string)
 	readers := make(map[string][]string)
+	abortedTx := make(map[string]bool)
+
+	for _, event := range trace {
+		txID := fmt.Sprintf("T%d-%d", event.WorkerID, event.OpIndex)
+		if event.Type == domain.EventRollback {
+			abortedTx[txID] = true
+		}
+	}
 
 	for _, event := range trace {
 		if event.Type != domain.EventExec {
@@ -102,18 +117,18 @@ func BuildGraph(trace domain.ExecutionTrace) *AdyaGraph {
 		if isWrite {
 			// Write-Write conflict on exact item
 			if lw, ok := lastWriter[item]; ok && lw != txID {
-				g.AddEdge(lw, txID, DepWW, item)
+				g.AddEdge(lw, txID, DepWW, item, abortedTx[lw])
 			}
 			// Read-Write conflict on exact item and table scan
 			for _, r := range readers[item] {
 				if r != txID {
-					g.AddEdge(r, txID, DepRW, item)
+					g.AddEdge(r, txID, DepRW, item, abortedTx[r])
 				}
 			}
 			if item != table {
 				for _, r := range readers[table] {
 					if r != txID {
-						g.AddEdge(r, txID, DepRW, item)
+						g.AddEdge(r, txID, DepRW, item, abortedTx[r])
 					}
 				}
 			}
@@ -123,13 +138,13 @@ func BuildGraph(trace domain.ExecutionTrace) *AdyaGraph {
 		} else {
 			// Write-Read conflict on exact item or table
 			if lw, ok := lastWriter[item]; ok && lw != txID {
-				g.AddEdge(lw, txID, DepWR, item)
+				g.AddEdge(lw, txID, DepWR, item, abortedTx[lw])
 			}
 			if item == table {
 				// Table scan reads any previous writes to table
 				for k, lw := range lastWriter {
 					if getTable(k) == table && lw != txID {
-						g.AddEdge(lw, txID, DepWR, k)
+						g.AddEdge(lw, txID, DepWR, k, abortedTx[lw])
 					}
 				}
 			}
@@ -215,6 +230,8 @@ func ClassifyCycle(c Cycle) domain.AnomalyType {
 	hasWW := false
 	hasRW := false
 	hasWR := false
+	hasAbortedWR := false
+
 	for _, e := range c {
 		switch e.Type {
 		case DepWW:
@@ -223,9 +240,15 @@ func ClassifyCycle(c Cycle) domain.AnomalyType {
 			hasRW = true
 		case DepWR:
 			hasWR = true
+			if e.IsAbortedWriter {
+				hasAbortedWR = true
+			}
 		}
 	}
 
+	if hasAbortedWR {
+		return domain.AnomalyG1aDirtyRead
+	}
 	if hasWW && !hasRW && !hasWR {
 		return domain.AnomalyG0DirtyWrite
 	}
