@@ -88,7 +88,7 @@ ChaosSQL is built directly on seminal peer-reviewed database and concurrency res
 
 ---
 
-## 🚀 3 Flagship Demonstration Scenarios
+## 🚀 4 Flagship Demonstration Scenarios
 
 ### 1. 🏦 Banking Lost Update ($P4$)
 * **Context:** Fintech balance withdrawal where two concurrent transactions read balance (\$1000), calculate `balance - amount`, and write back simultaneously under `READ COMMITTED`.
@@ -107,6 +107,12 @@ ChaosSQL is built directly on seminal peer-reviewed database and concurrency res
 * **Cycle:** $T_1 \xrightarrow{rw} T_2 \xrightarrow{rw} T_1$ (Dangerous Structure under Snapshot Isolation).
 * **Result:** 0 active doctors left on duty; invariant `active_doctors >= 1` is violated without any write-write conflict.
 * **$ddmin$ Reduction:** $10 \text{ ops} \to 2 \text{ ops}$ (**80.0% noise reduction** in 403ms).
+
+### 4. 💳 Financial Audit Read Skew ($A5A$)
+* **Context:** Financial audit consolidating balances across Checking and Savings accounts while concurrent fund transfers execute under `READ COMMITTED`.
+* **Cycle:** $T_1 \xrightarrow{rw} T_2 \xrightarrow{wr} T_1$ (Read Skew).
+* **Result:** Audit observer sees inconsistent intermediate total balance ($\ne \$1000$), violating wealth preservation invariant.
+* **$ddmin$ Reduction:** $20 \text{ ops} \to 2 \text{ ops}$ (**90.0% noise reduction** in 559ms).
 
 ---
 

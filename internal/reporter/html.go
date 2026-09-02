@@ -51,6 +51,10 @@ func GenerateStandaloneHTMLReport(
 				anomalyType = domain.AnomalyWriteSkew
 				break
 			}
+			if cls == domain.AnomalyA5AReadSkew {
+				anomalyType = domain.AnomalyA5AReadSkew
+				break
+			}
 			if cls == domain.AnomalyLostUpdate {
 				anomalyType = domain.AnomalyLostUpdate
 			}

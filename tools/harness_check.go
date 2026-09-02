@@ -30,6 +30,7 @@ var RequiredFiles = []string{
 	"examples/banking_lost_update/chaos.yaml",
 	"examples/inventory_oversell/chaos.yaml",
 	"examples/hospital_write_skew/chaos.yaml",
+	"examples/read_skew_financial_audit/chaos.yaml",
 }
 
 func main() {
@@ -51,5 +52,5 @@ func main() {
 		os.Exit(1)
 	}
 
-	fmt.Println("[HARNESS OK] Todos os 23 ártefatos do Harness estão presentes e validados.")
+	fmt.Println("[HARNESS OK] Todos os 24 ártefatos do Harness estão presentes e validados.")
 }

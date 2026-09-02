@@ -7,9 +7,9 @@ help:
 	@echo "  make bootstrap   - Baixa e verifica todas as dependencias Go"
 	@echo "  make test       - Executa suite de testes unitarios e de integracao (-race)"
 	@echo "  make lint       - Executa go vet e analise estatica"
-	@echo "  make check-harness - Valida integridade dos 23 documentos do harness"
+	@echo "  make check-harness - Valida integridade dos 24 documentos do harness"
 	@echo "  make build       - Compila o binario chaossql (Zero CGO)"
-	@echo "  make demo       - Executa as 3 demonstracoes interativas"
+	@echo "  make demo       - Executa as 4 demonstracoes interativas"
 	@echo "  make verify     - Gate unificado (check-harness + lint + test)"
 
 check-harness:
@@ -37,6 +37,9 @@ demo: build
 	@echo ""
 	@echo "=== 3. Demonstrando Hospital Write Skew (A5B) ==="
 	@./bin/chaossql demo hospital || true
+	@echo ""
+	@echo "=== 4. Demonstrando Financial Audit Read Skew (A5A) ==="
+	@./bin/chaossql demo financial || true
 
 verify: check-harness lint test
 	@echo ""

@@ -1,0 +1,40 @@
+version: "1.0"
+name: "read_skew_financial_audit"
+description: "Detects Read Skew (A5A) anomaly during concurrent financial account transfers and audit"
+
+database:
+  driver: "sqlite"
+  schema: "schema.sql"
+  seed: "seed.sql"
+
+engine:
+  workers: 4
+  iterations: 20
+  seed: 42
+  jitter_ms: [2, 10]
+
+invariants:
+  - name: "total_wealth_preservation"
+    query: "SELECT COALESCE(SUM(balance), 0) AS total_balance FROM accounts;"
+    assert: "total_balance == 1000"
+
+operations:
+  - name: "transfer_checking_to_savings"
+    weight: 1.0
+    params:
+      amount: "int(10, 50)"
+    steps:
+      - sql: "SELECT balance FROM accounts WHERE id = 1;"
+        capture: "chk"
+      - sql: "UPDATE accounts SET balance = {chk - amount} WHERE id = 1;"
+      - sql: "SELECT balance FROM accounts WHERE id = 2;"
+        capture: "sav"
+      - sql: "UPDATE accounts SET balance = {sav + amount} WHERE id = 2;"
+      - sql: "INSERT INTO transfers (from_id, to_id, amount) VALUES (1, 2, {amount});"
+  - name: "read_total_wealth"
+    weight: 1.0
+    steps:
+      - sql: "SELECT balance FROM accounts WHERE id = 1;"
+        capture: "chk_balance"
+      - sql: "SELECT balance FROM accounts WHERE id = 2;"
+        capture: "sav_balance"

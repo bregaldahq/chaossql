@@ -54,7 +54,7 @@ It executes PCT-scheduled concurrent transaction interleavings to detect isolati
 	runCmd.Flags().StringVar(&exportHTMLFlag, "export-html", "", "Export standalone HTML report to file (e.g. report.html)")
 
 	demoCmd := &cobra.Command{
-		Use:   "demo [banking|inventory|hospital]",
+		Use:   "demo [banking|inventory|hospital|financial]",
 		Short: "Run an end-to-end interactive demo of a known concurrency anomaly",
 		Args:  cobra.MaximumNArgs(1),
 		RunE:  runDemo,
@@ -91,8 +91,10 @@ func runDemo(cmd *cobra.Command, args []string) error {
 		specPath = "examples/inventory_oversell/chaos.yaml"
 	case "hospital", "hospital_write_skew", "write_skew":
 		specPath = "examples/hospital_write_skew/chaos.yaml"
+	case "financial", "financial_audit", "read_skew", "read_skew_financial_audit":
+		specPath = "examples/read_skew_financial_audit/chaos.yaml"
 	default:
-		return fmt.Errorf("unknown demo scenario %q. Available scenarios: banking, inventory, hospital", scenario)
+		return fmt.Errorf("unknown demo scenario %q. Available scenarios: banking, inventory, hospital, financial", scenario)
 	}
 
 	// If running from subfolder or root, locate the spec file
@@ -162,6 +164,10 @@ func executeChaos(specPath string) error {
 			anomaly = domain.AnomalyWriteSkew
 			break
 		}
+		if cls == domain.AnomalyA5AReadSkew {
+			anomaly = domain.AnomalyA5AReadSkew
+			break
+		}
 		if cls == domain.AnomalyLostUpdate {
 			anomaly = domain.AnomalyLostUpdate
 		}
@@ -197,10 +203,20 @@ func executeChaos(specPath string) error {
 				minCycles := analyzer.FindCycles(minGraph)
 				for _, c := range minCycles {
 					cls := analyzer.ClassifyCycle(c)
-					if cls != domain.AnomalyUnknown {
-						anomaly = cls
+					if cls == domain.AnomalyA5AReadSkew {
+						anomaly = domain.AnomalyA5AReadSkew
 						break
 					}
+					if cls == domain.AnomalyWriteSkew {
+						anomaly = domain.AnomalyWriteSkew
+						break
+					}
+					if cls == domain.AnomalyLostUpdate {
+						anomaly = domain.AnomalyLostUpdate
+					}
+				}
+				if anomaly == domain.AnomalyUnknown && len(minCycles) > 0 {
+					anomaly = analyzer.ClassifyCycle(minCycles[0])
 				}
 			}
 		}
