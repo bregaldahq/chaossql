@@ -36,6 +36,7 @@ func main() {
 		"specs/07_differential_fuzzing_and_matrix.md",
 		"specs/08_fault_injection_and_dirty_reads.md",
 		"specs/09_temporal_invariants_and_g2_cycles.md",
+		"specs/10_developer_tooling_and_static_validator.md",
 	}
 
 	missing := 0
