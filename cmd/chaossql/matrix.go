@@ -53,6 +53,7 @@ func newMatrixCmd() *cobra.Command {
 				{"examples/circular_info_crypto_arbitrage/chaos.yaml", "G1c", "Circular Information Flow"},
 				{"examples/dirty_read_flash_crash/chaos.yaml", "G1a", "Flash Crash Dirty Read"},
 				{"examples/ticket_booking_anti_dependency/chaos.yaml", "G2", "Ticket Booking Anti-Dependency"},
+				{"examples/deadlock_cycle/chaos.yaml", "G-DL", "Deadlock Cycle & Recovery"},
 			}
 
 			driver, err := drivers.GetDriver(driverName, dsn)
