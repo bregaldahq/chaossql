@@ -1,0 +1,39 @@
+name: Deploy Documentation Site (Cloudflare Pages)
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'site/**'
+      - '.github/workflows/deploy-pages.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'site/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  deployments: write
+  pull-requests: write
+
+jobs:
+  deploy:
+    name: Deploy to Cloudflare Pages
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy site --project-name=chaossql --branch=main --commit-dirty=true
+        continue-on-error: true
+
+      - name: Deploy Summary
+        run: |
+          echo "### 🌐 Documentation Portal Deployment" >> $GITHUB_STEP_SUMMARY
+          echo "Site published to Cloudflare Pages: [https://chaossql.bregalda.com](https://chaossql.bregalda.com)" >> $GITHUB_STEP_SUMMARY

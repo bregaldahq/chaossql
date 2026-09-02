@@ -20,6 +20,8 @@ func main() {
 		"site/assets/style.css",
 		"site/wrangler.toml",
 		".github/workflows/ci.yml",
+		".github/workflows/deploy-pages.yml",
+		".github/workflows/static-pages.yml",
 		"docs/THEORY.md",
 		"docs/ACADEMIC_FOUNDATIONS.md",
 		"docs/SCENARIO_ACADEMIC_AUDIT.md",
