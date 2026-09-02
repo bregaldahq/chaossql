@@ -61,8 +61,8 @@ noisy execution traces to minimal, deterministic reproductions.`,
 	runCmd.Flags().StringVar(&exportSummaryFlag, "export-summary", "", "Export execution report as GitHub Step Summary markdown to file path")
 
 	demoCmd := &cobra.Command{
-		Use:   "demo [banking|inventory|hospital|financial|auction|crypto|flash_crash|ticket]",
-		Short: "Run one of the flagship demonstration scenarios (Lost Update, Oversell, Write Skew, Read Skew, Dirty Write, Circular Info, Dirty Read, Anti-Dependency)",
+		Use:   "demo [banking|inventory|hospital|financial|auction|crypto|flash_crash|ticket|deadlock]",
+		Short: "Run one of the flagship demonstration scenarios (Lost Update, Oversell, Write Skew, Read Skew, Dirty Write, Circular Info, Dirty Read, Anti-Dependency, Deadlock)",
 		Args:  cobra.MaximumNArgs(1),
 		RunE:  runDemo,
 	}
@@ -78,8 +78,10 @@ noisy execution traces to minimal, deterministic reproductions.`,
 	diffCmd := newDiffCmd()
 	matrixCmd := newMatrixCmd()
 	replayCmd := newReplayCmd()
+	initCmd := newInitCmd()
+	validateCmd := newValidateCmd()
 
-	rootCmd.AddCommand(runCmd, demoCmd, benchCmd, diffCmd, matrixCmd, replayCmd)
+	rootCmd.AddCommand(runCmd, demoCmd, benchCmd, diffCmd, matrixCmd, replayCmd, initCmd, validateCmd)
 
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)
@@ -115,8 +117,10 @@ func runDemo(cmd *cobra.Command, args []string) error {
 		specPath = "examples/dirty_read_flash_crash/chaos.yaml"
 	case "ticket", "tickets", "seat", "seats", "g2", "ticket_booking_anti_dependency":
 		specPath = "examples/ticket_booking_anti_dependency/chaos.yaml"
+	case "deadlock", "deadlock_cycle":
+		specPath = "examples/deadlock_cycle/chaos.yaml"
 	default:
-		return fmt.Errorf("unknown demo scenario %q. Available scenarios: banking, inventory, hospital, financial, auction, crypto, flash_crash, ticket", scenario)
+		return fmt.Errorf("unknown demo scenario %q. Available scenarios: banking, inventory, hospital, financial, auction, crypto, flash_crash, ticket, deadlock", scenario)
 	}
 
 	if _, err := os.Stat(specPath); os.IsNotExist(err) {
