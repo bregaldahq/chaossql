@@ -3,100 +3,56 @@ package engine
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/bregaldahq/chaossql/internal/domain"
 	"github.com/bregaldahq/chaossql/internal/drivers"
 )
 
-// RunDifferentialFuzzing executes an identical chaos schedule against two database drivers
-// and evaluates whether their isolation semantics diverge (e.g., one driver violates an invariant
-// while the other satisfies it, or they produce divergent invariant violation outcomes).
-func RunDifferentialFuzzing(ctx context.Context, spec domain.Spec, driverA, driverB drivers.DatabaseDriver, seed int64) (*domain.DiffResult, error) {
-	if driverA == nil || driverB == nil {
-		return nil, fmt.Errorf("both driverA and driverB must be non-nil")
-	}
+// RunDifferentialFuzzing executes the exact same schedule and seed against two database drivers,
+// comparing invariant verification results to detect isolation semantic divergence.
+func RunDifferentialFuzzing(ctx context.Context, spec domain.Spec, driverA, driverB drivers.DatabaseDriver, seed uint64) (*domain.DiffResult, error) {
+	runnerA := NewRunner(driverA, seed)
+	runnerB := NewRunner(driverB, seed)
 
-	effectiveSeed := spec.Engine.Seed
-	if seed != 0 {
-		effectiveSeed = uint64(seed)
-	}
-	if effectiveSeed == 0 {
-		effectiveSeed = 42
-	}
-	spec.Engine.Seed = effectiveSeed
-
-	// Generate deterministic schedule for both drivers
-	prng := NewPRNG(effectiveSeed)
-	scheduledOps := GenerateSchedule(spec, prng)
-
-	// Execute schedule on Driver A
-	runnerA := NewRunner(driverA, effectiveSeed)
-	resultA, errA := runnerA.RunSchedule(ctx, spec, scheduledOps)
+	start := time.Now()
+	resA, errA := runnerA.Run(ctx, spec)
 	if errA != nil {
-		return nil, fmt.Errorf("driver A (%s) execution failed: %w", driverA.DriverName(), errA)
+		return nil, fmt.Errorf("driver A (%s) execution error: %w", driverA.DriverName(), errA)
 	}
 
-	// Execute schedule on Driver B
-	runnerB := NewRunner(driverB, effectiveSeed)
-	resultB, errB := runnerB.RunSchedule(ctx, spec, scheduledOps)
+	resB, errB := runnerB.Run(ctx, spec)
 	if errB != nil {
-		return nil, fmt.Errorf("driver B (%s) execution failed: %w", driverB.DriverName(), errB)
+		return nil, fmt.Errorf("driver B (%s) execution error: %w", driverB.DriverName(), errB)
 	}
 
-	nameA := driverA.DriverName()
-	if nameA == "" {
-		nameA = "driver_a"
-	}
-	nameB := driverB.DriverName()
-	if nameB == "" {
-		nameB = "driver_b"
-	}
+	_ = start
 
 	divergent := false
 	var diffSummary string
 
-	if resultA.ViolationDetected != resultB.ViolationDetected {
+	if resA.ViolationDetected != resB.ViolationDetected {
 		divergent = true
-		if resultA.ViolationDetected {
-			invName := ""
-			if resultA.FailingInvariant != nil {
-				invName = resultA.FailingInvariant.Name
-			}
-			diffSummary = fmt.Sprintf("Isolation divergence detected: %s violated invariant '%s' while %s satisfied all invariants", nameA, invName, nameB)
-		} else {
-			invName := ""
-			if resultB.FailingInvariant != nil {
-				invName = resultB.FailingInvariant.Name
-			}
-			diffSummary = fmt.Sprintf("Isolation divergence detected: %s satisfied all invariants while %s violated invariant '%s'", nameA, nameB, invName)
-		}
-	} else if resultA.ViolationDetected && resultB.ViolationDetected {
-		invA := ""
-		if resultA.FailingInvariant != nil {
-			invA = resultA.FailingInvariant.Name
-		}
-		invB := ""
-		if resultB.FailingInvariant != nil {
-			invB = resultB.FailingInvariant.Name
-		}
-		if invA != invB {
+		diffSummary = fmt.Sprintf("Semantic divergence detected: Driver %s (violation=%v) != Driver %s (violation=%v)",
+			driverA.DriverName(), resA.ViolationDetected, driverB.DriverName(), resB.ViolationDetected)
+	} else if resA.ViolationDetected && resB.ViolationDetected {
+		if resA.FailingInvariant != nil && resB.FailingInvariant != nil && resA.FailingInvariant.Name != resB.FailingInvariant.Name {
 			divergent = true
-			diffSummary = fmt.Sprintf("Isolation divergence detected: %s violated invariant '%s' while %s violated invariant '%s'", nameA, invA, nameB, invB)
+			diffSummary = fmt.Sprintf("Different failing invariant: Driver %s (%s) vs Driver %s (%s)",
+				driverA.DriverName(), resA.FailingInvariant.Name, driverB.DriverName(), resB.FailingInvariant.Name)
 		} else {
-			divergent = false
-			diffSummary = fmt.Sprintf("No divergence: both %s and %s violated invariant '%s'", nameA, nameB, invA)
+			diffSummary = fmt.Sprintf("Both drivers (%s and %s) detected identical anomaly behavior.", driverA.DriverName(), driverB.DriverName())
 		}
 	} else {
-		divergent = false
-		diffSummary = fmt.Sprintf("No divergence: both %s and %s satisfied all invariants", nameA, nameB)
+		diffSummary = fmt.Sprintf("Both drivers (%s and %s) satisfied all invariants consistently.", driverA.DriverName(), driverB.DriverName())
 	}
 
 	return &domain.DiffResult{
 		ScenarioName: spec.Name,
-		DriverA:      nameA,
-		DriverB:      nameB,
-		ResultA:      resultA,
-		ResultB:      resultB,
+		DriverA:      driverA.DriverName(),
+		DriverB:      driverB.DriverName(),
+		ResultA:      resA,
+		ResultB:      resB,
 		Divergent:    divergent,
 		DiffSummary:  diffSummary,
 	}, nil
