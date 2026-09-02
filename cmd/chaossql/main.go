@@ -71,8 +71,9 @@ noisy execution traces to minimal, deterministic reproductions.`,
 	benchCmd := newBenchCmd()
 	diffCmd := newDiffCmd()
 	matrixCmd := newMatrixCmd()
+	replayCmd := newReplayCmd()
 
-	rootCmd.AddCommand(runCmd, demoCmd, benchCmd, diffCmd, matrixCmd)
+	rootCmd.AddCommand(runCmd, demoCmd, benchCmd, diffCmd, matrixCmd, replayCmd)
 
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)
@@ -108,7 +109,6 @@ func runDemo(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("unknown demo scenario %q. Available scenarios: banking, inventory, hospital, financial, auction, crypto", scenario)
 	}
 
-	// If running from subfolder or root, locate the spec file
 	if _, err := os.Stat(specPath); os.IsNotExist(err) {
 		altPath := filepath.Join("/root/chaossql", specPath)
 		if _, err := os.Stat(altPath); err == nil {
@@ -130,7 +130,6 @@ func executeChaos(specPath string) error {
 		return fmt.Errorf("failed to load chaos spec: %w", err)
 	}
 
-	// Apply CLI flag overrides
 	if seedFlag > 0 {
 		spec.Engine.Seed = seedFlag
 	}
@@ -141,7 +140,6 @@ func executeChaos(specPath string) error {
 		spec.Engine.Iterations = iterationsFlag
 	}
 
-	// Initialize database driver
 	driver, err := drivers.GetDriver(spec.Database.Driver, spec.Database.DSN)
 	if err != nil {
 		return fmt.Errorf("failed to initialize database driver: %w", err)
@@ -152,19 +150,21 @@ func executeChaos(specPath string) error {
 	}
 	defer func() { _ = driver.Close() }()
 
-	// Execute Chaos Run
 	runner := engine.NewRunner(driver, spec.Engine.Seed)
 	runResult, err := runner.Run(ctx, *spec)
 	if err != nil {
 		return fmt.Errorf("chaos execution failed: %w", err)
 	}
 
-	// Analyze Concurrency Trace with Adya Graph
 	graph := analyzer.BuildGraph(runResult.Trace)
 	cycles := analyzer.FindCycles(graph)
 	anomaly := domain.AnomalyUnknown
 	for _, c := range cycles {
 		cls := analyzer.ClassifyCycle(c)
+		if cls == domain.AnomalyG1aDirtyRead {
+			anomaly = domain.AnomalyG1aDirtyRead
+			break
+		}
 		if cls == domain.AnomalyG0DirtyWrite {
 			anomaly = domain.AnomalyG0DirtyWrite
 			break
@@ -193,7 +193,6 @@ func executeChaos(specPath string) error {
 	minimalTrace := runResult.Trace
 	minimalOps := runResult.ScheduledOps
 
-	// If an invariant violation is detected, run Delta-Debugging causal reduction
 	if runResult.ViolationDetected {
 		testFn := func(subset []domain.ScheduledOp) bool {
 			res, err := runner.RunSchedule(ctx, *spec, subset)
@@ -215,6 +214,10 @@ func executeChaos(specPath string) error {
 				minCycles := analyzer.FindCycles(minGraph)
 				for _, c := range minCycles {
 					cls := analyzer.ClassifyCycle(c)
+					if cls == domain.AnomalyG1aDirtyRead {
+						anomaly = domain.AnomalyG1aDirtyRead
+						break
+					}
 					if cls == domain.AnomalyG0DirtyWrite {
 						anomaly = domain.AnomalyG0DirtyWrite
 						break
