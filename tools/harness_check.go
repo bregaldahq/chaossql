@@ -11,6 +11,7 @@ func main() {
 		"ARCHITECTURE.md",
 		"CONTRIBUTING.md",
 		"LICENSE",
+		"SECURITY.md",
 		"Makefile",
 		"README.md",
 		".github/workflows/ci.yml",

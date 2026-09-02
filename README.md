@@ -17,7 +17,8 @@
 [![Zero CGO](https://img.shields.io/badge/CGO-Disabled_(Pure_Go)-success)](https://modernc.org/sqlite)
 [![CI Pipeline](https://github.com/bregaldahq/chaossql/actions/workflows/ci.yml/badge.svg)](https://github.com/bregaldahq/chaossql/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Harness Engineering](https://img.shields.io/badge/Harness-Verified_(28_Artifacts)-blueviolet)](AGENTS.md)
+[![Harness Engineering](https://img.shields.io/badge/Harness-Verified_(29_Artifacts)-blueviolet)](AGENTS.md)
+[![Security Policy](https://img.shields.io/badge/Security-Defensive_Sandboxed-blue)](SECURITY.md)
 
 ---
 
@@ -306,7 +307,7 @@ ChaosSQL follows strict **Harness Engineering** contracts (`AGENTS.md`):
 
 | Quality Gate | Requirement | Status |
 | :--- | :--- | :--- |
-| **Contractual Integrity** | 28 mandatory architectural and academic artifacts | `PASS` (`tools/harness_check.go`) |
+| **Contractual Integrity** | 29 mandatory architectural and security artifacts | `PASS` (`tools/harness_check.go`) |
 | **Static Analysis** | `go vet ./...` with zero warnings | `PASS` |
 | **Concurrency Safety** | `go test -race ./internal/... ./cmd/...` | `PASS` (0 data races) |
 | **CGO Freedom** | Compiles with `CGO_ENABLED=0` | `PASS` (pure Go SQLite) |
@@ -314,8 +315,9 @@ ChaosSQL follows strict **Harness Engineering** contracts (`AGENTS.md`):
 
 ---
 
-## 📜 License
+## 📜 License & Security
 
-Distributed under the **MIT License**. See [`LICENSE`](LICENSE) for more information.
+Distributed under the **MIT License**. See [`LICENSE`](LICENSE) for terms.  
+For security architecture and vulnerability disclosure, see [`SECURITY.md`](SECURITY.md).
 
 Developed by **Ricardo Bregalda** ([@bregaldahq](https://github.com/bregaldahq)).
