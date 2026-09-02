@@ -1,16 +1,17 @@
 GO ?= $(shell which /usr/local/go/bin/go go 2>/dev/null | head -n 1)
 
-.PHONY: help bootstrap test lint verify check-harness build demo
+.PHONY: help bootstrap test lint verify check-harness build demo bench
 
 help:
 	@echo "ChaosSQL (Go 1.23+) Harness Commands:"
-	@echo "  make bootstrap   - Baixa e verifica todas as dependencias Go"
-	@echo "  make test       - Executa suite de testes unitarios e de integracao (-race)"
-	@echo "  make lint       - Executa go vet e analise estatica"
+	@echo "  make bootstrap     - Baixa e verifica todas as dependencias Go"
+	@echo "  make test          - Executa suite de testes unitarios e de integracao (-race)"
+	@echo "  make lint          - Executa go vet e analise estatica"
 	@echo "  make check-harness - Valida integridade dos 24 documentos do harness"
-	@echo "  make build       - Compila o binario chaossql (Zero CGO)"
-	@echo "  make demo       - Executa as 4 demonstracoes interativas"
-	@echo "  make verify     - Gate unificado (check-harness + lint + test)"
+	@echo "  make build         - Compila o binario chaossql (Zero CGO)"
+	@echo "  make demo          - Executa as 4 demonstracoes interativas"
+	@echo "  make bench         - Executa benchmarks de performance e throughput"
+	@echo "  make verify        - Gate unificado (check-harness + lint + test)"
 
 check-harness:
 	@$(GO) run tools/harness_check.go
@@ -19,7 +20,7 @@ bootstrap:
 	@$(GO) mod tidy
 
 test:
-	@$(GO) test -v -race ./internal/...
+	@$(GO) test -v -race ./internal/... ./cmd/...
 
 lint:
 	@$(GO) vet ./...
@@ -27,6 +28,9 @@ lint:
 build:
 	@mkdir -p bin
 	@$(GO) build -o bin/chaossql ./cmd/chaossql
+
+bench: build
+	@./bin/chaossql bench
 
 demo: build
 	@echo "=== 1. Demonstrando Banking Lost Update (P4) ==="
