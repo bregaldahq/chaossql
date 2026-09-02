@@ -208,6 +208,10 @@ func FindCycles(g *AdyaGraph) []Cycle {
 }
 
 func ClassifyCycle(c Cycle) domain.AnomalyType {
+	if len(c) == 0 {
+		return domain.AnomalyUnknown
+	}
+
 	hasWW := false
 	hasRW := false
 	hasWR := false
@@ -222,15 +226,21 @@ func ClassifyCycle(c Cycle) domain.AnomalyType {
 		}
 	}
 
+	if hasWW && !hasRW && !hasWR {
+		return domain.AnomalyG0DirtyWrite
+	}
+	if hasWR && !hasWW && !hasRW {
+		return domain.AnomalyG1cCircularInfo
+	}
+	if hasRW && hasWR {
+		return domain.AnomalyA5AReadSkew
+	}
 	if hasWW && hasRW && !hasWR {
 		return domain.AnomalyLostUpdate
 	}
 	if hasRW && !hasWW && !hasWR {
 		return domain.AnomalyWriteSkew
 	}
-	if hasRW && !hasWR {
-		return domain.AnomalyWriteSkew
-	}
-	
+
 	return domain.AnomalyUnknown
 }
