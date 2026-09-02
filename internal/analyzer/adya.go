@@ -42,7 +42,11 @@ func (g *AdyaGraph) AddNode(node string) {
 	g.Nodes[node] = true
 }
 
-func (g *AdyaGraph) AddEdge(from, to string, depType DependencyType, item string, isAbortedWriter bool) {
+func (g *AdyaGraph) AddEdge(from, to string, depType DependencyType, item string) {
+	g.AddEdgeWithAbort(from, to, depType, item, false)
+}
+
+func (g *AdyaGraph) AddEdgeWithAbort(from, to string, depType DependencyType, item string, isAbortedWriter bool) {
 	g.AddNode(from)
 	g.AddNode(to)
 	for _, e := range g.Edges[from] {
@@ -117,18 +121,18 @@ func BuildGraph(trace domain.ExecutionTrace) *AdyaGraph {
 		if isWrite {
 			// Write-Write conflict on exact item
 			if lw, ok := lastWriter[item]; ok && lw != txID {
-				g.AddEdge(lw, txID, DepWW, item, abortedTx[lw])
+				g.AddEdgeWithAbort(lw, txID, DepWW, item, abortedTx[lw])
 			}
 			// Read-Write conflict on exact item and table scan
 			for _, r := range readers[item] {
 				if r != txID {
-					g.AddEdge(r, txID, DepRW, item, abortedTx[r])
+					g.AddEdgeWithAbort(r, txID, DepRW, item, abortedTx[r])
 				}
 			}
 			if item != table {
 				for _, r := range readers[table] {
 					if r != txID {
-						g.AddEdge(r, txID, DepRW, item, abortedTx[r])
+						g.AddEdgeWithAbort(r, txID, DepRW, item, abortedTx[r])
 					}
 				}
 			}
@@ -138,13 +142,13 @@ func BuildGraph(trace domain.ExecutionTrace) *AdyaGraph {
 		} else {
 			// Write-Read conflict on exact item or table
 			if lw, ok := lastWriter[item]; ok && lw != txID {
-				g.AddEdge(lw, txID, DepWR, item, abortedTx[lw])
+				g.AddEdgeWithAbort(lw, txID, DepWR, item, abortedTx[lw])
 			}
 			if item == table {
 				// Table scan reads any previous writes to table
 				for k, lw := range lastWriter {
 					if getTable(k) == table && lw != txID {
-						g.AddEdge(lw, txID, DepWR, k, abortedTx[lw])
+						g.AddEdgeWithAbort(lw, txID, DepWR, k, abortedTx[lw])
 					}
 				}
 			}

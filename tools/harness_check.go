@@ -33,6 +33,7 @@ func main() {
 		"specs/05_advanced_anomaly_taxonomy.md",
 		"specs/06_mysql_savepoints_and_otel.md",
 		"specs/07_differential_fuzzing_and_matrix.md",
+		"specs/08_fault_injection_and_dirty_reads.md",
 	}
 
 	missing := 0
