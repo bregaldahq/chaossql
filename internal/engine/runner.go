@@ -16,13 +16,13 @@ import (
 
 // RunResult holds the complete outcome of a chaos execution.
 type RunResult struct {
-	Success          bool
+	Success           bool
 	ViolationDetected bool
 	FailingInvariant  *domain.InvariantResult
 	Trace             domain.ExecutionTrace
 	ScheduledOps      []domain.ScheduledOp
 	Duration          time.Duration
-	Error              error
+	Error             error
 }
 
 // Runner orchestrates the chaos execution.
@@ -63,7 +63,11 @@ func (r *Runner) Run(ctx context.Context, spec domain.Spec) (*RunResult, error) 
 		opTemplate := spec.Operations[masterRng.IntN(len(spec.Operations))]
 		params := make(map[string]string)
 		for k, v := range opTemplate.Params {
-			params[k] = r.prng.EvaluateParam(v, masterRng)
+			val, err := EvaluateGenerator(v, masterRng)
+			if err != nil {
+				val = r.prng.EvaluateParam(v, masterRng)
+			}
+			params[k] = val
 		}
 		scheduledOps[i] = domain.ScheduledOp{
 			ID:     i + 1,
@@ -95,7 +99,7 @@ func (r *Runner) Run(ctx context.Context, spec domain.Spec) (*RunResult, error) 
 	duration := time.Since(startTime)
 
 	return &RunResult{
-		Success:          !violationFound,
+		Success:           !violationFound,
 		ViolationDetected: violationFound,
 		FailingInvariant:  failingInv,
 		Trace:             trace,
@@ -164,7 +168,7 @@ func (r *Runner) ExecuteSchedule(ctx context.Context, spec domain.Spec, ops []do
 						time.Sleep(jitter)
 					}
 
-					sqlStmt := substituteParams(step.SQL, localState)
+					sqlStmt := SubstituteParams(step.SQL, localState)
 
 					if step.Capture != "" {
 						var capturedVal interface{}
@@ -198,6 +202,11 @@ func (r *Runner) ExecuteSchedule(ctx context.Context, spec domain.Spec, ops []do
 
 	wg.Wait()
 	return trace, nil
+}
+
+// SubstituteParams replaces {param} or {a - b} in the SQL string.
+func SubstituteParams(sql string, state map[string]string) string {
+	return substituteParams(sql, state)
 }
 
 // substituteParams replaces {param} or {a - b} in the SQL string.

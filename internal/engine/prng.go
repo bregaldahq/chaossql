@@ -34,20 +34,11 @@ func (p *PRNG) WorkerSeed(workerID int) uint64 {
 	return h.Sum64()
 }
 
-// EvaluateParam parses declarative parameter generators like "int(10, 50)".
+// EvaluateParam parses declarative parameter generators or dynamic expressions.
 func (p *PRNG) EvaluateParam(expr string, rng *rand.Rand) string {
-	expr = strings.TrimSpace(expr)
-	if strings.HasPrefix(expr, "int(") && strings.HasSuffix(expr, ")") {
-		inside := expr[4 : len(expr)-1]
-		parts := strings.Split(inside, ",")
-		if len(parts) == 2 {
-			minVal, err1 := strconv.Atoi(strings.TrimSpace(parts[0]))
-			maxVal, err2 := strconv.Atoi(strings.TrimSpace(parts[1]))
-			if err1 == nil && err2 == nil && maxVal >= minVal {
-				val := minVal + rng.IntN(maxVal-minVal+1)
-				return strconv.Itoa(val)
-			}
-		}
+	val, err := EvaluateGenerator(expr, rng)
+	if err == nil {
+		return val
 	}
 	return expr
 }
@@ -61,4 +52,168 @@ func (p *PRNG) Jitter(jitterRange [2]int, rng *rand.Rand) time.Duration {
 	}
 	delayMs := minMs + rng.IntN(maxMs-minMs+1)
 	return time.Duration(delayMs) * time.Millisecond
+}
+
+// EvaluateGenerator evaluates dynamic random generators deterministically using r.
+// Supported generators:
+// - $random_int(min, max): e.g. $random_int(10, 500)
+// - $random_choice(a, b, c): e.g. $random_choice('DEPOSIT', 'WITHDRAW', 'TRANSFER')
+// - $random_string(n): e.g. $random_string(8)
+// - $uuid(): returns deterministic formatted UUID string (RFC 4122 v4)
+// - legacy int(min, max): e.g. int(10, 500)
+func EvaluateGenerator(expr string, r *rand.Rand) (string, error) {
+	if r == nil {
+		return "", fmt.Errorf("nil rand.Rand provided to EvaluateGenerator")
+	}
+	trimmed := strings.TrimSpace(expr)
+
+	if strings.HasPrefix(trimmed, "$random_int(") && strings.HasSuffix(trimmed, ")") {
+		args := trimmed[len("$random_int(") : len(trimmed)-1]
+		return evalRandomInt(args, r)
+	}
+
+	if strings.HasPrefix(trimmed, "$random_choice(") && strings.HasSuffix(trimmed, ")") {
+		args := trimmed[len("$random_choice(") : len(trimmed)-1]
+		return evalRandomChoice(args, r)
+	}
+
+	if strings.HasPrefix(trimmed, "$random_string(") && strings.HasSuffix(trimmed, ")") {
+		args := trimmed[len("$random_string(") : len(trimmed)-1]
+		return evalRandomString(args, r)
+	}
+
+	if strings.HasPrefix(trimmed, "$uuid(") && strings.HasSuffix(trimmed, ")") {
+		args := trimmed[len("$uuid(") : len(trimmed)-1]
+		return evalUUID(args, r)
+	}
+
+	// Legacy format: int(min, max)
+	if strings.HasPrefix(trimmed, "int(") && strings.HasSuffix(trimmed, ")") {
+		args := trimmed[len("int(") : len(trimmed)-1]
+		return evalRandomInt(args, r)
+	}
+
+	if strings.HasPrefix(trimmed, "$") {
+		return "", fmt.Errorf("unsupported generator expression: %s", expr)
+	}
+
+	return expr, nil
+}
+
+func evalRandomInt(args string, r *rand.Rand) (string, error) {
+	parts := strings.Split(args, ",")
+	if len(parts) != 2 {
+		return "", fmt.Errorf("invalid arguments for $random_int, expected (min, max): %s", args)
+	}
+	minVal, err1 := strconv.Atoi(strings.TrimSpace(parts[0]))
+	maxVal, err2 := strconv.Atoi(strings.TrimSpace(parts[1]))
+	if err1 != nil || err2 != nil {
+		return "", fmt.Errorf("invalid integer arguments for $random_int: %s", args)
+	}
+	if minVal > maxVal {
+		return "", fmt.Errorf("invalid range for $random_int: min (%d) > max (%d)", minVal, maxVal)
+	}
+	if minVal == maxVal {
+		return strconv.Itoa(minVal), nil
+	}
+	val := minVal + int(r.Int64N(int64(maxVal-minVal+1)))
+	return strconv.Itoa(val), nil
+}
+
+func evalRandomChoice(args string, r *rand.Rand) (string, error) {
+	choices, err := parseChoiceArgs(args)
+	if err != nil {
+		return "", err
+	}
+	if len(choices) == 0 {
+		return "", fmt.Errorf("$random_choice requires at least one choice")
+	}
+	idx := r.IntN(len(choices))
+	return choices[idx], nil
+}
+
+func parseChoiceArgs(s string) ([]string, error) {
+	var choices []string
+	var cur strings.Builder
+	inSingleQuote := false
+	inDoubleQuote := false
+	escaped := false
+
+	for i := 0; i < len(s); i++ {
+		ch := s[i]
+		if escaped {
+			cur.WriteByte(ch)
+			escaped = false
+			continue
+		}
+		if ch == '\\' {
+			escaped = true
+			continue
+		}
+		if ch == '\'' && !inDoubleQuote {
+			inSingleQuote = !inSingleQuote
+			continue
+		}
+		if ch == '"' && !inSingleQuote {
+			inDoubleQuote = !inDoubleQuote
+			continue
+		}
+		if ch == ',' && !inSingleQuote && !inDoubleQuote {
+			choice := strings.TrimSpace(cur.String())
+			if choice != "" {
+				choices = append(choices, choice)
+			}
+			cur.Reset()
+			continue
+		}
+		cur.WriteByte(ch)
+	}
+
+	if inSingleQuote || inDoubleQuote {
+		return nil, fmt.Errorf("unclosed quote in arguments: %s", s)
+	}
+
+	choice := strings.TrimSpace(cur.String())
+	if choice != "" {
+		choices = append(choices, choice)
+	}
+
+	if len(choices) == 0 {
+		return nil, fmt.Errorf("no choices provided in $random_choice")
+	}
+
+	return choices, nil
+}
+
+func evalRandomString(args string, r *rand.Rand) (string, error) {
+	n, err := strconv.Atoi(strings.TrimSpace(args))
+	if err != nil {
+		return "", fmt.Errorf("invalid length for $random_string: %s", args)
+	}
+	if n < 0 {
+		return "", fmt.Errorf("length cannot be negative for $random_string: %d", n)
+	}
+	if n == 0 {
+		return "", nil
+	}
+
+	const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+	buf := make([]byte, n)
+	for i := 0; i < n; i++ {
+		buf[i] = charset[r.IntN(len(charset))]
+	}
+	return string(buf), nil
+}
+
+func evalUUID(args string, r *rand.Rand) (string, error) {
+	if strings.TrimSpace(args) != "" {
+		return "", fmt.Errorf("$uuid() takes no arguments, got: %s", args)
+	}
+	var b [16]byte
+	for i := 0; i < 16; i++ {
+		b[i] = byte(r.IntN(256))
+	}
+	b[6] = (b[6] & 0x0f) | 0x40 // Version 4
+	b[8] = (b[8] & 0x3f) | 0x80 // Variant RFC 4122
+	return fmt.Sprintf("%x-%x-%x-%x-%x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:16]), nil
 }
