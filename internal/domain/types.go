@@ -128,3 +128,26 @@ type ShrinkResult struct {
 	Iterations     int           `json:"iterations"`
 	Duration       time.Duration `json:"duration"`
 }
+
+
+// ExecutionResult holds the complete outcome of a chaos execution.
+type ExecutionResult struct {
+	Success           bool             `json:"success"`
+	ViolationDetected bool             `json:"violation_detected"`
+	FailingInvariant  *InvariantResult `json:"failing_invariant,omitempty"`
+	Trace             ExecutionTrace   `json:"trace,omitempty"`
+	ScheduledOps      []ScheduledOp    `json:"scheduled_ops,omitempty"`
+	Duration          time.Duration    `json:"duration"`
+	Error             error            `json:"error,omitempty"`
+}
+
+// DiffResult represents the outcome of cross-engine differential fuzzing.
+type DiffResult struct {
+	ScenarioName string           `json:"scenario_name"`
+	DriverA      string           `json:"driver_a"`
+	DriverB      string           `json:"driver_b"`
+	ResultA      *ExecutionResult `json:"result_a"`
+	ResultB      *ExecutionResult `json:"result_b"`
+	Divergent    bool             `json:"divergent"`
+	DiffSummary  string           `json:"diff_summary"`
+}

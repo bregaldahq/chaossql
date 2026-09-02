@@ -15,15 +15,7 @@ import (
 )
 
 // RunResult holds the complete outcome of a chaos execution.
-type RunResult struct {
-	Success           bool
-	ViolationDetected bool
-	FailingInvariant  *domain.InvariantResult
-	Trace             domain.ExecutionTrace
-	ScheduledOps      []domain.ScheduledOp
-	Duration          time.Duration
-	Error             error
-}
+type RunResult = domain.ExecutionResult
 
 // Runner orchestrates the chaos execution.
 type Runner struct {
@@ -42,21 +34,18 @@ func NewRunner(driver drivers.DatabaseDriver, seed uint64) *Runner {
 }
 
 // Run executes a full chaos battery.
-func (r *Runner) Run(ctx context.Context, spec domain.Spec) (*RunResult, error) {
-	startTime := time.Now()
 
-	// 1. Reset database
-	if err := r.driver.Reset(ctx, spec.Database.Schema, spec.Database.Seed); err != nil {
-		return nil, fmt.Errorf("database reset failed: %w", err)
-	}
-
-	// 2. Generate Scheduled Operations
+// GenerateSchedule creates a slice of deterministic ScheduledOps for the given spec and PRNG.
+func GenerateSchedule(spec domain.Spec, prng *PRNG) []domain.ScheduledOp {
 	numOps := spec.Engine.Iterations
 	if numOps <= 0 {
 		numOps = 10
 	}
+	if len(spec.Operations) == 0 {
+		return nil
+	}
 
-	masterRng := rand.New(rand.NewPCG(r.prng.MasterSeed(), 0))
+	masterRng := rand.New(rand.NewPCG(prng.MasterSeed(), 0))
 	scheduledOps := make([]domain.ScheduledOp, numOps)
 
 	for i := 0; i < numOps; i++ {
@@ -65,7 +54,7 @@ func (r *Runner) Run(ctx context.Context, spec domain.Spec) (*RunResult, error) 
 		for k, v := range opTemplate.Params {
 			val, err := EvaluateGenerator(v, masterRng)
 			if err != nil {
-				val = r.prng.EvaluateParam(v, masterRng)
+				val = prng.EvaluateParam(v, masterRng)
 			}
 			params[k] = val
 		}
@@ -76,6 +65,19 @@ func (r *Runner) Run(ctx context.Context, spec domain.Spec) (*RunResult, error) 
 			Steps:  opTemplate.Steps,
 		}
 	}
+	return scheduledOps
+}
+
+func (r *Runner) Run(ctx context.Context, spec domain.Spec) (*RunResult, error) {
+	startTime := time.Now()
+
+	// 1. Reset database
+	if err := r.driver.Reset(ctx, spec.Database.Schema, spec.Database.Seed); err != nil {
+		return nil, fmt.Errorf("database reset failed: %w", err)
+	}
+
+	// 2. Generate Scheduled Operations
+	scheduledOps := GenerateSchedule(spec, r.prng)
 
 	// 3. Execute Scheduled Operations with Workers
 	trace, err := r.ExecuteSchedule(ctx, spec, scheduledOps)
