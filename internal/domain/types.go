@@ -9,25 +9,35 @@ import (
 type AnomalyType string
 
 const (
-	AnomalyLostUpdate      AnomalyType = "P4_LOST_UPDATE"
-	AnomalyWriteSkew       AnomalyType = "A5B_WRITE_SKEW"
-	AnomalyPhantom         AnomalyType = "A3_PHANTOM_READ"
-	AnomalyA5AReadSkew     AnomalyType = "A5A_READ_SKEW"
-	AnomalyG0DirtyWrite    AnomalyType = "G0_DIRTY_WRITE"
-	AnomalyG1aDirtyRead    AnomalyType = "G1A_DIRTY_READ"
-	AnomalyG1cCircularInfo AnomalyType = "G1C_CIRCULAR_INFO"
-	AnomalyUnknown         AnomalyType = "UNKNOWN_INVARIANT_VIOLATION"
+	AnomalyLostUpdate        AnomalyType = "P4_LOST_UPDATE"
+	AnomalyWriteSkew         AnomalyType = "A5B_WRITE_SKEW"
+	AnomalyPhantom           AnomalyType = "A3_PHANTOM_READ"
+	AnomalyA5AReadSkew       AnomalyType = "A5A_READ_SKEW"
+	AnomalyG0DirtyWrite      AnomalyType = "G0_DIRTY_WRITE"
+	AnomalyG1aDirtyRead      AnomalyType = "G1A_DIRTY_READ"
+	AnomalyG1cCircularInfo   AnomalyType = "G1C_CIRCULAR_INFO"
+	AnomalyG2AntiDependency  AnomalyType = "G2_ANTI_DEPENDENCY"
+	AnomalyUnknown           AnomalyType = "UNKNOWN_INVARIANT_VIOLATION"
 )
+
+// TemporalInvariantConfig defines rules evaluated against chronological traces.
+type TemporalInvariantConfig struct {
+	Name   string `yaml:"name"`
+	Type   string `yaml:"type"` // "no_aborts", "monotonicity", "no_error_events"
+	Field  string `yaml:"field,omitempty"`
+	Assert string `yaml:"assert,omitempty"`
+}
 
 // Spec represents the complete declarative configuration for a chaos test.
 type Spec struct {
-	Version     string            `yaml:"version"`
-	Name        string            `yaml:"name"`
-	Description string            `yaml:"description"`
-	Database    DatabaseConfig    `yaml:"database"`
-	Engine      EngineConfig      `yaml:"engine"`
-	Invariants  []InvariantConfig `yaml:"invariants"`
-	Operations  []OperationConfig `yaml:"operations"`
+	Version            string                    `yaml:"version"`
+	Name               string                    `yaml:"name"`
+	Description        string                    `yaml:"description"`
+	Database           DatabaseConfig            `yaml:"database"`
+	Engine             EngineConfig              `yaml:"engine"`
+	Invariants         []InvariantConfig         `yaml:"invariants"`
+	TemporalInvariants []TemporalInvariantConfig `yaml:"temporal_invariants,omitempty"`
+	Operations         []OperationConfig         `yaml:"operations"`
 }
 
 // DatabaseConfig holds connection and initialization paths.
