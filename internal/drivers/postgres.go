@@ -136,7 +136,7 @@ func (d *PostgresDriver) BeginTx(ctx context.Context) (Tx, error) {
 			return nil, err
 		}
 	}
-	
+
 	opts := &sql.TxOptions{
 		Isolation: d.isolationLevel,
 	}
@@ -161,18 +161,11 @@ func (d *PostgresDriver) Exec(ctx context.Context, query string, args ...any) (s
 	return res, d.handleError(err)
 }
 
-// ErrSerializationFailure indicates a transaction could not be serialized.
-var ErrSerializationFailure = errors.New("serialization failure")
-// ErrDeadlockDetected indicates a deadlock was detected.
-var ErrDeadlockDetected = errors.New("deadlock detected")
-// ErrConnectionDropped indicates the connection to the database was dropped.
-var ErrConnectionDropped = errors.New("connection dropped")
-
 func (d *PostgresDriver) handleError(err error) error {
 	if err == nil {
 		return nil
 	}
-	
+
 	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) {
 		switch pgErr.Code {
@@ -182,11 +175,11 @@ func (d *PostgresDriver) handleError(err error) error {
 			return fmt.Errorf("%w: %v", ErrSerializationFailure, err)
 		}
 	}
-	
+
 	// Check for connection dropped errors
 	if errors.Is(err, sql.ErrConnDone) || strings.Contains(err.Error(), "connection refused") || strings.Contains(err.Error(), "broken pipe") || strings.Contains(err.Error(), "connection reset by peer") || strings.Contains(err.Error(), "closed") {
 		return fmt.Errorf("%w: %v", ErrConnectionDropped, err)
 	}
-	
+
 	return err
 }

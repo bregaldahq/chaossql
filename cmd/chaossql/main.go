@@ -10,13 +10,13 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/spf13/cobra"
 	"github.com/bregaldahq/chaossql/internal/analyzer"
 	"github.com/bregaldahq/chaossql/internal/domain"
 	"github.com/bregaldahq/chaossql/internal/drivers"
 	"github.com/bregaldahq/chaossql/internal/engine"
 	"github.com/bregaldahq/chaossql/internal/reporter"
 	"github.com/bregaldahq/chaossql/internal/shrinker"
+	"github.com/spf13/cobra"
 )
 
 var (
@@ -134,14 +134,9 @@ func executeChaos(specPath string) error {
 	}
 
 	// Initialize database driver
-	var driver drivers.DatabaseDriver
-	switch strings.ToLower(spec.Database.Driver) {
-	case "sqlite", "sqlite3":
-		driver = drivers.NewSQLiteDriver(spec.Database.DSN)
-	case "postgres", "postgresql":
-		driver = drivers.NewPostgresDriver(spec.Database.DSN)
-	default:
-		return fmt.Errorf("unsupported database driver: %s", spec.Database.Driver)
+	driver, err := drivers.GetDriver(spec.Database.Driver, spec.Database.DSN)
+	if err != nil {
+		return fmt.Errorf("failed to initialize database driver: %w", err)
 	}
 
 	if err := driver.Open(ctx); err != nil {
@@ -278,11 +273,11 @@ func executeChaos(specPath string) error {
 	if jsonFlag {
 		output := map[string]interface{}{
 			"spec": map[string]interface{}{
-				"name":        spec.Name,
-				"driver":      spec.Database.Driver,
-				"workers":     spec.Engine.Workers,
-				"iterations":  spec.Engine.Iterations,
-				"seed":        spec.Engine.Seed,
+				"name":       spec.Name,
+				"driver":     spec.Database.Driver,
+				"workers":    spec.Engine.Workers,
+				"iterations": spec.Engine.Iterations,
+				"seed":       spec.Engine.Seed,
 			},
 			"success":            runResult.Success,
 			"violation_detected": runResult.ViolationDetected,

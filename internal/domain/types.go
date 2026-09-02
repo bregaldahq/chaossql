@@ -31,7 +31,7 @@ type Spec struct {
 
 // DatabaseConfig holds connection and initialization paths.
 type DatabaseConfig struct {
-	Driver string `yaml:"driver"` // "sqlite" or "postgres"
+	Driver string `yaml:"driver"` // "sqlite", "postgres", or "mysql"
 	DSN    string `yaml:"dsn,omitempty"`
 	Schema string `yaml:"schema"`
 	Seed   string `yaml:"seed"`

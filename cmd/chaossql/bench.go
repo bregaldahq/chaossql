@@ -1,4 +1,4 @@
-﻿package main
+package main
 
 import (
 	"context"
@@ -474,17 +474,8 @@ func benchmarkDatabaseConcurrency(ctx context.Context, cfg BenchmarkConfig, cust
 		}
 	}
 
-	var driver drivers.DatabaseDriver
-	switch strings.ToLower(spec.Database.Driver) {
-	case "sqlite", "sqlite3", "":
-		dsn := spec.Database.DSN
-		if dsn == "" {
-			dsn = ":memory:"
-		}
-		driver = drivers.NewSQLiteDriver(dsn)
-	case "postgres", "postgresql":
-		driver = drivers.NewPostgresDriver(spec.Database.DSN)
-	default:
+	driver, err := drivers.GetDriver(spec.Database.Driver, spec.Database.DSN)
+	if err != nil {
 		return DatabaseBenchResult{}, fmt.Errorf("unsupported benchmark database driver: %s", spec.Database.Driver)
 	}
 

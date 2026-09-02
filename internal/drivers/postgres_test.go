@@ -27,7 +27,7 @@ func TestPostgresDriver_ResetAndConcurrency(t *testing.T) {
 
 	ctx := context.Background()
 	dsn := getPostgresDSN()
-	
+
 	opts := drivers.PostgresOptions{IsolationLevel: sql.LevelRepeatableRead}
 	driver := drivers.NewPostgresDriver(dsn, opts)
 	defer driver.Close()
@@ -37,7 +37,7 @@ func TestPostgresDriver_ResetAndConcurrency(t *testing.T) {
 
 	if err := driver.Reset(ctx, schema, seed); err != nil {
 		errStr := err.Error()
-		if strings.Contains(errStr, "connection refused") || 
+		if strings.Contains(errStr, "connection refused") ||
 			strings.Contains(errStr, "dial error") ||
 			strings.Contains(errStr, "failed to connect") ||
 			strings.Contains(errStr, "authentication failed") ||
