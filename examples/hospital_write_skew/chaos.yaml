@@ -1,0 +1,35 @@
+version: "1.0"
+name: "hospital_write_skew"
+description: "Detects Write Skew (A5B) on on-call doctors schedule"
+
+database:
+  driver: "sqlite"
+  schema: "schema.sql"
+  seed: "seed.sql"
+
+engine:
+  workers: 2
+  iterations: 10
+  seed: 1
+  jitter_ms: [2, 12]
+
+invariants:
+  - name: "at_least_one_doctor_on_call"
+    query: "SELECT COALESCE(SUM(is_on_call), 0) AS active_doctors FROM doctors;"
+    assert: "active_doctors >= 1"
+
+operations:
+  - name: "go_off_call_doctor_1"
+    weight: 1.0
+    steps:
+      - sql: "SELECT SUM(is_on_call) FROM doctors;"
+        capture: "count_on_call"
+      - sql: "UPDATE doctors SET is_on_call = 0 WHERE id = 1 AND {count_on_call} >= 2;"
+      - sql: "INSERT INTO audit_log (doctor_id, action) VALUES (1, 'LEAVE_CALL');"
+  - name: "go_off_call_doctor_2"
+    weight: 1.0
+    steps:
+      - sql: "SELECT SUM(is_on_call) FROM doctors;"
+        capture: "count_on_call"
+      - sql: "UPDATE doctors SET is_on_call = 0 WHERE id = 2 AND {count_on_call} >= 2;"
+      - sql: "INSERT INTO audit_log (doctor_id, action) VALUES (2, 'LEAVE_CALL');"

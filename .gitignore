@@ -1,0 +1,24 @@
+# Binaries
+bin/
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Databases
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+
+# Test & Coverage
+*.out
+coverage.html
+
+# IDEs & Env
+.ds_store
+.idea/
+.vscode/
+.venv/
+__pycache__/

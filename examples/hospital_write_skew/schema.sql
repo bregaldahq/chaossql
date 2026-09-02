@@ -1,0 +1,12 @@
+CREATE TABLE IF NOT EXISTS doctors (
+    id INTEGER PRIMARY KEY,
+    name TEXT NOT NULL,
+    is_on_call INTEGER NOT NULL CHECK (is_on_call IN (0, 1))
+);
+
+CREATE TABLE IF NOT EXISTS audit_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    doctor_id INTEGER NOT NULL REFERENCES doctors(id),
+    action TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);

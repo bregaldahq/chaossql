@@ -1,0 +1,32 @@
+name: ChaosSQL CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    name: Verification & Tests
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        go-version: [ '1.23.x', '1.24.x' ]
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: ${{ matrix.go-version }}
+        cache: true
+
+    - name: Validate Harness Artifacts
+      run: make check-harness
+
+    - name: Run Linter & Vet
+      run: make lint
+
+    - name: Run Unit & Concurrency Tests (-race)
+      run: make test
