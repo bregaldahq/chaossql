@@ -1,18 +1,16 @@
-.PHONY: help bootstrap test lint verify check-harness build demo
+GO ?= $(shell which /usr/local/go/bin/go go 2>/dev/null | head -n 1)
 
-export PATH := /usr/local/go/bin:$(PATH)
-export GOROOT := /usr/local/go
-GO := /usr/local/go/bin/go
+.PHONY: help bootstrap test lint verify check-harness build demo
 
 help:
 	@echo "ChaosSQL (Go 1.23+) Harness Commands:"
 	@echo "  make bootstrap   - Baixa e verifica todas as dependencias Go"
-	@echo "  make test        - Executa suite de testes unitarios e integracao"
-	@echo "  make lint        - Executa go vet e analise estatica"
-	@echo "  make check-harness - Valida integridade dos documentos do harness"
-	@echo "  make build       - Compila o binario chaossql"
-	@echo "  make demo        - Executa os 3 cenarios de demonstracao"
-	@echo "  make verify      - Gate unificado (check + vet + test)"
+	@echo "  make test       - Executa suite de testes unitarios e de integracao (-race)"
+	@echo "  make lint       - Executa go vet e analise estatica"
+	@echo "  make check-harness - Valida integridade dos 23 documentos do harness"
+	@echo "  make build       - Compila o binario chaossql (Zero CGO)"
+	@echo "  make demo       - Executa as 3 demonstracoes interativas"
+	@echo "  make verify     - Gate unificado (check-harness + lint + test)"
 
 check-harness:
 	@$(GO) run tools/harness_check.go
@@ -21,18 +19,24 @@ bootstrap:
 	@$(GO) mod tidy
 
 test:
-	@$(GO) test -v -cover ./internal/...
+	@$(GO) test -v -race ./internal/...
 
 lint:
 	@$(GO) vet ./...
 
 build:
-	@$(GO) build -o bin/chaossql cmd/chaossql/main.go
+	@mkdir -p bin
+	@$(GO) build -o bin/chaossql ./cmd/chaossql
 
 demo: build
-	@./bin/chaossql demo banking
-	@./bin/chaossql demo inventory
-	@./bin/chaossql demo hospital
+	@echo "=== 1. Demonstrando Banking Lost Update (P4) ==="
+	@./bin/chaossql demo banking || true
+	@echo ""
+	@echo "=== 2. Demonstrando Inventory Oversell (A3) ==="
+	@./bin/chaossql demo inventory || true
+	@echo ""
+	@echo "=== 3. Demonstrando Hospital Write Skew (A5B) ==="
+	@./bin/chaossql demo hospital || true
 
 verify: check-harness lint test
 	@echo ""
