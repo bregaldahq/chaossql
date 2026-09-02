@@ -1,8 +1,8 @@
 package engine
 
 import (
+	"encoding/hex"
 	"fmt"
-	"hash/fnv"
 	"math/rand/v2"
 	"strconv"
 	"strings"
@@ -27,11 +27,12 @@ func (p *PRNG) MasterSeed() uint64 {
 	return p.masterSeed
 }
 
-// WorkerSeed derives an isolated sub-seed for a specific worker.
+// WorkerSeed derives an isolated sub-seed for a specific worker using high-performance SplitMix64.
 func (p *PRNG) WorkerSeed(workerID int) uint64 {
-	h := fnv.New64a()
-	h.Write([]byte(fmt.Sprintf("%d-%d", p.masterSeed, workerID)))
-	return h.Sum64()
+	x := p.masterSeed ^ (uint64(workerID) * 0x9e3779b97f4a7c15)
+	x = (x ^ (x >> 30)) * 0xbf58476d1ce4e5b9
+	x = (x ^ (x >> 27)) * 0x94d049bb133111eb
+	return x ^ (x >> 31)
 }
 
 // EvaluateParam parses declarative parameter generators or dynamic expressions.
@@ -55,12 +56,6 @@ func (p *PRNG) Jitter(jitterRange [2]int, rng *rand.Rand) time.Duration {
 }
 
 // EvaluateGenerator evaluates dynamic random generators deterministically using r.
-// Supported generators:
-// - $random_int(min, max): e.g. $random_int(10, 500)
-// - $random_choice(a, b, c): e.g. $random_choice('DEPOSIT', 'WITHDRAW', 'TRANSFER')
-// - $random_string(n): e.g. $random_string(8)
-// - $uuid(): returns deterministic formatted UUID string (RFC 4122 v4)
-// - legacy int(min, max): e.g. int(10, 500)
 func EvaluateGenerator(expr string, r *rand.Rand) (string, error) {
 	if r == nil {
 		return "", fmt.Errorf("nil rand.Rand provided to EvaluateGenerator")
@@ -215,5 +210,16 @@ func evalUUID(args string, r *rand.Rand) (string, error) {
 	}
 	b[6] = (b[6] & 0x0f) | 0x40 // Version 4
 	b[8] = (b[8] & 0x3f) | 0x80 // Variant RFC 4122
-	return fmt.Sprintf("%x-%x-%x-%x-%x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:16]), nil
+
+	var buf [36]byte
+	hex.Encode(buf[0:8], b[0:4])
+	buf[8] = '-'
+	hex.Encode(buf[9:13], b[4:6])
+	buf[13] = '-'
+	hex.Encode(buf[14:18], b[6:8])
+	buf[18] = '-'
+	hex.Encode(buf[19:23], b[8:10])
+	buf[23] = '-'
+	hex.Encode(buf[24:36], b[10:16])
+	return string(buf[:]), nil
 }

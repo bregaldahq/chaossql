@@ -3,6 +3,8 @@ package shrinker
 import (
 	"context"
 	"fmt"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/bregaldahq/chaossql/internal/domain"
@@ -41,13 +43,36 @@ func partition(c []domain.ScheduledOp, n int) [][]domain.ScheduledOp {
 	return subsets
 }
 
-// Shrink applies the Zeller Delta-Debugging algorithm to find a minimal failing subset
+func computeScheduleKey(ops []domain.ScheduledOp) string {
+	var sb strings.Builder
+	for _, op := range ops {
+		sb.WriteString(strconv.Itoa(op.ID))
+		sb.WriteByte(',')
+	}
+	return sb.String()
+}
+
+// Shrink applies the Zeller Delta-Debugging algorithm with memoization to find a minimal failing subset
 func Shrink(ctx context.Context, testFn func([]domain.ScheduledOp) bool, initialOps []domain.ScheduledOp) (*domain.ShrinkResult, error) {
 	start := time.Now()
 
 	// initial set must fail to be shrinkable. In testFn, false means FAIL (reproduces bug), true means PASS.
 	if testFn(initialOps) {
 		return nil, fmt.Errorf("initial operations do not fail the test")
+	}
+
+	memo := make(map[string]bool)
+	cachedTestFn := func(ops []domain.ScheduledOp) bool {
+		if len(ops) == 0 {
+			return true
+		}
+		key := computeScheduleKey(ops)
+		if res, ok := memo[key]; ok {
+			return res
+		}
+		res := testFn(ops)
+		memo[key] = res
+		return res
 	}
 
 	c := initialOps
@@ -62,16 +87,16 @@ func Shrink(ctx context.Context, testFn func([]domain.ScheduledOp) bool, initial
 
 		subsets := partition(c, n)
 		someComplementFailed := false
-		
+
 		for i := 0; i < n; i++ {
-			complement := make([]domain.ScheduledOp, 0)
+			complement := make([]domain.ScheduledOp, 0, len(c))
 			for j := 0; j < n; j++ {
 				if i != j {
 					complement = append(complement, subsets[j]...)
 				}
 			}
 
-			if !testFn(complement) { // Failed, which means we can reduce to complement
+			if !cachedTestFn(complement) { // Failed, which means we can reduce to complement
 				c = complement
 				n = max(n-1, 2)
 				someComplementFailed = true
@@ -82,7 +107,7 @@ func Shrink(ctx context.Context, testFn func([]domain.ScheduledOp) bool, initial
 		if !someComplementFailed {
 			someSubsetFailed := false
 			for i := 0; i < n; i++ {
-				if !testFn(subsets[i]) { // Failed, reduce to this subset
+				if !cachedTestFn(subsets[i]) { // Failed, reduce to this subset
 					c = subsets[i]
 					n = 2
 					someSubsetFailed = true
@@ -116,12 +141,8 @@ func ShrinkExecution(ctx context.Context, runner *engine.Runner, spec domain.Spe
 	testFn := func(ops []domain.ScheduledOp) bool {
 		res, err := runner.RunSchedule(ctx, spec, ops)
 		if err != nil {
-			// If infrastructure fails, we consider it a pass (it doesn't reproduce the invariant violation)
 			return true
 		}
-		// res.Success is true if NO violation detected.
-		// If Success == true, it PASSES. So we return true.
-		// If Success == false, it FAILS (reproduces bug). So we return false.
 		return res.Success
 	}
 	return Shrink(ctx, testFn, initialOps)

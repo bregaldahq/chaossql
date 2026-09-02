@@ -3,6 +3,7 @@ package analyzer
 import (
 	"fmt"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/bregaldahq/chaossql/internal/domain"
@@ -69,6 +70,74 @@ var (
 )
 
 func extractItem(sql string) (isWrite bool, item string) {
+	upper := strings.ToUpper(sql)
+	var table string
+	var id string
+
+	// Fast-path for UPDATE <table> SET ... WHERE id = <id>
+	if strings.HasPrefix(upper, "UPDATE ") {
+		isWrite = true
+		rest := strings.TrimSpace(sql[7:])
+		fields := strings.Fields(rest)
+		if len(fields) > 0 {
+			table = fields[0]
+		}
+		if idIdx := strings.Index(upper, "WHERE ID = "); idIdx != -1 {
+			idPart := strings.TrimSpace(sql[idIdx+11:])
+			idFields := strings.Fields(idPart)
+			if len(idFields) > 0 {
+				id = strings.TrimRight(idFields[0], ";,")
+			}
+		}
+	} else if strings.HasPrefix(upper, "INSERT INTO ") {
+		isWrite = true
+		rest := strings.TrimSpace(sql[12:])
+		fields := strings.Fields(rest)
+		if len(fields) > 0 {
+			table = strings.TrimRight(fields[0], " (")
+		}
+	} else if strings.HasPrefix(upper, "DELETE FROM ") {
+		isWrite = true
+		rest := strings.TrimSpace(sql[12:])
+		fields := strings.Fields(rest)
+		if len(fields) > 0 {
+			table = fields[0]
+		}
+		if idIdx := strings.Index(upper, "WHERE ID = "); idIdx != -1 {
+			idPart := strings.TrimSpace(sql[idIdx+11:])
+			idFields := strings.Fields(idPart)
+			if len(idFields) > 0 {
+				id = strings.TrimRight(idFields[0], ";,")
+			}
+		}
+	} else if strings.HasPrefix(upper, "SELECT ") {
+		isWrite = false
+		if fromIdx := strings.Index(upper, " FROM "); fromIdx != -1 {
+			rest := strings.TrimSpace(sql[fromIdx+6:])
+			fields := strings.Fields(rest)
+			if len(fields) > 0 {
+				table = strings.TrimRight(fields[0], ";,")
+			}
+			if idIdx := strings.Index(upper, "WHERE ID = "); idIdx != -1 {
+				idPart := strings.TrimSpace(sql[idIdx+11:])
+				idFields := strings.Fields(idPart)
+				if len(idFields) > 0 {
+					id = strings.TrimRight(idFields[0], ";,")
+				}
+			}
+		}
+	}
+
+	if table != "" {
+		if id != "" {
+			if _, err := strconv.Atoi(id); err == nil {
+				return isWrite, table + ":" + id
+			}
+		}
+		return isWrite, table
+	}
+
+	// Regex fallback for non-standard queries
 	if m := reWrite.FindStringSubmatch(sql); m != nil {
 		item := m[1]
 		if len(m) > 2 && m[2] != "" {
@@ -87,8 +156,10 @@ func extractItem(sql string) (isWrite bool, item string) {
 }
 
 func getTable(item string) string {
-	parts := strings.Split(item, ":")
-	return parts[0]
+	if idx := strings.IndexByte(item, ':'); idx != -1 {
+		return item[:idx]
+	}
+	return item
 }
 
 func BuildGraph(trace domain.ExecutionTrace) *AdyaGraph {
@@ -98,8 +169,8 @@ func BuildGraph(trace domain.ExecutionTrace) *AdyaGraph {
 	abortedTx := make(map[string]bool)
 
 	for _, event := range trace {
-		txID := fmt.Sprintf("T%d-%d", event.WorkerID, event.OpIndex)
 		if event.Type == domain.EventRollback {
+			txID := fmt.Sprintf("T%d-%d", event.WorkerID, event.OpIndex)
 			abortedTx[txID] = true
 		}
 	}
@@ -169,9 +240,9 @@ func BuildGraph(trace domain.ExecutionTrace) *AdyaGraph {
 
 func FindCycles(g *AdyaGraph) []Cycle {
 	var cycles []Cycle
-	visited := make(map[string]bool)
-	recStack := make(map[string]bool)
-	var path []Edge
+	visited := make(map[string]bool, len(g.Nodes))
+	recStack := make(map[string]bool, len(g.Nodes))
+	path := make([]Edge, 0, 16)
 
 	var dfs func(u string)
 	dfs = func(u string) {
