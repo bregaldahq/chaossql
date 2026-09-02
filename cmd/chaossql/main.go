@@ -33,44 +33,46 @@ var (
 func main() {
 	rootCmd := &cobra.Command{
 		Use:   "chaossql",
-		Short: "ChaosSQL: Causal concurrency chaos engineering and isolation anomaly detector",
-		Long: `ChaosSQL is a causal chaos engineering framework for relational databases.
-It executes PCT-scheduled concurrent transaction interleavings to detect isolation anomalies
-(such as Lost Updates, Write Skew, and Phantom Reads) and synthesizes minimal reproductions.`,
+		Short: "ChaosSQL: Deterministic Concurrency & Invariant Fuzzer for SQL Databases",
+		Long: `ChaosSQL bridges chaos engineering with formal academic database research (PCT, Elle, Hermitage).
+It injects stochastic interleavings across database worker threads to provoke subtle isolation anomalies
+(such as Lost Updates, Write Skew, and Phantom Reads) and applies causal Delta-Debugging to shrink
+noisy execution traces to minimal, deterministic reproductions.`,
 	}
 
 	runCmd := &cobra.Command{
-		Use:   "run <spec.yaml>",
-		Short: "Execute a chaos test battery from a YAML specification",
+		Use:   "run <chaos.yaml>",
+		Short: "Execute a chaos test against the specified database configuration",
 		Args:  cobra.ExactArgs(1),
 		RunE:  runChaosTest,
 	}
 
-	runCmd.Flags().Uint64Var(&seedFlag, "seed", 0, "PRNG seed for deterministic replay (default from spec)")
-	runCmd.Flags().IntVar(&workersFlag, "workers", 0, "Number of concurrent worker goroutines (default from spec)")
-	runCmd.Flags().IntVar(&iterationsFlag, "iterations", 0, "Number of operations to schedule (default from spec)")
-	runCmd.Flags().BoolVar(&jsonFlag, "json", false, "Output results in structured JSON format")
-	runCmd.Flags().BoolVar(&exportReproFlag, "export-repro", false, "Export standalone Go reproduction test (repro_test.go)")
-	runCmd.Flags().BoolVar(&exportMermaidFlag, "export-mermaid", false, "Export Mermaid sequence diagram (trace.mermaid)")
-	runCmd.Flags().StringVar(&exportHTMLFlag, "export-html", "", "Export standalone HTML report to file (e.g. report.html)")
-	runCmd.Flags().StringVar(&exportOTELFlag, "export-otel", "", "Export OpenTelemetry OTLP JSON trace to file (e.g. trace.json)")
+	runCmd.Flags().Uint64Var(&seedFlag, "seed", 0, "Deterministic PRNG seed (overrides spec)")
+	runCmd.Flags().IntVar(&workersFlag, "workers", 0, "Number of concurrent worker goroutines (overrides spec)")
+	runCmd.Flags().IntVar(&iterationsFlag, "iterations", 0, "Total number of operations to execute (overrides spec)")
+	runCmd.Flags().BoolVar(&jsonFlag, "json", false, "Output results as structured JSON payload")
+	runCmd.Flags().BoolVar(&exportReproFlag, "export-repro", false, "Export minimal reproduction as standalone Go test (repro_test.go)")
+	runCmd.Flags().BoolVar(&exportMermaidFlag, "export-mermaid", false, "Export execution sequence diagram as Mermaid format (trace.mermaid)")
+	runCmd.Flags().StringVar(&exportHTMLFlag, "export-html", "", "Export standalone interactive HTML report to file path")
+	runCmd.Flags().StringVar(&exportOTELFlag, "export-otel", "", "Export execution trace as OpenTelemetry OTLP JSON to file path")
 
 	demoCmd := &cobra.Command{
 		Use:   "demo [banking|inventory|hospital|financial|auction]",
-		Short: "Run an end-to-end interactive demo of a known concurrency anomaly",
+		Short: "Run one of the flagship demonstration scenarios (Lost Update, Oversell, Write Skew, Read Skew, Dirty Write)",
 		Args:  cobra.MaximumNArgs(1),
 		RunE:  runDemo,
 	}
-
-	demoCmd.Flags().BoolVar(&jsonFlag, "json", false, "Output demo results in structured JSON format")
-	demoCmd.Flags().BoolVar(&exportReproFlag, "export-repro", false, "Export standalone Go reproduction test")
-	demoCmd.Flags().BoolVar(&exportMermaidFlag, "export-mermaid", false, "Export Mermaid sequence diagram")
-	demoCmd.Flags().StringVar(&exportHTMLFlag, "export-html", "", "Export standalone HTML report to file (e.g. report.html)")
-	demoCmd.Flags().StringVar(&exportOTELFlag, "export-otel", "", "Export OpenTelemetry OTLP JSON trace to file (e.g. trace.json)")
+	demoCmd.Flags().BoolVar(&jsonFlag, "json", false, "Output results as structured JSON payload")
+	demoCmd.Flags().BoolVar(&exportReproFlag, "export-repro", false, "Export minimal reproduction as standalone Go test (repro_test.go)")
+	demoCmd.Flags().BoolVar(&exportMermaidFlag, "export-mermaid", false, "Export execution sequence diagram as Mermaid format (trace.mermaid)")
+	demoCmd.Flags().StringVar(&exportHTMLFlag, "export-html", "", "Export standalone interactive HTML report to file path")
+	demoCmd.Flags().StringVar(&exportOTELFlag, "export-otel", "", "Export execution trace as OpenTelemetry OTLP JSON to file path")
 
 	benchCmd := newBenchCmd()
+	diffCmd := newDiffCmd()
+	matrixCmd := newMatrixCmd()
 
-	rootCmd.AddCommand(runCmd, demoCmd, benchCmd)
+	rootCmd.AddCommand(runCmd, demoCmd, benchCmd, diffCmd, matrixCmd)
 
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)
