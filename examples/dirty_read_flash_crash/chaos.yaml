@@ -1,0 +1,35 @@
+version: "1.0"
+name: "dirty_read_flash_crash"
+description: "Detects Aborted / Dirty Read (G1a) triggering invalid collateral liquidation"
+
+database:
+  driver: "sqlite"
+  schema: "schema.sql"
+  seed: "seed.sql"
+
+engine:
+  workers: 2
+  iterations: 20
+  seed: 42
+  jitter_ms: [0, 5]
+  faults:
+    abort_probability: 0.3
+
+invariants:
+  - name: "no_invalid_liquidation_on_reverted_price"
+    query: "SELECT is_liquidated FROM vault_positions WHERE id = 1;"
+    assert: "is_liquidated == 0"
+
+operations:
+  - name: "flash_crash_update"
+    weight: 1.0
+    steps:
+      - sql: "UPDATE oracle_prices SET price_usd = 1500 WHERE id = 1;"
+      - sql: "UPDATE oracle_prices SET price_usd = 3000 WHERE id = 1;"
+
+  - name: "liquidation_bot"
+    weight: 1.0
+    steps:
+      - sql: "SELECT price_usd FROM oracle_prices WHERE id = 1;"
+        capture: "eth_price"
+      - sql: "UPDATE vault_positions SET is_liquidated = 1 WHERE id = 1 AND ({eth_price} * 10) < 24000;"

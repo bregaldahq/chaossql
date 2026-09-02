@@ -14,6 +14,7 @@ func TestLoadSpec_ValidExamples(t *testing.T) {
 		"read_skew_financial_audit",
 		"dirty_write_auction",
 		"circular_info_crypto_arbitrage",
+		"dirty_read_flash_crash",
 	}
 
 	for _, example := range examples {

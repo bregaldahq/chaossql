@@ -57,8 +57,8 @@ noisy execution traces to minimal, deterministic reproductions.`,
 	runCmd.Flags().StringVar(&exportOTELFlag, "export-otel", "", "Export execution trace as OpenTelemetry OTLP JSON to file path")
 
 	demoCmd := &cobra.Command{
-		Use:   "demo [banking|inventory|hospital|financial|auction|crypto]",
-		Short: "Run one of the flagship demonstration scenarios (Lost Update, Oversell, Write Skew, Read Skew, Dirty Write, Circular Info)",
+		Use:   "demo [banking|inventory|hospital|financial|auction|crypto|flash_crash]",
+		Short: "Run one of the flagship demonstration scenarios (Lost Update, Oversell, Write Skew, Read Skew, Dirty Write, Circular Info, Dirty Read)",
 		Args:  cobra.MaximumNArgs(1),
 		RunE:  runDemo,
 	}
@@ -105,8 +105,10 @@ func runDemo(cmd *cobra.Command, args []string) error {
 		specPath = "examples/dirty_write_auction/chaos.yaml"
 	case "crypto", "circular_info", "crypto_arbitrage", "circular_info_crypto_arbitrage":
 		specPath = "examples/circular_info_crypto_arbitrage/chaos.yaml"
+	case "flash_crash", "dirty_read", "dirty_read_flash_crash", "liquidation":
+		specPath = "examples/dirty_read_flash_crash/chaos.yaml"
 	default:
-		return fmt.Errorf("unknown demo scenario %q. Available scenarios: banking, inventory, hospital, financial, auction, crypto", scenario)
+		return fmt.Errorf("unknown demo scenario %q. Available scenarios: banking, inventory, hospital, financial, auction, crypto, flash_crash", scenario)
 	}
 
 	if _, err := os.Stat(specPath); os.IsNotExist(err) {
