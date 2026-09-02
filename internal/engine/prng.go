@@ -6,6 +6,8 @@ import (
 	"math/rand/v2"
 	"strconv"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -55,6 +57,45 @@ func (p *PRNG) Jitter(jitterRange [2]int, rng *rand.Rand) time.Duration {
 	return time.Duration(delayMs) * time.Millisecond
 }
 
+type counterState struct {
+	val atomic.Int64
+}
+
+var monotonicCounters sync.Map
+
+// ResetMonotonicCounters clears all monotonic counter states (useful for test resets).
+func ResetMonotonicCounters() {
+	monotonicCounters.Range(func(key, value any) bool {
+		monotonicCounters.Delete(key)
+		return true
+	})
+}
+
+var emailPrefixes = []string{
+	"user", "trader", "admin", "dev", "alex", "sam", "jordan", "taylor",
+	"casey", "morgan", "riley", "quinn", "avery", "skyler", "dakota",
+	"charlie", "finley", "rowan", "river", "sage",
+}
+
+var emailDomains = []string{
+	"example.com", "test.org", "defi.org", "chaos.io", "database.net",
+	"acme.corp", "mail.dev", "domain.com", "cloud.io", "fintech.ai",
+}
+
+var firstNames = []string{
+	"Alice", "Bob", "Charlie", "David", "Emma", "Frank", "Grace", "Hannah",
+	"Isaac", "Julia", "Kevin", "Laura", "Michael", "Nina", "Oliver", "Paula",
+	"Quinn", "Rachel", "Samuel", "Tina", "Umar", "Victor", "Wendy", "Xavier",
+	"Yasmine", "Zachary", "Alexander", "Sophia", "Lucas", "Mia",
+}
+
+var lastNames = []string{
+	"Smith", "Johnson", "Williams", "Brown", "Jones", "Garcia", "Miller",
+	"Davis", "Rodriguez", "Martinez", "Hernandez", "Lopez", "Gonzalez",
+	"Wilson", "Anderson", "Thomas", "Taylor", "Moore", "Jackson", "Martin",
+	"Lee", "Perez", "Thompson", "White", "Harris", "Sanchez", "Clark", "Ramirez",
+}
+
 // EvaluateGenerator evaluates dynamic random generators deterministically using r.
 func EvaluateGenerator(expr string, r *rand.Rand) (string, error) {
 	if r == nil {
@@ -80,6 +121,26 @@ func EvaluateGenerator(expr string, r *rand.Rand) (string, error) {
 	if strings.HasPrefix(trimmed, "$uuid(") && strings.HasSuffix(trimmed, ")") {
 		args := trimmed[len("$uuid(") : len(trimmed)-1]
 		return evalUUID(args, r)
+	}
+
+	if strings.HasPrefix(trimmed, "$faker_email(") && strings.HasSuffix(trimmed, ")") {
+		args := trimmed[len("$faker_email(") : len(trimmed)-1]
+		return evalFakerEmail(args, r)
+	}
+
+	if strings.HasPrefix(trimmed, "$faker_name(") && strings.HasSuffix(trimmed, ")") {
+		args := trimmed[len("$faker_name(") : len(trimmed)-1]
+		return evalFakerName(args, r)
+	}
+
+	if strings.HasPrefix(trimmed, "$faker_phone(") && strings.HasSuffix(trimmed, ")") {
+		args := trimmed[len("$faker_phone(") : len(trimmed)-1]
+		return evalFakerPhone(args, r)
+	}
+
+	if strings.HasPrefix(trimmed, "$monotonic_counter(") && strings.HasSuffix(trimmed, ")") {
+		args := trimmed[len("$monotonic_counter(") : len(trimmed)-1]
+		return evalMonotonicCounter(args)
 	}
 
 	// Legacy format: int(min, max)
@@ -222,4 +283,71 @@ func evalUUID(args string, r *rand.Rand) (string, error) {
 	buf[23] = '-'
 	hex.Encode(buf[24:36], b[10:16])
 	return string(buf[:]), nil
+}
+
+func evalFakerEmail(args string, r *rand.Rand) (string, error) {
+	if strings.TrimSpace(args) != "" {
+		return "", fmt.Errorf("$faker_email() takes no arguments, got: %s", args)
+	}
+	prefix := emailPrefixes[r.IntN(len(emailPrefixes))]
+	num := r.IntN(1000)
+	domain := emailDomains[r.IntN(len(emailDomains))]
+	return fmt.Sprintf("%s_%d@%s", prefix, num, domain), nil
+}
+
+func evalFakerName(args string, r *rand.Rand) (string, error) {
+	if strings.TrimSpace(args) != "" {
+		return "", fmt.Errorf("$faker_name() takes no arguments, got: %s", args)
+	}
+	first := firstNames[r.IntN(len(firstNames))]
+	last := lastNames[r.IntN(len(lastNames))]
+	return first + " " + last, nil
+}
+
+func evalFakerPhone(args string, r *rand.Rand) (string, error) {
+	if strings.TrimSpace(args) != "" {
+		return "", fmt.Errorf("$faker_phone() takes no arguments, got: %s", args)
+	}
+	num := r.IntN(10000)
+	return fmt.Sprintf("+1-555-%04d", num), nil
+}
+
+func evalMonotonicCounter(args string) (string, error) {
+	trimmed := strings.TrimSpace(args)
+	if trimmed == "" {
+		return "", fmt.Errorf("$monotonic_counter requires at least a start argument, got empty args")
+	}
+
+	parts := strings.Split(trimmed, ",")
+	var start, step int64
+	var err error
+
+	if len(parts) == 1 {
+		start, err = strconv.ParseInt(strings.TrimSpace(parts[0]), 10, 64)
+		if err != nil {
+			return "", fmt.Errorf("invalid start argument for $monotonic_counter: %s", args)
+		}
+		step = 1
+	} else if len(parts) == 2 {
+		start, err = strconv.ParseInt(strings.TrimSpace(parts[0]), 10, 64)
+		if err != nil {
+			return "", fmt.Errorf("invalid start argument for $monotonic_counter: %s", args)
+		}
+		step, err = strconv.ParseInt(strings.TrimSpace(parts[1]), 10, 64)
+		if err != nil {
+			return "", fmt.Errorf("invalid step argument for $monotonic_counter: %s", args)
+		}
+	} else {
+		return "", fmt.Errorf("invalid arguments for $monotonic_counter, expected (start, step): %s", args)
+	}
+
+	key := fmt.Sprintf("%d:%d", start, step)
+	c := &counterState{}
+	c.val.Store(start)
+
+	actual, _ := monotonicCounters.LoadOrStore(key, c)
+	state := actual.(*counterState)
+	currentVal := state.val.Add(step) - step
+
+	return strconv.FormatInt(currentVal, 10), nil
 }

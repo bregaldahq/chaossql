@@ -5,6 +5,8 @@ import (
 	"math/rand/v2"
 	"regexp"
 	"strconv"
+	"strings"
+	"sync"
 	"testing"
 
 	"github.com/bregaldahq/chaossql/internal/domain"
@@ -233,6 +235,225 @@ func TestEvaluateGenerator_UUID(t *testing.T) {
 	}
 }
 
+func TestEvaluateGenerator_FakerEmail(t *testing.T) {
+	rng1 := rand.New(rand.NewPCG(500, 0))
+	rng2 := rand.New(rand.NewPCG(500, 0))
+
+	val1, err := engine.EvaluateGenerator("$faker_email()", rng1)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	emailRegex := regexp.MustCompile(`^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`)
+	if !emailRegex.MatchString(val1) {
+		t.Errorf("expected valid email format, got %q", val1)
+	}
+
+	// Determinism
+	val2, err := engine.EvaluateGenerator("$faker_email()", rng2)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if val1 != val2 {
+		t.Errorf("expected deterministic email, got %q and %q", val1, val2)
+	}
+
+	// Consecutive generation produces distinct valid emails
+	val3, err := engine.EvaluateGenerator("$faker_email()", rng1)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if val1 == val3 {
+		t.Errorf("consecutive email generations should differ: %q vs %q", val1, val3)
+	}
+	if !emailRegex.MatchString(val3) {
+		t.Errorf("expected valid email format for second generation, got %q", val3)
+	}
+
+	// Error case: arguments provided
+	if _, err := engine.EvaluateGenerator("$faker_email(invalid)", rng1); err == nil {
+		t.Error("expected error when arguments passed to $faker_email()")
+	}
+}
+
+func TestEvaluateGenerator_FakerName(t *testing.T) {
+	rng1 := rand.New(rand.NewPCG(600, 0))
+	rng2 := rand.New(rand.NewPCG(600, 0))
+
+	val1, err := engine.EvaluateGenerator("$faker_name()", rng1)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	nameRegex := regexp.MustCompile(`^[A-Za-z]+ [A-Za-z]+$`)
+	if !nameRegex.MatchString(val1) {
+		t.Errorf("expected valid full name format, got %q", val1)
+	}
+
+	// Determinism
+	val2, err := engine.EvaluateGenerator("$faker_name()", rng2)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if val1 != val2 {
+		t.Errorf("expected deterministic name, got %q and %q", val1, val2)
+	}
+
+	// Consecutive generation
+	val3, err := engine.EvaluateGenerator("$faker_name()", rng1)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !nameRegex.MatchString(val3) {
+		t.Errorf("expected valid full name format for second generation, got %q", val3)
+	}
+
+	// Error case: arguments provided
+	if _, err := engine.EvaluateGenerator("$faker_name(invalid)", rng1); err == nil {
+		t.Error("expected error when arguments passed to $faker_name()")
+	}
+}
+
+func TestEvaluateGenerator_FakerPhone(t *testing.T) {
+	rng1 := rand.New(rand.NewPCG(700, 0))
+	rng2 := rand.New(rand.NewPCG(700, 0))
+
+	val1, err := engine.EvaluateGenerator("$faker_phone()", rng1)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	phoneRegex := regexp.MustCompile(`^\+1-555-\d{4}$`)
+	if !phoneRegex.MatchString(val1) {
+		t.Errorf("expected valid formatted phone number (e.g. +1-555-0142), got %q", val1)
+	}
+
+	// Determinism
+	val2, err := engine.EvaluateGenerator("$faker_phone()", rng2)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if val1 != val2 {
+		t.Errorf("expected deterministic phone number, got %q and %q", val1, val2)
+	}
+
+	// Consecutive generation
+	val3, err := engine.EvaluateGenerator("$faker_phone()", rng1)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !phoneRegex.MatchString(val3) {
+		t.Errorf("expected valid phone number format for second generation, got %q", val3)
+	}
+
+	// Error case: arguments provided
+	if _, err := engine.EvaluateGenerator("$faker_phone(invalid)", rng1); err == nil {
+		t.Error("expected error when arguments passed to $faker_phone()")
+	}
+}
+
+func TestEvaluateGenerator_MonotonicCounter(t *testing.T) {
+	engine.ResetMonotonicCounters()
+	rng := rand.New(rand.NewPCG(800, 0))
+
+	// Sequence 100, 105, 110...
+	expr := "$monotonic_counter(100, 5)"
+	expected := []string{"100", "105", "110", "115", "120"}
+	for i, exp := range expected {
+		val, err := engine.EvaluateGenerator(expr, rng)
+		if err != nil {
+			t.Fatalf("call %d unexpected error: %v", i, err)
+		}
+		if val != exp {
+			t.Errorf("call %d expected %q, got %q", i, exp, val)
+		}
+	}
+
+	// Single argument default step = 1
+	exprDefault := "$monotonic_counter(1)"
+	for i := 1; i <= 3; i++ {
+		val, err := engine.EvaluateGenerator(exprDefault, rng)
+		if err != nil {
+			t.Fatalf("default step call %d error: %v", i, err)
+		}
+		if val != strconv.Itoa(i) {
+			t.Errorf("default step call %d expected %d, got %q", i, i, val)
+		}
+	}
+
+	// Negative step
+	exprNeg := "$monotonic_counter(-10, -5)"
+	valNeg1, err := engine.EvaluateGenerator(exprNeg, rng)
+	if err != nil || valNeg1 != "-10" {
+		t.Errorf("expected -10, got %q, err: %v", valNeg1, err)
+	}
+	valNeg2, err := engine.EvaluateGenerator(exprNeg, rng)
+	if err != nil || valNeg2 != "-15" {
+		t.Errorf("expected -15, got %q, err: %v", valNeg2, err)
+	}
+
+	// Thread safety and concurrent calls
+	engine.ResetMonotonicCounters()
+	const numGoroutines = 50
+	const iterationsPerGoroutine = 20
+	const totalCalls = numGoroutines * iterationsPerGoroutine
+
+	results := make(chan string, totalCalls)
+	var wg sync.WaitGroup
+	wg.Add(numGoroutines)
+
+	for g := 0; g < numGoroutines; g++ {
+		go func() {
+			defer wg.Done()
+			localRng := rand.New(rand.NewPCG(123, 0))
+			for j := 0; j < iterationsPerGoroutine; j++ {
+				v, err := engine.EvaluateGenerator("$monotonic_counter(1000, 1)", localRng)
+				if err != nil {
+					t.Errorf("concurrent evaluation error: %v", err)
+					return
+				}
+				results <- v
+			}
+		}()
+	}
+
+	wg.Wait()
+	close(results)
+
+	seen := make(map[int]bool)
+	for r := range results {
+		n, err := strconv.Atoi(r)
+		if err != nil {
+			t.Fatalf("expected int string from counter, got %q", r)
+		}
+		if n < 1000 || n >= 1000+totalCalls {
+			t.Errorf("value out of expected range [1000, %d): %d", 1000+totalCalls, n)
+		}
+		if seen[n] {
+			t.Errorf("duplicate value detected in concurrent counter: %d", n)
+		}
+		seen[n] = true
+	}
+
+	if len(seen) != totalCalls {
+		t.Errorf("expected %d distinct values, got %d", totalCalls, len(seen))
+	}
+
+	// Error cases
+	if _, err := engine.EvaluateGenerator("$monotonic_counter()", rng); err == nil {
+		t.Error("expected error for empty arguments")
+	}
+	if _, err := engine.EvaluateGenerator("$monotonic_counter(abc, 5)", rng); err == nil {
+		t.Error("expected error for non-integer start")
+	}
+	if _, err := engine.EvaluateGenerator("$monotonic_counter(100, xyz)", rng); err == nil {
+		t.Error("expected error for non-integer step")
+	}
+	if _, err := engine.EvaluateGenerator("$monotonic_counter(1, 2, 3)", rng); err == nil {
+		t.Error("expected error for 3 arguments")
+	}
+}
+
 func TestEvaluateGenerator_StaticAndLegacy(t *testing.T) {
 	rng := rand.New(rand.NewPCG(400, 0))
 
@@ -282,6 +503,26 @@ func TestPRNG_EvaluateParam(t *testing.T) {
 		t.Errorf("failed to evaluate $uuid: %q", valUUID)
 	}
 
+	valEmail := prng.EvaluateParam("$faker_email()", rng)
+	if !strings.Contains(valEmail, "@") {
+		t.Errorf("failed to evaluate $faker_email: %q", valEmail)
+	}
+
+	valName := prng.EvaluateParam("$faker_name()", rng)
+	if !strings.Contains(valName, " ") {
+		t.Errorf("failed to evaluate $faker_name: %q", valName)
+	}
+
+	valPhone := prng.EvaluateParam("$faker_phone()", rng)
+	if !strings.HasPrefix(valPhone, "+1-555-") {
+		t.Errorf("failed to evaluate $faker_phone: %q", valPhone)
+	}
+
+	valCounter := prng.EvaluateParam("$monotonic_counter(50, 10)", rng)
+	if valCounter != "50" {
+		t.Errorf("failed to evaluate $monotonic_counter: %q", valCounter)
+	}
+
 	valStatic := prng.EvaluateParam("static_string", rng)
 	if valStatic != "static_string" {
 		t.Errorf("expected static string to be untouched, got %q", valStatic)
@@ -296,7 +537,7 @@ func TestRunner_DynamicGeneratorsIntegration(t *testing.T) {
 	spec := domain.Spec{
 		Name: "generators_integration_test",
 		Database: domain.DatabaseConfig{
-			Schema: "CREATE TABLE events (id TEXT PRIMARY KEY, type TEXT, amount INT, code TEXT);",
+			Schema: "CREATE TABLE events (id TEXT PRIMARY KEY, type TEXT, amount INT, code TEXT, email TEXT, name TEXT, phone TEXT, seq INT);",
 		},
 		Engine: domain.EngineConfig{
 			Workers:    2,
@@ -319,9 +560,13 @@ func TestRunner_DynamicGeneratorsIntegration(t *testing.T) {
 					"type":     "$random_choice('DEPOSIT', 'WITHDRAW', 'TRANSFER')",
 					"amount":   "$random_int(10, 500)",
 					"code":     "$random_string(8)",
+					"email":    "$faker_email()",
+					"name":     "$faker_name()",
+					"phone":    "$faker_phone()",
+					"seq":      "$monotonic_counter(1, 1)",
 				},
 				Steps: []domain.StepConfig{
-					{SQL: "INSERT INTO events (id, type, amount, code) VALUES ('{event_id}', '{type}', {amount}, '{code}');"},
+					{SQL: "INSERT INTO events (id, type, amount, code, email, name, phone, seq) VALUES ('{event_id}', '{type}', {amount}, '{code}', '{email}', '{name}', '{phone}', {seq});"},
 				},
 			},
 		},
@@ -354,6 +599,19 @@ func TestRunner_DynamicGeneratorsIntegration(t *testing.T) {
 		}
 		if len(op.Params["code"]) != 8 {
 			t.Errorf("op %d code not evaluated properly: %q", i, op.Params["code"])
+		}
+		if !strings.Contains(op.Params["email"], "@") {
+			t.Errorf("op %d email not evaluated properly: %q", i, op.Params["email"])
+		}
+		if !strings.Contains(op.Params["name"], " ") {
+			t.Errorf("op %d name not evaluated properly: %q", i, op.Params["name"])
+		}
+		if !strings.HasPrefix(op.Params["phone"], "+1-555-") {
+			t.Errorf("op %d phone not evaluated properly: %q", i, op.Params["phone"])
+		}
+		seq, err := strconv.Atoi(op.Params["seq"])
+		if err != nil || seq < 1 || seq > 5 {
+			t.Errorf("op %d seq not evaluated properly: %q", i, op.Params["seq"])
 		}
 	}
 }
