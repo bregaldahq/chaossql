@@ -11,19 +11,19 @@
 ```
 
 > **Deterministic Concurrency & Invariant Fuzzer for SQL Databases**  
-> *Finding isolation anomalies (Lost Update, Write Skew, Read Skew, Phantom Reads) and shrinking chaotic traces to 1-minimal reproductions.*
+> *Finding isolation anomalies (Lost Update, Write Skew, Read Skew, Dirty Write, Phantom Reads) and shrinking chaotic traces to 1-minimal reproductions.*
 
 [![Go Version](https://img.shields.io/badge/Go-1.23+-00ADD8?style=flat&logo=go)](https://golang.org)
 [![Zero CGO](https://img.shields.io/badge/CGO-Disabled_(Pure_Go)-success)](https://modernc.org/sqlite)
 [![CI Pipeline](https://github.com/bregaldahq/chaossql/actions/workflows/ci.yml/badge.svg)](https://github.com/bregaldahq/chaossql/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Harness Engineering](https://img.shields.io/badge/Harness-Verified_(24_Artifacts)-blueviolet)](AGENTS.md)
+[![Harness Engineering](https://img.shields.io/badge/Harness-Verified_(25_Artifacts)-blueviolet)](AGENTS.md)
 
 ---
 
 ## ⚡ The Problem: Concurrency Anomalies in SQL Databases
 
-Concurrency bugs in transactional systems (such as *Lost Updates*, *Write Skew*, *Read Skew*, and *Phantom Depletions*) are among the hardest defects to detect and debug:
+Concurrency bugs in transactional systems (such as *Lost Updates*, *Write Skew*, *Read Skew*, *Dirty Writes*, and *Phantom Depletions*) are among the hardest defects to detect and debug:
 1. **Flaky & Non-Deterministic:** They depend on microsecond race conditions between concurrent worker threads and OS scheduling.
 2. **Untraceable in Production:** When a database invariant is violated (e.g. an account balance going negative or stock being oversold), production logs contain thousands of interleaved operations, making root-cause analysis nearly impossible.
 3. **Engine-Specific Isolation Quirks:** `READ COMMITTED` and `SNAPSHOT ISOLATION` exhibit subtle semantic differences across SQLite, PostgreSQL, and MySQL.
@@ -32,7 +32,7 @@ Concurrency bugs in transactional systems (such as *Lost Updates*, *Write Skew*,
 * Injecting **stochastic micro-jitter** and **PCT-SQL priority scheduling** to reliably trigger rare race conditions.
 * Constructing client-observed **Serialization Graphs** $SG(S) = (V, E)$ to formally classify isolation anomalies ($P4, A5B, A5A, G0, G1c$).
 * Applying **Causal Delta-Debugging ($ddmin$)** to shrink a 100-operation noisy trace down to the **exact 2 or 3 operations** that caused the bug in $< 500\text{ms}$.
-* Synthesizing standalone, zero-dependency **`repro_test.go`** test cases and **dark-mode interactive HTML reports** for 1-click reproduction.
+* Synthesizing standalone, zero-dependency **`repro_test.go`** test cases, **dark-mode interactive HTML reports**, and **OpenTelemetry distributed traces** for 1-click reproduction.
 
 ---
 
@@ -88,7 +88,7 @@ ChaosSQL is built directly on seminal peer-reviewed database and concurrency res
 
 ---
 
-## 🚀 4 Flagship Demonstration Scenarios
+## 🚀 5 Flagship Demonstration Scenarios
 
 ### 1. 🏦 Banking Lost Update ($P4$)
 * **Context:** Fintech balance withdrawal where two concurrent transactions read balance (\$1000), calculate `balance - amount`, and write back simultaneously under `READ COMMITTED`.
@@ -114,6 +114,12 @@ ChaosSQL is built directly on seminal peer-reviewed database and concurrency res
 * **Result:** Auditor observes inconsistent intermediate state where total observed wealth does not equal true system wealth (\$1000).
 * **$ddmin$ Reduction:** $20 \text{ ops} \to 2 \text{ ops}$ (**90.0% noise reduction** in 559ms).
 
+### 5. 🏷️ Auction Bidding Dirty Write ($G0$)
+* **Context:** Concurrent auction bidders submitting bids on the same item, updating `highest_bid` and `winner_id` without transactional coordination.
+* **Cycle:** $T_1 \xrightarrow{ww} T_2 \xrightarrow{ww} T_1$
+* **Result:** Item ends up with bidder 1's price but bidder 2's user ID.
+* **$ddmin$ Reduction:** $20 \text{ ops} \to 2 \text{ ops}$ (**90.0% noise reduction** in 380ms).
+
 ---
 
 ## 🏛️ System Architecture
@@ -131,10 +137,10 @@ ChaosSQL is built directly on seminal peer-reviewed database and concurrency res
               │                       │                       │
               └───────────────────────┼───────────────────────┘
                                       │
-              ┌───────────────────────┴───────────────────────┐
-              ▼                                               ▼
-      [SQLite Driver]                                 [Postgres Driver]
-       modernc.org/sqlite (Zero CGO)                   pgx/v5 (Configurable SSI)
+              ┌───────────────────────┼───────────────────────┐
+              ▼                       ▼                       ▼
+      [SQLite Driver]         [Postgres Driver]       [MySQL Driver]
+       modernc.org/sqlite      pgx/v5 (SSI support)    go-sql-driver/mysql
 ```
 
 ---
@@ -167,26 +173,16 @@ make demo
 make bench
 ```
 
-```text
-╭──────────────────────────┬───────────────────────┬───────────┬────────┬─────────╮
-│ COMPONENT                │ METRIC                │ VALUE     │ UNIT   │ STATUS  │
-├──────────────────────────┼───────────────────────┼───────────┼────────┼─────────┤
-│ PRNG & Generators        │ Parameter Throughput  │ 7,061,741 │ops/sec │✔ OPTIMAL│
-│ Adya Graph (1000 nodes)  │ Build & Cycle Latency │ 6.66      │ms      │✔ OPTIMAL│
-│ Delta-Debugging (ddmin)  │ Reduction Throughput  │ 1,293,714 │iter/sec│✔ OPTIMAL│
-│ Database Engine (SQLITE) │ Concurrent Throughput │ 11,632    │TPS     │✔ OPTIMAL│
-╰──────────────────────────┴───────────────────────┴───────────┴────────┴─────────╯
-```
-
 ### 4. Run a Custom Fuzzing Session with Full Evidence Export
 
 ```bash
-# Execute chaos test with HTML, Go repro, and Mermaid export
-bin/chaossql run examples/read_skew_financial_audit/chaos.yaml \
+# Execute chaos test with HTML, OpenTelemetry, Go repro, and Mermaid export
+bin/chaossql run examples/dirty_write_auction/chaos.yaml \
   --workers 4 \
   --iterations 20 \
   --seed 42 \
   --export-html report.html \
+  --export-otel trace.json \
   --export-repro \
   --export-mermaid
 ```
@@ -253,7 +249,7 @@ ChaosSQL follows strict **Harness Engineering** contracts (`AGENTS.md`):
 
 | Quality Gate | Requirement | Status |
 | :--- | :--- | :--- |
-| **Contractual Integrity** | 24 mandatory architectural and academic artifacts | `PASS` (`tools/harness_check.go`) |
+| **Contractual Integrity** | 25 mandatory architectural and academic artifacts | `PASS` (`tools/harness_check.go`) |
 | **Static Analysis** | `go vet ./...` with zero warnings | `PASS` |
 | **Concurrency Safety** | `go test -race ./internal/...` | `PASS` (0 data races) |
 | **CGO Freedom** | Compiles with `CGO_ENABLED=0` | `PASS` (pure Go SQLite) |
