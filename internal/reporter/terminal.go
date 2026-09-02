@@ -250,7 +250,7 @@ func RenderFullReport(spec domain.Spec, result *engine.RunResult, shrink *domain
 	}
 
 	hint := lipgloss.NewStyle().Foreground(colorGray).Italic(true).Render(
-		"Artifacts: Use --export-repro to emit standalone repro_test.go | --export-mermaid to emit sequence diagram.",
+		"Artifacts: Use --export-repro to emit standalone repro_test.go | --export-mermaid to emit sequence diagram | --export-html to emit HTML report.",
 	)
 	sb.WriteString(fmt.Sprintf("  %s\n", hint))
 

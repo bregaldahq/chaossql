@@ -20,12 +20,13 @@ import (
 )
 
 var (
-	seedFlag         uint64
-	workersFlag      int
-	iterationsFlag   int
-	jsonFlag         bool
-	exportReproFlag  bool
+	seedFlag          uint64
+	workersFlag       int
+	iterationsFlag    int
+	jsonFlag          bool
+	exportReproFlag   bool
 	exportMermaidFlag bool
+	exportHTMLFlag    string
 )
 
 func main() {
@@ -50,6 +51,7 @@ It executes PCT-scheduled concurrent transaction interleavings to detect isolati
 	runCmd.Flags().BoolVar(&jsonFlag, "json", false, "Output results in structured JSON format")
 	runCmd.Flags().BoolVar(&exportReproFlag, "export-repro", false, "Export standalone Go reproduction test (repro_test.go)")
 	runCmd.Flags().BoolVar(&exportMermaidFlag, "export-mermaid", false, "Export Mermaid sequence diagram (trace.mermaid)")
+	runCmd.Flags().StringVar(&exportHTMLFlag, "export-html", "", "Export standalone HTML report to file (e.g. report.html)")
 
 	demoCmd := &cobra.Command{
 		Use:   "demo [banking|inventory|hospital]",
@@ -61,6 +63,7 @@ It executes PCT-scheduled concurrent transaction interleavings to detect isolati
 	demoCmd.Flags().BoolVar(&jsonFlag, "json", false, "Output demo results in structured JSON format")
 	demoCmd.Flags().BoolVar(&exportReproFlag, "export-repro", false, "Export standalone Go reproduction test")
 	demoCmd.Flags().BoolVar(&exportMermaidFlag, "export-mermaid", false, "Export Mermaid sequence diagram")
+	demoCmd.Flags().StringVar(&exportHTMLFlag, "export-html", "", "Export standalone HTML report to file (e.g. report.html)")
 
 	rootCmd.AddCommand(runCmd, demoCmd)
 
@@ -203,6 +206,12 @@ func executeChaos(specPath string) error {
 		}
 	}
 
+	// Invariant audit results
+	var invResults []domain.InvariantResult
+	if runResult.FailingInvariant != nil {
+		invResults = append(invResults, *runResult.FailingInvariant)
+	}
+
 	// Export repro code if requested
 	var reproCode string
 	if exportReproFlag || jsonFlag {
@@ -233,6 +242,20 @@ func executeChaos(specPath string) error {
 		}
 	}
 
+	// Export HTML report if requested
+	var htmlReport string
+	if exportHTMLFlag != "" || jsonFlag {
+		htmlReport = reporter.GenerateStandaloneHTMLReport(minimalTrace, *spec, graph, shrinkResult, invResults)
+		if exportHTMLFlag != "" {
+			if err := os.WriteFile(exportHTMLFlag, []byte(htmlReport), 0644); err != nil {
+				return fmt.Errorf("failed to write %s: %w", exportHTMLFlag, err)
+			}
+			if !jsonFlag {
+				fmt.Printf("  [✓] Generated standalone HTML report: %s\n", exportHTMLFlag)
+			}
+		}
+	}
+
 	// Output format
 	if jsonFlag {
 		output := map[string]interface{}{
@@ -252,6 +275,7 @@ func executeChaos(specPath string) error {
 			"shrink":             shrinkResult,
 			"mermaid":            mermaidCode,
 			"repro_go":           reproCode,
+			"html_report":        htmlReport,
 		}
 		enc := json.NewEncoder(os.Stdout)
 		enc.SetIndent("", "  ")
