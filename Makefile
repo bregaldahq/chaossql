@@ -1,16 +1,17 @@
 GO ?= $(shell which /usr/local/go/bin/go go 2>/dev/null | head -n 1)
 
-.PHONY: help bootstrap test lint verify check-harness build demo bench
+.PHONY: help bootstrap test lint verify check-harness build demo bench matrix diff
 
 help:
 	@echo "ChaosSQL (Go 1.23+) Harness Commands:"
 	@echo "  make bootstrap     - Baixa e verifica todas as dependencias Go"
 	@echo "  make test          - Executa suite de testes unitarios e de integracao (-race)"
 	@echo "  make lint          - Executa go vet e analise estatica"
-	@echo "  make check-harness - Valida integridade dos 24 documentos do harness"
+	@echo "  make check-harness - Valida integridade dos 26 documentos do harness"
 	@echo "  make build         - Compila o binario chaossql (Zero CGO)"
-	@echo "  make demo          - Executa as 5 demonstracoes interativas"
+	@echo "  make demo          - Executa as 6 demonstracoes interativas"
 	@echo "  make bench         - Executa benchmarks de performance e throughput"
+	@echo "  make matrix        - Executa a matriz empirica de isolamento Hermitage"
 	@echo "  make verify        - Gate unificado (check-harness + lint + test)"
 
 check-harness:
@@ -32,6 +33,9 @@ build:
 bench: build
 	@./bin/chaossql bench
 
+matrix: build
+	@./bin/chaossql matrix
+
 demo: build
 	@echo "=== 1. Demonstrando Banking Lost Update (P4) ==="
 	@./bin/chaossql demo banking || true
@@ -47,6 +51,9 @@ demo: build
 	@echo ""
 	@echo "=== 5. Demonstrando Auction Bidding Dirty Write (G0) ==="
 	@./bin/chaossql demo auction || true
+	@echo ""
+	@echo "=== 6. Demonstrando Crypto Arbitrage Circular Info (G1c) ==="
+	@./bin/chaossql demo crypto || true
 
 verify: check-harness lint test
 	@echo ""

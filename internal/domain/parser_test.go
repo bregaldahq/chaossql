@@ -13,6 +13,7 @@ func TestLoadSpec_ValidExamples(t *testing.T) {
 		"hospital_write_skew",
 		"read_skew_financial_audit",
 		"dirty_write_auction",
+		"circular_info_crypto_arbitrage",
 	}
 
 	for _, example := range examples {
@@ -38,11 +39,9 @@ func TestLoadSpec_ValidExamples(t *testing.T) {
 				t.Errorf("No operations loaded in %s", example)
 			}
 			if spec.Database.Schema == "" && spec.Database.Driver != "" {
-				// The examples contain schema files
 				t.Errorf("Schema file content not loaded in %s", example)
 			}
 			if spec.Database.Seed == "" && spec.Database.Driver != "" {
-				// The examples contain seed files
 				t.Errorf("Seed file content not loaded in %s", example)
 			}
 		})
@@ -53,16 +52,16 @@ func TestLoadSpec_Errors(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	tests := []struct {
-		name        string
-		yamlContent string
-		setupFiles  func(string)
-		expectError bool
+		name          string
+		yamlContent   string
+		setupFiles    func(string)
+		expectError   bool
 		errorContains string
 	}{
 		{
-			name: "Invalid YAML",
-			yamlContent: "version: '1.0'\n  invalid: \n- unindented",
-			expectError: true,
+			name:          "Invalid YAML",
+			yamlContent:   "version: '1.0'\n  invalid: \n- unindented",
+			expectError:   true,
 			errorContains: "failed to parse yaml",
 		},
 		{
@@ -76,7 +75,7 @@ invariants:
 operations:
   - name: op
 `,
-			expectError: true,
+			expectError:   true,
 			errorContains: "missing or empty 'version'",
 		},
 		{
@@ -90,7 +89,7 @@ invariants:
 operations:
   - name: op
 `,
-			expectError: true,
+			expectError:   true,
 			errorContains: "missing or empty 'name'",
 		},
 		{
@@ -103,7 +102,7 @@ invariants:
 operations:
   - name: op
 `,
-			expectError: true,
+			expectError:   true,
 			errorContains: "missing or empty 'database.driver'",
 		},
 		{
@@ -116,7 +115,7 @@ database:
 operations:
   - name: op
 `,
-			expectError: true,
+			expectError:   true,
 			errorContains: "'invariants' must have at least one entry",
 		},
 		{
@@ -129,7 +128,7 @@ database:
 invariants:
   - name: inv
 `,
-			expectError: true,
+			expectError:   true,
 			errorContains: "'operations' must have at least one entry",
 		},
 		{
@@ -145,7 +144,7 @@ invariants:
 operations:
   - name: op
 `,
-			expectError: true,
+			expectError:   true,
 			errorContains: "failed to read schema file",
 		},
 		{
@@ -161,7 +160,7 @@ invariants:
 operations:
   - name: op
 `,
-			expectError: true,
+			expectError:   true,
 			errorContains: "failed to read seed file",
 		},
 	}
@@ -196,7 +195,6 @@ operations:
 }
 
 func contains(s, substr string) bool {
-	// simple implementation to avoid importing strings
 	for i := 0; i <= len(s)-len(substr); i++ {
 		if s[i:i+len(substr)] == substr {
 			return true

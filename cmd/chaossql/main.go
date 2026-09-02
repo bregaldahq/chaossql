@@ -57,8 +57,8 @@ noisy execution traces to minimal, deterministic reproductions.`,
 	runCmd.Flags().StringVar(&exportOTELFlag, "export-otel", "", "Export execution trace as OpenTelemetry OTLP JSON to file path")
 
 	demoCmd := &cobra.Command{
-		Use:   "demo [banking|inventory|hospital|financial|auction]",
-		Short: "Run one of the flagship demonstration scenarios (Lost Update, Oversell, Write Skew, Read Skew, Dirty Write)",
+		Use:   "demo [banking|inventory|hospital|financial|auction|crypto]",
+		Short: "Run one of the flagship demonstration scenarios (Lost Update, Oversell, Write Skew, Read Skew, Dirty Write, Circular Info)",
 		Args:  cobra.MaximumNArgs(1),
 		RunE:  runDemo,
 	}
@@ -102,13 +102,14 @@ func runDemo(cmd *cobra.Command, args []string) error {
 		specPath = "examples/read_skew_financial_audit/chaos.yaml"
 	case "auction", "dirty_write", "auction_dirty_write":
 		specPath = "examples/dirty_write_auction/chaos.yaml"
+	case "crypto", "circular_info", "crypto_arbitrage", "circular_info_crypto_arbitrage":
+		specPath = "examples/circular_info_crypto_arbitrage/chaos.yaml"
 	default:
-		return fmt.Errorf("unknown demo scenario %q. Available scenarios: banking, inventory, hospital, financial, auction", scenario)
+		return fmt.Errorf("unknown demo scenario %q. Available scenarios: banking, inventory, hospital, financial, auction, crypto", scenario)
 	}
 
 	// If running from subfolder or root, locate the spec file
 	if _, err := os.Stat(specPath); os.IsNotExist(err) {
-		// Try root relative
 		altPath := filepath.Join("/root/chaossql", specPath)
 		if _, err := os.Stat(altPath); err == nil {
 			specPath = altPath
@@ -168,6 +169,10 @@ func executeChaos(specPath string) error {
 			anomaly = domain.AnomalyG0DirtyWrite
 			break
 		}
+		if cls == domain.AnomalyG1cCircularInfo {
+			anomaly = domain.AnomalyG1cCircularInfo
+			break
+		}
 		if cls == domain.AnomalyWriteSkew {
 			anomaly = domain.AnomalyWriteSkew
 			break
@@ -193,9 +198,9 @@ func executeChaos(specPath string) error {
 		testFn := func(subset []domain.ScheduledOp) bool {
 			res, err := runner.RunSchedule(ctx, *spec, subset)
 			if err != nil {
-				return true // execution failed, not reproducible
+				return true
 			}
-			return !res.ViolationDetected // true = PASS (no bug), false = FAIL (bug reproduced)
+			return !res.ViolationDetected
 		}
 
 		shrunk, err := shrinker.Shrink(ctx, testFn, runResult.ScheduledOps)
@@ -203,7 +208,6 @@ func executeChaos(specPath string) error {
 			shrinkResult = shrunk
 			minimalOps = shrunk.MinimalOps
 
-			// Capture clean minimal trace
 			minRunRes, err := runner.RunSchedule(ctx, *spec, minimalOps)
 			if err == nil && minRunRes != nil {
 				minimalTrace = minRunRes.Trace
@@ -213,6 +217,10 @@ func executeChaos(specPath string) error {
 					cls := analyzer.ClassifyCycle(c)
 					if cls == domain.AnomalyG0DirtyWrite {
 						anomaly = domain.AnomalyG0DirtyWrite
+						break
+					}
+					if cls == domain.AnomalyG1cCircularInfo {
+						anomaly = domain.AnomalyG1cCircularInfo
 						break
 					}
 					if cls == domain.AnomalyA5AReadSkew {
@@ -234,13 +242,11 @@ func executeChaos(specPath string) error {
 		}
 	}
 
-	// Invariant audit results
 	var invResults []domain.InvariantResult
 	if runResult.FailingInvariant != nil {
 		invResults = append(invResults, *runResult.FailingInvariant)
 	}
 
-	// Export repro code if requested
 	var reproCode string
 	if exportReproFlag || jsonFlag {
 		reproCode = reporter.GenerateStandaloneGoRepro(*spec, minimalOps, runResult.FailingInvariant)
@@ -255,7 +261,6 @@ func executeChaos(specPath string) error {
 		}
 	}
 
-	// Export mermaid diagram if requested
 	var mermaidCode string
 	if exportMermaidFlag || jsonFlag {
 		mermaidCode = reporter.GenerateMermaidSequence(minimalTrace)
@@ -270,7 +275,6 @@ func executeChaos(specPath string) error {
 		}
 	}
 
-	// Export HTML report if requested
 	var htmlReport string
 	if exportHTMLFlag != "" || jsonFlag {
 		htmlReport = reporter.GenerateStandaloneHTMLReport(minimalTrace, *spec, graph, shrinkResult, invResults)
@@ -284,7 +288,6 @@ func executeChaos(specPath string) error {
 		}
 	}
 
-	// Export OpenTelemetry OTLP trace JSON if requested
 	var otelTrace string
 	if exportOTELFlag != "" || jsonFlag {
 		var otelErr error
@@ -302,7 +305,6 @@ func executeChaos(specPath string) error {
 		}
 	}
 
-	// Output format
 	if jsonFlag {
 		output := map[string]interface{}{
 			"spec": map[string]interface{}{
@@ -329,7 +331,6 @@ func executeChaos(specPath string) error {
 		return enc.Encode(output)
 	}
 
-	// Terminal Report Output
 	reporter.PrintTerminalReport(*spec, runResult, shrinkResult, anomaly)
 	return nil
 }

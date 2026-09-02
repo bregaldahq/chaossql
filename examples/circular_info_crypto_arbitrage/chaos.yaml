@@ -1,0 +1,40 @@
+version: "1.0"
+name: "circular_info_crypto_arbitrage"
+description: "Detects Circular Information Flow (G1c) during concurrent cross-DEX liquidity updates"
+
+database:
+  driver: "sqlite"
+  schema: "schema.sql"
+  seed: "seed.sql"
+
+engine:
+  workers: 2
+  iterations: 20
+  seed: 42
+  jitter_ms: [0, 5]
+
+invariants:
+  - name: "arbitrage_price_consistency"
+    query: "SELECT (SELECT price_eth FROM dex_pools WHERE id = 1) AS p1, (SELECT price_eth FROM dex_pools WHERE id = 2) AS p2;"
+    assert: "p1 == 3100 or p2 == 3200"
+
+operations:
+  - name: "arb_bot_uniswap"
+    weight: 1.0
+    params:
+      trade_vol: "$random_int(10, 100)"
+    steps:
+      - sql: "UPDATE dex_pools SET price_eth = 3100 WHERE id = 1;"
+      - sql: "SELECT price_eth FROM dex_pools WHERE id = 2;"
+        capture: "sushi_price"
+      - sql: "INSERT INTO trade_orders (dex_id, trader, amount) VALUES (1, 'Bot_Uni', {sushi_price});"
+
+  - name: "arb_bot_sushiswap"
+    weight: 1.0
+    params:
+      trade_vol: "$random_int(10, 100)"
+    steps:
+      - sql: "UPDATE dex_pools SET price_eth = 3200 WHERE id = 2;"
+      - sql: "SELECT price_eth FROM dex_pools WHERE id = 1;"
+        capture: "uni_price"
+      - sql: "INSERT INTO trade_orders (dex_id, trader, amount) VALUES (2, 'Bot_Sushi', {uni_price});"
