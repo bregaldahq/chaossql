@@ -14,10 +14,11 @@
 > *Finding isolation anomalies (Lost Update, Write Skew, Read Skew, Dirty Write, Dirty Read, Circular Info, G2 Anti-Dependency, Deadlocks, Phantom Reads) and shrinking chaotic traces to 1-minimal reproductions.*
 
 [![Go Version](https://img.shields.io/badge/Go-1.23+-00ADD8?style=flat&logo=go)](https://golang.org)
+[![Version](https://img.shields.io/badge/Version-1.1.0-blue?style=flat)](https://github.com/bregaldahq/chaossql/releases)
 [![Zero CGO](https://img.shields.io/badge/CGO-Disabled_(Pure_Go)-success)](https://modernc.org/sqlite)
 [![CI Pipeline](https://github.com/bregaldahq/chaossql/actions/workflows/ci.yml/badge.svg)](https://github.com/bregaldahq/chaossql/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Harness Engineering](https://img.shields.io/badge/Harness-Verified_(30_Artifacts)-blueviolet)](AGENTS.md)
+[![Harness Engineering](https://img.shields.io/badge/Harness-Verified_(32_Artifacts)-blueviolet)](AGENTS.md)
 [![Security Policy](https://img.shields.io/badge/Security-Defensive_Sandboxed-blue)](SECURITY.md)
 
 ---
@@ -31,9 +32,114 @@ Concurrency bugs in transactional systems (such as *Lost Updates*, *Write Skew*,
 
 **ChaosSQL solves this by:**
 * Injecting **stochastic micro-jitter**, **PCT-SQL priority scheduling**, and **fault injection** (forced aborts, latency spikes, simulated disconnects) to reliably trigger rare race conditions.
-* Constructing client-observed **Serialization Graphs** $SG(S) = (V, E)$ to formally classify isolation anomalies ($P4, A5B, A5A, G0, G1a, G1c, G2$).
+* Constructing client-observed **Serialization Graphs** $SG(S) = (V, E)$ to formally classify isolation anomalies ($P4, A5B, A5A, G0, G1a, G1c, G2, G\text{-DL}$).
 * Applying **Causal Delta-Debugging ($ddmin$)** to shrink a 100-operation noisy trace down to the **exact 2 or 3 operations** that caused the bug in $< 200\text{ms}$.
+* Providing a native **Go Testing SDK (`pkg/chaostest`)** for direct integration with `*testing.T`.
+* Providing an **Official GitHub Action (`action.yml`)** for automated PR gatekeeping.
 * Synthesizing standalone, zero-dependency **`repro_test.go`** test cases, **dark-mode interactive HTML reports**, **JUnit XML test suites**, **GitHub Actions step summaries**, and **OpenTelemetry distributed traces** for 1-click reproduction.
+
+---
+
+## 💻 Go Developer Testing SDK (`pkg/chaostest`)
+
+Embed deterministic concurrency stress tests directly into your standard Go test suite:
+
+```go
+package myapp_test
+
+import (
+    "context"
+    "testing"
+    "github.com/bregaldahq/chaossql/pkg/chaostest"
+)
+
+func TestAccountTransfer_NoLostUpdates(t *testing.T) {
+    ctx := context.Background()
+
+    schema := `
+    CREATE TABLE accounts (
+        id INT PRIMARY KEY,
+        balance INT NOT NULL
+    );`
+
+    seed := `
+    INSERT INTO accounts VALUES (1, 1000), (2, 1000);`
+
+    chaostest.New(t).
+        WithSchema(schema).
+        WithSeed(seed).
+        WithInvariant("total_wealth", "SELECT sum(balance) AS total FROM accounts;", "total == 2000").
+        AddOperation("transfer_1_to_2",
+            "SELECT balance FROM accounts WHERE id = 1 -> bal1",
+            "UPDATE accounts SET balance = {bal1 - 50} WHERE id = 1",
+            "UPDATE accounts SET balance = balance + 50 WHERE id = 2",
+        ).
+        AddOperation("transfer_2_to_1",
+            "SELECT balance FROM accounts WHERE id = 2 -> bal2",
+            "UPDATE accounts SET balance = {bal2 - 50} WHERE id = 2",
+            "UPDATE accounts SET balance = balance + 50 WHERE id = 1",
+        ).
+        AssertNoAnomalies(ctx, 4, 30, 42) // workers=4, iterations=30, seed=42
+}
+```
+
+---
+
+## 🤖 Official GitHub Action (`bregaldahq/chaossql`)
+
+Integrate concurrency fuzzing into your CI/CD workflow:
+
+```yaml
+name: Concurrency Gate
+
+on: [pull_request]
+
+jobs:
+  chaos-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run ChaosSQL Scenario
+        uses: bregaldahq/chaossql@v1.1
+        with:
+          spec-path: 'examples/banking_lost_update/chaos.yaml'
+          workers: 4
+          iterations: 25
+          export-summary: 'summary.md'
+          export-junit: 'junit.xml'
+```
+
+---
+
+## 🎲 Smart Parameter & Faker Generators
+
+ChaosSQL provides built-in declarative generators with deterministic PRNG replay:
+
+| Generator Expression | Example Output | Description |
+| :--- | :--- | :--- |
+| `$faker_email()` | `user_84@example.com` | Plausible random email address |
+| `$faker_name()` | `'Alice Johnson'` | Realistic full name |
+| `$faker_phone()` | `'+1-555-0142'` | Formatted telephone string |
+| `$monotonic_counter(100, 5)` | `100, 105, 110...` | Thread-safe strictly monotonic sequence |
+| `$random_int(10, 500)` | `284` | Uniform random integer in range |
+| `$random_choice('A', 'B')` | `'B'` | Discrete uniform choice |
+| `$uuid()` | `4a8f9c1b-...` | RFC 4122 v4 deterministic UUID |
+
+---
+
+## 🚀 9 Flagship Demonstration Scenarios
+
+| # | Anomaly / Scenario | Cycle / Structure | Result / Impact |
+| :-: | :--- | :--- | :--- |
+| **1** | **🏦 Banking Lost Update ($P4$)** | $T_1 \xrightarrow{rw} T_2 \xrightarrow{ww} T_1$ | Silent balance loss under `READ COMMITTED` |
+| **2** | **🛒 Inventory Oversell ($A3$)** | Anti-dependency on predicate ($G\text{-phantom}$) | Negative stock inventory under concurrent checkout |
+| **3** | **🏥 Hospital Write Skew ($A5B$)** | $T_1 \xrightarrow{rw} T_2 \xrightarrow{rw} T_1$ | 0 doctors on duty under Snapshot Isolation |
+| **4** | **💳 Financial Read Skew ($A5A$)** | $T_1 \xrightarrow{rw} T_2 \xrightarrow{wr} T_1$ | Inconsistent audit balances across accounts |
+| **5** | **🏷️ Auction Dirty Write ($G0$)** | $T_1 \xrightarrow{ww} T_2 \xrightarrow{ww} T_1$ | Disassociated bidder price vs winner ID |
+| **6** | **🪙 Crypto Arbitrage ($G1c$)** | $T_1 \xrightarrow{wr} T_2 \xrightarrow{wr} T_1$ | Circular stale oracle executions in AMMs |
+| **7** | **⚡ Flash Crash Dirty Read ($G1a$)** | $w_1(\text{price}) \dots r_2 \dots a_1$ | Erroneous collateral liquidation on aborted data |
+| **8** | **🎟️ Ticket Anti-Dependency ($G2$)** | $T_1 \xrightarrow{rw} T_2 \xrightarrow{rw} T_3 \xrightarrow{rw} T_1$ | Tri-partite concurrent seat overbooking |
+| **9** | **🔒 Deadlock Cycle & Recovery ($G\text{-DL}$)** | $T_1 \xrightarrow{\text{waits-for}} T_2 \xrightarrow{\text{waits-for}} T_1$ | Lock contention detection and wealth preservation |
 
 ---
 
@@ -51,267 +157,41 @@ Concurrency bugs in transactional systems (such as *Lost Updates*, *Write Skew*,
 │                                                                       │
 │   Status:   ✘ ISOLATION ANOMALY DETECTED    [P4_LOST_UPDATE]          │
 ╰───────────────────────────────────────────────────────────────────────╯
-
-╭──────────────────────────────────────────────────────────────────────────────────────────╮
-│ INVARIANT INTEGRITY AUDIT                                                                │
-│                                                                                          │
-│    INVARIANT                    STATUS   ASSERTION EXPRESSION       ACTUAL DATABASE STATE│
-│   ────────────────────────────────────────────────────────────────────────────────────   │
-│    ledger_balance_consistency   FAIL     actual == expected         actual:786 expected:218
-╰──────────────────────────────────────────────────────────────────────────────────────────╯
-
-╭────────────────────────────────────────────────────────────────────────────────────────╮
-│ DELTA-DEBUGGING CAUSAL REDUCTION (ddmin)                                               │
-│                                                                                        │
-│   • Noise Reduction: 20 ops  ──►  3 ops (85.0% reduction)                              │
-│   • Algorithm Cost: 5 iterations | Duration: 476ms                                     │
-│                                                                                        │
-│   Minimal Reproducing Schedule:                                                        │
-│     [withdraw #1] {amount=100} -> (Step 1: SELECT balance, Step 2: UPDATE balance)     │
-│     [withdraw #2] {amount=100} -> (Step 1: SELECT balance, Step 2: UPDATE balance)     │
-│     [withdraw #3] {amount=50}  -> (Step 1: SELECT balance, Step 2: UPDATE balance)     │
-╰────────────────────────────────────────────────────────────────────────────────────────╯
 ```
 
 ---
 
-## 🔬 Theoretical & Academic Foundations
-
-ChaosSQL is built directly on seminal peer-reviewed database and concurrency research:
-
-| Academic Paper | Contribution to ChaosSQL |
-| :--- | :--- |
-| **Burckhardt et al. (ASPLOS 2010)**<br>*A Randomized Scheduler with Probabilistic Guarantees* | **PCT-SQL Scheduler:** Random priority assignments bounding bug-detection depth with $\mathbb{P} \ge \frac{1}{n \cdot k^{d-1}}$. |
-| **Atul Adya (MIT PhD 1999)**<br>*Weak Consistency: A Generalized Theory and Optimistic Protocols* | **Conflict Graph Inference:** Formal definitions of Directed Dependency Graphs $SG(S)$ over $\xrightarrow{wr}$, $\xrightarrow{ww}$, $\xrightarrow{rw}$, and generalized anti-dependency cycles ($G2$). |
-| **Kingsbury & Alvaro (VLDB 2020)**<br>*Elle: Inferring Isolation Anomalies from History* | **Cycle Classification:** Topological sorting and Strongly Connected Components (SCC) to classify $P4$, $A5B$, $A5A$, $G0$, $G1a$, $G1c$, and $G2$. |
-| **Andreas Zeller (IEEE TSE 2002)**<br>*Simplifying and Isolating Failure-Inducing Inputs* | **Causal Delta-Debugging ($ddmin$):** 1-minimal recursive trace reduction with foreign-key causal closure. |
-| **Martin Kleppmann (Hermitage)**<br>*Testing Transaction Isolation Levels* | **Empirical Scenario Library:** Canonical test suites for isolation level comparison across RDBMS engines. |
-
----
-
-## 🚀 9 Flagship Demonstration Scenarios
-
-### 1. 🏦 Banking Lost Update ($P4$)
-* **Context:** Fintech balance withdrawal where two concurrent transactions read balance (\$1000), calculate `balance - amount`, and write back simultaneously under `READ COMMITTED`.
-* **Cycle:** $T_1 \xrightarrow{rw} T_2 \xrightarrow{ww} T_1$
-* **Result:** \$100 withdrawal is silently lost; database state deviates from audit ledger.
-* **$ddmin$ Reduction:** $20 \text{ ops} \to 3 \text{ ops}$ (**85.0% noise reduction** in 476ms).
-
-### 2. 🛒 Inventory Oversell ($A3$)
-* **Context:** E-Commerce flash sale where 10 concurrent shoppers attempt to buy the last remaining item. Transactions check `stock > 0`, create order, and decrement stock.
-* **Cycle:** Anti-dependency on predicate read ($G\text{-phantom}$).
-* **Result:** Stock drops below zero or total orders exceed available inventory.
-* **$ddmin$ Reduction:** $30 \text{ ops} \to 2 \text{ ops}$ (**93.3% noise reduction** in 274ms).
-
-### 3. 🏥 Hospital Write Skew ($A5B$)
-* **Context:** Healthcare on-call management under Snapshot Isolation. Doctors Alice and Bob check if `count(on_call) >= 2`. Both see 2 doctors and go off-call simultaneously.
-* **Cycle:** $T_1 \xrightarrow{rw} T_2 \xrightarrow{rw} T_1$ (Dangerous Structure under Snapshot Isolation).
-* **Result:** 0 active doctors left on duty; invariant `active_doctors >= 1` is violated without any write-write conflict.
-* **$ddmin$ Reduction:** $10 \text{ ops} \to 2 \text{ ops}$ (**80.0% noise reduction** in 403ms).
-
-### 4. 💳 Financial Audit Read Skew ($A5A$)
-* **Context:** Concurrent account balance transfer between Checking and Savings while an auditor sums total balance across accounts.
-* **Cycle:** $T_1 \xrightarrow{rw} T_2 \xrightarrow{wr} T_1$
-* **Result:** Auditor observes inconsistent intermediate state where total observed wealth does not equal true system wealth (\$1000).
-* **$ddmin$ Reduction:** $20 \text{ ops} \to 2 \text{ ops}$ (**90.0% noise reduction** in 559ms).
-
-### 5. 🏷️ Auction Bidding Dirty Write ($G0$)
-* **Context:** Concurrent auction bidders submitting bids on the same item, updating `highest_bid` and `winner_id` without transactional coordination.
-* **Cycle:** $T_1 \xrightarrow{ww} T_2 \xrightarrow{ww} T_1$
-* **Result:** Item ends up with bidder 1's price but bidder 2's user ID.
-* **$ddmin$ Reduction:** $20 \text{ ops} \to 2 \text{ ops}$ (**90.0% noise reduction** in 380ms).
-
-### 6. 🪙 Crypto Arbitrage Circular Information Flow ($G1c$)
-* **Context:** Automated market maker (AMM) cross-DEX arbitrage bot updates pool price and observes intermediate read from peer pool.
-* **Cycle:** $T_1 \xrightarrow{wr} T_2 \xrightarrow{wr} T_1$
-* **Result:** Circular information flow leads to stale swap executions violating strict serializability.
-
-### 7. ⚡ Flash Crash Liquidation Dirty Read ($G1a$)
-* **Context:** DeFi lending protocol where an oracle price update is rolled back mid-flight, but a liquidation bot observes the dirty uncommitted price before the abort.
-* **Cycle:** $w_1(\text{price}) \dots r_2(\text{price}) \dots a_1$
-* **Result:** Solvent collateral vault is erroneously liquidated due to observing dirty aborted data.
-* **$ddmin$ Reduction:** $20 \text{ ops} \to 5 \text{ ops}$ (**75.0% noise reduction** in 263ms).
-
-### 8. 🎟️ Ticket Seat Reservation Anti-Dependency Cycle ($G2$)
-* **Context:** High-concurrency airline seat reservation with 3 concurrent users attempting to lock neighboring seats.
-* **Cycle:** $T_1 \xrightarrow{rw} T_2 \xrightarrow{rw} T_3 \xrightarrow{rw} T_1$ (Length 3 Anti-Dependency Cycle).
-* **Result:** Cyclical dependencies violate serializability and cause adjacent overbooking.
-* **$ddmin$ Reduction:** $15 \text{ ops} \to 3 \text{ ops}$ (**80.0% noise reduction** in 174ms).
-
-### 9. 🔒 Deadlock Cycle & Timeout Recovery ($G\text{-DL}$)
-* **Context:** Bilateral fund transfers between Account 1 and Account 2 locking rows in reverse order.
-* **Cycle:** $T_1 \xrightarrow{\text{waits-for}} T_2 \xrightarrow{\text{waits-for}} T_1$
-* **Result:** Database engine raises deadlock / timeout exception; ChaosSQL validates graceful rollback and wealth preservation.
-
----
-
-## 🏛️ System Architecture
-
-```text
-       ┌─────────────────────────────────────────────────────────────┐
-       │                       ChaosSQL Engine                       │
-       └──────────────────────────────┬──────────────────────────────┘
-                                      │
-              ┌───────────────────────┼───────────────────────┐
-              ▼                       ▼                       ▼
-     [PCT-SQL Scheduler]    [Safe Evaluator]        [Causal ddmin]
-      Deterministic PRNG     expr-lang & temporal    Zeller ddmin algorithm
-      13.9M ops/s Throughput sandbox in µs scale     reduces noise >80%
-              │                       │                       │
-              └───────────────────────┼───────────────────────┘
-                                      │
-              ┌───────────────────────┼───────────────────────┐
-              ▼                       ▼                       ▼
-      [SQLite Driver]         [Postgres Driver]       [MySQL Driver]
-       modernc.org/sqlite      pgx/v5 (SSI support)    go-sql-driver/mysql
-```
-
----
-
-## 📦 Quickstart & Usage
-
-### 1. Installation & Verification
+## 📦 Quickstart & Commands
 
 ```bash
-# Clone the repository
-git clone https://github.com/bregaldahq/chaossql.git
-cd chaossql
+# 1. Bootstrap and verify
+make bootstrap && make verify
 
-# Bootstrap dependencies
-make bootstrap
+# 2. Scaffold a new scenario
+bin/chaossql init my_scenario --driver sqlite
 
-# Run unified verification gate (Harness integrity, linter, race tests)
-make verify
-```
+# 3. Validate scenario statically
+bin/chaossql validate my_scenario/chaos.yaml
 
-### 2. Scaffold a New Scenario Template
-
-```bash
-bin/chaossql init my_custom_scenario --driver sqlite
-```
-
-### 3. Statically Validate & Lint a Scenario
-
-```bash
-bin/chaossql validate my_custom_scenario/chaos.yaml
-```
-
-### 4. Run Interactive Demos (All 9 Scenarios)
-
-```bash
+# 4. Run all 9 interactive demos
 make demo
-```
 
-### 5. Generate Empirical Hermitage Isolation Matrix
-
-```bash
+# 5. Generate Hermitage empirical isolation matrix
 make matrix
-```
 
-```text
-EMPIRICAL ISOLATION MATRIX — TARGET DRIVER: sqlite
-╭─────────────────────────────────────────────────────────────────────────────────────────╮
-│                                                                                         │
-│    CODE    ANOMALY PHENOMENON                  PERMITTED?    ENGINE PROTECTION          │
-│    ────────────────────────────────────────────────────────────────────────────         │
-│    P4      Lost Update                         true          PERMITTED (Vulnerable)     │
-│    A3      Inventory Oversell                  true          PERMITTED (Vulnerable)     │
-│    A5B     Hospital Write Skew                 true          PERMITTED (Vulnerable)     │
-│    A5A     Financial Read Skew                 true          PERMITTED (Vulnerable)     │
-│    G0      Auction Dirty Write                 true          PERMITTED (Vulnerable)     │
-│    G1c     Circular Information Flow           false         PREVENTED (Safe)           │
-│    G1a     Flash Crash Dirty Read              true          PERMITTED (Vulnerable)     │
-│    G2      Ticket Booking Anti-Dependency      true          PERMITTED (Vulnerable)     │
-│    G-DL    Deadlock Cycle & Recovery           false         PREVENTED (Safe)           │
-│                                                                                         │
-╰─────────────────────────────────────────────────────────────────────────────────────────╯
-```
-
-### 6. Interactive Trace Replayer & Debugger
-
-```bash
-bin/chaossql replay trace.json --max-events 20
-```
-
-### 7. Run High-Performance Benchmark Suite
-
-```bash
+# 6. Run high-throughput stress benchmark (13.9M ops/s)
 make bench
-```
-
-### 8. Run Cross-Engine Differential Isolation Fuzzing
-
-```bash
-bin/chaossql diff examples/banking_lost_update/chaos.yaml \
-  --driver-a sqlite \
-  --driver-b postgres
-```
-
----
-
-## 📄 Automated Reproduction Synthesis (`repro_test.go`)
-
-When a bug is found, ChaosSQL automatically emits a zero-dependency Go test:
-
-```go
-package repro_test
-
-import (
-    "context"
-    "database/sql"
-    "sync"
-    "testing"
-    _ "modernc.org/sqlite"
-)
-
-func TestRepro_LostUpdate(t *testing.T) {
-    db, _ := sql.Open("sqlite", ":memory:")
-    defer db.Close()
-    
-    // 1. Setup minimal schema and seed
-    db.Exec("CREATE TABLE accounts (id INT PRIMARY KEY, balance INT);")
-    db.Exec("INSERT INTO accounts VALUES (1, 1000);")
-    
-    // 2. Interleave minimal failing transactions
-    var wg sync.WaitGroup
-    for _, amount := range []int{100, 100, 50} {
-        wg.Add(1)
-        go func(amt int) {
-            defer wg.Done()
-            tx, _ := db.Begin()
-            var bal int
-            tx.QueryRow("SELECT balance FROM accounts WHERE id = 1;").Scan(&bal)
-            tx.Exec("UPDATE accounts SET balance = ? WHERE id = 1;", bal - amt)
-            tx.Commit()
-        }(amount)
-    }
-    wg.Wait()
-    
-    // 3. Assert bug reproduced in 0.1s
-    var finalBalance int
-    db.QueryRow("SELECT balance FROM accounts WHERE id = 1;").Scan(&finalBalance)
-    if finalBalance != 750 {
-        t.Logf("Bug successfully reproduced! Expected 750, got %d", finalBalance)
-    }
-}
-```
-
-Any engineer can run:
-```bash
-go test -v repro_test.go
 ```
 
 ---
 
 ## 📊 Harness Engineering & Quality Gate
 
-ChaosSQL follows strict **Harness Engineering** contracts (`AGENTS.md`):
-
 | Quality Gate | Requirement | Status |
 | :--- | :--- | :--- |
-| **Contractual Integrity** | 30 mandatory architectural and security artifacts | `PASS` (`tools/harness_check.go`) |
+| **Contractual Integrity** | 32 mandatory architectural and security artifacts | `PASS` (`tools/harness_check.go`) |
 | **Static Analysis** | `go vet ./...` with zero warnings | `PASS` |
-| **Concurrency Safety** | `go test -race ./internal/... ./cmd/...` | `PASS` (0 data races) |
+| **Concurrency Safety** | `go test -race ./internal/... ./cmd/... ./pkg/...` | `PASS` (0 data races) |
 | **CGO Freedom** | Compiles with `CGO_ENABLED=0` | `PASS` (pure Go SQLite) |
 | **Deterministic Replay** | Identical seed produces identical interleavings | `PASS` (100% convergence) |
 
