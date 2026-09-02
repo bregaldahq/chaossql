@@ -25,3 +25,25 @@ func TestInvariantResult_String(t *testing.T) {
 		t.Error("expected failure result")
 	}
 }
+
+func TestTraceEventTypes(t *testing.T) {
+	tests := []struct {
+		evType   domain.TraceEventType
+		expected string
+	}{
+		{domain.EventBegin, "BEGIN"},
+		{domain.EventExec, "EXEC"},
+		{domain.EventCommit, "COMMIT"},
+		{domain.EventRollback, "ROLLBACK"},
+		{domain.EventError, "ERROR"},
+		{domain.EventSavepoint, "SAVEPOINT"},
+		{domain.EventRollbackTo, "ROLLBACK_TO"},
+		{domain.EventReleaseSavepoint, "RELEASE_SAVEPOINT"},
+	}
+
+	for _, tc := range tests {
+		if string(tc.evType) != tc.expected {
+			t.Errorf("expected %s, got %s", tc.expected, tc.evType)
+		}
+	}
+}

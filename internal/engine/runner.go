@@ -179,7 +179,7 @@ func (r *Runner) ExecuteSchedule(ctx context.Context, spec domain.Spec, ops []do
 							break
 						}
 						localState[step.Capture] = fmt.Sprintf("%v", capturedVal)
-						addEvent(workerID, op.ID, stepIdx+1, op.Name, domain.EventExec, sqlStmt, nil)
+						addEvent(workerID, op.ID, stepIdx+1, op.Name, DetectEventType(sqlStmt), sqlStmt, nil)
 					} else {
 						_, execErr := r.driver.Exec(ctx, sqlStmt)
 						if execErr != nil {
@@ -187,7 +187,7 @@ func (r *Runner) ExecuteSchedule(ctx context.Context, spec domain.Spec, ops []do
 							opFailed = true
 							break
 						}
-						addEvent(workerID, op.ID, stepIdx+1, op.Name, domain.EventExec, sqlStmt, nil)
+						addEvent(workerID, op.ID, stepIdx+1, op.Name, DetectEventType(sqlStmt), sqlStmt, nil)
 					}
 				}
 
@@ -297,4 +297,19 @@ func (r *Runner) RunSchedule(ctx context.Context, spec domain.Spec, ops []domain
 		ScheduledOps:      ops,
 		Duration:          time.Since(startTime),
 	}, nil
+}
+
+// DetectEventType inspects a SQL statement and returns the corresponding TraceEventType.
+func DetectEventType(sql string) domain.TraceEventType {
+	upper := strings.ToUpper(strings.TrimSpace(sql))
+	if strings.HasPrefix(upper, "SAVEPOINT") {
+		return domain.EventSavepoint
+	}
+	if strings.HasPrefix(upper, "ROLLBACK TO SAVEPOINT") || strings.HasPrefix(upper, "ROLLBACK TO") {
+		return domain.EventRollbackTo
+	}
+	if strings.HasPrefix(upper, "RELEASE SAVEPOINT") || strings.HasPrefix(upper, "RELEASE ") || upper == "RELEASE" {
+		return domain.EventReleaseSavepoint
+	}
+	return domain.EventExec
 }

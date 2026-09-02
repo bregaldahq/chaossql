@@ -70,11 +70,14 @@ type StepConfig struct {
 type TraceEventType string
 
 const (
-	EventBegin    TraceEventType = "BEGIN"
-	EventExec     TraceEventType = "EXEC"
-	EventCommit   TraceEventType = "COMMIT"
-	EventRollback TraceEventType = "ROLLBACK"
-	EventError    TraceEventType = "ERROR"
+	EventBegin            TraceEventType = "BEGIN"
+	EventExec             TraceEventType = "EXEC"
+	EventCommit           TraceEventType = "COMMIT"
+	EventRollback         TraceEventType = "ROLLBACK"
+	EventError            TraceEventType = "ERROR"
+	EventSavepoint        TraceEventType = "SAVEPOINT"
+	EventRollbackTo       TraceEventType = "ROLLBACK_TO"
+	EventReleaseSavepoint TraceEventType = "RELEASE_SAVEPOINT"
 )
 
 // TraceEvent represents an immutable execution event in time.

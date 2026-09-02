@@ -56,7 +56,7 @@ func GenerateMermaidSequence(trace domain.ExecutionTrace) string {
 		switch ev.Type {
 		case domain.EventBegin:
 			sb.WriteString(fmt.Sprintf("    %s->>DB: %sBEGIN\n", sender, opTag))
-		case domain.EventExec:
+		case domain.EventExec, domain.EventSavepoint, domain.EventRollbackTo, domain.EventReleaseSavepoint:
 			cleanSQL := sanitizeSQLForMermaid(ev.SQL)
 			sb.WriteString(fmt.Sprintf("    %s->>DB: %s%s\n", sender, opTag, cleanSQL))
 		case domain.EventCommit:
