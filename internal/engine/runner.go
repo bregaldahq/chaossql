@@ -12,12 +12,12 @@ import (
 	"github.com/bregaldahq/chaossql/internal/domain"
 	"github.com/bregaldahq/chaossql/internal/drivers"
 	"github.com/bregaldahq/chaossql/internal/evaluator"
+	"github.com/bregaldahq/chaossql/internal/faults"
 )
 
-// RunResult holds the complete outcome of a chaos execution.
 type RunResult = domain.ExecutionResult
 
-// Runner orchestrates the chaos execution.
+// Runner executes chaos schedules across database connections.
 type Runner struct {
 	driver    drivers.DatabaseDriver
 	evaluator *evaluator.Evaluator
@@ -32,8 +32,6 @@ func NewRunner(driver drivers.DatabaseDriver, seed uint64) *Runner {
 		prng:      NewPRNG(seed),
 	}
 }
-
-// Run executes a full chaos battery.
 
 // GenerateSchedule creates a slice of deterministic ScheduledOps for the given spec and PRNG.
 func GenerateSchedule(spec domain.Spec, prng *PRNG) []domain.ScheduledOp {
@@ -117,6 +115,8 @@ func (r *Runner) ExecuteSchedule(ctx context.Context, spec domain.Spec, ops []do
 		nWorkers = 4
 	}
 
+	faultInj := faults.NewFaultInjector(spec.Engine.Faults, r.prng.MasterSeed())
+
 	var trace domain.ExecutionTrace
 	var traceMu sync.Mutex
 	startTime := time.Now()
@@ -170,6 +170,19 @@ func (r *Runner) ExecuteSchedule(ctx context.Context, spec domain.Spec, ops []do
 						time.Sleep(jitter)
 					}
 
+					// Inject latency spike fault
+					spike := faultInj.GetLatencySpike()
+					if spike > 0 {
+						time.Sleep(spike)
+					}
+
+					// Inject forced abort fault
+					if faultInj.ShouldAbort() {
+						opFailed = true
+						addEvent(workerID, op.ID, stepIdx+1, op.Name, domain.EventRollback, "FORCED_ABORT_FAULT", nil)
+						break
+					}
+
 					sqlStmt := SubstituteParams(step.SQL, localState)
 
 					if step.Capture != "" {
@@ -211,16 +224,13 @@ func SubstituteParams(sql string, state map[string]string) string {
 	return substituteParams(sql, state)
 }
 
-// substituteParams replaces {param} or {a - b} in the SQL string.
 func substituteParams(sql string, state map[string]string) string {
 	result := sql
-	// First substitute direct keys
 	for k, v := range state {
 		placeholder := "{" + k + "}"
 		result = strings.ReplaceAll(result, placeholder, v)
 	}
 
-	// Support simple arithmetic substitutions like {current_bal - amount}
 	for strings.Contains(result, "{") && strings.Contains(result, "}") {
 		start := strings.Index(result, "{")
 		end := strings.Index(result, "}")
@@ -229,12 +239,10 @@ func substituteParams(sql string, state map[string]string) string {
 		}
 		expr := result[start+1 : end]
 
-		// Substitute keys inside expr
 		for k, v := range state {
 			expr = strings.ReplaceAll(expr, k, v)
 		}
 
-		// Evaluate simple arithmetic like "1000 - 100"
 		valStr := evalSimpleArithmetic(expr)
 		result = result[0:start] + valStr + result[end+1:]
 	}

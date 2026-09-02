@@ -14,6 +14,7 @@ const (
 	AnomalyPhantom         AnomalyType = "A3_PHANTOM_READ"
 	AnomalyA5AReadSkew     AnomalyType = "A5A_READ_SKEW"
 	AnomalyG0DirtyWrite    AnomalyType = "G0_DIRTY_WRITE"
+	AnomalyG1aDirtyRead    AnomalyType = "G1A_DIRTY_READ"
 	AnomalyG1cCircularInfo AnomalyType = "G1C_CIRCULAR_INFO"
 	AnomalyUnknown         AnomalyType = "UNKNOWN_INVARIANT_VIOLATION"
 )
@@ -37,12 +38,21 @@ type DatabaseConfig struct {
 	Seed   string `yaml:"seed"`
 }
 
-// EngineConfig holds concurrency, scheduler and PRNG settings.
+// FaultConfig defines stochastic fault injection parameters.
+type FaultConfig struct {
+	AbortProbability      float64 `yaml:"abort_probability,omitempty"`
+	LatencySpikeMs        [2]int  `yaml:"latency_spike_ms,omitempty"`
+	LatencyProbability    float64 `yaml:"latency_probability,omitempty"`
+	DisconnectProbability float64 `yaml:"disconnect_probability,omitempty"`
+}
+
+// EngineConfig holds concurrency, scheduler, PRNG and fault injection settings.
 type EngineConfig struct {
-	Workers    int    `yaml:"workers"`
-	Iterations int    `yaml:"iterations"`
-	Seed       uint64 `yaml:"seed"`
-	JitterMs   [2]int `yaml:"jitter_ms"`
+	Workers    int         `yaml:"workers"`
+	Iterations int         `yaml:"iterations"`
+	Seed       uint64      `yaml:"seed"`
+	JitterMs   [2]int      `yaml:"jitter_ms"`
+	Faults     FaultConfig `yaml:"faults,omitempty"`
 }
 
 // InvariantConfig represents a mathematical rule checked against the database state.
@@ -128,7 +138,6 @@ type ShrinkResult struct {
 	Iterations     int           `json:"iterations"`
 	Duration       time.Duration `json:"duration"`
 }
-
 
 // ExecutionResult holds the complete outcome of a chaos execution.
 type ExecutionResult struct {
