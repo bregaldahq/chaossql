@@ -1,0 +1,21 @@
+# Cloudflare Pages Configuration for ChaosSQL
+# Documentation Portal & Anomaly Exploration Engine
+
+name = "chaossql"
+compatibility_date = "2024-09-01"
+pages_build_output_dir = "."
+
+# Custom Domain Route Configuration
+# Canonical URL: https://chaossql.bregalda.com
+# Domain: chaossql.bregalda.com
+# Apex: bregalda.com
+
+[vars]
+ENVIRONMENT = "production"
+PORTAL_URL = "https://chaossql.bregalda.com"
+APP_NAME = "ChaosSQL Documentation Portal"
+
+# Route annotation for Cloudflare Pages custom domain binding
+[[routes]]
+pattern = "chaossql.bregalda.com/*"
+custom_domain = true

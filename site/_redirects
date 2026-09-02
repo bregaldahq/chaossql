@@ -1,0 +1,13 @@
+# ChaosSQL Cloudflare Pages Redirects & SPA Navigation
+
+# Section shortcuts
+/theory         /index.html#theory          302
+/scenarios      /index.html#scenarios       302
+/sdk            /index.html#sdk             302
+/matrix         /index.html#matrix          302
+/cli            /index.html#cli             302
+/docs           /index.html#theory          302
+/github         https://github.com/bregalda/chaossql 302
+
+# SPA 200 rewrite fallback
+/*              /index.html                 200
