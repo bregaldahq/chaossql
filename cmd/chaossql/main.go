@@ -27,6 +27,7 @@ var (
 	exportReproFlag   bool
 	exportMermaidFlag bool
 	exportHTMLFlag    string
+	exportOTELFlag    string
 )
 
 func main() {
@@ -52,6 +53,7 @@ It executes PCT-scheduled concurrent transaction interleavings to detect isolati
 	runCmd.Flags().BoolVar(&exportReproFlag, "export-repro", false, "Export standalone Go reproduction test (repro_test.go)")
 	runCmd.Flags().BoolVar(&exportMermaidFlag, "export-mermaid", false, "Export Mermaid sequence diagram (trace.mermaid)")
 	runCmd.Flags().StringVar(&exportHTMLFlag, "export-html", "", "Export standalone HTML report to file (e.g. report.html)")
+	runCmd.Flags().StringVar(&exportOTELFlag, "export-otel", "", "Export OpenTelemetry OTLP JSON trace to file (e.g. trace.json)")
 
 	demoCmd := &cobra.Command{
 		Use:   "demo [banking|inventory|hospital|financial]",
@@ -64,6 +66,7 @@ It executes PCT-scheduled concurrent transaction interleavings to detect isolati
 	demoCmd.Flags().BoolVar(&exportReproFlag, "export-repro", false, "Export standalone Go reproduction test")
 	demoCmd.Flags().BoolVar(&exportMermaidFlag, "export-mermaid", false, "Export Mermaid sequence diagram")
 	demoCmd.Flags().StringVar(&exportHTMLFlag, "export-html", "", "Export standalone HTML report to file (e.g. report.html)")
+	demoCmd.Flags().StringVar(&exportOTELFlag, "export-otel", "", "Export OpenTelemetry OTLP JSON trace to file (e.g. trace.json)")
 
 	benchCmd := newBenchCmd()
 
@@ -269,6 +272,24 @@ func executeChaos(specPath string) error {
 		}
 	}
 
+	// Export OpenTelemetry OTLP trace JSON if requested
+	var otelTrace string
+	if exportOTELFlag != "" || jsonFlag {
+		var otelErr error
+		otelTrace, otelErr = reporter.GenerateOTLPTraceJSON(minimalTrace, *spec)
+		if otelErr != nil {
+			return fmt.Errorf("failed to generate OpenTelemetry trace: %w", otelErr)
+		}
+		if exportOTELFlag != "" {
+			if err := os.WriteFile(exportOTELFlag, []byte(otelTrace), 0644); err != nil {
+				return fmt.Errorf("failed to write %s: %w", exportOTELFlag, err)
+			}
+			if !jsonFlag {
+				fmt.Printf("  [✓] Generated OpenTelemetry OTLP trace: %s\n", exportOTELFlag)
+			}
+		}
+	}
+
 	// Output format
 	if jsonFlag {
 		output := map[string]interface{}{
@@ -289,6 +310,7 @@ func executeChaos(specPath string) error {
 			"mermaid":            mermaidCode,
 			"repro_go":           reproCode,
 			"html_report":        htmlReport,
+			"otel_trace":         otelTrace,
 		}
 		enc := json.NewEncoder(os.Stdout)
 		enc.SetIndent("", "  ")
