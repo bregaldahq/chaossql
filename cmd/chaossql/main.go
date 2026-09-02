@@ -28,6 +28,8 @@ var (
 	exportMermaidFlag bool
 	exportHTMLFlag    string
 	exportOTELFlag    string
+	exportJUnitFlag   string
+	exportSummaryFlag string
 )
 
 func main() {
@@ -55,6 +57,8 @@ noisy execution traces to minimal, deterministic reproductions.`,
 	runCmd.Flags().BoolVar(&exportMermaidFlag, "export-mermaid", false, "Export execution sequence diagram as Mermaid format (trace.mermaid)")
 	runCmd.Flags().StringVar(&exportHTMLFlag, "export-html", "", "Export standalone interactive HTML report to file path")
 	runCmd.Flags().StringVar(&exportOTELFlag, "export-otel", "", "Export execution trace as OpenTelemetry OTLP JSON to file path")
+	runCmd.Flags().StringVar(&exportJUnitFlag, "export-junit", "", "Export execution test results as JUnit XML to file path")
+	runCmd.Flags().StringVar(&exportSummaryFlag, "export-summary", "", "Export execution report as GitHub Step Summary markdown to file path")
 
 	demoCmd := &cobra.Command{
 		Use:   "demo [banking|inventory|hospital|financial|auction|crypto|flash_crash]",
@@ -67,6 +71,8 @@ noisy execution traces to minimal, deterministic reproductions.`,
 	demoCmd.Flags().BoolVar(&exportMermaidFlag, "export-mermaid", false, "Export execution sequence diagram as Mermaid format (trace.mermaid)")
 	demoCmd.Flags().StringVar(&exportHTMLFlag, "export-html", "", "Export standalone interactive HTML report to file path")
 	demoCmd.Flags().StringVar(&exportOTELFlag, "export-otel", "", "Export execution trace as OpenTelemetry OTLP JSON to file path")
+	demoCmd.Flags().StringVar(&exportJUnitFlag, "export-junit", "", "Export execution test results as JUnit XML to file path")
+	demoCmd.Flags().StringVar(&exportSummaryFlag, "export-summary", "", "Export execution report as GitHub Step Summary markdown to file path")
 
 	benchCmd := newBenchCmd()
 	diffCmd := newDiffCmd()
@@ -175,6 +181,10 @@ func executeChaos(specPath string) error {
 			anomaly = domain.AnomalyG1cCircularInfo
 			break
 		}
+		if cls == domain.AnomalyG2AntiDependency {
+			anomaly = domain.AnomalyG2AntiDependency
+			break
+		}
 		if cls == domain.AnomalyWriteSkew {
 			anomaly = domain.AnomalyWriteSkew
 			break
@@ -226,6 +236,10 @@ func executeChaos(specPath string) error {
 					}
 					if cls == domain.AnomalyG1cCircularInfo {
 						anomaly = domain.AnomalyG1cCircularInfo
+						break
+					}
+					if cls == domain.AnomalyG2AntiDependency {
+						anomaly = domain.AnomalyG2AntiDependency
 						break
 					}
 					if cls == domain.AnomalyA5AReadSkew {
@@ -307,6 +321,26 @@ func executeChaos(specPath string) error {
 			if !jsonFlag {
 				fmt.Printf("  [✓] Generated OpenTelemetry OTLP trace: %s\n", exportOTELFlag)
 			}
+		}
+	}
+
+	if exportJUnitFlag != "" {
+		junitXML := reporter.GenerateJUnitXML(*spec, *runResult, anomaly)
+		if err := os.WriteFile(exportJUnitFlag, []byte(junitXML), 0644); err != nil {
+			return fmt.Errorf("failed to write %s: %w", exportJUnitFlag, err)
+		}
+		if !jsonFlag {
+			fmt.Printf("  [✓] Generated JUnit XML test report: %s\n", exportJUnitFlag)
+		}
+	}
+
+	if exportSummaryFlag != "" {
+		summaryMD := reporter.GenerateGitHubSummaryMarkdown(*spec, *runResult, shrinkResult, anomaly)
+		if err := os.WriteFile(exportSummaryFlag, []byte(summaryMD), 0644); err != nil {
+			return fmt.Errorf("failed to write %s: %w", exportSummaryFlag, err)
+		}
+		if !jsonFlag {
+			fmt.Printf("  [✓] Generated GitHub Step Summary markdown: %s\n", exportSummaryFlag)
 		}
 	}
 
