@@ -11,13 +11,13 @@
 ```
 
 > **Deterministic Concurrency & Invariant Fuzzer for SQL Databases**  
-> *Finding isolation anomalies (Lost Update, Write Skew, Read Skew, Dirty Write, Phantom Reads) and shrinking chaotic traces to 1-minimal reproductions.*
+> *Finding isolation anomalies (Lost Update, Write Skew, Read Skew, Dirty Write, Circular Info, Phantom Reads) and shrinking chaotic traces to 1-minimal reproductions.*
 
 [![Go Version](https://img.shields.io/badge/Go-1.23+-00ADD8?style=flat&logo=go)](https://golang.org)
 [![Zero CGO](https://img.shields.io/badge/CGO-Disabled_(Pure_Go)-success)](https://modernc.org/sqlite)
 [![CI Pipeline](https://github.com/bregaldahq/chaossql/actions/workflows/ci.yml/badge.svg)](https://github.com/bregaldahq/chaossql/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Harness Engineering](https://img.shields.io/badge/Harness-Verified_(25_Artifacts)-blueviolet)](AGENTS.md)
+[![Harness Engineering](https://img.shields.io/badge/Harness-Verified_(26_Artifacts)-blueviolet)](AGENTS.md)
 
 ---
 
@@ -88,7 +88,7 @@ ChaosSQL is built directly on seminal peer-reviewed database and concurrency res
 
 ---
 
-## 🚀 5 Flagship Demonstration Scenarios
+## 🚀 6 Flagship Demonstration Scenarios
 
 ### 1. 🏦 Banking Lost Update ($P4$)
 * **Context:** Fintech balance withdrawal where two concurrent transactions read balance (\$1000), calculate `balance - amount`, and write back simultaneously under `READ COMMITTED`.
@@ -119,6 +119,11 @@ ChaosSQL is built directly on seminal peer-reviewed database and concurrency res
 * **Cycle:** $T_1 \xrightarrow{ww} T_2 \xrightarrow{ww} T_1$
 * **Result:** Item ends up with bidder 1's price but bidder 2's user ID.
 * **$ddmin$ Reduction:** $20 \text{ ops} \to 2 \text{ ops}$ (**90.0% noise reduction** in 380ms).
+
+### 6. 🪙 Crypto Arbitrage Circular Information Flow ($G1c$)
+* **Context:** Automated market maker (AMM) cross-DEX arbitrage bot updates pool price and observes intermediate read from peer pool.
+* **Cycle:** $T_1 \xrightarrow{wr} T_2 \xrightarrow{wr} T_1$
+* **Result:** Circular information flow leads to stale swap executions violating strict serializability.
 
 ---
 
@@ -167,13 +172,43 @@ make verify
 make demo
 ```
 
-### 3. Run High-Performance Benchmark Suite
+### 3. Generate Empirical Hermitage Isolation Matrix
+
+```bash
+make matrix
+```
+
+```text
+EMPIRICAL ISOLATION MATRIX — TARGET DRIVER: sqlite
+╭──────────────────────────────────────────────────────────────────────────────────╮
+│                                                                                  │
+│    CODE    ANOMALY PHENOMENON            PERMITTED?    ENGINE PROTECTION         │
+│    ────────────────────────────────────────────────────────────────────────────  │
+│    P4      Lost Update                   true          PERMITTED (Vulnerable)    │
+│    A3      Inventory Oversell            true          PERMITTED (Vulnerable)    │
+│    A5B     Hospital Write Skew           true          PERMITTED (Vulnerable)    │
+│    A5A     Financial Read Skew           true          PERMITTED (Vulnerable)    │
+│    G0      Auction Dirty Write           true          PERMITTED (Vulnerable)    │
+│    G1c     Circular Information Flow     false         PREVENTED (Safe)          │
+│                                                                                  │
+╰──────────────────────────────────────────────────────────────────────────────────╯
+```
+
+### 4. Run High-Performance Benchmark Suite
 
 ```bash
 make bench
 ```
 
-### 4. Run a Custom Fuzzing Session with Full Evidence Export
+### 5. Run Cross-Engine Differential Isolation Fuzzing
+
+```bash
+bin/chaossql diff examples/banking_lost_update/chaos.yaml \
+  --driver-a sqlite \
+  --driver-b postgres
+```
+
+### 6. Run a Custom Fuzzing Session with Full Evidence Export
 
 ```bash
 # Execute chaos test with HTML, OpenTelemetry, Go repro, and Mermaid export
@@ -249,9 +284,9 @@ ChaosSQL follows strict **Harness Engineering** contracts (`AGENTS.md`):
 
 | Quality Gate | Requirement | Status |
 | :--- | :--- | :--- |
-| **Contractual Integrity** | 25 mandatory architectural and academic artifacts | `PASS` (`tools/harness_check.go`) |
+| **Contractual Integrity** | 26 mandatory architectural and academic artifacts | `PASS` (`tools/harness_check.go`) |
 | **Static Analysis** | `go vet ./...` with zero warnings | `PASS` |
-| **Concurrency Safety** | `go test -race ./internal/...` | `PASS` (0 data races) |
+| **Concurrency Safety** | `go test -race ./internal/... ./cmd/...` | `PASS` (0 data races) |
 | **CGO Freedom** | Compiles with `CGO_ENABLED=0` | `PASS` (pure Go SQLite) |
 | **Deterministic Replay** | Identical seed produces identical interleavings | `PASS` (100% convergence) |
 

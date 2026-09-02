@@ -32,6 +32,7 @@ func main() {
 		"specs/04_evidence_synthesis.md",
 		"specs/05_advanced_anomaly_taxonomy.md",
 		"specs/06_mysql_savepoints_and_otel.md",
+		"specs/07_differential_fuzzing_and_matrix.md",
 	}
 
 	missing := 0
