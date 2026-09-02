@@ -34,6 +34,7 @@ func main() {
 		"specs/06_mysql_savepoints_and_otel.md",
 		"specs/07_differential_fuzzing_and_matrix.md",
 		"specs/08_fault_injection_and_dirty_reads.md",
+		"specs/09_temporal_invariants_and_g2_cycles.md",
 	}
 
 	missing := 0

@@ -11,28 +11,28 @@
 ```
 
 > **Deterministic Concurrency & Invariant Fuzzer for SQL Databases**  
-> *Finding isolation anomalies (Lost Update, Write Skew, Read Skew, Dirty Write, Dirty Read, Circular Info, Phantom Reads) and shrinking chaotic traces to 1-minimal reproductions.*
+> *Finding isolation anomalies (Lost Update, Write Skew, Read Skew, Dirty Write, Dirty Read, Circular Info, G2 Anti-Dependency, Phantom Reads) and shrinking chaotic traces to 1-minimal reproductions.*
 
 [![Go Version](https://img.shields.io/badge/Go-1.23+-00ADD8?style=flat&logo=go)](https://golang.org)
 [![Zero CGO](https://img.shields.io/badge/CGO-Disabled_(Pure_Go)-success)](https://modernc.org/sqlite)
 [![CI Pipeline](https://github.com/bregaldahq/chaossql/actions/workflows/ci.yml/badge.svg)](https://github.com/bregaldahq/chaossql/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Harness Engineering](https://img.shields.io/badge/Harness-Verified_(27_Artifacts)-blueviolet)](AGENTS.md)
+[![Harness Engineering](https://img.shields.io/badge/Harness-Verified_(28_Artifacts)-blueviolet)](AGENTS.md)
 
 ---
 
 ## ⚡ The Problem: Concurrency Anomalies in SQL Databases
 
-Concurrency bugs in transactional systems (such as *Lost Updates*, *Write Skew*, *Read Skew*, *Dirty Writes*, *Dirty Reads*, and *Phantom Depletions*) are among the hardest defects to detect and debug:
+Concurrency bugs in transactional systems (such as *Lost Updates*, *Write Skew*, *Read Skew*, *Dirty Writes*, *Dirty Reads*, *Circular Info Flows*, and *G2 Anti-Dependency Cycles*) are among the hardest defects to detect and debug:
 1. **Flaky & Non-Deterministic:** They depend on microsecond race conditions between concurrent worker threads and OS scheduling.
 2. **Untraceable in Production:** When a database invariant is violated (e.g. an account balance going negative or stock being oversold), production logs contain thousands of interleaved operations, making root-cause analysis nearly impossible.
 3. **Engine-Specific Isolation Quirks:** `READ COMMITTED` and `SNAPSHOT ISOLATION` exhibit subtle semantic differences across SQLite, PostgreSQL, and MySQL.
 
 **ChaosSQL solves this by:**
 * Injecting **stochastic micro-jitter**, **PCT-SQL priority scheduling**, and **fault injection** (forced aborts, latency spikes, simulated disconnects) to reliably trigger rare race conditions.
-* Constructing client-observed **Serialization Graphs** $SG(S) = (V, E)$ to formally classify isolation anomalies ($P4, A5B, A5A, G0, G1a, G1c$).
-* Applying **Causal Delta-Debugging ($ddmin$)** to shrink a 100-operation noisy trace down to the **exact 2 or 3 operations** that caused the bug in $< 500\text{ms}$.
-* Synthesizing standalone, zero-dependency **`repro_test.go`** test cases, **dark-mode interactive HTML reports**, and **OpenTelemetry distributed traces** for 1-click reproduction.
+* Constructing client-observed **Serialization Graphs** $SG(S) = (V, E)$ to formally classify isolation anomalies ($P4, A5B, A5A, G0, G1a, G1c, G2$).
+* Applying **Causal Delta-Debugging ($ddmin$)** to shrink a 100-operation noisy trace down to the **exact 2 or 3 operations** that caused the bug in $< 300\text{ms}$.
+* Synthesizing standalone, zero-dependency **`repro_test.go`** test cases, **dark-mode interactive HTML reports**, **JUnit XML test suites**, **GitHub Actions step summaries**, and **OpenTelemetry distributed traces** for 1-click reproduction.
 
 ---
 
@@ -81,14 +81,14 @@ ChaosSQL is built directly on seminal peer-reviewed database and concurrency res
 | Academic Paper | Contribution to ChaosSQL |
 | :--- | :--- |
 | **Burckhardt et al. (ASPLOS 2010)**<br>*A Randomized Scheduler with Probabilistic Guarantees* | **PCT-SQL Scheduler:** Random priority assignments bounding bug-detection depth with $\mathbb{P} \ge \frac{1}{n \cdot k^{d-1}}$. |
-| **Atul Adya (MIT PhD 1999)**<br>*Weak Consistency: A Generalized Theory and Optimistic Protocols* | **Conflict Graph Inference:** Formal definitions of Directed Dependency Graphs $SG(S)$ over $\xrightarrow{wr}$, $\xrightarrow{ww}$, $\xrightarrow{rw}$. |
-| **Kingsbury & Alvaro (VLDB 2020)**<br>*Elle: Inferring Isolation Anomalies from History* | **Cycle Classification:** Topological sorting and Strongly Connected Components (SCC) to classify $P4$, $A5B$, $A5A$, $G0$, $G1a$, and $G1c$. |
+| **Atul Adya (MIT PhD 1999)**<br>*Weak Consistency: A Generalized Theory and Optimistic Protocols* | **Conflict Graph Inference:** Formal definitions of Directed Dependency Graphs $SG(S)$ over $\xrightarrow{wr}$, $\xrightarrow{ww}$, $\xrightarrow{rw}$, and generalized anti-dependency cycles ($G2$). |
+| **Kingsbury & Alvaro (VLDB 2020)**<br>*Elle: Inferring Isolation Anomalies from History* | **Cycle Classification:** Topological sorting and Strongly Connected Components (SCC) to classify $P4$, $A5B$, $A5A$, $G0$, $G1a$, $G1c$, and $G2$. |
 | **Andreas Zeller (IEEE TSE 2002)**<br>*Simplifying and Isolating Failure-Inducing Inputs* | **Causal Delta-Debugging ($ddmin$):** 1-minimal recursive trace reduction with foreign-key causal closure. |
 | **Martin Kleppmann (Hermitage)**<br>*Testing Transaction Isolation Levels* | **Empirical Scenario Library:** Canonical test suites for isolation level comparison across RDBMS engines. |
 
 ---
 
-## 🚀 7 Flagship Demonstration Scenarios
+## 🚀 8 Flagship Demonstration Scenarios
 
 ### 1. 🏦 Banking Lost Update ($P4$)
 * **Context:** Fintech balance withdrawal where two concurrent transactions read balance (\$1000), calculate `balance - amount`, and write back simultaneously under `READ COMMITTED`.
@@ -131,6 +131,12 @@ ChaosSQL is built directly on seminal peer-reviewed database and concurrency res
 * **Result:** Solvent collateral vault is erroneously liquidated due to observing dirty aborted data.
 * **$ddmin$ Reduction:** $20 \text{ ops} \to 5 \text{ ops}$ (**75.0% noise reduction** in 263ms).
 
+### 8. 🎟️ Ticket Seat Reservation Anti-Dependency Cycle ($G2$)
+* **Context:** High-concurrency airline seat reservation with 3 concurrent users attempting to lock neighboring seats.
+* **Cycle:** $T_1 \xrightarrow{rw} T_2 \xrightarrow{rw} T_3 \xrightarrow{rw} T_1$ (Length 3 Anti-Dependency Cycle).
+* **Result:** Cyclical dependencies violate serializability and cause adjacent overbooking.
+* **$ddmin$ Reduction:** $15 \text{ ops} \to 3 \text{ ops}$ (**80.0% noise reduction** in 174ms).
+
 ---
 
 ## 🏛️ System Architecture
@@ -143,8 +149,8 @@ ChaosSQL is built directly on seminal peer-reviewed database and concurrency res
               ┌───────────────────────┼───────────────────────┐
               ▼                       ▼                       ▼
      [PCT-SQL Scheduler]    [Safe Evaluator]        [Causal ddmin]
-      Deterministic PRNG     expr-lang sandbox       Zeller ddmin algorithm
-      with Fault Injection   in µs execution         reduces noise >85%
+      Deterministic PRNG     expr-lang & temporal    Zeller ddmin algorithm
+      with Fault Injection   sandbox in µs scale     reduces noise >80%
               │                       │                       │
               └───────────────────────┼───────────────────────┘
                                       │
@@ -172,7 +178,7 @@ make bootstrap
 make verify
 ```
 
-### 2. Run Interactive Demos
+### 2. Run Interactive Demos (All 8 Scenarios)
 
 ```bash
 make demo
@@ -186,19 +192,20 @@ make matrix
 
 ```text
 EMPIRICAL ISOLATION MATRIX — TARGET DRIVER: sqlite
-╭──────────────────────────────────────────────────────────────────────────────────╮
-│                                                                                  │
-│    CODE    ANOMALY PHENOMENON            PERMITTED?    ENGINE PROTECTION         │
-│    ────────────────────────────────────────────────────────────────────────────  │
-│    P4      Lost Update                   true          PERMITTED (Vulnerable)    │
-│    A3      Inventory Oversell            true          PERMITTED (Vulnerable)    │
-│    A5B     Hospital Write Skew           true          PERMITTED (Vulnerable)    │
-│    A5A     Financial Read Skew           true          PERMITTED (Vulnerable)    │
-│    G0      Auction Dirty Write           true          PERMITTED (Vulnerable)    │
-│    G1c     Circular Information Flow     false         PREVENTED (Safe)          │
-│    G1a     Flash Crash Dirty Read        true          PERMITTED (Vulnerable)    │
-│                                                                                  │
-╰──────────────────────────────────────────────────────────────────────────────────╯
+╭─────────────────────────────────────────────────────────────────────────────────────────╮
+│                                                                                         │
+│    CODE    ANOMALY PHENOMENON                  PERMITTED?    ENGINE PROTECTION          │
+│    ────────────────────────────────────────────────────────────────────────────         │
+│    P4      Lost Update                         true          PERMITTED (Vulnerable)     │
+│    A3      Inventory Oversell                  true          PERMITTED (Vulnerable)     │
+│    A5B     Hospital Write Skew                 true          PERMITTED (Vulnerable)     │
+│    A5A     Financial Read Skew                 true          PERMITTED (Vulnerable)     │
+│    G0      Auction Dirty Write                 true          PERMITTED (Vulnerable)     │
+│    G1c     Circular Information Flow           false         PREVENTED (Safe)           │
+│    G1a     Flash Crash Dirty Read              true          PERMITTED (Vulnerable)     │
+│    G2      Ticket Booking Anti-Dependency      true          PERMITTED (Vulnerable)     │
+│                                                                                         │
+╰─────────────────────────────────────────────────────────────────────────────────────────╯
 ```
 
 ### 4. Interactive Trace Replayer & Debugger
@@ -221,16 +228,18 @@ bin/chaossql diff examples/banking_lost_update/chaos.yaml \
   --driver-b postgres
 ```
 
-### 7. Run a Custom Fuzzing Session with Full Evidence Export
+### 7. Run a Custom Fuzzing Session with Full CI/CD Export
 
 ```bash
-# Execute chaos test with HTML, OpenTelemetry, Go repro, and Mermaid export
-bin/chaossql run examples/dirty_read_flash_crash/chaos.yaml \
-  --workers 4 \
-  --iterations 20 \
+# Execute chaos test with HTML, OpenTelemetry, JUnit XML, GitHub Summary, Go repro, and Mermaid export
+bin/chaossql run examples/ticket_booking_anti_dependency/chaos.yaml \
+  --workers 3 \
+  --iterations 15 \
   --seed 42 \
   --export-html report.html \
   --export-otel trace.json \
+  --export-junit junit.xml \
+  --export-summary summary.md \
   --export-repro \
   --export-mermaid
 ```
@@ -297,7 +306,7 @@ ChaosSQL follows strict **Harness Engineering** contracts (`AGENTS.md`):
 
 | Quality Gate | Requirement | Status |
 | :--- | :--- | :--- |
-| **Contractual Integrity** | 27 mandatory architectural and academic artifacts | `PASS` (`tools/harness_check.go`) |
+| **Contractual Integrity** | 28 mandatory architectural and academic artifacts | `PASS` (`tools/harness_check.go`) |
 | **Static Analysis** | `go vet ./...` with zero warnings | `PASS` |
 | **Concurrency Safety** | `go test -race ./internal/... ./cmd/...` | `PASS` (0 data races) |
 | **CGO Freedom** | Compiles with `CGO_ENABLED=0` | `PASS` (pure Go SQLite) |
