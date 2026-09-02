@@ -65,7 +65,9 @@ It executes PCT-scheduled concurrent transaction interleavings to detect isolati
 	demoCmd.Flags().BoolVar(&exportMermaidFlag, "export-mermaid", false, "Export Mermaid sequence diagram")
 	demoCmd.Flags().StringVar(&exportHTMLFlag, "export-html", "", "Export standalone HTML report to file (e.g. report.html)")
 
-	rootCmd.AddCommand(runCmd, demoCmd)
+	benchCmd := newBenchCmd()
+
+	rootCmd.AddCommand(runCmd, demoCmd, benchCmd)
 
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)
