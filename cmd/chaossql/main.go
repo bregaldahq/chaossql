@@ -30,18 +30,10 @@ var (
 	exportOTELFlag    string
 	exportJUnitFlag   string
 	exportSummaryFlag string
+	exportSARIFFlag   string
 )
 
-func main() {
-	rootCmd := &cobra.Command{
-		Use:   "chaossql",
-		Short: "ChaosSQL: Deterministic Concurrency & Invariant Fuzzer for SQL Databases",
-		Long: `ChaosSQL bridges chaos engineering with formal academic database research (PCT, Elle, Hermitage).
-It injects stochastic interleavings across database worker threads to provoke subtle isolation anomalies
-(such as Lost Updates, Write Skew, and Phantom Reads) and applies causal Delta-Debugging to shrink
-noisy execution traces to minimal, deterministic reproductions.`,
-	}
-
+func newRunCmd() *cobra.Command {
 	runCmd := &cobra.Command{
 		Use:   "run <chaos.yaml>",
 		Short: "Execute a chaos test against the specified database configuration",
@@ -59,7 +51,12 @@ noisy execution traces to minimal, deterministic reproductions.`,
 	runCmd.Flags().StringVar(&exportOTELFlag, "export-otel", "", "Export execution trace as OpenTelemetry OTLP JSON to file path")
 	runCmd.Flags().StringVar(&exportJUnitFlag, "export-junit", "", "Export execution test results as JUnit XML to file path")
 	runCmd.Flags().StringVar(&exportSummaryFlag, "export-summary", "", "Export execution report as GitHub Step Summary markdown to file path")
+	runCmd.Flags().StringVar(&exportSARIFFlag, "export-sarif", "", "Export execution security findings as OASIS SARIF 2.1.0 to file path")
 
+	return runCmd
+}
+
+func newDemoCmd() *cobra.Command {
 	demoCmd := &cobra.Command{
 		Use:   "demo [banking|inventory|hospital|financial|auction|crypto|flash_crash|ticket|deadlock]",
 		Short: "Run one of the flagship demonstration scenarios (Lost Update, Oversell, Write Skew, Read Skew, Dirty Write, Circular Info, Dirty Read, Anti-Dependency, Deadlock)",
@@ -73,7 +70,23 @@ noisy execution traces to minimal, deterministic reproductions.`,
 	demoCmd.Flags().StringVar(&exportOTELFlag, "export-otel", "", "Export execution trace as OpenTelemetry OTLP JSON to file path")
 	demoCmd.Flags().StringVar(&exportJUnitFlag, "export-junit", "", "Export execution test results as JUnit XML to file path")
 	demoCmd.Flags().StringVar(&exportSummaryFlag, "export-summary", "", "Export execution report as GitHub Step Summary markdown to file path")
+	demoCmd.Flags().StringVar(&exportSARIFFlag, "export-sarif", "", "Export execution security findings as OASIS SARIF 2.1.0 to file path")
 
+	return demoCmd
+}
+
+func main() {
+	rootCmd := &cobra.Command{
+		Use:   "chaossql",
+		Short: "ChaosSQL: Deterministic Concurrency & Invariant Fuzzer for SQL Databases",
+		Long: `ChaosSQL bridges chaos engineering with formal academic database research (PCT, Elle, Hermitage).
+It injects stochastic interleavings across database worker threads to provoke subtle isolation anomalies
+(such as Lost Updates, Write Skew, and Phantom Reads) and applies causal Delta-Debugging to shrink
+noisy execution traces to minimal, deterministic reproductions.`,
+	}
+
+	runCmd := newRunCmd()
+	demoCmd := newDemoCmd()
 	benchCmd := newBenchCmd()
 	diffCmd := newDiffCmd()
 	matrixCmd := newMatrixCmd()
@@ -347,6 +360,19 @@ func executeChaos(specPath string) error {
 		}
 		if !jsonFlag {
 			fmt.Printf("  [✓] Generated GitHub Step Summary markdown: %s\n", exportSummaryFlag)
+		}
+	}
+
+	if exportSARIFFlag != "" {
+		sarifJSON, err := reporter.GenerateSARIFReport(*spec, invResults, graph, shrinkResult)
+		if err != nil {
+			return fmt.Errorf("failed to generate SARIF report: %w", err)
+		}
+		if err := os.WriteFile(exportSARIFFlag, []byte(sarifJSON), 0644); err != nil {
+			return fmt.Errorf("failed to write %s: %w", exportSARIFFlag, err)
+		}
+		if !jsonFlag {
+			fmt.Printf("  [✓] Generated OASIS SARIF 2.1.0 security report: %s\n", exportSARIFFlag)
 		}
 	}
 

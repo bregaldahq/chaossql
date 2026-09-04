@@ -55,11 +55,11 @@
 - Produces: `GenerateSARIFReport(spec domain.Spec, results []domain.InvariantResult, graph *analyzer.AdyaGraph, shrink *domain.ShrinkResult) (string, error)`
 - Complies with SARIF 2.1.0 schema for GitHub Security / Code Scanning integration.
 
-- [ ] **Step 1: Write comprehensive unit tests in `internal/reporter/sarif_test.go`**
-- [ ] **Step 2: Implement `internal/reporter/sarif.go`**
-- [ ] **Step 3: Wire `--export-sarif` flag into `cmd/chaossql/main.go`**
-- [ ] **Step 4: Run `go test -v -race ./internal/reporter/...` and verify 100% pass**
-- [ ] **Step 5: Commit and push**
+- [x] **Step 1: Write comprehensive unit tests in `internal/reporter/sarif_test.go`**
+- [x] **Step 2: Implement `internal/reporter/sarif.go`**
+- [x] **Step 3: Wire `--export-sarif` flag into `cmd/chaossql/main.go`**
+- [x] **Step 4: Run `go test -v -race ./internal/reporter/...` and verify 100% pass**
+- [x] **Step 5: Commit and push**
 
 ---
 
