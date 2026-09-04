@@ -31,6 +31,7 @@ var (
 	exportJUnitFlag   string
 	exportSummaryFlag string
 	exportSARIFFlag   string
+	uiFlag            bool
 )
 
 func newRunCmd() *cobra.Command {
@@ -52,6 +53,7 @@ func newRunCmd() *cobra.Command {
 	runCmd.Flags().StringVar(&exportJUnitFlag, "export-junit", "", "Export execution test results as JUnit XML to file path")
 	runCmd.Flags().StringVar(&exportSummaryFlag, "export-summary", "", "Export execution report as GitHub Step Summary markdown to file path")
 	runCmd.Flags().StringVar(&exportSARIFFlag, "export-sarif", "", "Export execution security findings as OASIS SARIF 2.1.0 to file path")
+	runCmd.Flags().BoolVar(&uiFlag, "ui", false, "Launch interactive trace viewer UI web server after execution")
 
 	return runCmd
 }
@@ -71,6 +73,7 @@ func newDemoCmd() *cobra.Command {
 	demoCmd.Flags().StringVar(&exportJUnitFlag, "export-junit", "", "Export execution test results as JUnit XML to file path")
 	demoCmd.Flags().StringVar(&exportSummaryFlag, "export-summary", "", "Export execution report as GitHub Step Summary markdown to file path")
 	demoCmd.Flags().StringVar(&exportSARIFFlag, "export-sarif", "", "Export execution security findings as OASIS SARIF 2.1.0 to file path")
+	demoCmd.Flags().BoolVar(&uiFlag, "ui", false, "Launch interactive trace viewer UI web server after execution")
 
 	return demoCmd
 }
@@ -94,7 +97,8 @@ noisy execution traces to minimal, deterministic reproductions.`,
 	initCmd := newInitCmd()
 	validateCmd := newValidateCmd()
 
-	rootCmd.AddCommand(runCmd, demoCmd, benchCmd, diffCmd, matrixCmd, replayCmd, initCmd, validateCmd)
+	uiCmd := newUICmd()
+	rootCmd.AddCommand(runCmd, demoCmd, benchCmd, diffCmd, matrixCmd, replayCmd, initCmd, validateCmd, uiCmd)
 
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)
@@ -403,5 +407,11 @@ func executeChaos(specPath string) error {
 	}
 
 	reporter.PrintTerminalReport(*spec, runResult, shrinkResult, anomaly)
+
+	if uiFlag {
+		htmlContent := reporter.GenerateEmbeddedTraceViewerHTML(minimalTrace, *spec, graph, shrinkResult, invResults)
+		return serveTraceViewer("127.0.0.1:8090", htmlContent, false)
+	}
+
 	return nil
 }
