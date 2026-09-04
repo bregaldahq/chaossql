@@ -46,6 +46,8 @@ func main() {
 		"specs/10_developer_tooling_and_static_validator.md",
 		"specs/11_version_1_1_developer_sdk_and_smart_generators.md",
 		"specs/12_documentation_portal_and_branding_site.md",
+		"specs/13_interactive_visualizer_sarif_and_register_checker.md",
+		"examples/foreign_key_cascade_deadlock/chaos.yaml",
 	}
 
 	missing := 0
