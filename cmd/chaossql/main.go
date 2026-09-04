@@ -149,7 +149,7 @@ func runDemo(cmd *cobra.Command, args []string) error {
 	}
 
 	if _, err := os.Stat(specPath); os.IsNotExist(err) {
-		altPath := filepath.Join("/root/chaossql", specPath)
+		altPath := filepath.Join(findRepoRoot(), specPath)
 		if _, err := os.Stat(altPath); err == nil {
 			specPath = altPath
 		} else {

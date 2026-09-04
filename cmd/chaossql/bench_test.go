@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -43,13 +43,7 @@ func TestBenchCmd_DefaultExecution(t *testing.T) {
 }
 
 func TestBenchCmd_CustomScenario(t *testing.T) {
-	scenarioPath := "../../examples/banking_lost_update/chaos.yaml"
-	if _, err := os.Stat(scenarioPath); os.IsNotExist(err) {
-		scenarioPath = "examples/banking_lost_update/chaos.yaml"
-		if _, err := os.Stat(scenarioPath); os.IsNotExist(err) {
-			scenarioPath = "/root/chaossql/examples/banking_lost_update/chaos.yaml"
-		}
-	}
+	scenarioPath := filepath.Join(findRepoRoot(), "examples/banking_lost_update/chaos.yaml")
 
 	cmd := newBenchCmd()
 	var buf bytes.Buffer

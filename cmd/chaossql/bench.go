@@ -186,7 +186,7 @@ func newBenchCmd() *cobra.Command {
 			if len(args) > 0 {
 				scenarioPath = args[0]
 				if _, err := os.Stat(scenarioPath); os.IsNotExist(err) {
-					altPath := filepath.Join("/root/chaossql", scenarioPath)
+					altPath := filepath.Join(findRepoRoot(), scenarioPath)
 					if _, err := os.Stat(altPath); err == nil {
 						scenarioPath = altPath
 					} else {
