@@ -9,7 +9,7 @@ help:
 	@echo "  make lint          - Executa go vet e analise estatica"
 	@echo "  make check-harness - Valida integridade dos 37 documentos do harness"
 	@echo "  make build         - Compila o binario chaossql (Zero CGO)"
-	@echo "  make demo          - Executa as 9 demonstracoes interativas"
+	@echo "  make demo          - Executa as 10 demonstracoes interativas"
 	@echo "  make bench         - Executa benchmarks de performance e throughput"
 	@echo "  make matrix        - Executa a matriz empirica de isolamento Hermitage"
 	@echo "  make serve-site    - Inicia servidor HTTP local para o portal de documentacao (porta 8080)"
@@ -68,6 +68,9 @@ demo: build
 	@echo ""
 	@echo "=== 9. Demonstrando Deadlock Cycle & Timeout Diagnostics ==="
 	@./bin/chaossql demo deadlock || true
+	@echo ""
+	@echo "=== 10. Demonstrando Foreign Key Cascade Deadlock & Referential Integrity ==="
+	@./bin/chaossql demo fk || true
 
 verify: check-harness lint test
 	@echo ""

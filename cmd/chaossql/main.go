@@ -60,8 +60,8 @@ func newRunCmd() *cobra.Command {
 
 func newDemoCmd() *cobra.Command {
 	demoCmd := &cobra.Command{
-		Use:   "demo [banking|inventory|hospital|financial|auction|crypto|flash_crash|ticket|deadlock]",
-		Short: "Run one of the flagship demonstration scenarios (Lost Update, Oversell, Write Skew, Read Skew, Dirty Write, Circular Info, Dirty Read, Anti-Dependency, Deadlock)",
+		Use:   "demo [banking|inventory|hospital|financial|auction|crypto|flash_crash|ticket|deadlock|fk]",
+		Short: "Run one of the flagship demonstration scenarios (Lost Update, Oversell, Write Skew, Read Skew, Dirty Write, Circular Info, Dirty Read, Anti-Dependency, Deadlock, Foreign Key Cascade)",
 		Args:  cobra.MaximumNArgs(1),
 		RunE:  runDemo,
 	}
@@ -110,34 +110,42 @@ func runChaosTest(cmd *cobra.Command, args []string) error {
 	return executeChaos(specPath)
 }
 
+func resolveDemoPath(scenario string) (string, error) {
+	switch scenario {
+	case "banking", "banking_lost_update", "lost_update":
+		return "examples/banking_lost_update/chaos.yaml", nil
+	case "inventory", "inventory_oversell", "oversell":
+		return "examples/inventory_oversell/chaos.yaml", nil
+	case "hospital", "hospital_write_skew", "write_skew":
+		return "examples/hospital_write_skew/chaos.yaml", nil
+	case "financial", "financial_audit", "read_skew", "read_skew_financial_audit":
+		return "examples/read_skew_financial_audit/chaos.yaml", nil
+	case "auction", "dirty_write", "auction_dirty_write":
+		return "examples/dirty_write_auction/chaos.yaml", nil
+	case "crypto", "circular_info", "crypto_arbitrage", "circular_info_crypto_arbitrage":
+		return "examples/circular_info_crypto_arbitrage/chaos.yaml", nil
+	case "flash_crash", "dirty_read", "dirty_read_flash_crash", "liquidation":
+		return "examples/dirty_read_flash_crash/chaos.yaml", nil
+	case "ticket", "tickets", "seat", "seats", "g2", "ticket_booking_anti_dependency":
+		return "examples/ticket_booking_anti_dependency/chaos.yaml", nil
+	case "deadlock", "deadlock_cycle":
+		return "examples/deadlock_cycle/chaos.yaml", nil
+	case "fk", "cascade", "foreign_key", "foreign_key_cascade_deadlock":
+		return "examples/foreign_key_cascade_deadlock/chaos.yaml", nil
+	default:
+		return "", fmt.Errorf("unknown demo scenario %q. Available scenarios: banking, inventory, hospital, financial, auction, crypto, flash_crash, ticket, deadlock, fk", scenario)
+	}
+}
+
 func runDemo(cmd *cobra.Command, args []string) error {
 	scenario := "banking"
 	if len(args) > 0 {
 		scenario = strings.ToLower(strings.TrimSpace(args[0]))
 	}
 
-	var specPath string
-	switch scenario {
-	case "banking", "banking_lost_update", "lost_update":
-		specPath = "examples/banking_lost_update/chaos.yaml"
-	case "inventory", "inventory_oversell", "oversell":
-		specPath = "examples/inventory_oversell/chaos.yaml"
-	case "hospital", "hospital_write_skew", "write_skew":
-		specPath = "examples/hospital_write_skew/chaos.yaml"
-	case "financial", "financial_audit", "read_skew", "read_skew_financial_audit":
-		specPath = "examples/read_skew_financial_audit/chaos.yaml"
-	case "auction", "dirty_write", "auction_dirty_write":
-		specPath = "examples/dirty_write_auction/chaos.yaml"
-	case "crypto", "circular_info", "crypto_arbitrage", "circular_info_crypto_arbitrage":
-		specPath = "examples/circular_info_crypto_arbitrage/chaos.yaml"
-	case "flash_crash", "dirty_read", "dirty_read_flash_crash", "liquidation":
-		specPath = "examples/dirty_read_flash_crash/chaos.yaml"
-	case "ticket", "tickets", "seat", "seats", "g2", "ticket_booking_anti_dependency":
-		specPath = "examples/ticket_booking_anti_dependency/chaos.yaml"
-	case "deadlock", "deadlock_cycle":
-		specPath = "examples/deadlock_cycle/chaos.yaml"
-	default:
-		return fmt.Errorf("unknown demo scenario %q. Available scenarios: banking, inventory, hospital, financial, auction, crypto, flash_crash, ticket, deadlock", scenario)
+	specPath, err := resolveDemoPath(scenario)
+	if err != nil {
+		return err
 	}
 
 	if _, err := os.Stat(specPath); os.IsNotExist(err) {

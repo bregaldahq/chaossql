@@ -3,6 +3,7 @@ package domain
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -17,11 +18,13 @@ func TestLoadSpec_ValidExamples(t *testing.T) {
 		"dirty_read_flash_crash",
 		"ticket_booking_anti_dependency",
 		"deadlock_cycle",
+		"examples/foreign_key_cascade_deadlock/chaos.yaml",
 	}
 
 	for _, example := range examples {
-		t.Run(example, func(t *testing.T) {
-			path := filepath.Join("..", "..", "examples", example, "chaos.yaml")
+		scenarioName := strings.TrimSuffix(strings.TrimPrefix(example, "examples/"), "/chaos.yaml")
+		t.Run(scenarioName, func(t *testing.T) {
+			path := filepath.Join("..", "..", "examples", scenarioName, "chaos.yaml")
 			spec, err := LoadSpec(path)
 			if err != nil {
 				t.Fatalf("Failed to load %s: %v", example, err)
@@ -29,8 +32,8 @@ func TestLoadSpec_ValidExamples(t *testing.T) {
 			if spec.Version == "" {
 				t.Errorf("Missing version in %s", example)
 			}
-			if spec.Name != example {
-				t.Errorf("Expected name %s, got %s", example, spec.Name)
+			if spec.Name != scenarioName {
+				t.Errorf("Expected name %s, got %s", scenarioName, spec.Name)
 			}
 			if spec.Database.Driver == "" {
 				t.Errorf("Missing driver in %s", example)

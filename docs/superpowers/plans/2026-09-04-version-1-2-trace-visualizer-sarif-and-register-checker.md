@@ -76,8 +76,8 @@
 - Starts a local HTTP server serving a single-page interactive trace Gantt timeline, force-directed Adya conflict graph, and $ddmin$ reduction comparison.
 
 - [ ] **Step 1: Implement `internal/reporter/ui.go` with embedded HTML/SVG single-page trace viewer**
-- [ ] **Step 2: Implement `cmd/chaossql/ui.go` with Cobra command**
-- [ ] **Step 3: Write tests in `cmd/chaossql/ui_test.go`**
+- [x] **Step 2: Implement `cmd/chaossql/ui.go` with Cobra command**
+- [x] **Step 3: Write tests in `cmd/chaossql/ui_test.go`**
 - [ ] **Step 4: Run `go test -v -race ./cmd/chaossql/...` and verify 100% pass**
 - [ ] **Step 5: Commit and push**
 
@@ -94,10 +94,10 @@
 - Modify: `cmd/chaossql/main.go` (support `chaossql demo fk` / `cascade`)
 - Modify: `Makefile` (add scenario 10 to `make demo`)
 
-- [ ] **Step 1: Create the scenario files**
-- [ ] **Step 2: Register in `parser_test.go`, `cmd/chaossql/main.go`, and `Makefile`**
-- [ ] **Step 3: Run `go test -v -race ./...` and verify live execution**
-- [ ] **Step 4: Commit and push**
+- [x] **Step 1: Create the scenario files**
+- [x] **Step 2: Register in `parser_test.go`, `cmd/chaossql/main.go`, and `Makefile`**
+- [x] **Step 3: Run `go test -v -race ./...` and verify live execution**
+- [x] **Step 4: Commit and push**
 
 ---
 
@@ -108,5 +108,5 @@
 - Modify: `README.md` (document v1.2 features)
 
 - [ ] **Step 1: Update `tools/harness_check.go` for 41 artifacts**
-- [ ] **Step 2: Run `make verify` and `make demo`**
-- [ ] **Step 3: Commit and push to GitHub, verifying green CI**
+- [x] **Step 2: Run `make verify` and `make demo`**
+- [x] **Step 3: Commit and push to GitHub, verifying green CI**
