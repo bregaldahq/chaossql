@@ -9,15 +9,17 @@ import (
 type AnomalyType string
 
 const (
-	AnomalyLostUpdate        AnomalyType = "P4_LOST_UPDATE"
-	AnomalyWriteSkew         AnomalyType = "A5B_WRITE_SKEW"
-	AnomalyPhantom           AnomalyType = "A3_PHANTOM_READ"
-	AnomalyA5AReadSkew       AnomalyType = "A5A_READ_SKEW"
-	AnomalyG0DirtyWrite      AnomalyType = "G0_DIRTY_WRITE"
-	AnomalyG1aDirtyRead      AnomalyType = "G1A_DIRTY_READ"
-	AnomalyG1cCircularInfo   AnomalyType = "G1C_CIRCULAR_INFO"
-	AnomalyG2AntiDependency  AnomalyType = "G2_ANTI_DEPENDENCY"
-	AnomalyUnknown           AnomalyType = "UNKNOWN_INVARIANT_VIOLATION"
+	AnomalyLostUpdate          AnomalyType = "P4_LOST_UPDATE"
+	AnomalyWriteSkew           AnomalyType = "A5B_WRITE_SKEW"
+	AnomalyPhantom             AnomalyType = "A3_PHANTOM_READ"
+	AnomalyA5AReadSkew         AnomalyType = "A5A_READ_SKEW"
+	AnomalyG0DirtyWrite        AnomalyType = "G0_DIRTY_WRITE"
+	AnomalyG1aDirtyRead        AnomalyType = "G1A_DIRTY_READ"
+	AnomalyG1bIntermediateRead AnomalyType = "G1B_INTERMEDIATE_READ"
+	AnomalyFracturedRead       AnomalyType = "FRACTURED_READ"
+	AnomalyG1cCircularInfo     AnomalyType = "G1C_CIRCULAR_INFO"
+	AnomalyG2AntiDependency    AnomalyType = "G2_ANTI_DEPENDENCY"
+	AnomalyUnknown             AnomalyType = "UNKNOWN_INVARIANT_VIOLATION"
 )
 
 // TemporalInvariantConfig defines rules evaluated against chronological traces.
