@@ -8,14 +8,14 @@
 const I18N = {
   "pt": {
     "nav": {
-      "home": "In?cio",
-      "docs": "Documenta??o",
-      "scenarios": "Cen?rios & Solu??es",
+      "home": "Início",
+      "docs": "Documentação",
+      "scenarios": "Cenários & Soluções",
       "visualizer": "Trace Visualizer",
       "matrix": "Matriz de Isolamento"
     },
     "landing": {
-      "heroMeta": "Studio Bregalda ? Engenharia de Sistemas ? Vers?o 1.2.0",
+      "heroMeta": "Studio Bregalda — Engenharia de Sistemas — Versão 1.2.0",
       "heroTitle": "Fuzzer Determinístico de Concorrência & Isolamento SQL",
       "heroSubtitle": "O ChaosSQL injeta micro-jitter estocástico para disparar condições de corrida raras em bancos de dados, classifica anomalias de isolamento via grafos de dependência Adya e reduz rastros de execução de 100 operações para reproduções 1-minimais em milissegundos.",
       "ctaDocs": "Explorar Documentação",
@@ -148,16 +148,16 @@ const I18N = {
       "matrix": "Isolation Matrix"
     },
     "landing": {
-      "heroMeta": "Studio Bregalda ? Systems Engineering ? Version 1.2.0",
+      "heroMeta": "Studio Bregalda — Systems Engineering — Version 1.2.0",
       "heroTitle": "Deterministic Concurrency & Isolation Fuzzer",
       "heroSubtitle": "ChaosSQL injects stochastic micro-jitter to trigger rare database race conditions, classifies isolation anomalies through Adya dependency graphs, and shrinks 100-operation execution traces to 1-minimal reproductions in milliseconds.",
       "ctaDocs": "Explore Documentation",
       "ctaScenarios": "View 10 Scenarios",
       "copyCommandTitle": "Copy installation command",
-      "termRun": "? Run Fuzzer",
-      "termJitter": "? Inject Jitter",
-      "termShrink": "?? ddmin Shrink",
-      "termReset": "? Reset",
+      "termRun": "▶ Run Fuzzer",
+      "termJitter": "⚡ Inject Jitter",
+      "termShrink": "🔍 ddmin Shrink",
+      "termReset": "↺ Reset",
       "adyaBadge": "DIRECT SERIALIZATION GRAPH (DSG)",
       "adyaTitle": "Adya Cycle Classification",
       "adyaAnomalyLabel": "Anomaly:",
@@ -168,7 +168,7 @@ const I18N = {
       "pillar1Title": "Adya Cycle Classification",
       "pillar1Body": "Constructs dynamic Direct Serialization Graphs DSG(H) = (V, E) tracking write-read (wr), write-write (ww), and read-write anti-dependency (rw) edges to categorize anomalies (P4, A5B, A5A, G0, G2).",
       "pillar2Title": "PCT-SQL Priority Scheduling",
-      "pillar2Body": "Adapts Probabilistic Concurrency Testing to SQL engines. Mathematically guarantees finding isolation bugs of bug-depth d with lower bound P ? 1/(n ? k^(d-1)), avoiding deadlocks and thread starvation.",
+      "pillar2Body": "Adapts Probabilistic Concurrency Testing to SQL engines. Mathematically guarantees finding isolation bugs of bug-depth d with lower bound P ≥ 1/(n · k^(d-1)), avoiding deadlocks and thread starvation.",
       "pillar3Title": "Causal Delta-Debugging (ddmin)",
       "pillar3Body": "Partitions noisy execution histories of 100+ concurrent operations to isolate the exact 1-minimal subset of 2 steps required to reproduce the anomaly in <200ms.",
       "pillar4Title": "Interactive Trace Visualizer",
@@ -180,17 +180,17 @@ const I18N = {
       "bannerDocsBadge": "Complete Technical Documentation",
       "bannerDocsTitle": "Engineering Hub & DSL Reference",
       "bannerDocsDesc": "Explore all 8 chapters: Quickstart Guide, chaos.yaml DSL, manual with 12 CLI flags, driver architecture (Postgres, SQLite, MySQL), and Go Testing SDK.",
-      "bannerDocsCta": "Explore Documentation ?",
+      "bannerDocsCta": "Explore Documentation →",
       "bannerVizBadge": "Trace Visualizer Showcase",
       "bannerVizTitle": "Microsecond-Level Concurrency",
       "bannerVizDesc": "Interactively explore chaossql ui: compare the raw trace with the 1-minimal 2-step reduction, inspect query parameters, and navigate the Adya conflict graph.",
-      "bannerVizCta": "Open Trace Visualizer ?"
+      "bannerVizCta": "Open Trace Visualizer →"
     },
     "docs": {
       "searchPlaceholder": "Search documentation topics...",
       "breadcrumbDocs": "Docs",
-      "prevBtn": "? Previous Chapter",
-      "nextBtn": "Next Chapter ?",
+      "prevBtn": "← Previous Chapter",
+      "nextBtn": "Next Chapter →",
       "noResults": "No chapters found.",
       "copy": "Copy",
       "copied": "Copied!"
@@ -198,7 +198,7 @@ const I18N = {
     "scenarios": {
       "sectionLabel": "Interactive Catalog & Production",
       "sectionTitle": "10 Flagship Demonstration Scenarios & Fixes",
-      "sectionDesc": "Explore real isolation anomalies in banking ledgers, inventory, hospital on-call rosters, and crypto exchanges ? with causal reduction and production mitigation code.",
+      "sectionDesc": "Explore real isolation anomalies in banking ledgers, inventory, hospital on-call rosters, and crypto exchanges — with causal reduction and production mitigation code.",
       "tabSchema": "SQL Code",
       "tabChaos": "Chaos Workload",
       "tabInvariant": "Invariant Rule",
@@ -210,28 +210,28 @@ const I18N = {
       "metric1Label": "1-Minimal Ops Shrunk",
       "metric2Label": "Causal Noise Removed",
       "metric3Label": "Convergence Time",
-      "fixHeaderPill": "PRODUCTION ? ARCHITECTURAL RECOMMENDATION",
+      "fixHeaderPill": "PRODUCTION — ARCHITECTURAL RECOMMENDATION",
       "validatedEngines": "Validated engines:",
       "driverNotes": "Driver Notes:"
     },
     "visualizer": {
-      "sectionLabel": "chaossql ui ? Live Concurrency Explorer ? 127.0.0.1:8090",
+      "sectionLabel": "chaossql ui — Live Concurrency Explorer — 127.0.0.1:8090",
       "sectionTitle": "Interactive Trace Visualizer",
       "sectionDesc": "High-resolution observability web engine. Analyze goroutine interleaving at microsecond scale, the Adya Conflict Graph, and compare the 20-step raw trace with the 2-step 1-minimal synthesis.",
       "modeRaw": "Raw Trace (20 ops)",
       "modeShrunk": "1-Minimal Shrunk (2 ops)",
       "filterAll": "All Workers",
-      "animateBtn": "? Animate Execution",
+      "animateBtn": "▶ Animate Execution",
       "adyaTitle": "Adya Dependency Graph (DSG)",
-      "cycleLabel": "Cycle: rw ? ww",
-      "statusDetected": "P4_LOST_UPDATE detected at t=184?s",
+      "cycleLabel": "Cycle: rw → ww",
+      "statusDetected": "P4_LOST_UPDATE detected at t=184μs",
       "inspectorTitle": "Operation & Query Inspector",
       "inspectorTx": "Transaction / Worker:",
       "inspectorTimestamp": "Timestamp / Latency:",
       "inspectorExecution": "execution",
       "inspectorParams": "Parameters / Variables:",
       "inspectorGraph": "Conflict Graph:",
-      "inspectorCycleDetected": "T1 ??(rw)??? T2 ??(ww)??? T1 [CYCLE DETECTED]",
+      "inspectorCycleDetected": "T1 ──(rw)──► T2 ──(ww)──► T1 [CYCLE DETECTED]",
       "inspectorSerializable": "Serializable schedule with no cycles",
       "workerLabel": "Worker",
       "collisionLabel": "P4 Collision"
@@ -257,14 +257,14 @@ const I18N = {
     "terminal": {
       "initFuzzer": "# Initializing PCT-SQL concurrency fuzzer (4 workers, 20 iterations, seed=42)...",
       "injectJitter": "# Injecting micro-jitter [1ms, 5ms] on SQLite in-memory driver (Zero CGO)...",
-      "anomalyDetected": "? ISOLATION ANOMALY DETECTED: P4_LOST_UPDATE",
-      "cycle": "  Cycle: T1 ??(rw)??? T2 ??(ww)??? T1",
+      "anomalyDetected": "✘ ISOLATION ANOMALY DETECTED: P4_LOST_UPDATE",
+      "cycle": "  Cycle: T1 ──(rw)──► T2 ──(ww)──► T1",
       "violatedInvariant": "  Violated Invariant: total_balance == 1000 (Actual: 850)",
-      "startDdmin": "? Starting Causal Delta-Debugging (ddmin)...",
-      "iteration1": "  [Iteration 1] Testing subset of 10 operations ??? <span class=\"term-err\">FAIL (Anomaly Preserved)</span>",
-      "iteration2": "  [Iteration 2] Testing subset of 4 operations  ??? <span class=\"term-err\">FAIL (Anomaly Preserved)</span>",
-      "iteration3": "  [Iteration 3] Testing subset of 2 operations  ??? <span class=\"term-err\">FAIL (1-minimal achieved)</span>",
-      "traceShrunk": "? Trace shrunk from 20 to 2 operations (90.0% reduction in 68ms)",
+      "startDdmin": "▶ Starting Causal Delta-Debugging (ddmin)...",
+      "iteration1": "  [Iteration 1] Testing subset of 10 operations ──► <span class=\"term-err\">FAIL (Anomaly Preserved)</span>",
+      "iteration2": "  [Iteration 2] Testing subset of 4 operations  ──► <span class=\"term-err\">FAIL (Anomaly Preserved)</span>",
+      "iteration3": "  [Iteration 3] Testing subset of 2 operations  ──► <span class=\"term-err\">FAIL (1-minimal achieved)</span>",
+      "traceShrunk": "✔ Trace shrunk from 20 to 2 operations (90.0% reduction in 68ms)",
       "synthesizedRepro": "  Synthesized standalone repro: bin/repro_test.go",
       "pillWorkers": "Workers:",
       "pillEngine": "Engine:",
@@ -1867,4 +1867,8 @@ if (typeof window !== "undefined") {
   window.renderScenarioDetail = renderScenarioDetail;
   window.renderScenarioStage = renderScenarioStage;
   window.renderMatrixView = renderMatrixView;
+}
+
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = { I18N, SCENARIOS };
 }
