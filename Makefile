@@ -1,6 +1,6 @@
 GO ?= $(shell which /usr/local/go/bin/go go 2>/dev/null | head -n 1)
 
-.PHONY: help bootstrap test lint verify check-harness build wasm demo bench matrix diff replay serve-site
+.PHONY: help bootstrap test lint verify check-harness build wasm demo bench matrix diff replay serve-site stress-wasm test-wasm-stress
 
 help:
 	@echo "ChaosSQL (Go 1.23+) Harness Commands:"
@@ -13,6 +13,7 @@ help:
 	@echo "  make demo          - Executa as 10 demonstracoes interativas"
 	@echo "  make bench         - Executa benchmarks de performance e throughput"
 	@echo "  make matrix        - Executa a matriz empirica de isolamento Hermitage"
+	@echo "  make stress-wasm   - Executa harness de stress headless WebAssembly e Web Worker"
 	@echo "  make serve-site    - Inicia servidor HTTP local para o portal de documentacao (porta 8080)"
 	@echo "  make verify        - Gate unificado (check-harness + lint + test)"
 
@@ -79,7 +80,12 @@ demo: build
 	@echo "=== 10. Demonstrando Foreign Key Cascade Deadlock & Referential Integrity ==="
 	@./bin/chaossql demo fk || true
 
+stress-wasm: ## Run headless WebAssembly & worker stress harness
+	@node tools/headless_worker_stress.js
+
+test-wasm-stress: stress-wasm
+
 verify: check-harness lint test
-	@node tools/test_wasm_worker.js && node tools/test_playground_ui.js
+	@node tools/test_wasm_worker.js && node tools/test_playground_ui.js && node tools/test_wasm_bench.js && node tools/headless_worker_stress.js
 	@echo ""
 	@echo "✔ Gate de verificacao concluido com sucesso!"
