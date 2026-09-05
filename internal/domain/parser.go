@@ -8,14 +8,8 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// LoadSpec reads a YAML chaos testing specification from the given filePath,
-// parses it, validates it, and resolves external SQL files for schema and seed.
-func LoadSpec(filePath string) (*Spec, error) {
-	data, err := os.ReadFile(filePath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read spec file: %w", err)
-	}
-
+// ParseSpecBytes parses raw YAML specification bytes without disk access.
+func ParseSpecBytes(data []byte) (*Spec, error) {
 	var spec Spec
 	if err := yaml.Unmarshal(data, &spec); err != nil {
 		return nil, fmt.Errorf("failed to parse yaml: %w", err)
@@ -38,6 +32,37 @@ func LoadSpec(filePath string) (*Spec, error) {
 		return nil, fmt.Errorf("%w: 'operations' must have at least one entry", ErrSpecValidationFailed)
 	}
 
+	return &spec, nil
+}
+
+// ParseSpecString parses YAML content with optional inline schema and seed SQL strings.
+func ParseSpecString(yamlContent, schemaSQL, seedSQL string) (*Spec, error) {
+	spec, err := ParseSpecBytes([]byte(yamlContent))
+	if err != nil {
+		return nil, err
+	}
+	if schemaSQL != "" {
+		spec.Database.Schema = schemaSQL
+	}
+	if seedSQL != "" {
+		spec.Database.Seed = seedSQL
+	}
+	return spec, nil
+}
+
+// LoadSpec reads a YAML chaos testing specification from the given filePath,
+// parses it, validates it, and resolves external SQL files for schema and seed.
+func LoadSpec(filePath string) (*Spec, error) {
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read spec file: %w", err)
+	}
+
+	spec, err := ParseSpecBytes(data)
+	if err != nil {
+		return nil, err
+	}
+
 	baseDir := filepath.Dir(filePath)
 
 	if spec.Database.Schema != "" {
@@ -58,5 +83,5 @@ func LoadSpec(filePath string) (*Spec, error) {
 		spec.Database.Seed = string(seedData)
 	}
 
-	return &spec, nil
+	return spec, nil
 }
