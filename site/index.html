@@ -8,7 +8,7 @@
   <link rel="icon" type="image/svg+xml" href="assets/icone_bregalda.svg">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="assets/style.css">
 </head>
 <body>
@@ -16,320 +16,560 @@
   <!-- Navigation -->
   <header class="site-header">
     <div class="container nav-container">
-      <a href="#" class="brand-lockup">
+      <a href="#/" class="brand-lockup">
         <img src="assets/icone_bregalda.svg" alt="Bregalda" class="brand-logo">
         <span class="brand-title">ChaosSQL</span>
         <span class="brand-badge">v1.2.0</span>
       </a>
-      <nav class="nav-links">
-        <a href="#theory" class="nav-item">Theory</a>
-        <a href="#scenarios" class="nav-item">Scenarios</a>
-        <a href="#sdk" class="nav-item">Go SDK</a>
-        <a href="#matrix" class="nav-item">Isolation Matrix</a>
-        <a href="#cli" class="nav-item">CLI</a>
+      <nav class="nav-links" id="mainNav">
+        <a href="#/" class="nav-item active" data-route="landing">Início</a>
+        <a href="#/docs" class="nav-item" data-route="docs">Documentação</a>
+        <a href="#/scenarios" class="nav-item" data-route="scenarios">Cenários &amp; Soluções</a>
+        <a href="#/visualizer" class="nav-item" data-route="visualizer">Trace Visualizer</a>
+        <a href="#/matrix" class="nav-item" data-route="matrix">Matriz de Isolamento</a>
         <a href="https://github.com/bregaldahq/chaossql" target="_blank" rel="noopener" class="nav-cta">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path></svg>
           GitHub
         </a>
       </nav>
+      <button class="nav-mobile-toggle" id="navMobileToggle" aria-label="Toggle Navigation">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+      </button>
     </div>
   </header>
 
+  <!-- Mobile Navigation Drawer -->
+  <div class="mobile-nav-drawer" id="mobileNavDrawer">
+    <a href="#/" class="mobile-nav-link active" data-route="landing">Início</a>
+    <a href="#/docs" class="mobile-nav-link" data-route="docs">Documentação Técnica</a>
+    <a href="#/scenarios" class="mobile-nav-link" data-route="scenarios">Cenários &amp; Soluções</a>
+    <a href="#/visualizer" class="mobile-nav-link" data-route="visualizer">Trace Visualizer (chaossql ui)</a>
+    <a href="#/matrix" class="mobile-nav-link" data-route="matrix">Matriz de Isolamento</a>
+    <a href="https://github.com/bregaldahq/chaossql" target="_blank" rel="noopener" class="mobile-nav-link" style="color: var(--color-yellow);">GitHub Repository ↗</a>
+  </div>
+
   <main>
-    <!-- Hero Section -->
-    <section class="hero-section">
-      <div class="container">
-        <div class="hero-meta">Studio Bregalda • Systems Engineering</div>
-        <h1 class="hero-title">Deterministic Concurrency & Isolation Fuzzer</h1>
-        <p class="hero-subtitle">
-          ChaosSQL injects stochastic micro-jitter to trigger rare database race conditions, classifies isolation anomalies through Adya dependency graphs, and shrinks 100-operation execution traces to 1-minimal reproductions in milliseconds.
-        </p>
+    <!-- ======================================================================
+         VIEW 1: LANDING PAGE (#view-landing)
+         ====================================================================== -->
+    <div id="view-landing" class="portal-view active">
+      <!-- Hero Section -->
+      <section class="hero-section">
+        <div class="container">
+          <div class="hero-meta">Studio Bregalda • Systems Engineering • Version 1.2.0</div>
+          <h1 class="hero-title">Deterministic Concurrency &amp; Isolation Fuzzer</h1>
+          <p class="hero-subtitle">
+            ChaosSQL injects stochastic micro-jitter to trigger rare database race conditions, classifies isolation anomalies through Adya dependency graphs, and shrinks 100-operation execution traces to 1-minimal reproductions in milliseconds.
+          </p>
 
-        <div class="hero-actions">
-          <a href="#scenarios" class="btn btn-primary">Explore 10 Scenarios</a>
-          <a href="#sdk" class="btn btn-secondary">Go Developer SDK</a>
-          <div class="install-command-bar">
-            <span>$</span>
-            <code>go install github.com/bregaldahq/chaossql/cmd/chaossql@latest</code>
-            <button class="copy-btn" id="copyInstallBtn" title="Copy command">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
-            </button>
-          </div>
-        </div>
-
-        <!-- Terminal Window -->
-        <div class="terminal-card">
-          <div class="terminal-header">
-            <div class="terminal-dots">
-              <div class="terminal-dot"></div>
-              <div class="terminal-dot"></div>
-              <div class="terminal-dot"></div>
-            </div>
-            <div class="terminal-title">chaossql run examples/banking_lost_update/chaos.yaml --seed=42</div>
-          </div>
-          <div class="terminal-body" id="terminalOutput">
-            <div class="term-dim"># Initializing PCT-SQL concurrency fuzzer (4 workers, 20 iterations, seed=42)...</div>
-            <div class="term-dim"># Injecting micro-jitter [1ms, 5ms] on SQLite in-memory driver (Zero CGO)...</div>
-            <div class="term-err">✘ ISOLATION ANOMALY DETECTED: P4_LOST_UPDATE</div>
-            <div class="term-dim">  Cycle: T1 ──(rw)──► T2 ──(ww)──► T1</div>
-            <div class="term-dim">  Violated Invariant: total_balance == 1000 (Actual: 850)</div>
-            <div class="term-info">▶ Starting Causal Delta-Debugging (ddmin)...</div>
-            <div>  [Iteration 1] Testing subset of 10 operations ──► <span class="term-err">FAIL (Anomaly Preserved)</span></div>
-            <div>  [Iteration 2] Testing subset of 4 operations  ──► <span class="term-err">FAIL (Anomaly Preserved)</span></div>
-            <div>  [Iteration 3] Testing subset of 2 operations  ──► <span class="term-err">FAIL (1-minimal achieved)</span></div>
-            <div class="term-ok">✔ Trace shrunk from 20 to 2 operations (90.0% reduction in 68ms)</div>
-            <div class="term-dim">  Synthesized standalone repro: bin/repro_test.go</div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- The Three Pillars -->
-    <section class="section" id="theory">
-      <div class="container">
-        <div class="section-label">Academic Foundations</div>
-        <h2 class="section-title">Built on Formal Concurrency Research</h2>
-        <p class="section-desc">
-          ChaosSQL replaces heuristic guesswork with rigorous isolation theory, provable scheduling bounds, and algorithmic test case minimization.
-        </p>
-
-        <div class="pillars-grid">
-          <div class="pillar-card">
-            <div class="pillar-number">01 / DIRECT SERIALIZATION GRAPH</div>
-            <h3 class="pillar-title">Adya Graph Cycle Detection</h3>
-            <p class="pillar-body">
-              Builds dynamic dependency graphs $SG(S) = (V, E)$ tracking write-read (wr), write-write (ww), and read-write anti-dependency (rw) edges. Formally classifies cycles into Lost Update (P4), Write Skew (A5B), Read Skew (A5A), Dirty Writes (G0), and G2 Anti-Dependency.
-            </p>
-            <div class="pillar-citation">Atul Adya, Ph.D. Thesis (MIT 1999)</div>
-          </div>
-
-          <div class="pillar-card">
-            <div class="pillar-number">02 / PROVABLE CONCURRENCY BOUNDS</div>
-            <h3 class="pillar-title">PCT-SQL Priority Scheduling</h3>
-            <p class="pillar-body">
-              Adapts Burckhardt's Probabilistic Concurrency Testing algorithm to SQL transactions. Guarantees finding concurrency bugs of depth $d$ with mathematical probability $\mathbb{P}[\text{bug}] \ge \frac{1}{n \cdot k^{d-1}}$, avoiding deadlocks and thread starvation.
-            </p>
-            <div class="pillar-citation">Burckhardt et al. (ASPLOS 2010)</div>
-          </div>
-
-          <div class="pillar-card">
-            <div class="pillar-number">03 / CAUSAL TRACE MINIMIZATION</div>
-            <h3 class="pillar-title">Zeller Delta-Debugging ($ddmin$)</h3>
-            <p class="pillar-body">
-              When an invariant fails across thousands of interleaved operations, ChaosSQL partitions the execution history using binary and $n$-way search until reaching 1-minimality: removing any single remaining operation causes the bug to disappear.
-            </p>
-            <div class="pillar-citation">Andreas Zeller (IEEE TSE 2002)</div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- Scenarios Explorer -->
-    <section class="section" id="scenarios">
-      <div class="container">
-        <div class="section-label">Interactive Catalog</div>
-        <h2 class="section-title">10 Flagship Demonstration Scenarios</h2>
-        <p class="section-desc">
-          Explore real-world isolation bugs across financial ledgers, inventory systems, medical on-call rotas, and distributed exchanges.
-        </p>
-
-        <div class="scenarios-layout">
-          <!-- Left List -->
-          <div class="scenarios-nav" id="scenarioNavList">
-            <!-- Populated via app.js -->
-          </div>
-
-          <!-- Right Stage -->
-          <div class="scenario-stage" id="scenarioStage">
-            <div class="stage-header">
-              <h3 class="stage-title" id="stageTitle">Banking Lost Update</h3>
-              <p class="stage-summary" id="stageSummary">Concurrent withdrawal operations under READ COMMITTED overwrite balances without locking.</p>
-            </div>
-            <div class="stage-tabs">
-              <button class="stage-tab-btn active" data-tab="schema">Schema & Seed</button>
-              <button class="stage-tab-btn" data-tab="chaos">Chaos Workload</button>
-              <button class="stage-tab-btn" data-tab="invariant">Invariant & Reduction</button>
-            </div>
-            <div class="stage-content" id="stageTabContent">
-              <!-- Rendered via app.js -->
+          <div class="hero-actions">
+            <a href="#/docs" class="btn btn-primary">Explorar Documentação</a>
+            <a href="#/scenarios" class="btn btn-secondary">Ver 10 Cenários</a>
+            <div class="install-command-bar">
+              <span>$</span>
+              <code>go install github.com/bregaldahq/chaossql/cmd/chaossql@latest</code>
+              <button class="copy-btn" id="copyInstallBtn" title="Copy command">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+              </button>
             </div>
           </div>
+
+          <!-- Dual-Split Showcase: Terminal Simulator + Adya Graph SVG -->
+          <div class="hero-showcase">
+            <!-- Left: Terminal Replay Simulator -->
+            <div class="terminal-card">
+              <div class="terminal-header">
+                <div class="terminal-header-left">
+                  <div class="terminal-dots">
+                    <div class="terminal-dot dot-red"></div>
+                    <div class="terminal-dot dot-yellow"></div>
+                    <div class="terminal-dot dot-green"></div>
+                  </div>
+                  <div class="terminal-title">chaossql run examples/banking_lost_update/chaos.yaml --seed=42</div>
+                </div>
+                <div class="terminal-actions">
+                  <button class="term-action-btn active" id="termRunBtn" title="Run full execution">▶ Run Fuzzer</button>
+                  <button class="term-action-btn" id="termJitterBtn" title="Simulate jitter injection">⚡ Inject Jitter</button>
+                  <button class="term-action-btn" id="termShrinkBtn" title="Trigger ddmin reduction">🔍 ddmin Shrink</button>
+                  <button class="term-action-btn" id="termResetBtn" title="Reset terminal state">↺ Reset</button>
+                </div>
+              </div>
+              <div class="terminal-body" id="terminalOutput">
+                <div class="term-dim"># Initializing PCT-SQL concurrency fuzzer (4 workers, 20 iterations, seed=42)...</div>
+                <div class="term-dim"># Injecting micro-jitter [1ms, 5ms] on SQLite in-memory driver (Zero CGO)...</div>
+                <div class="term-err">✘ ISOLATION ANOMALY DETECTED: P4_LOST_UPDATE</div>
+                <div class="term-dim">  Cycle: T1 ──(rw)──► T2 ──(ww)──► T1</div>
+                <div class="term-dim">  Violated Invariant: total_balance == 1000 (Actual: 850)</div>
+                <div class="term-info">▶ Starting Causal Delta-Debugging (ddmin)...</div>
+                <div>  [Iteration 1] Testing subset of 10 operations ──► <span class="term-err">FAIL (Anomaly Preserved)</span></div>
+                <div>  [Iteration 2] Testing subset of 4 operations  ──► <span class="term-err">FAIL (Anomaly Preserved)</span></div>
+                <div>  [Iteration 3] Testing subset of 2 operations  ──► <span class="term-err">FAIL (1-minimal achieved)</span></div>
+                <div class="term-ok">✔ Trace shrunk from 20 to 2 operations (90.0% reduction in 68ms)</div>
+                <div class="term-dim">  Synthesized standalone repro: bin/repro_test.go</div>
+              </div>
+              <div class="terminal-footer-bar">
+                <div class="terminal-pills">
+                  <span class="term-pill">Workers: <strong class="term-pill-val">4</strong></span>
+                  <span class="term-pill">Engine: <strong class="term-pill-val">SQLite Memory</strong></span>
+                  <span class="term-pill">Reduction: <strong class="term-pill-val" style="color: var(--color-green);">90.0% (ddmin)</strong></span>
+                </div>
+                <div>Latency: <strong style="color: var(--color-cream);">68ms</strong></div>
+              </div>
+            </div>
+
+            <!-- Right: Adya Graph SVG Diagram -->
+            <div class="adya-graph-card" id="adyaGraphCard">
+              <div class="adya-graph-header">
+                <span class="adya-badge">DIRECT SERIALIZATION GRAPH (DSG)</span>
+                <span class="adya-graph-title">Adya Cycle Classification</span>
+              </div>
+              <div class="adya-svg-wrapper">
+                <svg class="adya-svg" viewBox="0 0 460 260" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <defs>
+                    <marker id="arrow-rw" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                      <path d="M 0 1 L 10 5 L 0 9 z" fill="#F5C400"/>
+                    </marker>
+                    <marker id="arrow-ww" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                      <path d="M 0 1 L 10 5 L 0 9 z" fill="#EF4444"/>
+                    </marker>
+                    <radialGradient id="nodeGlowT1" cx="50%" cy="50%" r="50%">
+                      <stop offset="0%" stop-color="#4B2E83" stop-opacity="0.8"/>
+                      <stop offset="100%" stop-color="#181328" stop-opacity="0.9"/>
+                    </radialGradient>
+                    <radialGradient id="nodeGlowT2" cx="50%" cy="50%" r="50%">
+                      <stop offset="0%" stop-color="#6A44B0" stop-opacity="0.8"/>
+                      <stop offset="100%" stop-color="#181328" stop-opacity="0.9"/>
+                    </radialGradient>
+                  </defs>
+
+                  <!-- Background Grid -->
+                  <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
+                    <circle cx="2" cy="2" r="1" fill="rgba(252, 251, 248, 0.05)"/>
+                  </pattern>
+                  <rect width="100%" height="100%" fill="url(#grid)" rx="8"/>
+
+                  <!-- Edge 1: T1 -> T2 (rw anti-dependency) - Curved Top -->
+                  <path d="M 120 110 C 180 40, 280 40, 340 110" stroke="#F5C400" stroke-width="2.5" class="flow-edge" marker-end="url(#arrow-rw)" fill="none"/>
+                  <!-- Badge for rw -->
+                  <rect x="195" y="38" width="70" height="24" rx="4" fill="#0D0A17" stroke="#F5C400" stroke-width="1.2"/>
+                  <text x="230" y="54" fill="#F5C400" font-family="JetBrains Mono" font-size="11" font-weight="700" text-anchor="middle">rw (anti)</text>
+
+                  <!-- Edge 2: T2 -> T1 (ww write-write conflict) - Curved Bottom -->
+                  <path d="M 340 150 C 280 220, 180 220, 120 150" stroke="#EF4444" stroke-width="2.5" class="flow-edge" marker-end="url(#arrow-ww)" fill="none"/>
+                  <!-- Badge for ww -->
+                  <rect x="190" y="196" width="80" height="24" rx="4" fill="#0D0A17" stroke="#EF4444" stroke-width="1.2"/>
+                  <text x="230" y="212" fill="#EF4444" font-family="JetBrains Mono" font-size="11" font-weight="700" text-anchor="middle">ww (write)</text>
+
+                  <!-- Node T1 -->
+                  <g class="pulse-node" cursor="pointer">
+                    <circle cx="100" cy="130" r="42" fill="url(#nodeGlowT1)" stroke="#4B2E83" stroke-width="2.5"/>
+                    <text x="100" y="125" fill="#FCFBF8" font-family="Inter" font-size="16" font-weight="800" text-anchor="middle">T₁</text>
+                    <text x="100" y="142" fill="#A39BB5" font-family="JetBrains Mono" font-size="9" text-anchor="middle">Worker 0</text>
+                    <text x="100" y="155" fill="#F5C400" font-family="JetBrains Mono" font-size="8" text-anchor="middle">w(bal=900)</text>
+                  </g>
+
+                  <!-- Node T2 -->
+                  <g class="pulse-node" cursor="pointer">
+                    <circle cx="360" cy="130" r="42" fill="url(#nodeGlowT2)" stroke="#F5C400" stroke-width="2.5"/>
+                    <text x="360" y="125" fill="#FCFBF8" font-family="Inter" font-size="16" font-weight="800" text-anchor="middle">T₂</text>
+                    <text x="360" y="142" fill="#A39BB5" font-family="JetBrains Mono" font-size="9" text-anchor="middle">Worker 1</text>
+                    <text x="360" y="155" fill="#EF4444" font-family="JetBrains Mono" font-size="8" text-anchor="middle">w(bal=900)</text>
+                  </g>
+                </svg>
+              </div>
+              <div class="adya-graph-footer">
+                <div>Anomalia: <strong class="adya-formula">P4 (Lost Update)</strong></div>
+                <div>Atul Adya, Ph.D. Thesis (MIT 1999)</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- The 6 Pillars of Engineering -->
+      <section class="section" id="theory">
+        <div class="container">
+          <div class="section-label">Academic Foundations &amp; Rigorous Systems</div>
+          <h2 class="section-title">Built on Formal Concurrency Research</h2>
+          <p class="section-desc">
+            ChaosSQL replaces heuristic guesswork with rigorous isolation theory, provable scheduling bounds, and algorithmic test case minimization.
+          </p>
+
+          <div class="pillars-grid">
+            <!-- Pillar 1 -->
+            <div class="pillar-card">
+              <div class="pillar-meta-row">
+                <span class="pillar-number">01 / GRAPH THEORY</span>
+                <span class="pillar-tag">FORMAL VERIFICATION</span>
+              </div>
+              <h3 class="pillar-title">Adya Cycle Classification</h3>
+              <p class="pillar-body">
+                Constructs dynamic Direct Serialization Graphs $DSG(H) = (V, E)$ tracking write-read ($wr$), write-write ($ww$), and read-write anti-dependency ($rw$) edges to categorize anomalies (P4, A5B, A5A, G0, G2).
+              </p>
+              <div class="pillar-citation">
+                <span>Atul Adya (MIT 1999)</span>
+                <span class="pillar-metric">100% Deterministic</span>
+              </div>
+            </div>
+
+            <!-- Pillar 2 -->
+            <div class="pillar-card">
+              <div class="pillar-meta-row">
+                <span class="pillar-number">02 / PROBABILITY BOUNDS</span>
+                <span class="pillar-tag">PCT SCHEDULING</span>
+              </div>
+              <h3 class="pillar-title">PCT-SQL Priority Scheduling</h3>
+              <p class="pillar-body">
+                Adapts Probabilistic Concurrency Testing to SQL engines. Mathematically guarantees finding isolation bugs of bug-depth $d$ with lower bound $\mathbb{P} \ge rac{1}{n \cdot k^{d-1}}$, avoiding deadlocks and thread starvation.
+              </p>
+              <div class="pillar-citation">
+                <span>Burckhardt et al. (ASPLOS 2010)</span>
+                <span class="pillar-metric">Provable Guarantee</span>
+              </div>
+            </div>
+
+            <!-- Pillar 3 -->
+            <div class="pillar-card">
+              <div class="pillar-meta-row">
+                <span class="pillar-number">03 / TRACE MINIMIZATION</span>
+                <span class="pillar-tag">DELTA-DEBUGGING</span>
+              </div>
+              <h3 class="pillar-title">Causal Delta-Debugging ($ddmin$)</h3>
+              <p class="pillar-body">
+                Partitions noisy execution histories of 100+ concurrent operations to isolate the exact 1-minimal subset of 2 steps required to reproduce the anomaly in &lt;200ms.
+              </p>
+              <div class="pillar-citation">
+                <span>Andreas Zeller (IEEE TSE 2002)</span>
+                <span class="pillar-metric">90% Noise Cut</span>
+              </div>
+            </div>
+
+            <!-- Pillar 4 -->
+            <div class="pillar-card">
+              <div class="pillar-meta-row">
+                <span class="pillar-number">04 / OBSERVABILITY</span>
+                <span class="pillar-tag">LOCAL WEB SERVER</span>
+              </div>
+              <h3 class="pillar-title">Interactive Trace Visualizer</h3>
+              <p class="pillar-body">
+                Embedded HTTP engine on port 8090 with microsecond Gantt swimlanes per goroutine, interactive Adya conflict graphs, and deep parameter query inspector.
+              </p>
+              <div class="pillar-citation">
+                <span>chaossql ui</span>
+                <span class="pillar-metric">127.0.0.1:8090</span>
+              </div>
+            </div>
+
+            <!-- Pillar 5 -->
+            <div class="pillar-card">
+              <div class="pillar-meta-row">
+                <span class="pillar-number">05 / CI/CD GATING</span>
+                <span class="pillar-tag">SECURITY GATING</span>
+              </div>
+              <h3 class="pillar-title">OASIS SARIF 2.1.0 &amp; GitHub</h3>
+              <p class="pillar-body">
+                Converts database isolation flaws directly into security findings in GitHub Code Scanning with 9 formal rules, JUnit XML test results, and PR step summaries.
+              </p>
+              <div class="pillar-citation">
+                <span>OASIS Standard</span>
+                <span class="pillar-metric">9 Formal Rules</span>
+              </div>
+            </div>
+
+            <!-- Pillar 6 -->
+            <div class="pillar-card">
+              <div class="pillar-meta-row">
+                <span class="pillar-number">06 / ULTRA HIGH THROUGHPUT</span>
+                <span class="pillar-tag">PURE GO DRIVER</span>
+              </div>
+              <h3 class="pillar-title">Zero CGO &amp; Pure Go</h3>
+              <p class="pillar-body">
+                Compiled with <code>CGO_ENABLED=0</code> using <code>modernc.org/sqlite</code>. Completely static binary with zero external C libraries and micro-benchmark throughput of 13.9M operations/sec.
+              </p>
+              <div class="pillar-citation">
+                <span>Go 1.22+ Runtime</span>
+                <span class="pillar-metric">13.9M ops/sec</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Quick Callout Banners -->
+          <div class="portal-banner-grid">
+            <div class="portal-banner-card">
+              <div>
+                <div class="banner-badge">Documentação Técnica Completa</div>
+                <h3 class="banner-title">Centro de Engenharia &amp; Referência DSL</h3>
+                <p class="banner-desc">
+                  Consulte os 8 capítulos completos: Guia de Início Rápido, chaos.yaml DSL, manual com 12 flags da CLI, arquitetura de drivers (Postgres, SQLite, MySQL) e Go Testing SDK.
+                </p>
+              </div>
+              <div>
+                <a href="#/docs" class="btn btn-primary">Acessar Documentação →</a>
+              </div>
+            </div>
+
+            <div class="portal-banner-card">
+              <div>
+                <div class="banner-badge">Showcase do Visualizador de Traces</div>
+                <h3 class="banner-title">Concorrência em Nível de Microssegundos</h3>
+                <p class="banner-desc">
+                  Explore interativamente o <code>chaossql ui</code>: compare o trace bruto com a redução 1-minimal de 2 passos, inspecione parâmetros de queries e navegue pelo grafo de conflitos Adya.
+                </p>
+              </div>
+              <div>
+                <a href="#/visualizer" class="btn btn-secondary">Abrir Trace Visualizer →</a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- ======================================================================
+         VIEW 2: DOCUMENTATION CENTER (#view-docs)
+         ====================================================================== -->
+    <div id="view-docs" class="portal-view">
+      <div class="container docs-view-container">
+        <div class="docs-layout">
+          <!-- Sidebar Navigation -->
+          <aside class="docs-sidebar" id="docsSidebar">
+            <div class="docs-search-container">
+              <svg class="docs-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+              <input type="text" class="docs-search-input" id="docsSearchInput" placeholder="Buscar na documentação...">
+            </div>
+
+            <nav id="docsSidebarNav">
+              <!-- Populated dynamically from window.DOCS_DATA via app.js -->
+            </nav>
+          </aside>
+
+          <!-- Main Reading Pane -->
+          <article class="docs-content-pane" id="docsContentPane">
+            <!-- Breadcrumbs -->
+            <div class="docs-breadcrumbs" id="docsBreadcrumbs">
+              <a href="#/">ChaosSQL</a> <span>/</span> <a href="#/docs">Docs</a> <span>/</span> <span id="breadcrumbCurrent">Começando</span>
+            </div>
+
+            <!-- Chapter Header -->
+            <header class="docs-header">
+              <span class="docs-cat-badge" id="docsCategoryBadge">Começando</span>
+              <h1 class="docs-title" id="docsChapterTitle">Guia de Início Rápido &amp; Primeiros Passos</h1>
+              <div class="docs-summary-box" id="docsSummaryBox">
+                Aprenda o que é o ChaosSQL, seus requisitos de instalação e execute seu primeiro teste fuzzer de concorrência em menos de 5 minutos.
+              </div>
+            </header>
+
+            <!-- Rendered HTML Content from DOCS_DATA -->
+            <div class="docs-rendered-body" id="docsRenderedBody">
+              <!-- Injected via app.js -->
+            </div>
+
+            <!-- Footer Navigation: Previous & Next Chapter -->
+            <div class="docs-footer-nav" id="docsFooterNav">
+              <button class="docs-nav-btn" id="docsPrevBtn">← Capítulo Anterior</button>
+              <button class="docs-nav-btn" id="docsNextBtn">Próximo Capítulo →</button>
+            </div>
+          </article>
         </div>
       </div>
-    </section>
+    </div>
 
-    <!-- Go Developer SDK -->
-    <section class="section" id="sdk">
-      <div class="container">
-        <div class="section-label">Developer Tooling</div>
-        <h2 class="section-title">Go Developer Testing SDK (<code>pkg/chaostest</code>)</h2>
-        <p class="section-desc">
-          Embed deterministic concurrency fuzzing and automatic anomaly shrinking directly into standard <code>go test</code> suites.
-        </p>
+    <!-- ======================================================================
+         VIEW 3: SCENARIOS CATALOG (#view-scenarios)
+         ====================================================================== -->
+    <div id="view-scenarios" class="portal-view">
+      <section class="section">
+        <div class="container">
+          <div class="section-label">Catálogo Interativo &amp; Produção</div>
+          <h2 class="section-title">10 Flagship Demonstration Scenarios &amp; Fixes</h2>
+          <p class="section-desc">
+            Explore anomalias de isolamento reais em livros bancários, inventário, plantões médicos e corretoras cripto — com redução causal e código de mitigação em produção.
+          </p>
 
-        <div class="code-container">
-          <button class="copy-code-btn" id="copySdkBtn">Copy</button>
-<pre><code>package myapp_test
+          <div class="scenarios-layout">
+            <!-- Left Navigation List -->
+            <div class="scenarios-nav" id="scenarioNavList">
+              <!-- Populated via app.js -->
+            </div>
 
-import (
-    "context"
-    "testing"
-    "github.com/bregaldahq/chaossql/pkg/chaostest"
-)
-
-func TestAccountTransfer_NoLostUpdates(t *testing.T) {
-    ctx := context.Background()
-
-    schema := `
-    CREATE TABLE accounts (
-        id INT PRIMARY KEY,
-        balance INT NOT NULL
-    );`
-
-    seed := `INSERT INTO accounts VALUES (1, 1000), (2, 1000);`
-
-    chaostest.New(t).
-        WithSchema(schema).
-        WithSeed(seed).
-        WithInvariant("total_wealth", "SELECT sum(balance) AS total FROM accounts;", "total == 2000").
-        AddOperation("transfer_1_to_2",
-            "SELECT balance FROM accounts WHERE id = 1 -> bal1",
-            "UPDATE accounts SET balance = {bal1 - 50} WHERE id = 1",
-            "UPDATE accounts SET balance = balance + 50 WHERE id = 2",
-        ).
-        AddOperation("transfer_2_to_1",
-            "SELECT balance FROM accounts WHERE id = 2 -> bal2",
-            "UPDATE accounts SET balance = {bal2 - 50} WHERE id = 2",
-            "UPDATE accounts SET balance = balance + 50 WHERE id = 1",
-        ).
-        AssertNoAnomalies(ctx, 4, 30, 42) // workers=4, iterations=30, seed=42
-}</code></pre>
+            <!-- Right Stage -->
+            <div class="scenario-stage" id="scenarioStage">
+              <div class="stage-header">
+                <h3 class="stage-title" id="stageTitle">Banking Lost Update (P4)</h3>
+                <p class="stage-summary" id="stageSummary">Concurrent withdrawals under READ COMMITTED overwrite balances without transactional serialization.</p>
+              </div>
+              <div class="stage-tabs">
+                <button class="stage-tab-btn active" data-tab="schema">Schema &amp; Seed</button>
+                <button class="stage-tab-btn" data-tab="chaos">Chaos Workload</button>
+                <button class="stage-tab-btn" data-tab="invariant">Invariant &amp; Reduction</button>
+                <button class="stage-tab-btn" data-tab="fix" style="color: var(--color-green);">Fix &amp; Mitigação no Banco</button>
+              </div>
+              <div class="stage-content" id="stageTabContent">
+                <!-- Rendered via app.js -->
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
-    </section>
+      </section>
+    </div>
 
-    <!-- Hermitage Isolation Matrix -->
-    <section class="section" id="matrix">
-      <div class="container">
-        <div class="section-label">Empirical Verification</div>
-        <h2 class="section-title">Hermitage Isolation Anomaly Matrix</h2>
-        <p class="section-desc">
-          Empirical comparison of isolation semantics across database engines under concurrent execution.
-        </p>
+    <!-- ======================================================================
+         VIEW 4: TRACE VISUALIZER SHOWCASE (#view-visualizer)
+         ====================================================================== -->
+    <div id="view-visualizer" class="portal-view">
+      <section class="section">
+        <div class="container">
+          <div class="section-label">chaossql ui • Live Concurrency Explorer • 127.0.0.1:8090</div>
+          <h2 class="section-title">Interactive Trace Visualizer</h2>
+          <p class="section-desc">
+            Servidor web de observabilidade de alta resolução. Analise o entrelaçamento de goroutines em escala de microssegundos, o Grafo de Forças Adya e compare o trace original de 20 passos com a síntese minimal de 2 passos.
+          </p>
 
-        <div class="matrix-card">
-          <table class="matrix-table">
-            <thead>
-              <tr>
-                <th>Anomaly / Phenonemon</th>
-                <th>Formal Cycle</th>
-                <th>SQLite (WAL)</th>
-                <th>PostgreSQL (RC)</th>
-                <th>PostgreSQL (SSI)</th>
-                <th>MySQL (InnoDB RR)</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td><strong>P4 — Lost Update</strong></td>
-                <td><code>T1 ──(rw)──► T2 ──(ww)──► T1</code></td>
-                <td><span class="badge badge-permitted">PERMITTED</span></td>
-                <td><span class="badge badge-permitted">PERMITTED</span></td>
-                <td><span class="badge badge-prevented">PREVENTED</span></td>
-                <td><span class="badge badge-prevented">PREVENTED</span></td>
-              </tr>
-              <tr>
-                <td><strong>A5B — Write Skew</strong></td>
-                <td><code>T1 ──(rw)──► T2 ──(rw)──► T1</code></td>
-                <td><span class="badge badge-permitted">PERMITTED</span></td>
-                <td><span class="badge badge-permitted">PERMITTED</span></td>
-                <td><span class="badge badge-prevented">PREVENTED</span></td>
-                <td><span class="badge badge-permitted">PERMITTED</span></td>
-              </tr>
-              <tr>
-                <td><strong>A5A — Read Skew</strong></td>
-                <td><code>T1 ──(rw)──► T2 ──(wr)──► T1</code></td>
-                <td><span class="badge badge-permitted">PERMITTED</span></td>
-                <td><span class="badge badge-permitted">PERMITTED</span></td>
-                <td><span class="badge badge-prevented">PREVENTED</span></td>
-                <td><span class="badge badge-prevented">PREVENTED</span></td>
-              </tr>
-              <tr>
-                <td><strong>G0 — Dirty Write</strong></td>
-                <td><code>T1 ──(ww)──► T2 ──(ww)──► T1</code></td>
-                <td><span class="badge badge-prevented">PREVENTED</span></td>
-                <td><span class="badge badge-prevented">PREVENTED</span></td>
-                <td><span class="badge badge-prevented">PREVENTED</span></td>
-                <td><span class="badge badge-prevented">PREVENTED</span></td>
-              </tr>
-              <tr>
-                <td><strong>G1a — Dirty Read (Aborted)</strong></td>
-                <td><code>w1(x) ... r2(x) ... a1</code></td>
-                <td><span class="badge badge-prevented">PREVENTED</span></td>
-                <td><span class="badge badge-prevented">PREVENTED</span></td>
-                <td><span class="badge badge-prevented">PREVENTED</span></td>
-                <td><span class="badge badge-prevented">PREVENTED</span></td>
-              </tr>
-              <tr>
-                <td><strong>G2 — Anti-Dependency Cycle</strong></td>
-                <td><code>T1 ──(rw)──► T2 ──(rw)──► T3 ──(rw)──► T1</code></td>
-                <td><span class="badge badge-permitted">PERMITTED</span></td>
-                <td><span class="badge badge-permitted">PERMITTED</span></td>
-                <td><span class="badge badge-prevented">PREVENTED</span></td>
-                <td><span class="badge badge-permitted">PERMITTED</span></td>
-              </tr>
-              <tr>
-                <td><strong>G-DL — Deadlock Cycle</strong></td>
-                <td><code>T1 ──(waits)──► T2 ──(waits)──► T1</code></td>
-                <td><span class="badge badge-cycle">DETECTED (Timeout)</span></td>
-                <td><span class="badge badge-cycle">DETECTED (40P01)</span></td>
-                <td><span class="badge badge-cycle">DETECTED (40P01)</span></td>
-                <td><span class="badge badge-cycle">DETECTED (1213)</span></td>
-              </tr>
-            </tbody>
-          </table>
+          <div class="visualizer-dashboard">
+            <!-- Toolbar Controls -->
+            <div class="viz-toolbar">
+              <div class="viz-toolbar-left">
+                <div class="viz-btn-group">
+                  <button class="viz-toggle-btn active" id="vizModeRaw">Raw Trace (20 ops)</button>
+                  <button class="viz-toggle-btn" id="vizModeShrunk">1-Minimal Shrunk (2 ops)</button>
+                </div>
+                <div class="viz-btn-group">
+                  <button class="viz-toggle-btn active viz-worker-filter" data-worker="all">All Workers</button>
+                  <button class="viz-toggle-btn viz-worker-filter" data-worker="0">W0</button>
+                  <button class="viz-toggle-btn viz-worker-filter" data-worker="1">W1</button>
+                  <button class="viz-toggle-btn viz-worker-filter" data-worker="2">W2</button>
+                  <button class="viz-toggle-btn viz-worker-filter" data-worker="3">W3</button>
+                </div>
+                <button class="btn btn-secondary" id="vizAnimateBtn" style="padding: 6px 14px; font-size: 0.78rem;">▶ Animate Execution</button>
+              </div>
+              <div class="viz-status-pill" id="vizStatusPill">
+                <span>⚡</span> P4_LOST_UPDATE detected at t=184μs
+              </div>
+            </div>
+
+            <!-- Gantt Swimlane Timeline -->
+            <div class="gantt-container" id="ganttContainer">
+              <!-- Populated via app.js -->
+            </div>
+
+            <!-- Dual Pane: Adya Graph + Query Inspector -->
+            <div class="viz-dual-pane">
+              <!-- Left: Adya DAG -->
+              <div class="viz-pane-card">
+                <div class="viz-pane-header">
+                  <span class="viz-pane-title">Grafo de Dependências Adya (DSG)</span>
+                  <span style="font-family: var(--font-mono); font-size: 0.72rem; color: var(--color-yellow);">Cycle: rw ∘ ww</span>
+                </div>
+                <div id="vizAdyaDag" style="width: 100%; min-height: 200px; display: flex; align-items: center; justify-content: center;">
+                  <!-- Populated via app.js -->
+                </div>
+              </div>
+
+              <!-- Right: Query Inspector -->
+              <div class="viz-pane-card" id="queryInspector">
+                <!-- Populated via app.js -->
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
-    </section>
+      </section>
+    </div>
 
-    <!-- CLI Commands -->
-    <section class="section" id="cli">
-      <div class="container">
-        <div class="section-label">CLI Interface</div>
-        <h2 class="section-title">Command Reference</h2>
-        <p class="section-desc">Zero external runtime dependencies. Compiles to a single standalone binary with <code>CGO_ENABLED=0</code>.</p>
+    <!-- ======================================================================
+         VIEW 5: ISOLATION MATRIX (#view-matrix)
+         ====================================================================== -->
+    <div id="view-matrix" class="portal-view">
+      <section class="section">
+        <div class="container">
+          <div class="section-label">Empirical Verification</div>
+          <h2 class="section-title">Hermitage Isolation Anomaly Matrix</h2>
+          <p class="section-desc">
+            Comparação empírica dos limites de isolamento entre motores SQL através de baterias automáticas de testes concorrentes fuzzed com ChaosSQL (<code>chaossql matrix</code>).
+          </p>
 
-        <div class="code-container">
-<pre><code># 1. Run scenario with deterministic seed and causal trace reduction
-chaossql run examples/banking_lost_update/chaos.yaml --seed=42 --workers=4
-
-# 2. Run all 9 interactive demonstrations
-chaossql demo banking
-chaossql demo hospital
-chaossql demo deadlock
-
-# 3. Scaffold a new fuzzer scenario
-chaossql init my_scenario --driver sqlite
-
-# 4. Pre-flight static linter for scenario expressions
-chaossql validate my_scenario/chaos.yaml
-
-# 5. High-throughput PRNG & Adya cycle benchmark (13.9M ops/s)
-chaossql bench
-
-# 6. Generate empirical isolation comparison matrix
-chaossql matrix</code></pre>
+          <div class="matrix-card">
+            <table class="matrix-table">
+              <thead>
+                <tr>
+                  <th>Anomaly / Phenonemon</th>
+                  <th>Formal Cycle</th>
+                  <th>SQLite (WAL)</th>
+                  <th>PostgreSQL (RC)</th>
+                  <th>PostgreSQL (SSI)</th>
+                  <th>MySQL (InnoDB RR)</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>P4 — Lost Update</strong></td>
+                  <td><code>T1 ──(rw)──► T2 ──(ww)──► T1</code></td>
+                  <td><span class="badge badge-permitted">PERMITTED</span></td>
+                  <td><span class="badge badge-permitted">PERMITTED</span></td>
+                  <td><span class="badge badge-prevented">PREVENTED</span></td>
+                  <td><span class="badge badge-prevented">PREVENTED</span></td>
+                </tr>
+                <tr>
+                  <td><strong>A5B — Write Skew</strong></td>
+                  <td><code>T1 ──(rw)──► T2 ──(rw)──► T1</code></td>
+                  <td><span class="badge badge-permitted">PERMITTED</span></td>
+                  <td><span class="badge badge-permitted">PERMITTED</span></td>
+                  <td><span class="badge badge-prevented">PREVENTED</span></td>
+                  <td><span class="badge badge-permitted">PERMITTED</span></td>
+                </tr>
+                <tr>
+                  <td><strong>A5A — Read Skew</strong></td>
+                  <td><code>T1 ──(rw)──► T2 ──(wr)──► T1</code></td>
+                  <td><span class="badge badge-permitted">PERMITTED</span></td>
+                  <td><span class="badge badge-permitted">PERMITTED</span></td>
+                  <td><span class="badge badge-prevented">PREVENTED</span></td>
+                  <td><span class="badge badge-prevented">PREVENTED</span></td>
+                </tr>
+                <tr>
+                  <td><strong>G0 — Dirty Write</strong></td>
+                  <td><code>T1 ──(ww)──► T2 ──(ww)──► T1</code></td>
+                  <td><span class="badge badge-prevented">PREVENTED</span></td>
+                  <td><span class="badge badge-prevented">PREVENTED</span></td>
+                  <td><span class="badge badge-prevented">PREVENTED</span></td>
+                  <td><span class="badge badge-prevented">PREVENTED</span></td>
+                </tr>
+                <tr>
+                  <td><strong>G1a — Dirty Read (Aborted)</strong></td>
+                  <td><code>w1(x) ... r2(x) ... a1</code></td>
+                  <td><span class="badge badge-prevented">PREVENTED</span></td>
+                  <td><span class="badge badge-prevented">PREVENTED</span></td>
+                  <td><span class="badge badge-prevented">PREVENTED</span></td>
+                  <td><span class="badge badge-prevented">PREVENTED</span></td>
+                </tr>
+                <tr>
+                  <td><strong>G2 — Anti-Dependency Cycle</strong></td>
+                  <td><code>T1 ──(rw)──► T2 ──(rw)──► T3 ──(rw)──► T1</code></td>
+                  <td><span class="badge badge-permitted">PERMITTED</span></td>
+                  <td><span class="badge badge-permitted">PERMITTED</span></td>
+                  <td><span class="badge badge-prevented">PREVENTED</span></td>
+                  <td><span class="badge badge-permitted">PERMITTED</span></td>
+                </tr>
+                <tr>
+                  <td><strong>G-DL — Deadlock Cycle</strong></td>
+                  <td><code>T1 ──(waits)──► T2 ──(waits)──► T1</code></td>
+                  <td><span class="badge badge-cycle">DETECTED (Timeout)</span></td>
+                  <td><span class="badge badge-cycle">DETECTED (40P01)</span></td>
+                  <td><span class="badge badge-cycle">DETECTED (40P01)</span></td>
+                  <td><span class="badge badge-cycle">DETECTED (1213)</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
-    </section>
+      </section>
+    </div>
   </main>
 
-  <!-- Footer -->
+  <!-- Global Footer -->
   <footer class="site-footer">
     <div class="container footer-content">
       <div class="footer-brand">
         <img src="assets/icone_bregalda.svg" alt="Bregalda" width="22" height="22">
-        <span class="footer-desc">Bregalda builds thoughtful tools for real technical problems.</span>
+        <span class="footer-desc">Studio Bregalda builds thoughtful tools for real systems engineering problems.</span>
       </div>
       <div class="footer-links">
         <a href="https://github.com/bregaldahq/chaossql" target="_blank" rel="noopener">GitHub</a>
@@ -340,6 +580,8 @@ chaossql matrix</code></pre>
     </div>
   </footer>
 
+  <!-- Scripts in Required Order -->
+  <script src="docs-data.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
