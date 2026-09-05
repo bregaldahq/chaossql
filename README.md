@@ -58,6 +58,7 @@ Data corruption caused by concurrency defects—such as **Lost Updates**, **Writ
 * **Adya Direct Serialization Graph ($SG(S)$)**: Maps transaction nodes ($T_1, T_2, \dots$) and conflict edges ($rw, ww, wr$) to mathematically classify exact isolation anomalies ($P4, A5B, A5A, G0, G1a, G1b, G1c, G2, G\text{-DL}$).
 * **Causal Delta-Debugging ($ddmin$)**: Shrinks a chaotic 100-operation failure schedule down to the exact 2 or 3 operations responsible for the invariant violation in $< 200\text{ms}$.
 * **Interactive Trace Visualizer (`chaossql ui`)**: Embedded microsecond Gantt swimlane and SVG conflict graph server.
+* **In-Browser WebAssembly Playground (`chaossql-wasm`)**: Execute fuzzer schedules, Adya cycle classification, and causal delta-debugging 100% inside your browser at `chaossql.bregalda.com/#/playground` with zero backend server.
 * **Native CI/CD Quality Gate**: Emits standardized OASIS SARIF 2.1.0 reports for GitHub Code Scanning, JUnit XML, and OpenTelemetry OTLP tracing.
 * **Pure Go & Zero CGO**: Built-in SQLite driver (`modernc.org/sqlite`) running over 13.9M operations/sec with zero native C compiler dependencies.
 
@@ -68,6 +69,7 @@ Data corruption caused by concurrency defects—such as **Lost Updates**, **Writ
 Visit the interactive documentation hub: **[https://chaossql.bregalda.com](https://chaossql.bregalda.com)**
 
 * **Bilingual Switcher [ PT | EN ]**: Seamless one-click client-side toggling between English and Portuguese with zero page reloads.
+* **WebAssembly Playground (`#/playground`)**: Run the concurrency engine, test custom YAML scenarios, and render live Adya conflict graphs client-side.
 * **8 Technical Chapters**: Quickstart, `chaos.yaml` DSL specification, complete CLI manual (9 subcommands, 12 flags), visualizer guide, CI/CD SARIF, database driver internals, Go SDK, and formal concurrency theory (Bernstein conditions, CSR theorem, Burckhardt PCT, Zeller $ddmin$).
 * **Interactive Trace Visualizer Demo**: Real-time microsecond Gantt swimlanes and SVG Adya DAG simulator.
 * **Hermitage Isolation Matrix**: Empirical isolation phenomena comparison across SQLite, PostgreSQL, and MySQL.

@@ -47,6 +47,9 @@ func main() {
 		"specs/11_version_1_1_developer_sdk_and_smart_generators.md",
 		"specs/12_documentation_portal_and_branding_site.md",
 		"specs/13_interactive_visualizer_sarif_and_register_checker.md",
+		"specs/14_wasm_in_browser_playground.md",
+		"site/assets/wasm-worker.js",
+		"site/assets/wasm_exec.js",
 		"examples/foreign_key_cascade_deadlock/chaos.yaml",
 	}
 

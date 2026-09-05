@@ -1,19 +1,26 @@
 GO ?= $(shell which /usr/local/go/bin/go go 2>/dev/null | head -n 1)
 
-.PHONY: help bootstrap test lint verify check-harness build demo bench matrix diff replay serve-site
+.PHONY: help bootstrap test lint verify check-harness build wasm demo bench matrix diff replay serve-site
 
 help:
 	@echo "ChaosSQL (Go 1.23+) Harness Commands:"
 	@echo "  make bootstrap     - Baixa e verifica todas as dependencias Go"
 	@echo "  make test          - Executa suite de testes unitarios e de integracao (-race)"
 	@echo "  make lint          - Executa go vet e analise estatica"
-	@echo "  make check-harness - Valida integridade dos 37 documentos do harness"
+	@echo "  make check-harness - Valida integridade dos documentos do harness"
 	@echo "  make build         - Compila o binario chaossql (Zero CGO)"
+	@echo "  make wasm          - Compila o binario WebAssembly chaossql.wasm (Zero CGO)"
 	@echo "  make demo          - Executa as 10 demonstracoes interativas"
 	@echo "  make bench         - Executa benchmarks de performance e throughput"
 	@echo "  make matrix        - Executa a matriz empirica de isolamento Hermitage"
 	@echo "  make serve-site    - Inicia servidor HTTP local para o portal de documentacao (porta 8080)"
 	@echo "  make verify        - Gate unificado (check-harness + lint + test)"
+
+wasm:
+	@echo "Compilando ChaosSQL Core para WebAssembly (Zero CGO)..."
+	@mkdir -p site/assets
+	@GOOS=js GOARCH=wasm $(GO) build -ldflags="-s -w -X main.version=1.3.0" -trimpath -o site/assets/chaossql.wasm ./cmd/chaossql-wasm
+	@ls -lh site/assets/chaossql.wasm
 
 check-harness:
 	@$(GO) run tools/harness_check.go
