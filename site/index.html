@@ -27,6 +27,7 @@
         <a href="#/scenarios" class="nav-item" data-route="scenarios" data-i18n="nav.scenarios">Cenários &amp; Soluções</a>
         <a href="#/visualizer" class="nav-item" data-route="visualizer" data-i18n="nav.visualizer">Trace Visualizer</a>
         <a href="#/matrix" class="nav-item" data-route="matrix" data-i18n="nav.matrix">Matriz de Isolamento</a>
+        <a href="#/playground" class="nav-item" data-route="playground" data-i18n="nav.playground">Playground WASM</a>
         <div class="lang-switch" role="group" aria-label="Language Selector">
           <button class="lang-btn active" data-lang="pt" type="button" aria-pressed="true">PT</button>
           <button class="lang-btn" data-lang="en" type="button" aria-pressed="false">EN</button>
@@ -53,6 +54,7 @@
     <a href="#/scenarios" class="mobile-nav-link" data-route="scenarios" data-i18n="nav.scenarios">Cenários &amp; Soluções</a>
     <a href="#/visualizer" class="mobile-nav-link" data-route="visualizer" data-i18n="nav.visualizer">Trace Visualizer (chaossql ui)</a>
     <a href="#/matrix" class="mobile-nav-link" data-route="matrix" data-i18n="nav.matrix">Matriz de Isolamento</a>
+    <a href="#/playground" class="mobile-nav-link" data-route="playground" data-i18n="nav.playground">Playground WASM</a>
     <a href="https://github.com/bregaldahq/chaossql" target="_blank" rel="noopener" class="mobile-nav-link" style="color: var(--color-yellow);">GitHub Repository ↗</a>
   </div>
 
@@ -566,6 +568,192 @@
                 </tr>
               </tbody>
             </table>
+          </div>
+        </div>
+      </section>
+    <!-- ======================================================================
+         VIEW 6: WASM PLAYGROUND (#view-playground)
+         ====================================================================== -->
+    <div id="view-playground" class="portal-view">
+      <section class="section-padding">
+        <div class="container">
+          <div class="section-header">
+            <div class="badge badge-accent" style="margin-bottom: var(--space-3);" data-i18n="playground.badge">IN-BROWSER WEBASSEMBLY ENGINE</div>
+            <h1 class="text-display-lg" data-i18n="playground.title">Playground WebAssembly (WASM)</h1>
+            <p class="text-body-lg text-muted max-w-3xl" data-i18n="playground.subtitle">
+              Execute o fuzzer de concorrência, o classificador Adya DSG e o delta-debugging causal diretamente no seu navegador, com zero servidor backend e zero dependências nativas.
+            </p>
+          </div>
+
+          <!-- Playground Grid Layout -->
+          <div class="playground-grid">
+            <!-- Left Pane: Scenario Editor & Controls -->
+            <div class="playground-panel">
+              <div class="panel-header">
+                <div class="panel-title-group">
+                  <span class="panel-icon">⚙</span>
+                  <h3 class="panel-title" data-i18n="playground.editorTitle">Configuração &amp; Cenário</h3>
+                </div>
+                <div class="wasm-status-badge" id="pgWasmStatus">
+                  <span class="status-dot"></span>
+                  <span id="pgWasmStatusText" data-i18n="playground.statusInitializing">Iniciando WASM...</span>
+                </div>
+              </div>
+
+              <div class="playground-controls-row">
+                <div class="form-group" style="flex: 2;">
+                  <label class="form-label" data-i18n="playground.presetLabel">Cenário Predefinido</label>
+                  <select id="pgPresetSelect" class="form-select">
+                    <option value="banking">Banking Lost Update (P4)</option>
+                    <option value="inventory">Inventory Oversell (A3)</option>
+                    <option value="hospital">Hospital Write Skew (A5B)</option>
+                    <option value="financial">Financial Audit Read Skew (A5A)</option>
+                    <option value="auction">Auction Bidding Dirty Write (G0)</option>
+                    <option value="crypto">Crypto Arbitrage Circular Info (G1c)</option>
+                    <option value="flash_crash">Flash Crash Dirty Read (G1a)</option>
+                    <option value="ticket">Ticket Seat Anti-Dependency (G2)</option>
+                    <option value="deadlock">Deadlock Cycle Diagnostics (G-DL)</option>
+                    <option value="fk">Foreign Key Cascade Deadlock (FK)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="playground-sliders-grid">
+                <div class="form-group">
+                  <div class="slider-header">
+                    <label class="form-label" data-i18n="playground.workersLabel">Workers</label>
+                    <span class="slider-val" id="pgWorkersVal">4</span>
+                  </div>
+                  <input type="range" id="pgWorkersRange" class="form-range" min="1" max="8" value="4">
+                </div>
+                <div class="form-group">
+                  <div class="slider-header">
+                    <label class="form-label" data-i18n="playground.iterationsLabel">Iterações</label>
+                    <span class="slider-val" id="pgIterationsVal">15</span>
+                  </div>
+                  <input type="range" id="pgIterationsRange" class="form-range" min="5" max="50" value="15">
+                </div>
+                <div class="form-group">
+                  <div class="slider-header">
+                    <label class="form-label" data-i18n="playground.jitterLabel">Micro-Jitter</label>
+                    <span class="slider-val" id="pgJitterVal">10ms</span>
+                  </div>
+                  <input type="range" id="pgJitterRange" class="form-range" min="0" max="50" value="10">
+                </div>
+                <div class="form-group">
+                  <div class="slider-header">
+                    <label class="form-label" data-i18n="playground.seedLabel">Semente PRNG</label>
+                    <span class="slider-val" id="pgSeedVal">42</span>
+                  </div>
+                  <input type="number" id="pgSeedInput" class="form-input-sm" value="42">
+                </div>
+              </div>
+
+              <!-- YAML Code Editor Area -->
+              <div class="form-group" style="margin-top: var(--space-4);">
+                <div class="editor-header-bar">
+                  <span class="editor-label">chaos.yaml (DSL)</span>
+                  <button type="button" class="btn-xs btn-ghost" id="pgResetYamlBtn" data-i18n="playground.resetYaml">Restaurar Preset</button>
+                </div>
+                <textarea id="pgYamlEditor" class="playground-code-editor" spellcheck="false"></textarea>
+              </div>
+
+              <!-- Action Buttons -->
+              <div class="playground-actions">
+                <button type="button" id="pgRunBtn" class="btn btn-primary">
+                  <span class="btn-icon">▶</span>
+                  <span data-i18n="playground.runBtn">Executar Fuzzing (WASM)</span>
+                </button>
+                <button type="button" id="pgValidateBtn" class="btn btn-secondary">
+                  <span class="btn-icon">✓</span>
+                  <span data-i18n="playground.validateBtn">Validar YAML</span>
+                </button>
+                <button type="button" id="pgCancelBtn" class="btn btn-outline" style="display: none;">
+                  <span class="btn-icon">⏹</span>
+                  <span data-i18n="playground.cancelBtn">Cancelar</span>
+                </button>
+              </div>
+
+              <div id="pgAlertBox" class="pg-alert" style="display: none;"></div>
+            </div>
+
+            <!-- Right Pane: Real-Time Observability & Visualizer -->
+            <div class="playground-panel">
+              <div class="panel-header">
+                <div class="panel-title-group">
+                  <span class="panel-icon">📊</span>
+                  <h3 class="panel-title" data-i18n="playground.vizTitle">Observabilidade em Tempo Real</h3>
+                </div>
+                <div class="playground-tabs">
+                  <button type="button" class="pg-tab-btn active" data-tab="adya" id="pgTabAdya">Adya DSG</button>
+                  <button type="button" class="pg-tab-btn" data-tab="gantt" id="pgTabGantt">Gantt Swimlanes</button>
+                  <button type="button" class="pg-tab-btn" data-tab="log" id="pgTabLog">Trace Raw</button>
+                </div>
+              </div>
+
+              <!-- Metrics Strip -->
+              <div class="pg-metrics-grid">
+                <div class="pg-metric-card">
+                  <span class="pg-metric-label" data-i18n="playground.metricOps">Operações</span>
+                  <span class="pg-metric-value" id="pgMetricOps">—</span>
+                </div>
+                <div class="pg-metric-card">
+                  <span class="pg-metric-label" data-i18n="playground.metricAnomaly">Anomalia Adya</span>
+                  <span class="pg-metric-value pg-anomaly-highlight" id="pgMetricAnomaly">—</span>
+                </div>
+                <div class="pg-metric-card">
+                  <span class="pg-metric-label" data-i18n="playground.metricCycle">Conflito Detectado</span>
+                  <span class="pg-metric-value" id="pgMetricCycle">—</span>
+                </div>
+                <div class="pg-metric-card">
+                  <span class="pg-metric-label" data-i18n="playground.metricDuration">Tempo de Fuzzing</span>
+                  <span class="pg-metric-value" id="pgMetricDuration">—</span>
+                </div>
+              </div>
+
+              <!-- Tab 1: Adya Graph Canvas -->
+              <div class="pg-tab-pane active" id="pgPaneAdya">
+                <div class="adya-canvas-container">
+                  <svg id="pgAdyaSvg" viewBox="0 0 600 360" class="pg-adya-svg">
+                    <defs>
+                      <marker id="arrow-rw" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+                        <polygon points="0 0, 8 4, 0 8" fill="#e06c75" />
+                      </marker>
+                      <marker id="arrow-ww" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+                        <polygon points="0 0, 8 4, 0 8" fill="#d19a66" />
+                      </marker>
+                      <marker id="arrow-wr" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+                        <polygon points="0 0, 8 4, 0 8" fill="#c678dd" />
+                      </marker>
+                    </defs>
+                    <g id="pgAdyaGraphContent">
+                      <text x="300" y="180" text-anchor="middle" fill="#61afef" font-size="14" font-family="JetBrains Mono, monospace">
+                        Clique em "Executar Fuzzing (WASM)" para gerar o Grafo Adya
+                      </text>
+                    </g>
+                  </svg>
+                </div>
+                <div class="adya-legend">
+                  <span class="legend-item"><span class="legend-dot dot-rw"></span> Anti-dependência (rw)</span>
+                  <span class="legend-item"><span class="legend-dot dot-ww"></span> Escrita-Escrita (ww)</span>
+                  <span class="legend-item"><span class="legend-dot dot-wr"></span> Escrita-Leitura (wr)</span>
+                </div>
+              </div>
+
+              <!-- Tab 2: Gantt Swimlanes -->
+              <div class="pg-tab-pane" id="pgPaneGantt" style="display: none;">
+                <div class="pg-gantt-container" id="pgGanttContainer">
+                  <div class="pg-empty-state" data-i18n="playground.emptyGantt">Execute o cenário para visualizar as raias de execução concorrente dos workers.</div>
+                </div>
+              </div>
+
+              <!-- Tab 3: Trace Raw / Terminal Log -->
+              <div class="pg-tab-pane" id="pgPaneLog" style="display: none;">
+                <div class="pg-console" id="pgConsoleOutput">
+                  <div class="term-dim">// Console de execução WASM inicializado.</div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </section>

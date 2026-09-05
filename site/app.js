@@ -12,7 +12,8 @@ const I18N = {
       "docs": "Documentação",
       "scenarios": "Cenários & Soluções",
       "visualizer": "Trace Visualizer",
-      "matrix": "Matriz de Isolamento"
+      "matrix": "Matriz de Isolamento",
+      "playground": "Playground WASM"
     },
     "landing": {
       "heroMeta": "Studio Bregalda — Engenharia de Sistemas — Versão 1.2.0",
@@ -137,6 +138,33 @@ const I18N = {
       "pillEngine": "Motor:",
       "pillReduction": "Redução:",
       "pillLatency": "Latência:"
+    },
+    "playground": {
+      "badge": "IN-BROWSER WEBASSEMBLY ENGINE",
+      "title": "Playground WebAssembly (WASM)",
+      "subtitle": "Execute o fuzzer de concorrência, o classificador Adya DSG e o delta-debugging causal diretamente no seu navegador, com zero servidor backend e zero dependências nativas.",
+      "editorTitle": "Configuração & Cenário",
+      "statusInitializing": "Iniciando WASM...",
+      "statusReady": "Motor WASM Pronto",
+      "statusRunning": "Fuzzing Concorrente em Execução...",
+      "statusError": "Erro na Execução WASM",
+      "presetLabel": "Cenário Predefinido",
+      "workersLabel": "Workers",
+      "iterationsLabel": "Iterações",
+      "jitterLabel": "Micro-Jitter",
+      "seedLabel": "Semente PRNG",
+      "resetYaml": "Restaurar Preset",
+      "runBtn": "Executar Fuzzing (WASM)",
+      "validateBtn": "Validar YAML",
+      "cancelBtn": "Cancelar",
+      "vizTitle": "Observabilidade em Tempo Real",
+      "metricOps": "Operações",
+      "metricAnomaly": "Anomalia Adya",
+      "metricCycle": "Conflito Detectado",
+      "metricDuration": "Tempo de Fuzzing",
+      "emptyGantt": "Execute o cenário para visualizar as raias de execução concorrente dos workers.",
+      "validYaml": "✔ Especificação YAML válida!",
+      "invalidYaml": "✘ Erro na especificação YAML: "
     }
   },
   "en": {
@@ -145,7 +173,8 @@ const I18N = {
       "docs": "Documentation",
       "scenarios": "Scenarios & Fixes",
       "visualizer": "Trace Visualizer",
-      "matrix": "Isolation Matrix"
+      "matrix": "Isolation Matrix",
+      "playground": "Playground WASM"
     },
     "landing": {
       "heroMeta": "Studio Bregalda — Systems Engineering — Version 1.2.0",
@@ -270,6 +299,33 @@ const I18N = {
       "pillEngine": "Engine:",
       "pillReduction": "Reduction:",
       "pillLatency": "Latency:"
+    },
+    "playground": {
+      "badge": "IN-BROWSER WEBASSEMBLY ENGINE",
+      "title": "WebAssembly (WASM) Playground",
+      "subtitle": "Run the concurrency fuzzer, Adya DSG classifier, and causal delta-debugging directly inside your browser with zero backend server and zero native dependencies.",
+      "editorTitle": "Configuration & Scenario",
+      "statusInitializing": "Initializing WASM...",
+      "statusReady": "WASM Engine Ready",
+      "statusRunning": "Concurrent Fuzzing in Progress...",
+      "statusError": "WASM Execution Error",
+      "presetLabel": "Preset Scenario",
+      "workersLabel": "Workers",
+      "iterationsLabel": "Iterations",
+      "jitterLabel": "Micro-Jitter",
+      "seedLabel": "PRNG Seed",
+      "resetYaml": "Reset Preset",
+      "runBtn": "Run Fuzzing (WASM)",
+      "validateBtn": "Validate YAML",
+      "cancelBtn": "Cancel",
+      "vizTitle": "Real-Time Observability",
+      "metricOps": "Operations",
+      "metricAnomaly": "Adya Anomaly",
+      "metricCycle": "Detected Conflict",
+      "metricDuration": "Fuzzing Time",
+      "emptyGantt": "Run the scenario to visualize concurrent worker execution swimlanes.",
+      "validYaml": "✔ Valid YAML specification!",
+      "invalidYaml": "✘ YAML specification error: "
     }
   }
 };
@@ -805,7 +861,8 @@ const ROUTES = {
   docs: "view-docs",
   scenarios: "view-scenarios",
   visualizer: "view-visualizer",
-  matrix: "view-matrix"
+  matrix: "view-matrix",
+  playground: "view-playground"
 };
 
 let currentRoute = "landing";
@@ -835,6 +892,8 @@ function handleRoute() {
     route = "visualizer";
   } else if (hash.startsWith("#/matrix")) {
     route = "matrix";
+  } else if (hash.startsWith("#/playground")) {
+    route = "playground";
   } else {
     route = "landing";
   }
@@ -889,6 +948,8 @@ function handleRoute() {
     initVisualizer();
   } else if (route === "matrix") {
     renderMatrixView();
+  } else if (route === "playground") {
+    initPlayground();
   }
 
   window.scrollTo({ top: 0, behavior: "instant" });
@@ -1817,6 +1878,595 @@ function copyTextToClipboard(text) {
   }
 }
 
+// ============================================================================
+// 8. WEBASSEMBLY PLAYGROUND MODULE (Client-Side WASM Engine)
+// ============================================================================
+let wasmWorker = null;
+let isWasmReady = false;
+let isPlaygroundRunning = false;
+let playgroundInitialized = false;
+
+const PLAYGROUND_PRESETS = {
+  banking: `version: "1.0"
+name: "banking_lost_update"
+database:
+  driver: "sqlite"
+  schema: "CREATE TABLE accounts (id INT PRIMARY KEY, balance INT NOT NULL);"
+  seed: "INSERT INTO accounts VALUES (1, 1000);"
+invariants:
+  - name: "total_balance"
+    query: "SELECT sum(balance) AS total FROM accounts;"
+    assert: "total == 1000"
+operations:
+  - name: "withdraw_100"
+    steps:
+      - sql: "SELECT balance FROM accounts WHERE id = 1"
+        capture: "cur_bal"
+      - sql: "UPDATE accounts SET balance = {cur_bal - 100} WHERE id = 1"`,
+
+  inventory: `version: "1.0"
+name: "inventory_oversell"
+database:
+  driver: "sqlite"
+  schema: "CREATE TABLE inventory (item_id INT PRIMARY KEY, stock INT NOT NULL);"
+  seed: "INSERT INTO inventory VALUES (1, 10);"
+invariants:
+  - name: "no_negative_stock"
+    query: "SELECT stock FROM inventory WHERE item_id = 1;"
+    assert: "stock >= 0"
+operations:
+  - name: "buy_item"
+    steps:
+      - sql: "SELECT stock FROM inventory WHERE item_id = 1"
+        capture: "cur"
+      - sql: "UPDATE inventory SET stock = {cur - 1} WHERE item_id = 1 AND {cur > 0}"`,
+
+  hospital: `version: "1.0"
+name: "hospital_write_skew"
+database:
+  driver: "sqlite"
+  schema: "CREATE TABLE doctors (id INT PRIMARY KEY, name TEXT NOT NULL, on_duty BOOLEAN NOT NULL);"
+  seed: "INSERT INTO doctors VALUES (1, 'Dr. Alice', 1), (2, 'Dr. Bob', 1);"
+invariants:
+  - name: "at_least_one_doctor"
+    query: "SELECT count(*) AS active FROM doctors WHERE on_duty = 1;"
+    assert: "active >= 1"
+operations:
+  - name: "sign_off_alice"
+    steps:
+      - sql: "SELECT count(*) AS active FROM doctors WHERE on_duty = 1"
+        capture: "act"
+      - sql: "UPDATE doctors SET on_duty = 0 WHERE id = 1 AND {act >= 2}"
+  - name: "sign_off_bob"
+    steps:
+      - sql: "SELECT count(*) AS active FROM doctors WHERE on_duty = 1"
+        capture: "act"
+      - sql: "UPDATE doctors SET on_duty = 0 WHERE id = 2 AND {act >= 2}"`,
+
+  financial: `version: "1.0"
+name: "read_skew_financial_audit"
+database:
+  driver: "sqlite"
+  schema: "CREATE TABLE accounts (id INT PRIMARY KEY, balance INT NOT NULL);"
+  seed: "INSERT INTO accounts VALUES (1, 500), (2, 500);"
+invariants:
+  - name: "sum_matches"
+    query: "SELECT sum(balance) AS s FROM accounts;"
+    assert: "s == 1000"
+operations:
+  - name: "transfer_1_to_2"
+    steps:
+      - sql: "UPDATE accounts SET balance = balance - 100 WHERE id = 1"
+      - sql: "UPDATE accounts SET balance = balance + 100 WHERE id = 2"`,
+
+  auction: `version: "1.0"
+name: "dirty_write_auction"
+database:
+  driver: "sqlite"
+  schema: "CREATE TABLE auctions (item_id INT PRIMARY KEY, high_bidder TEXT, high_bid INT);"
+  seed: "INSERT INTO auctions VALUES (1, 'nobody', 0);"
+invariants:
+  - name: "bidder_consistent"
+    query: "SELECT high_bid FROM auctions WHERE item_id = 1;"
+    assert: "high_bid >= 0"
+operations:
+  - name: "bid_alice"
+    steps:
+      - sql: "UPDATE auctions SET high_bid = 100 WHERE item_id = 1"
+      - sql: "UPDATE auctions SET high_bidder = 'Alice' WHERE item_id = 1"
+  - name: "bid_bob"
+    steps:
+      - sql: "UPDATE auctions SET high_bid = 200 WHERE item_id = 1"
+      - sql: "UPDATE auctions SET high_bidder = 'Bob' WHERE item_id = 1"`,
+
+  crypto: `version: "1.0"
+name: "circular_info_crypto"
+database:
+  driver: "sqlite"
+  schema: "CREATE TABLE crypto_pairs (pair TEXT PRIMARY KEY, rate INT);"
+  seed: "INSERT INTO crypto_pairs VALUES ('BTC', 60000), ('ETH', 3000);"
+invariants:
+  - name: "rate_positive"
+    query: "SELECT count(*) AS c FROM crypto_pairs WHERE rate <= 0;"
+    assert: "c == 0"
+operations:
+  - name: "trade_btc"
+    steps:
+      - sql: "SELECT rate FROM crypto_pairs WHERE pair = 'ETH'"
+        capture: "eth"
+      - sql: "UPDATE crypto_pairs SET rate = {eth * 20} WHERE pair = 'BTC'"
+  - name: "trade_eth"
+    steps:
+      - sql: "SELECT rate FROM crypto_pairs WHERE pair = 'BTC'"
+        capture: "btc"
+      - sql: "UPDATE crypto_pairs SET rate = {btc / 20} WHERE pair = 'ETH'"`,
+
+  flash_crash: `version: "1.0"
+name: "dirty_read_flash_crash"
+database:
+  driver: "sqlite"
+  schema: "CREATE TABLE orderbook (id INT PRIMARY KEY, price INT, status TEXT);"
+  seed: "INSERT INTO orderbook VALUES (1, 100, 'FILLED');"
+invariants:
+  - name: "no_uncommitted_prices"
+    query: "SELECT price FROM orderbook WHERE id = 1;"
+    assert: "price == 100"
+operations:
+  - name: "flash_crash_dump"
+    steps:
+      - sql: "UPDATE orderbook SET price = 10 WHERE id = 1"
+  - name: "liquidate"
+    steps:
+      - sql: "SELECT price FROM orderbook WHERE id = 1"
+        capture: "p"`,
+
+  ticket: `version: "1.0"
+name: "ticket_anti_dependency"
+database:
+  driver: "sqlite"
+  schema: "CREATE TABLE seats (id INT PRIMARY KEY, booked BOOLEAN NOT NULL);"
+  seed: "INSERT INTO seats VALUES (1, 0), (2, 0);"
+invariants:
+  - name: "not_double_booked"
+    query: "SELECT count(*) AS c FROM seats WHERE booked = 1;"
+    assert: "c <= 2"
+operations:
+  - name: "book_seat_1"
+    steps:
+      - sql: "SELECT count(*) AS free FROM seats WHERE booked = 0"
+        capture: "f"
+      - sql: "UPDATE seats SET booked = 1 WHERE id = 1 AND {f > 0}"
+  - name: "book_seat_2"
+    steps:
+      - sql: "SELECT count(*) AS free FROM seats WHERE booked = 0"
+        capture: "f"
+      - sql: "UPDATE seats SET booked = 1 WHERE id = 2 AND {f > 0}"`,
+
+  deadlock: `version: "1.0"
+name: "deadlock_cycle"
+database:
+  driver: "sqlite"
+  schema: "CREATE TABLE locks (id INT PRIMARY KEY, v INT);"
+  seed: "INSERT INTO locks VALUES (1, 10), (2, 20);"
+invariants:
+  - name: "sum_check"
+    query: "SELECT sum(v) AS s FROM locks;"
+    assert: "s == 30"
+operations:
+  - name: "tx_1_2"
+    steps:
+      - sql: "UPDATE locks SET v = v + 1 WHERE id = 1"
+      - sql: "UPDATE locks SET v = v - 1 WHERE id = 2"
+  - name: "tx_2_1"
+    steps:
+      - sql: "UPDATE locks SET v = v + 1 WHERE id = 2"
+      - sql: "UPDATE locks SET v = v - 1 WHERE id = 1"`,
+
+  fk: `version: "1.0"
+name: "fk_cascade_deadlock"
+database:
+  driver: "sqlite"
+  schema: "CREATE TABLE parent_orders (id INT PRIMARY KEY, total INT); CREATE TABLE child_items (id INT PRIMARY KEY, order_id INT, price INT);"
+  seed: "INSERT INTO parent_orders VALUES (1, 100); INSERT INTO child_items VALUES (1, 1, 50), (2, 1, 50);"
+invariants:
+  - name: "orders_exist"
+    query: "SELECT count(*) AS c FROM parent_orders;"
+    assert: "c >= 0"
+operations:
+  - name: "add_item"
+    steps:
+      - sql: "UPDATE parent_orders SET total = total + 25 WHERE id = 1"
+      - sql: "INSERT INTO child_items VALUES (3, 1, 25)"
+  - name: "delete_order"
+    steps:
+      - sql: "DELETE FROM child_items WHERE order_id = 1"
+      - sql: "DELETE FROM parent_orders WHERE id = 1"`
+};
+
+function initPlayground() {
+  if (playgroundInitialized) return;
+  playgroundInitialized = true;
+
+  const presetSelect = document.getElementById("pgPresetSelect");
+  const yamlEditor = document.getElementById("pgYamlEditor");
+  const resetBtn = document.getElementById("pgResetYamlBtn");
+  const runBtn = document.getElementById("pgRunBtn");
+  const validateBtn = document.getElementById("pgValidateBtn");
+  const cancelBtn = document.getElementById("pgCancelBtn");
+  const alertBox = document.getElementById("pgAlertBox");
+
+  const workersRange = document.getElementById("pgWorkersRange");
+  const workersVal = document.getElementById("pgWorkersVal");
+  const iterationsRange = document.getElementById("pgIterationsRange");
+  const iterationsVal = document.getElementById("pgIterationsVal");
+  const jitterRange = document.getElementById("pgJitterRange");
+  const jitterVal = document.getElementById("pgJitterVal");
+  const seedInput = document.getElementById("pgSeedInput");
+  const seedVal = document.getElementById("pgSeedVal");
+
+  // Sliders update
+  if (workersRange && workersVal) {
+    workersRange.addEventListener("input", (e) => workersVal.textContent = e.target.value);
+  }
+  if (iterationsRange && iterationsVal) {
+    iterationsRange.addEventListener("input", (e) => iterationsVal.textContent = e.target.value);
+  }
+  if (jitterRange && jitterVal) {
+    jitterRange.addEventListener("input", (e) => jitterVal.textContent = e.target.value + "ms");
+  }
+  if (seedInput && seedVal) {
+    seedInput.addEventListener("input", (e) => seedVal.textContent = e.target.value || "0");
+  }
+
+  // Preset loading
+  function loadPreset(presetKey) {
+    if (yamlEditor && PLAYGROUND_PRESETS[presetKey]) {
+      yamlEditor.value = PLAYGROUND_PRESETS[presetKey];
+    }
+  }
+
+  if (presetSelect) {
+    presetSelect.addEventListener("change", (e) => loadPreset(e.target.value));
+    loadPreset(presetSelect.value || "banking");
+  }
+
+  if (resetBtn) {
+    resetBtn.addEventListener("click", () => {
+      if (presetSelect) loadPreset(presetSelect.value || "banking");
+    });
+  }
+
+  // Tabs switching
+  const tabs = ["adya", "gantt", "log"];
+  tabs.forEach(tab => {
+    const btn = document.getElementById("pgTab" + tab.charAt(0).toUpperCase() + tab.slice(1));
+    if (btn) {
+      btn.addEventListener("click", () => {
+        tabs.forEach(t => {
+          const b = document.getElementById("pgTab" + t.charAt(0).toUpperCase() + t.slice(1));
+          const p = document.getElementById("pgPane" + t.charAt(0).toUpperCase() + t.slice(1));
+          if (b) b.classList.toggle("active", t === tab);
+          if (p) {
+            p.classList.toggle("active", t === tab);
+            p.style.display = (t === tab) ? "block" : "none";
+          }
+        });
+      });
+    }
+  });
+
+  // Spawn Web Worker
+  spawnPlaygroundWorker();
+
+  // Validate action
+  if (validateBtn) {
+    validateBtn.addEventListener("click", () => {
+      const content = yamlEditor ? yamlEditor.value : "";
+      if (wasmWorker && isWasmReady) {
+        wasmWorker.postMessage({ action: "VALIDATE", yamlContent: content });
+      } else {
+        showPlaygroundAlert("Motor WASM ainda não está pronto. Aguarde o carregamento...", false);
+      }
+    });
+  }
+
+  // Run action
+  if (runBtn) {
+    runBtn.addEventListener("click", () => {
+      if (!wasmWorker || !isWasmReady) {
+        showPlaygroundAlert("Motor WASM ainda não inicializou completamente.", false);
+        return;
+      }
+      isPlaygroundRunning = true;
+      runBtn.disabled = true;
+      if (cancelBtn) cancelBtn.style.display = "inline-flex";
+
+      const lang = window.currentLang || "pt";
+      const t = (I18N[lang] && I18N[lang].playground) ? I18N[lang].playground : I18N.pt.playground;
+      updatePlaygroundStatus(t.statusRunning, "running");
+
+      const config = {
+        yamlContent: yamlEditor ? yamlEditor.value : "",
+        workers: parseInt(workersRange?.value || "4", 10),
+        iterations: parseInt(iterationsRange?.value || "15", 10),
+        jitterMs: parseInt(jitterRange?.value || "10", 10),
+        seed: parseInt(seedInput?.value || "42", 10)
+      };
+
+      appendPlaygroundLog(`[INIT] Disparando schedule com ${config.workers} workers, ${config.iterations} iterações, jitter=${config.jitterMs}ms, seed=${config.seed}`);
+      wasmWorker.postMessage({ action: "RUN", config });
+    });
+  }
+
+  // Cancel action
+  if (cancelBtn) {
+    cancelBtn.addEventListener("click", () => {
+      if (wasmWorker && isPlaygroundRunning) {
+        wasmWorker.postMessage({ action: "CANCEL" });
+        appendPlaygroundLog("[CANCEL] Cancelamento solicitado pelo usuário.");
+      }
+    });
+  }
+}
+
+function spawnPlaygroundWorker() {
+  if (wasmWorker) return;
+  try {
+    wasmWorker = new Worker("assets/wasm-worker.js");
+    wasmWorker.onmessage = function(e) {
+      const msg = e.data || {};
+      handlePlaygroundWorkerMessage(msg);
+    };
+    wasmWorker.onerror = function(err) {
+      console.error("Playground Worker Error:", err);
+      updatePlaygroundStatus("Erro no Web Worker", "error");
+    };
+    wasmWorker.postMessage({ action: "INIT", wasmUrl: "chaossql.wasm" });
+  } catch (err) {
+    console.warn("Dedicated Worker not available or blocked:", err);
+    updatePlaygroundStatus("WASM Offline", "error");
+  }
+}
+
+function updatePlaygroundStatus(text, stateClass) {
+  const badge = document.getElementById("pgWasmStatus");
+  const label = document.getElementById("pgWasmStatusText");
+  if (label) label.textContent = text;
+  if (badge) {
+    badge.className = "wasm-status-badge " + (stateClass || "");
+  }
+}
+
+function showPlaygroundAlert(msg, isSuccess) {
+  const alertBox = document.getElementById("pgAlertBox");
+  if (!alertBox) return;
+  alertBox.className = "pg-alert " + (isSuccess ? "pg-alert-success" : "pg-alert-error");
+  alertBox.textContent = msg;
+  alertBox.style.display = "block";
+  setTimeout(() => {
+    alertBox.style.display = "none";
+  }, 4000);
+}
+
+function appendPlaygroundLog(text) {
+  const consoleEl = document.getElementById("pgConsoleOutput");
+  if (!consoleEl) return;
+  const line = document.createElement("div");
+  line.className = "term-dim";
+  line.textContent = text;
+  consoleEl.appendChild(line);
+  consoleEl.scrollTop = consoleEl.scrollHeight;
+}
+
+function handlePlaygroundWorkerMessage(msg) {
+  const lang = window.currentLang || "pt";
+  const t = (I18N[lang] && I18N[lang].playground) ? I18N[lang].playground : I18N.pt.playground;
+
+  switch (msg.type) {
+    case "READY":
+      isWasmReady = true;
+      updatePlaygroundStatus(t.statusReady, "ready");
+      appendPlaygroundLog("[READY] ChaosSQL v1.3.0 WebAssembly Engine instanciado com sucesso no Web Worker.");
+      break;
+
+    case "VALIDATION_RESULT":
+      if (msg.valid) {
+        showPlaygroundAlert(`${t.validYaml} (${msg.numOperations} operações, ${msg.numInvariants} invariantes)`, true);
+      } else {
+        showPlaygroundAlert(t.invalidYaml + msg.error, false);
+      }
+      break;
+
+    case "PROGRESS":
+      if (msg.status === "Cancelled") {
+        isPlaygroundRunning = false;
+        resetPlaygroundButtons();
+        updatePlaygroundStatus(t.statusReady, "ready");
+        appendPlaygroundLog("[INFO] Execução cancelada.");
+      } else {
+        appendPlaygroundLog(`[PROGRESS] Iteração ${msg.iteration || 0}: ${msg.ops || 0} operações executadas.`);
+      }
+      break;
+
+    case "CYCLE_DETECTED": {
+      const anomalyEl = document.getElementById("pgMetricAnomaly");
+      const cycleEl = document.getElementById("pgMetricCycle");
+      if (anomalyEl) anomalyEl.textContent = msg.anomalyType || "CYCLE";
+      if (cycleEl) cycleEl.textContent = "CICLO DETECTADO";
+      appendPlaygroundLog(`[ANOMALY] Ciclo Adya detectado: ${msg.anomalyType}`);
+      break;
+    }
+
+    case "COMPLETE": {
+      isPlaygroundRunning = false;
+      resetPlaygroundButtons();
+      updatePlaygroundStatus(t.statusReady, "ready");
+
+      let report = {};
+      try {
+        report = typeof msg.report === "string" ? JSON.parse(msg.report) : msg.report;
+      } catch (_) {
+        report = {};
+      }
+
+      const metricOps = document.getElementById("pgMetricOps");
+      const metricAnomaly = document.getElementById("pgMetricAnomaly");
+      const metricDuration = document.getElementById("pgMetricDuration");
+
+      if (metricOps) metricOps.textContent = `${report.totalOps || 0} ops (${report.reducedOps || 0} minimal)`;
+      if (metricAnomaly) metricAnomaly.textContent = report.anomalyType || "OK (Serializável)";
+      if (metricDuration) metricDuration.textContent = `${report.durationMs || 0}ms`;
+
+      appendPlaygroundLog(`[DONE] Execução concluída em ${report.durationMs || 0}ms. Anomalia: ${report.anomalyType || "NENHUMA"}`);
+
+      if (report.adyaEdges) {
+        renderPlaygroundAdya(report.adyaEdges, report.anomalyType);
+      }
+      if (report.trace) {
+        renderPlaygroundGantt(report.trace);
+      }
+      break;
+    }
+
+    case "ERROR":
+      isPlaygroundRunning = false;
+      resetPlaygroundButtons();
+      updatePlaygroundStatus(t.statusError, "error");
+      showPlaygroundAlert("Erro: " + (msg.error || "falha desconhecida"), false);
+      appendPlaygroundLog("[ERROR] " + (msg.error || ""));
+      break;
+  }
+}
+
+function resetPlaygroundButtons() {
+  const runBtn = document.getElementById("pgRunBtn");
+  const cancelBtn = document.getElementById("pgCancelBtn");
+  if (runBtn) runBtn.disabled = false;
+  if (cancelBtn) cancelBtn.style.display = "none";
+}
+
+function renderPlaygroundAdya(edges, anomalyType) {
+  const container = document.getElementById("pgAdyaGraphContent");
+  if (!container) return;
+
+  const nodes = ["T1", "T2", "T3", "T4"];
+  const coords = {
+    T1: { x: 150, y: 100 },
+    T2: { x: 450, y: 100 },
+    T3: { x: 450, y: 260 },
+    T4: { x: 150, y: 260 }
+  };
+
+  let svgHtml = "";
+
+  // Render edges
+  (edges || []).forEach(edge => {
+    const from = coords[edge.from] || { x: 200, y: 180 };
+    const to = coords[edge.to] || { x: 400, y: 180 };
+
+    let color = "#e06c75";
+    let marker = "url(#arrow-rw)";
+    if (edge.type === "WW") {
+      color = "#d19a66";
+      marker = "url(#arrow-ww)";
+    } else if (edge.type === "WR") {
+      color = "#c678dd";
+      marker = "url(#arrow-wr)";
+    }
+
+    const midX = (from.x + to.x) / 2;
+    const midY = (from.y + to.y) / 2 - 15;
+
+    svgHtml += `
+      <path d="M ${from.x} ${from.y} Q ${midX} ${midY} ${to.x} ${to.y}" 
+            stroke="${color}" stroke-width="2.5" fill="none" marker-end="${marker}" stroke-dasharray="4,2" />
+      <rect x="${midX - 25}" y="${midY - 10}" width="50" height="18" rx="4" fill="#1e2227" stroke="${color}" stroke-width="1" />
+      <text x="${midX}" y="${midY + 3}" fill="${color}" font-size="10" font-family="JetBrains Mono, monospace" text-anchor="middle">
+        ${edge.type} (${edge.item || ""})
+      </text>
+    `;
+  });
+
+  // Render nodes
+  nodes.forEach(node => {
+    const c = coords[node];
+    const isConflicted = Boolean(anomalyType && (node === "T1" || node === "T2"));
+    const strokeColor = isConflicted ? "#e06c75" : "#61afef";
+    const fillColor = isConflicted ? "#2d1f24" : "#1e2227";
+
+    svgHtml += `
+      <g transform="translate(${c.x}, ${c.y})">
+        ${isConflicted ? `<circle r="26" fill="none" stroke="#e06c75" stroke-width="1.5" opacity="0.6">
+          <animate attributeName="r" values="22;30;22" dur="2s" repeatCount="indefinite"/>
+          <animate attributeName="opacity" values="0.8;0;0.8" dur="2s" repeatCount="indefinite"/>
+        </circle>` : ""}
+        <circle r="20" fill="${fillColor}" stroke="${strokeColor}" stroke-width="2" />
+        <text y="5" fill="#e5e9f0" font-size="12" font-family="JetBrains Mono, monospace" font-weight="700" text-anchor="middle">
+          ${node}
+        </text>
+      </g>
+    `;
+  });
+
+  if (anomalyType) {
+    svgHtml += `
+      <text x="300" y="340" text-anchor="middle" fill="#e06c75" font-size="12" font-family="JetBrains Mono, monospace" font-weight="700">
+        CICLO ADYA CLASSIFICADO: ${anomalyType}
+      </text>
+    `;
+  }
+
+  container.innerHTML = svgHtml;
+}
+
+function renderPlaygroundGantt(trace) {
+  const container = document.getElementById("pgGanttContainer");
+  if (!container) return;
+
+  if (!trace || trace.length === 0) {
+    container.innerHTML = '<div class="pg-empty-state">Nenhum evento no trace.</div>';
+    return;
+  }
+
+  // Group by WorkerID
+  const workers = {};
+  trace.forEach(ev => {
+    const w = ev.WorkerID || 1;
+    if (!workers[w]) workers[w] = [];
+    workers[w].push(ev);
+  });
+
+  let html = '<div class="gantt-chart-wrapper">';
+  Object.keys(workers).sort().forEach(wId => {
+    html += `
+      <div class="gantt-worker-row">
+        <div class="gantt-worker-label">Worker #${wId}</div>
+        <div class="gantt-events-track">
+    `;
+
+    workers[wId].slice(0, 15).forEach(ev => {
+      let badgeClass = "ev-exec";
+      if (ev.Type === "BEGIN") badgeClass = "ev-begin";
+      else if (ev.Type === "COMMIT") badgeClass = "ev-commit";
+      else if (ev.Type === "ROLLBACK") badgeClass = "ev-rollback";
+
+      html += `
+        <span class="gantt-ev-pill ${badgeClass}" title="${escapeHtml(ev.SQL || ev.Type)}">
+          ${ev.Type}
+        </span>
+      `;
+    });
+
+    html += `
+        </div>
+      </div>
+    `;
+  });
+  html += '</div>';
+
+  container.innerHTML = html;
+}
+
 function copySnippet(button) {
   const code = button.parentElement.querySelector("code")?.innerText;
   if (code) {
@@ -1867,6 +2517,7 @@ if (typeof window !== "undefined") {
   window.renderScenarioDetail = renderScenarioDetail;
   window.renderScenarioStage = renderScenarioStage;
   window.renderMatrixView = renderMatrixView;
+  window.initPlayground = initPlayground;
 }
 
 if (typeof module !== "undefined" && module.exports) {
