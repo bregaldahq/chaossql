@@ -119,8 +119,6 @@ A implementação completa desta arquitetura está disponível e pode ser explor
 
 ## 6. Autonomous Multi-Engine Differential Swarm & Concurrency Stress Testing (v1.4)
 
-### 15. Autonomous Multi-Engine Differential Swarm & Concurrency Stress Testing (v1.4)
-
 A versão 1.4 do ChaosSQL expande as fronteiras da verificação formal de concorrência e isolamento ao introduzir um **Swarm de Testes Diferenciais Multi-Motor**, **Mutações Adversariais Estocásticas** e **Harness Headless WebAssembly com Limites Estritos de Memória e Latência**.
 
 #### 15.1 Theoretical Justification of Stochastic Adversarial Mutations

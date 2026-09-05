@@ -27,7 +27,7 @@ ChaosSQL v1.4 introduces an autonomous multi-agent quality assurance and differe
 | **Task 2** | Multi-Engine Differential Runner (`internal/swarm/`, `cmd/chaossql/swarm.go`) | `d566ea5a-003f-4ef5-b8cb-d69853dbf170` | `d6698d80-ee2a-4d1f-a9d7-74b211723318` | `63897d5`, `cdf186e` | **APPROVED** | COMPLETE |
 | **Task 3** | Headless WASM & Worker Stress (`tools/headless_worker_stress.js`, `site/assets/wasm-bench.js`) | `22e23b92-5419-48e9-ad3d-3d7ef82ba168` | `236112ae-1303-43e8-be0c-db2e527b3232` / `6cc82fc1-fc0c-4588-af88-c0bb11ca5f8c` | `378ea27`, `f23d925`, `afedf27` | **APPROVED** | COMPLETE |
 | **Task 4** | Evidence Synthesizer & CI Matrix (`internal/reporter/swarm_summary.go`, `.github/workflows/swarm.yml`) | `c4e6123d-865b-45ff-8984-473cbf5d0f29` | `9a4af34d-b491-424a-820a-99628cf243b1` / `c8f2d75b-f3a1-4c95-824f-74b7b67cea8a` | `1fc88e1`, `85289d8`, `97070f1` | **APPROVED** | COMPLETE |
-| **Task 5** | CI Quality Harness v1.4, Docs & Sync (`tools/harness_check.go`, `docs/ACADEMIC_FOUNDATIONS.md`, `README.md`) | Implementer (Self) | Coordinator / Verification Gate | *Pending Commit* | **APPROVED** | COMPLETE |
+| **Task 5** | CI Quality Harness v1.4, Docs & Sync (`tools/harness_check.go`, `docs/ACADEMIC_FOUNDATIONS.md`, `README.md`) | Implementer (Self) | Coordinator / Verification Gate | `2b0f3db` | **APPROVED** | COMPLETE |
 
 ---
 
@@ -93,7 +93,7 @@ ChaosSQL v1.4 introduces an autonomous multi-agent quality assurance and differe
 
 ### Task 5: CI Quality Harness v1.4, Academic Foundations, Documentation & Remote Sync
 - **Implementer**: Implementer Subagent (Self)
-- **Commits**: *Pending* (`docs,ci: update harness for spec 15, document swarm foundations, and finalize v1.4`)
+- **Commits**: `2b0f3db` (`docs,ci: update harness for spec 15, document swarm foundations, and finalize v1.4`)
 - **Deliverables**:
   - `tools/harness_check.go`: Updated with `specs/15_multiagent_qa_and_swarm_fuzzing.md` (45/45 mandatory artifacts validated).
   - `docs/ACADEMIC_FOUNDATIONS.md`: Added Section 6 / Section 15 on Stochastic Adversarial Mutations (micro-jitter, LIFO savepoints, causal DAG step shuffling, lock inversion), Multi-Engine Differential Isolation Matrix, and Headless WebAssembly V8 Memory / 60 FPS Bounds.
