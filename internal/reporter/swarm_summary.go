@@ -100,7 +100,8 @@ func GenerateSwarmMarkdownSummary(report *swarm.DifferentialReport) string {
 			for _, d := range scenarioDrivers {
 				res := sc.Results[d]
 				if res.Error != "" {
-					breakdownParts = append(breakdownParts, fmt.Sprintf("**%s**: ⚠️ Error (%s)", d, res.Error))
+					cleanErr := strings.ReplaceAll(res.Error, "|", "\\|")
+					breakdownParts = append(breakdownParts, fmt.Sprintf("**%s**: ⚠️ Error (%s)", d, cleanErr))
 				} else {
 					validCount++
 					if res.ViolationDetected {
@@ -123,6 +124,8 @@ func GenerateSwarmMarkdownSummary(report *swarm.DifferentialReport) string {
 			var statusStr string
 			if validCount == 0 {
 				statusStr = "⚠️ `ERROR`"
+			} else if validCount == 1 {
+				statusStr = "ℹ️ `INCONCLUSIVE`"
 			} else if sc.Divergent {
 				statusStr = "❌ `DIVERGENT`"
 			} else {

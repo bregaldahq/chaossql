@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -205,6 +206,22 @@ func executeDriverRun(ctx context.Context, spec domain.Spec, ops []domain.Schedu
 	if strings.EqualFold(spec.Database.Driver, driverName) && spec.Database.DSN != "" {
 		dsn = spec.Database.DSN
 	}
+	if dsn == "" {
+		switch strings.ToLower(driverName) {
+		case "postgres", "postgresql":
+			if env := os.Getenv("DATABASE_URL"); env != "" && strings.HasPrefix(env, "postgres") {
+				dsn = env
+			} else if env := os.Getenv("POSTGRES_DSN"); env != "" {
+				dsn = env
+			}
+		case "mysql", "mariadb":
+			if env := os.Getenv("MYSQL_DSN"); env != "" {
+				dsn = env
+			} else if env := os.Getenv("DATABASE_URL"); env != "" && strings.HasPrefix(env, "mysql") {
+				dsn = env
+			}
+		}
+	}
 
 	driver, err := drivers.GetDriver(driverName, dsn)
 	if err != nil {
@@ -219,8 +236,11 @@ func executeDriverRun(ctx context.Context, spec domain.Spec, ops []domain.Schedu
 		_ = driver.Close()
 	}()
 
+	runCtx, runCancel := context.WithTimeout(ctx, 15*time.Second)
+	defer runCancel()
+
 	runner := engine.NewRunner(driver, spec.Engine.Seed)
-	runResult, err := runner.RunSchedule(ctx, spec, ops)
+	runResult, err := runner.RunSchedule(runCtx, spec, ops)
 	if err != nil {
 		if ctx.Err() != nil || errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 			return DriverExecutionResult{}, ctx.Err()

@@ -71,12 +71,12 @@ jobs:
           DATABASE_URL: "postgres://chaossql:chaospassword@127.0.0.1:5432/chaossql_test?sslmode=disable"
           MYSQL_DSN: "chaossql:chaospassword@tcp(127.0.0.1:3306)/chaossql_test"
         run: |
-          ./bin/chaossql swarm diff --scenarios-dir examples --drivers sqlite,mock,postgres,mysql --markdown-summary $GITHUB_STEP_SUMMARY
+          ./bin/chaossql swarm diff --scenarios-dir examples --drivers sqlite,mock,postgres,mysql --markdown-summary "$GITHUB_STEP_SUMMARY"
 
-      - name: Export SARIF Security Findings
+      - name: Export SARIF Security Findings & Minimal Repro Test
         if: always()
         run: |
-          ./bin/chaossql run examples/banking_lost_update/chaos.yaml --export-sarif findings.sarif || true
+          ./bin/chaossql run examples/banking_lost_update/chaos.yaml --export-sarif findings.sarif --export-repro || true
 
       - name: Check SARIF Report Existence
         id: check-sarif
@@ -94,6 +94,16 @@ jobs:
         continue-on-error: true
         with:
           sarif_file: findings.sarif
+
+      - name: Archive Repro and Swarm Artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: chaossql-repro-artifacts
+          path: |
+            repro_test.go
+            findings.sarif
+          if-no-files-found: ignore
 
   wasm-headless-stress:
     name: Headless WebAssembly & Worker Stress
