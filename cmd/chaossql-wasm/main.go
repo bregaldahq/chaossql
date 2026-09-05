@@ -5,10 +5,13 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"sync"
 	"syscall/js"
 )
 
 var (
+	cancelMu     sync.Mutex
 	activeCancel context.CancelFunc
 )
 
@@ -35,15 +38,21 @@ func main() {
 		}
 
 		ctx, cancel := context.WithCancel(context.Background())
+		cancelMu.Lock()
 		activeCancel = cancel
+		cancelMu.Unlock()
 
 		go func() {
 			defer func() {
+				cancelMu.Lock()
+				activeCancel = nil
+				cancelMu.Unlock()
 				if r := recover(); r != nil && callback.Truthy() {
-					callback.Invoke(js.ValueOf(map[string]any{
+					errJSON, _ := json.Marshal(map[string]any{
 						"type":  "ERROR",
-						"error": "internal wasm panic recovered",
-					}))
+						"error": fmt.Sprintf("internal wasm panic recovered: %v", r),
+					})
+					callback.Invoke(js.ValueOf(string(errJSON)))
 				}
 			}()
 
@@ -57,33 +66,37 @@ func main() {
 			report, err := ExecuteWasmScenario(ctx, configStr, progressCb)
 			if err != nil {
 				if callback.Truthy() {
-					callback.Invoke(js.ValueOf(map[string]any{
+					errJSON, _ := json.Marshal(map[string]any{
 						"type":  "ERROR",
 						"error": err.Error(),
-					}))
+					})
+					callback.Invoke(js.ValueOf(string(errJSON)))
 				}
 				return
 			}
 
 			reportJSON, _ := json.Marshal(report)
 			if callback.Truthy() {
-				callback.Invoke(js.ValueOf(map[string]any{
+				completeJSON, _ := json.Marshal(map[string]any{
 					"type":   "COMPLETE",
 					"report": string(reportJSON),
-				}))
+				})
+				callback.Invoke(js.ValueOf(string(completeJSON)))
 			}
 		}()
 
-		return js.ValueOf(true)
+		return "OK"
 	}))
 
 	js.Global().Set("ChaosSQL_Cancel", js.FuncOf(func(this js.Value, args []js.Value) any {
+		cancelMu.Lock()
+		defer cancelMu.Unlock()
 		if activeCancel != nil {
 			activeCancel()
 			activeCancel = nil
-			return true
+			return "true"
 		}
-		return false
+		return "false"
 	}))
 
 	js.Global().Set("ChaosSQL_GetVersion", js.FuncOf(func(this js.Value, args []js.Value) any {

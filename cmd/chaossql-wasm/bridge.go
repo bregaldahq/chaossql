@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
@@ -92,7 +93,7 @@ func ExecuteWasmScenario(ctx context.Context, configJSON string, onProgress func
 	if req.Iterations > 0 {
 		spec.Engine.Iterations = req.Iterations
 	}
-	if req.JitterMs >= 0 {
+	if req.JitterMs > 0 {
 		spec.Engine.JitterMs = [2]int{0, req.JitterMs}
 	}
 	if req.Seed == 0 {
@@ -107,18 +108,27 @@ func ExecuteWasmScenario(ctx context.Context, configJSON string, onProgress func
 	if err != nil {
 		return nil, err
 	}
+	if ctx.Err() != nil {
+		return nil, ctx.Err()
+	}
 
 	graph := analyzer.BuildGraph(runRes.Trace)
 	cycles := analyzer.FindCycles(graph)
 
 	var anomalyType string
 	if len(cycles) > 0 {
-		anomaly := analyzer.ClassifyCycle(cycles[0])
+		firstCycle := cycles[0]
+		anomaly := analyzer.ClassifyCycle(firstCycle)
 		anomalyType = string(anomaly)
+		var cycleEdges []string
+		for _, e := range firstCycle {
+			cycleEdges = append(cycleEdges, fmt.Sprintf("%s -[%s]-> %s", e.From, e.Type, e.To))
+		}
 		if onProgress != nil {
 			onProgress(ProgressEvent{
 				Type:        "CYCLE_DETECTED",
 				AnomalyType: anomalyType,
+				Edges:       cycleEdges,
 			})
 		}
 	}
@@ -146,12 +156,25 @@ func ExecuteWasmScenario(ctx context.Context, configJSON string, onProgress func
 			return !subRes.ViolationDetected
 		}
 		shrinkRes, shrinkErr := shrinker.Shrink(ctx, testFn, runRes.ScheduledOps)
+		if shrinkErr != nil && (errors.Is(shrinkErr, context.Canceled) || ctx.Err() != nil) {
+			return nil, ctx.Err()
+		}
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
 		if shrinkErr == nil && shrinkRes != nil && len(shrinkRes.MinimalOps) > 0 {
 			reducedOps = shrinkRes.MinimalOps
 			if minRun, minErr := runner.RunSchedule(ctx, *spec, reducedOps); minErr == nil {
 				reducedTrace = minRun.Trace
 			}
+			if ctx.Err() != nil {
+				return nil, ctx.Err()
+			}
 		}
+	}
+
+	if ctx.Err() != nil {
+		return nil, ctx.Err()
 	}
 
 	var failingInvName string
