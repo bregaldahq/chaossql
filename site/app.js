@@ -331,6 +331,54 @@ invariants:
       cycle: "T1 ──(waits)──► T2 ──(waits)──► T1",
       explanation: "T1 holds lock on row 1 and requests row 2; T2 holds lock on row 2 and requests row 1. Engine aborts one transaction (SQLSTATE 40P01), rolling back cleanly."
     }
+  },
+  {
+    id: "fk_cascade",
+    name: "Foreign Key Cascade Deadlock",
+    code: "G-DL",
+    summary: "Concurrent child item insertion and parent order cancellation create bidirectional lock hierarchy inversion.",
+    schema: `-- Schema
+CREATE TABLE parent_orders (
+    id INT PRIMARY KEY,
+    customer_id INT NOT NULL,
+    status TEXT NOT NULL,
+    total_cents INT NOT NULL
+);
+
+CREATE TABLE child_items (
+    id INT PRIMARY KEY,
+    order_id INT NOT NULL,
+    sku TEXT NOT NULL,
+    price_cents INT NOT NULL,
+    FOREIGN KEY (order_id) REFERENCES parent_orders(id) ON DELETE CASCADE
+);
+
+-- Seed
+INSERT INTO parent_orders VALUES (1, 10, 'OPEN', 5000), (2, 20, 'OPEN', 4000);
+INSERT INTO child_items VALUES (1, 1, 'ITEM-101', 2500), (2, 1, 'ITEM-102', 2500);`,
+    chaos: `version: "1.0"
+name: "foreign_key_cascade_deadlock"
+operations:
+  - name: "add_order_item"
+    steps:
+      - "INSERT INTO child_items VALUES ($monotonic_counter(10, 1), 1, 'ITEM-NEW', 1500)"
+      - "UPDATE parent_orders SET total_cents = total_cents + 1500 WHERE id = 1"
+  - name: "cancel_order_cascade"
+    steps:
+      - "UPDATE parent_orders SET status = 'CANCELLED' WHERE id = 1"
+      - "DELETE FROM parent_orders WHERE id = 1"
+invariants:
+  - name: "referential_integrity"
+    query: "SELECT count(*) AS orphan_items FROM child_items LEFT JOIN parent_orders ON child_items.order_id = parent_orders.id WHERE parent_orders.id IS NULL;"
+    assert: "orphan_items == 0"`,
+    reduction: {
+      originalOps: 20,
+      minimalOps: 2,
+      reductionPct: "90.0%",
+      elapsed: "58ms",
+      cycle: "T1: Child ──► Parent ◄──► T2: Parent ──► Child",
+      explanation: "T1 locks child row and requests parent lock to update total; T2 locks parent row and requests cascaded child locks to delete. Lock hierarchy inversion creates deadlock (WFG cycle)."
+    }
   }
 ];
 
