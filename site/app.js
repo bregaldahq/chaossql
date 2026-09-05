@@ -2232,6 +2232,9 @@ function spawnPlaygroundWorker() {
   if (wasmWorker) return;
   try {
     wasmWorker = new Worker("assets/wasm-worker.js");
+    if (typeof window !== "undefined") {
+      window.wasmWorker = wasmWorker;
+    }
     wasmWorker.onmessage = function(e) {
       const msg = e.data || {};
       handlePlaygroundWorkerMessage(msg);

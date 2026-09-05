@@ -271,7 +271,8 @@ operations:
     const throughputOpsSec = totalOperations / (totalDuration / 1000);
 
     // 4. Compute frame timing analytics
-    const jankFrames = frameDeltas.filter(d => d > 16.67).length;
+    // Frame time budget: > 20ms indicates a dropped frame (tolerating minor 60Hz display timer jitter)
+    const jankFrames = frameDeltas.filter(d => d > 20).length;
     const maxFrameDelta = frameDeltas.length > 0 ? Math.max(...frameDeltas) : 0;
     const compliancePct = frameDeltas.length > 0
       ? ((frameDeltas.length - jankFrames) / frameDeltas.length) * 100

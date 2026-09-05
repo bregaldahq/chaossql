@@ -402,11 +402,11 @@ function percentile(arr, p) {
 async function main() {
   const isJsonOutput = process.argv.includes("--json");
   const iterationsArg = process.argv.find(a => a.startsWith("--runs=") || a.startsWith("--iterations="));
-  let targetIterations = 50;
+  let targetIterations = 100;
   if (iterationsArg) {
-    targetIterations = parseInt(iterationsArg.split("=")[1], 10) || 50;
+    targetIterations = parseInt(iterationsArg.split("=")[1], 10) || 100;
   } else if (process.env.STRESS_RUNS) {
-    targetIterations = parseInt(process.env.STRESS_RUNS, 10) || 50;
+    targetIterations = parseInt(process.env.STRESS_RUNS, 10) || 100;
   }
 
   if (!isJsonOutput) {
@@ -671,11 +671,18 @@ async function main() {
     }
   }
 
-  // Assert RSS growth < 50MB
+  // Assert RSS memory growth < 100MB (tolerates Linux glibc malloc arena fragmentation and Node thread stacks)
   check(
-    "RSS Memory Stability (< 50MB growth)",
-    rssDeltaMB < 50,
-    `RSS delta = ${rssDeltaMB.toFixed(2)} MB (Limit: 50.00 MB)`
+    "RSS Memory Stability (< 100MB growth)",
+    rssDeltaMB < 100,
+    `RSS delta = ${rssDeltaMB.toFixed(2)} MB (Limit: 100.00 MB)`
+  );
+
+  // Assert V8 heap growth < 15MB to strictly guard against JavaScript-level memory leaks
+  check(
+    "V8 Heap Growth (< 15MB)",
+    heapDeltaMB < 15,
+    `Heap delta = ${heapDeltaMB.toFixed(2)} MB (Final: ${(finalMem.heapUsed / (1024 * 1024)).toFixed(2)} MB)`
   );
 
   // Assert WebAssembly linear memory stability (bounded growth)

@@ -1,4 +1,4 @@
-﻿const fs = require("fs");
+const fs = require("fs");
 const http = require("http");
 const nodeCrypto = require("crypto");
 const { performance } = require("perf_hooks");
@@ -67,7 +67,7 @@ async function runE2EWasmAudit() {
   if (!version.includes("1.3.0")) throw new Error("Bad version: " + version);
 
   console.log("\n[PHASE 3] Loading Presets from site/app.js & Testing Fuzzer Matrix...");
-  const appJsCode = fs.readFileSync("/root/chaossql/site/app.js", "utf8");
+  const appJsCode = fs.readFileSync(path.resolve(__dirname, "../site/app.js"), "utf8");
   const presetMatch = appJsCode.match(/const PLAYGROUND_PRESETS = (\{[\s\S]*?\n\};)/);
   if (!presetMatch) throw new Error("Could not extract PLAYGROUND_PRESETS from app.js");
 
