@@ -77,13 +77,21 @@ func newMutateCmd() *cobra.Command {
 			if spec.Database.Schema != "" && strings.HasSuffix(strings.TrimSpace(spec.Database.Schema), ".sql") {
 				schemaSrc := filepath.Join(srcDir, spec.Database.Schema)
 				if content, err := os.ReadFile(schemaSrc); err == nil {
-					_ = os.WriteFile(filepath.Join(outputDirFlag, spec.Database.Schema), content, 0644)
+					destSchema := filepath.Join(outputDirFlag, spec.Database.Schema)
+					_ = os.MkdirAll(filepath.Dir(destSchema), 0755)
+					if err := os.WriteFile(destSchema, content, 0644); err != nil {
+						return fmt.Errorf("failed to copy schema to %s: %w", destSchema, err)
+					}
 				}
 			}
 			if spec.Database.Seed != "" && strings.HasSuffix(strings.TrimSpace(spec.Database.Seed), ".sql") {
 				seedSrc := filepath.Join(srcDir, spec.Database.Seed)
 				if content, err := os.ReadFile(seedSrc); err == nil {
-					_ = os.WriteFile(filepath.Join(outputDirFlag, spec.Database.Seed), content, 0644)
+					destSeed := filepath.Join(outputDirFlag, spec.Database.Seed)
+					_ = os.MkdirAll(filepath.Dir(destSeed), 0755)
+					if err := os.WriteFile(destSeed, content, 0644); err != nil {
+						return fmt.Errorf("failed to copy seed to %s: %w", destSeed, err)
+					}
 				}
 			}
 

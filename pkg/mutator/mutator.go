@@ -291,19 +291,23 @@ func applyLockInversion(spec *domain.Spec, rng *rand.Rand) {
 		if len(resources) >= 2 {
 			first := resources[0]
 			var second *stepResource
-			for _, r := range resources[1:] {
-				if r.resID != first.resID {
-					second = &r
+			for idx := 1; idx < len(resources); idx++ {
+				if resources[idx].resID != first.resID {
+					second = &resources[idx]
 					break
 				}
 			}
 
-			if second != nil {
-				// Verify no capture dependency between first.stepIndex and second.stepIndex
+			// Apply lock inversion stochastically using RNG
+			if second != nil && rng.Float64() < 0.75 {
 				i1, i2 := first.stepIndex, second.stepIndex
 				hasDep := false
-				if op.Steps[i1].Capture != "" && strings.Contains(op.Steps[i2].SQL, op.Steps[i1].Capture) {
-					hasDep = true
+				// Check for capture dependencies between any step from i1 up to i2
+				for k := i1; k < i2; k++ {
+					if op.Steps[k].Capture != "" && strings.Contains(op.Steps[i2].SQL, op.Steps[k].Capture) {
+						hasDep = true
+						break
+					}
 				}
 				if !hasDep {
 					// Swap steps to invert lock acquisition hierarchy
