@@ -193,20 +193,20 @@
 **Files:**
 - Inspect & Test: `site/`
 
-- [ ] **Step 1: Validar sintaxe de todos os arquivos JS**
+- [x] **Step 1: Validar sintaxe de todos os arquivos JS**
   `node -c site/docs-data.js && node -c site/app.js`
 
-- [ ] **Step 2: Executar testes automatizados do repositório Go**
+- [x] **Step 2: Executar testes automatizados do repositório Go**
   `go test ./...`
 
-- [ ] **Step 3: Executar teste de requisição HTTP local**
+- [x] **Step 3: Executar teste de requisição HTTP local**
   Subir servidor de teste temporário em porta livre e validar com `curl -I`:
   - `GET /` (HTTP 200)
   - `GET /docs-data.js` (HTTP 200)
   - `GET /app.js` (HTTP 200)
   - `GET /assets/style.css` (HTTP 200)
 
-- [ ] **Step 4: Auditoria de coerência linguística**
+- [x] **Step 4: Auditoria de coerência linguística**
   Garantir que não haja frases em inglês no modo `pt` e nenhuma frase em português no modo `en`.
 
-- [ ] **Step 5: Commit final e relatório de walkthrough**
+- [x] **Step 5: Commit final e relatório de walkthrough**
