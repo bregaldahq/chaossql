@@ -43,14 +43,14 @@ func (d *SQLiteDriver) Open(ctx context.Context) error {
 		return fmt.Errorf("failed to open sqlite db: %w", err)
 	}
 
-	db.SetMaxOpenConns(50)
-	db.SetMaxIdleConns(50)
+	db.SetMaxOpenConns(1)
+	db.SetMaxIdleConns(1)
 
 	// Configure WAL and busy timeout for concurrency
 	if _, err := db.ExecContext(ctx, "PRAGMA journal_mode = WAL;"); err != nil {
 		// Ignore in-memory WAL warnings if any
 	}
-	_, _ = db.ExecContext(ctx, "PRAGMA busy_timeout = 5000;")
+	_, _ = db.ExecContext(ctx, "PRAGMA busy_timeout = 250;")
 
 	d.db = db
 	return nil

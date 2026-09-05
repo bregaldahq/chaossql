@@ -155,6 +155,9 @@ func (r *Runner) ExecuteSchedule(ctx context.Context, spec domain.Spec, ops []do
 			workerRng := rand.New(rand.NewPCG(r.prng.WorkerSeed(workerID), uint64(workerID)))
 
 			for op := range opChan {
+				if ctx.Err() != nil {
+					break
+				}
 				addEvent(workerID, op.ID, 0, op.Name, domain.EventBegin, "BEGIN", nil)
 
 				localState := make(map[string]string)
@@ -164,6 +167,11 @@ func (r *Runner) ExecuteSchedule(ctx context.Context, spec domain.Spec, ops []do
 
 				opFailed := false
 				for stepIdx, step := range op.Steps {
+					if ctx.Err() != nil {
+						opFailed = true
+						break
+					}
+
 					// Inject jitter between steps
 					jitter := r.prng.Jitter(spec.Engine.JitterMs, workerRng)
 					if jitter > 0 {
@@ -216,6 +224,9 @@ func (r *Runner) ExecuteSchedule(ctx context.Context, spec domain.Spec, ops []do
 	}
 
 	wg.Wait()
+	if ctx.Err() != nil {
+		return trace, ctx.Err()
+	}
 	return trace, nil
 }
 

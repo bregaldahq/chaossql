@@ -132,32 +132,39 @@ func applySavepoints(spec *domain.Spec, rng *rand.Rand) {
 			continue
 		}
 
-		if len(op.Steps) == 1 {
-			newSteps := []domain.StepConfig{
-				{SQL: "SAVEPOINT sp1;"},
-				op.Steps[0],
-				{SQL: "RELEASE SAVEPOINT sp1;"},
+		newSteps := make([]domain.StepConfig, 0, len(op.Steps)+4)
+		for i, st := range op.Steps {
+			// Wrap writes or target steps with localized savepoint lifecycle
+			if isMutation(strings.ToUpper(st.SQL)) || (i == 0 && len(op.Steps) == 1) {
+				spName := fmt.Sprintf("sp%d", i+1)
+				newSteps = append(newSteps, domain.StepConfig{SQL: fmt.Sprintf("SAVEPOINT %s;", spName)})
+				newSteps = append(newSteps, st)
+				if rng.Float64() < 0.25 {
+					newSteps = append(newSteps, domain.StepConfig{SQL: fmt.Sprintf("ROLLBACK TO SAVEPOINT %s;", spName)})
+				}
+				newSteps = append(newSteps, domain.StepConfig{SQL: fmt.Sprintf("RELEASE SAVEPOINT %s;", spName)})
+			} else {
+				newSteps = append(newSteps, st)
 			}
+		}
+
+		if len(newSteps) > len(op.Steps) {
 			op.Steps = newSteps
-		} else {
-			newSteps := make([]domain.StepConfig, 0, len(op.Steps)+5)
-			newSteps = append(newSteps, domain.StepConfig{SQL: "SAVEPOINT sp1;"})
-			newSteps = append(newSteps, op.Steps[0])
-
-			newSteps = append(newSteps, domain.StepConfig{SQL: "SAVEPOINT sp2;"})
-			newSteps = append(newSteps, op.Steps[1])
-
-			if rng.Float64() < 0.3 {
-				newSteps = append(newSteps, domain.StepConfig{SQL: "ROLLBACK TO SAVEPOINT sp2;"})
+		} else if len(op.Steps) > 0 {
+			// Ensure at least one step gets wrapped with savepoint
+			targetIdx := rng.Intn(len(op.Steps))
+			spName := fmt.Sprintf("sp%d", targetIdx+1)
+			wrapSteps := make([]domain.StepConfig, 0, len(op.Steps)+3)
+			for i, st := range op.Steps {
+				if i == targetIdx {
+					wrapSteps = append(wrapSteps, domain.StepConfig{SQL: fmt.Sprintf("SAVEPOINT %s;", spName)})
+					wrapSteps = append(wrapSteps, st)
+					wrapSteps = append(wrapSteps, domain.StepConfig{SQL: fmt.Sprintf("RELEASE SAVEPOINT %s;", spName)})
+				} else {
+					wrapSteps = append(wrapSteps, st)
+				}
 			}
-			newSteps = append(newSteps, domain.StepConfig{SQL: "RELEASE SAVEPOINT sp2;"})
-
-			for k := 2; k < len(op.Steps); k++ {
-				newSteps = append(newSteps, op.Steps[k])
-			}
-
-			newSteps = append(newSteps, domain.StepConfig{SQL: "RELEASE SAVEPOINT sp1;"})
-			op.Steps = newSteps
+			op.Steps = wrapSteps
 		}
 	}
 }
