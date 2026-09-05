@@ -3,7 +3,9 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/bregaldahq/chaossql/internal/swarm"
@@ -102,5 +104,73 @@ func TestSwarmCmd_InvalidScenariosDir(t *testing.T) {
 	err := cmd.Execute()
 	if err == nil {
 		t.Fatal("expected error for nonexistent scenarios directory, got nil")
+	}
+}
+
+func TestSwarmCmd_DiffMarkdownSummaryFlag(t *testing.T) {
+	scenarioDir := filepath.Join("..", "..", "examples", "banking_lost_update")
+	tmpDir := t.TempDir()
+	summaryFile := filepath.Join(tmpDir, "swarm_summary.md")
+
+	cmd := newSwarmCmd()
+	b := new(bytes.Buffer)
+	cmd.SetOut(b)
+	cmd.SetErr(b)
+	cmd.SetArgs([]string{
+		"diff",
+		"--scenarios-dir", scenarioDir,
+		"--drivers", "sqlite,mock",
+		"--markdown-summary", summaryFile,
+	})
+
+	err := cmd.Execute()
+	if err != nil {
+		t.Fatalf("unexpected error executing swarm diff with markdown summary: %v", err)
+	}
+
+	data, err := os.ReadFile(summaryFile)
+	if err != nil {
+		t.Fatalf("failed to read generated markdown summary: %v", err)
+	}
+
+	content := string(data)
+	if !strings.Contains(content, "# 🌪️ ChaosSQL Multi-Engine Swarm Differential Audit") {
+		t.Errorf("markdown summary missing expected header, got:\n%s", content)
+	}
+	if !strings.Contains(content, "Total Scenarios") {
+		t.Errorf("markdown summary missing Total Scenarios, got:\n%s", content)
+	}
+}
+
+func TestSwarmCmd_RunMarkdownSummaryFlag(t *testing.T) {
+	scenarioDir := filepath.Join("..", "..", "examples", "banking_lost_update")
+	tmpDir := t.TempDir()
+	summaryFile := filepath.Join(tmpDir, "subdir", "summary.md")
+
+	cmd := newSwarmCmd()
+	b := new(bytes.Buffer)
+	cmd.SetOut(b)
+	cmd.SetErr(b)
+	cmd.SetArgs([]string{
+		"run",
+		"--scenarios-dir", scenarioDir,
+		"--drivers", "sqlite",
+		"--json",
+		"--markdown-summary", summaryFile,
+	})
+
+	err := cmd.Execute()
+	if err != nil {
+		t.Fatalf("unexpected error executing swarm run with markdown summary: %v", err)
+	}
+
+	data, err := os.ReadFile(summaryFile)
+	if err != nil {
+		t.Fatalf("failed to read generated markdown summary: %v", err)
+	}
+
+	content := string(data)
+	if !strings.Contains(content, "# 🌪️ ChaosSQL Multi-Engine Swarm Differential Audit") {
+		t.Errorf("markdown summary missing expected header, got:\n%s", content)
 	}
 }

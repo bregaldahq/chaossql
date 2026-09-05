@@ -1,0 +1,120 @@
+name: Multi-Engine Swarm & Stress Matrix
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  differential-swarm:
+    name: Multi-Engine Differential Swarm
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: chaossql
+          POSTGRES_PASSWORD: chaospassword
+          POSTGRES_DB: chaossql_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: chaospassword
+          MYSQL_DATABASE: chaossql_test
+          MYSQL_USER: chaossql
+          MYSQL_PASSWORD: chaospassword
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+          cache: true
+
+      - name: Build ChaosSQL Binary
+        run: make build
+
+      - name: Generate Adversarial Mutations
+        run: |
+          for dir in examples/*/; do
+            if [ -f "${dir}chaos.yaml" ]; then
+              echo "Mutating scenario: ${dir}chaos.yaml"
+              ./bin/chaossql mutate "${dir}chaos.yaml" --variants 3 --output-dir "${dir}mutated"
+            fi
+          done
+
+      - name: Execute Differential Swarm
+        env:
+          DATABASE_URL: "postgres://chaossql:chaospassword@127.0.0.1:5432/chaossql_test?sslmode=disable"
+          MYSQL_DSN: "chaossql:chaospassword@tcp(127.0.0.1:3306)/chaossql_test"
+        run: |
+          ./bin/chaossql swarm diff --scenarios-dir examples --drivers sqlite,mock,postgres,mysql --markdown-summary $GITHUB_STEP_SUMMARY
+
+      - name: Export SARIF Security Findings
+        if: always()
+        run: |
+          ./bin/chaossql run examples/banking_lost_update/chaos.yaml --export-sarif findings.sarif || true
+
+      - name: Check SARIF Report Existence
+        id: check-sarif
+        if: always()
+        run: |
+          if [ -f findings.sarif ]; then
+            echo "sarif_exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "sarif_exists=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Upload SARIF Findings
+        if: always() && steps.check-sarif.outputs.sarif_exists == 'true'
+        uses: github/codeql-action/upload-sarif@v3
+        continue-on-error: true
+        with:
+          sarif_file: findings.sarif
+
+  wasm-headless-stress:
+    name: Headless WebAssembly & Worker Stress
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+          cache: true
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Build WebAssembly Binary
+        run: make wasm
+
+      - name: Run Headless WASM Stress Harness
+        run: make stress-wasm

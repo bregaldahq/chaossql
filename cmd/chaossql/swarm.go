@@ -18,10 +18,11 @@ import (
 
 func newSwarmCmd() *cobra.Command {
 	var (
-		scenariosDir    string
-		driversFlag     string
-		concurrencyFlag int
-		jsonOutput      bool
+		scenariosDir        string
+		driversFlag         string
+		concurrencyFlag     int
+		jsonOutput          bool
+		markdownSummaryPath string
 	)
 
 	runMatrix := func(cmd *cobra.Command, args []string) error {
@@ -56,6 +57,17 @@ func newSwarmCmd() *cobra.Command {
 		report, err := swarm.ExecuteDifferentialMatrix(ctx, specs, driverNames, concurrencyFlag)
 		if err != nil {
 			return fmt.Errorf("differential swarm execution failed: %w", err)
+		}
+
+		if markdownSummaryPath != "" {
+			summaryMd := reporter.GenerateSwarmMarkdownSummary(report)
+			dir := filepath.Dir(markdownSummaryPath)
+			if dir != "" && dir != "." {
+				_ = os.MkdirAll(dir, 0755)
+			}
+			if err := os.WriteFile(markdownSummaryPath, []byte(summaryMd), 0644); err != nil {
+				return fmt.Errorf("failed to write markdown summary to %s: %w", markdownSummaryPath, err)
+			}
 		}
 
 		if jsonOutput {
@@ -94,6 +106,7 @@ permits an anomaly while another enforces isolation.`,
 	rootSwarm.PersistentFlags().StringVar(&driversFlag, "drivers", "sqlite,mock", "Comma-separated list of database drivers to evaluate (e.g. sqlite,mock,postgres,mysql)")
 	rootSwarm.PersistentFlags().IntVar(&concurrencyFlag, "concurrency", 4, "Maximum concurrent scenario/driver executions")
 	rootSwarm.PersistentFlags().BoolVar(&jsonOutput, "json", false, "Output results in JSON format")
+	rootSwarm.PersistentFlags().StringVar(&markdownSummaryPath, "markdown-summary", "", "Path to write GitHub Flavored Markdown summary report (e.g. $GITHUB_STEP_SUMMARY)")
 
 	rootSwarm.AddCommand(diffCmd, runCmd)
 	return rootSwarm
