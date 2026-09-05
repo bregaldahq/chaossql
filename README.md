@@ -74,6 +74,18 @@ Visit the interactive documentation hub: **[https://chaossql.bregalda.com](https
 * **Interactive Trace Visualizer Demo**: Real-time microsecond Gantt swimlanes and SVG Adya DAG simulator.
 * **Hermitage Isolation Matrix**: Empirical isolation phenomena comparison across SQLite, PostgreSQL, and MySQL.
 
+### 🌐 In-Browser WebAssembly Playground (v1.3)
+
+Experience deterministic concurrency fuzzing and formal isolation verification instantly with zero installation and zero backend dependencies:
+
+👉 **[Launch Playground (chaossql.bregalda.com/#/playground)](https://chaossql.bregalda.com/#/playground)**
+
+* **Zero-Install, Zero-Server Studio**: The entire ChaosSQL verification core—including PRNG scheduling, Adya Direct Serialization Graph (DSG) cycle classification, and causal $ddmin$ delta-debugging—executes 100% client-side inside a browser Web Worker via WebAssembly (`chaossql.wasm`).
+* **Live SVG Adya Conflict Graph**: Visualizes concurrent transaction nodes ($T_1, T_2, \dots$) and directed conflict edges ($rw$ anti-dependency, $ww$ write-write, $wr$ read-dependency) with animated highlights of detected anomaly cycles ($P4, A5B, G0, G1a, G1c, G2$).
+* **Interactive Gantt Interleaving Timeline**: Microsecond-precision horizontal swimlanes detailing concurrent worker interleavings, lock contention, and statement execution order.
+* **10 Flagship Scenario Presets**: Load and test banking lost updates, hospital write skew, stock oversell, and deadlock cycles with 1 click, or author custom `chaos.yaml` scenarios in the built-in editor.
+* **Privacy & Isolation by Design**: Zero data exfiltration—all SQL statements, schema migrations, and invariant evaluations run strictly within the client's browser sandbox.
+
 ---
 
 ## 🔬 10 Flagship Concurrency Scenarios & Production Fixes

@@ -19,7 +19,7 @@ help:
 wasm:
 	@echo "Compilando ChaosSQL Core para WebAssembly (Zero CGO)..."
 	@mkdir -p site/assets
-	@GOOS=js GOARCH=wasm $(GO) build -ldflags="-s -w -X main.version=1.3.0" -trimpath -o site/assets/chaossql.wasm ./cmd/chaossql-wasm
+	@CGO_ENABLED=0 GOOS=js GOARCH=wasm $(GO) build -ldflags="-s -w -X main.version=1.3.0" -trimpath -o site/assets/chaossql.wasm ./cmd/chaossql-wasm
 	@ls -lh site/assets/chaossql.wasm
 
 check-harness:
