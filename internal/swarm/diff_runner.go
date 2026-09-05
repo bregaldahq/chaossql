@@ -242,7 +242,7 @@ func executeDriverRun(ctx context.Context, spec domain.Spec, ops []domain.Schedu
 	runner := engine.NewRunner(driver, spec.Engine.Seed)
 	runResult, err := runner.RunSchedule(runCtx, spec, ops)
 	if err != nil {
-		if ctx.Err() != nil || errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+		if ctx.Err() != nil {
 			return DriverExecutionResult{}, ctx.Err()
 		}
 		return DriverExecutionResult{

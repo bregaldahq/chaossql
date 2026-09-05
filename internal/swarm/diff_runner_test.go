@@ -3,6 +3,7 @@ package swarm_test
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -338,6 +339,29 @@ func TestEvaluateScenarioDivergence_AllErrors(t *testing.T) {
 	diff := swarm.EvaluateScenarioDivergence("error_scenario", results, []string{"postgres", "mysql"})
 	if diff.Divergent {
 		t.Errorf("expected non-divergent when all drivers error")
+	}
+}
+
+func TestEvaluateScenarioDivergence_DriverErrorResilience_NotSafe(t *testing.T) {
+	results := map[string]swarm.DriverExecutionResult{
+		"sqlite": {
+			Driver:            "sqlite",
+			Success:           true,
+			ViolationDetected: false,
+		},
+		"postgres": {
+			Driver:  "postgres",
+			Success: false,
+			Error:   "context deadline exceeded",
+		},
+	}
+
+	diff := swarm.EvaluateScenarioDivergence("timeout_scenario", results, []string{"sqlite", "postgres"})
+	if diff.Divergent {
+		t.Errorf("expected non-divergent when one driver times out/errors and only one valid driver exists")
+	}
+	if !strings.Contains(diff.Summary, "Single active driver") {
+		t.Errorf("expected single active driver summary, got: %s", diff.Summary)
 	}
 }
 
