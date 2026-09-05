@@ -56,7 +56,12 @@ type taskOutcome struct {
 
 // ExecuteDifferentialMatrix runs a matrix of scenarios across multiple database drivers concurrently,
 // comparing outcomes to detect semantic divergence in transaction isolation and invariant satisfaction.
-func ExecuteDifferentialMatrix(ctx context.Context, specs []domain.Spec, driverNames []string, concurrency int) (*DifferentialReport, error) {
+// Optional concurrency parameter defaults to 4.
+func ExecuteDifferentialMatrix(ctx context.Context, specs []domain.Spec, driverNames []string, concurrencyOpt ...int) (*DifferentialReport, error) {
+	concurrency := 4
+	if len(concurrencyOpt) > 0 && concurrencyOpt[0] > 0 {
+		concurrency = concurrencyOpt[0]
+	}
 	startTime := time.Now()
 
 	if ctx.Err() != nil {
@@ -196,7 +201,12 @@ func executeDriverRun(ctx context.Context, spec domain.Spec, ops []domain.Schedu
 
 	start := time.Now()
 
-	driver, err := drivers.GetDriver(driverName, "")
+	dsn := ""
+	if strings.EqualFold(spec.Database.Driver, driverName) && spec.Database.DSN != "" {
+		dsn = spec.Database.DSN
+	}
+
+	driver, err := drivers.GetDriver(driverName, dsn)
 	if err != nil {
 		return DriverExecutionResult{
 			Driver:     driverName,

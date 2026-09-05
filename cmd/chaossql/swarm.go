@@ -26,12 +26,15 @@ func newSwarmCmd() *cobra.Command {
 
 	runMatrix := func(cmd *cobra.Command, args []string) error {
 		resolvedDir := scenariosDir
+		if len(args) > 0 && strings.TrimSpace(args[0]) != "" {
+			resolvedDir = strings.TrimSpace(args[0])
+		}
 		if _, err := os.Stat(resolvedDir); os.IsNotExist(err) {
-			altPath := filepath.Join("..", "..", scenariosDir)
+			altPath := filepath.Join("..", "..", resolvedDir)
 			if _, altErr := os.Stat(altPath); altErr == nil {
 				resolvedDir = altPath
 			} else {
-				return fmt.Errorf("scenarios directory %q not found: %w", scenariosDir, err)
+				return fmt.Errorf("scenarios directory %q not found: %w", resolvedDir, err)
 			}
 		}
 
@@ -98,10 +101,12 @@ permits an anomaly while another enforces isolation.`,
 
 func parseDriversList(flagVal string) []string {
 	parts := strings.Split(flagVal, ",")
+	seen := make(map[string]bool)
 	var result []string
 	for _, p := range parts {
-		trimmed := strings.TrimSpace(p)
-		if trimmed != "" {
+		trimmed := strings.ToLower(strings.TrimSpace(p))
+		if trimmed != "" && !seen[trimmed] {
+			seen[trimmed] = true
 			result = append(result, trimmed)
 		}
 	}
@@ -184,8 +189,25 @@ func renderSwarmTerminal(cmd *cobra.Command, report *swarm.DifferentialReport, d
 	headerStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("205"))
 	cmd.Println(headerStyle.Render("AUTONOMOUS MULTI-ENGINE DIFFERENTIAL SWARM REPORT"))
 
+	allEnginesFailed := len(report.Scenarios) > 0
+	for _, sc := range report.Scenarios {
+		hasValidDriver := false
+		for _, dName := range driverNames {
+			if res, ok := sc.Results[dName]; ok && res.Error == "" {
+				hasValidDriver = true
+				break
+			}
+		}
+		if hasValidDriver {
+			allEnginesFailed = false
+			break
+		}
+	}
+
 	divergenceBadge := lipgloss.NewStyle().Bold(true).Padding(0, 1)
-	if report.DivergentCount > 0 {
+	if allEnginesFailed {
+		divergenceBadge = divergenceBadge.Background(lipgloss.Color("196")).Foreground(lipgloss.Color("231")).SetString(" ALL TARGET ENGINES FAILED / OFFLINE ")
+	} else if report.DivergentCount > 0 {
 		divergenceBadge = divergenceBadge.Background(lipgloss.Color("196")).Foreground(lipgloss.Color("231")).SetString(fmt.Sprintf(" %d DIVERGENCE(S) DETECTED ", report.DivergentCount))
 	} else {
 		divergenceBadge = divergenceBadge.Background(lipgloss.Color("46")).Foreground(lipgloss.Color("16")).SetString(" ALL ENGINES CONSISTENT ")
@@ -202,30 +224,40 @@ func renderSwarmTerminal(cmd *cobra.Command, report *swarm.DifferentialReport, d
 	lines += "  ────────────────────────────────────────────────────────────────────────────────────────\n"
 
 	for _, sc := range report.Scenarios {
-		statusStr := lipgloss.NewStyle().Foreground(lipgloss.Color("46")).Render("CONSISTENT")
-		if sc.Divergent {
-			statusStr = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("196")).Render("DIVERGENT")
-		}
-
+		validCount := 0
 		var breakdownParts []string
 		for _, dName := range driverNames {
 			if res, ok := sc.Results[dName]; ok {
 				if res.Error != "" {
 					breakdownParts = append(breakdownParts, fmt.Sprintf("%s: ERR(%s)", dName, res.Error))
-				} else if res.ViolationDetected {
-					desc := res.DetectedAnomaly
-					if desc == "" {
-						desc = res.FailingInvariant
-					}
-					breakdownParts = append(breakdownParts, fmt.Sprintf("%s: VIOLATION(%s)", dName, desc))
 				} else {
-					breakdownParts = append(breakdownParts, fmt.Sprintf("%s: SAFE", dName))
+					validCount++
+					if res.ViolationDetected {
+						desc := res.DetectedAnomaly
+						if desc == "" {
+							desc = res.FailingInvariant
+						}
+						breakdownParts = append(breakdownParts, fmt.Sprintf("%s: VIOLATION(%s)", dName, desc))
+					} else {
+						breakdownParts = append(breakdownParts, fmt.Sprintf("%s: SAFE", dName))
+					}
 				}
 			}
 		}
 
+		var statusStr string
+		if validCount == 0 {
+			statusStr = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("196")).Render("ERROR")
+		} else if validCount == 1 {
+			statusStr = lipgloss.NewStyle().Foreground(lipgloss.Color("220")).Render("INCONCLUSIVE")
+		} else if sc.Divergent {
+			statusStr = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("196")).Render("DIVERGENT")
+		} else {
+			statusStr = lipgloss.NewStyle().Foreground(lipgloss.Color("46")).Render("CONSISTENT")
+		}
+
 		lines += fmt.Sprintf("  %-32s  %-12s  %s\n", truncateString(sc.ScenarioName, 32), statusStr, strings.Join(breakdownParts, " | "))
-		if sc.Divergent {
+		if sc.Divergent || validCount <= 1 {
 			reasonStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("209"))
 			lines += fmt.Sprintf("    ↳ %s\n", reasonStyle.Render(sc.Summary))
 		}
@@ -235,11 +267,12 @@ func renderSwarmTerminal(cmd *cobra.Command, report *swarm.DifferentialReport, d
 }
 
 func truncateString(s string, maxLen int) string {
-	if len(s) <= maxLen {
+	runes := []rune(s)
+	if len(runes) <= maxLen {
 		return s
 	}
 	if maxLen <= 3 {
-		return s[:maxLen]
+		return string(runes[:maxLen])
 	}
-	return s[:maxLen-3] + "..."
+	return string(runes[:maxLen-3]) + "..."
 }
