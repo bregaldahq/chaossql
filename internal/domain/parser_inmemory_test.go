@@ -1,6 +1,8 @@
 package domain_test
 
 import (
+	"errors"
+	"strings"
 	"testing"
 
 	"github.com/bregaldahq/chaossql/internal/domain"
@@ -64,3 +66,121 @@ operations:
 		t.Errorf("expected schema and seed overrides to be set")
 	}
 }
+
+func TestParseSpecBytes_Errors(t *testing.T) {
+	tests := []struct {
+		name          string
+		yamlData      string
+		expectedErr   error
+		errorContains string
+	}{
+		{
+			name:          "Malformed YAML",
+			yamlData:      "version: '1.0'\n  invalid: \n- unindented",
+			errorContains: "failed to parse yaml",
+		},
+		{
+			name: "Missing Version",
+			yamlData: `
+name: "test"
+database:
+  driver: "sqlite"
+invariants:
+  - name: "inv"
+    type: "sql"
+    query: "SELECT 1"
+    expected: "1"
+operations:
+  - name: "op"
+    steps:
+      - sql: "SELECT 1"
+`,
+			expectedErr:   domain.ErrSpecValidationFailed,
+			errorContains: "missing or empty 'version'",
+		},
+		{
+			name: "Missing Name",
+			yamlData: `
+version: "1.0"
+database:
+  driver: "sqlite"
+invariants:
+  - name: "inv"
+    type: "sql"
+    query: "SELECT 1"
+    expected: "1"
+operations:
+  - name: "op"
+    steps:
+      - sql: "SELECT 1"
+`,
+			expectedErr:   domain.ErrSpecValidationFailed,
+			errorContains: "missing or empty 'name'",
+		},
+		{
+			name: "Missing Driver",
+			yamlData: `
+version: "1.0"
+name: "test"
+invariants:
+  - name: "inv"
+    type: "sql"
+    query: "SELECT 1"
+    expected: "1"
+operations:
+  - name: "op"
+    steps:
+      - sql: "SELECT 1"
+`,
+			expectedErr:   domain.ErrSpecValidationFailed,
+			errorContains: "missing or empty 'database.driver'",
+		},
+		{
+			name: "Missing Invariants",
+			yamlData: `
+version: "1.0"
+name: "test"
+database:
+  driver: "sqlite"
+operations:
+  - name: "op"
+    steps:
+      - sql: "SELECT 1"
+`,
+			expectedErr:   domain.ErrSpecValidationFailed,
+			errorContains: "'invariants' must have at least one entry",
+		},
+		{
+			name: "Missing Operations",
+			yamlData: `
+version: "1.0"
+name: "test"
+database:
+  driver: "sqlite"
+invariants:
+  - name: "inv"
+    type: "sql"
+    query: "SELECT 1"
+    expected: "1"
+`,
+			expectedErr:   domain.ErrSpecValidationFailed,
+			errorContains: "'operations' must have at least one entry",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := domain.ParseSpecBytes([]byte(tt.yamlData))
+			if err == nil {
+				t.Fatalf("expected error, got nil")
+			}
+			if tt.expectedErr != nil && !errors.Is(err, tt.expectedErr) {
+				t.Errorf("expected error wrapping %v, got %v", tt.expectedErr, err)
+			}
+			if tt.errorContains != "" && !strings.Contains(err.Error(), tt.errorContains) {
+				t.Errorf("expected error containing %q, got %q", tt.errorContains, err.Error())
+			}
+		})
+	}
+}
+
