@@ -39,6 +39,9 @@ func main() {
 
 		ctx, cancel := context.WithCancel(context.Background())
 		cancelMu.Lock()
+		if activeCancel != nil {
+			activeCancel()
+		}
 		activeCancel = cancel
 		cancelMu.Unlock()
 

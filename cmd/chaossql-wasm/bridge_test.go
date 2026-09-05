@@ -249,3 +249,34 @@ operations:
 		}
 	}
 }
+
+func TestExecuteWasmScenario_ExplicitZeroJitter(t *testing.T) {
+	ctx := context.Background()
+	scenarioYAML := `
+version: "1.0"
+name: "zero_jitter_test"
+database:
+  driver: "sqlite"
+invariants:
+  - name: "always_ok"
+    type: "sql"
+    query: "SELECT count FROM accounts;"
+    assert: "count == 0"
+operations:
+  - name: "noop"
+    steps:
+      - sql: "SELECT 1;"
+`
+	configJSON := fmt.Sprintf(`{"yamlContent":%q,"workers":1,"iterations":1,"jitterMs":0}`, scenarioYAML)
+	report, err := ExecuteWasmScenario(ctx, configJSON, nil)
+	if err != nil {
+		t.Fatalf("unexpected execution error: %v", err)
+	}
+	if report == nil {
+		t.Fatalf("expected non-nil report")
+	}
+	if !report.Success {
+		t.Errorf("expected report.Success == true, got false")
+	}
+}
+

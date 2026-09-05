@@ -80,5 +80,6 @@ demo: build
 	@./bin/chaossql demo fk || true
 
 verify: check-harness lint test
+	@node tools/test_wasm_worker.js && node tools/test_playground_ui.js
 	@echo ""
 	@echo "✔ Gate de verificacao concluido com sucesso!"

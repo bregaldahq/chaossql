@@ -75,7 +75,7 @@ func ExecuteWasmScenario(ctx context.Context, configJSON string, onProgress func
 		YAMLContent string `json:"yamlContent"`
 		Workers     int    `json:"workers"`
 		Iterations  int    `json:"iterations"`
-		JitterMs    int    `json:"jitterMs"`
+		JitterMs    *int   `json:"jitterMs"`
 		Seed        uint64 `json:"seed"`
 	}
 	if err := json.Unmarshal([]byte(configJSON), &req); err != nil {
@@ -93,8 +93,8 @@ func ExecuteWasmScenario(ctx context.Context, configJSON string, onProgress func
 	if req.Iterations > 0 {
 		spec.Engine.Iterations = req.Iterations
 	}
-	if req.JitterMs > 0 {
-		spec.Engine.JitterMs = [2]int{0, req.JitterMs}
+	if req.JitterMs != nil {
+		spec.Engine.JitterMs = [2]int{0, *req.JitterMs}
 	}
 	if req.Seed == 0 {
 		req.Seed = uint64(time.Now().UnixNano())
