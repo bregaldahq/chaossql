@@ -42,6 +42,39 @@ type Spec struct {
 	Operations         []OperationConfig         `yaml:"operations"`
 }
 
+// Validate verifies that the Spec has all mandatory fields and valid configurations.
+func (s Spec) Validate() error {
+	if s.Version == "" {
+		return fmt.Errorf("%w: missing or empty 'version'", ErrSpecValidationFailed)
+	}
+	if s.Name == "" {
+		return fmt.Errorf("%w: missing or empty 'name'", ErrSpecValidationFailed)
+	}
+	if s.Database.Driver == "" {
+		return fmt.Errorf("%w: missing or empty 'database.driver'", ErrSpecValidationFailed)
+	}
+	if len(s.Invariants) == 0 {
+		return fmt.Errorf("%w: 'invariants' must have at least one entry", ErrSpecValidationFailed)
+	}
+	if len(s.Operations) == 0 {
+		return fmt.Errorf("%w: 'operations' must have at least one entry", ErrSpecValidationFailed)
+	}
+	for i, inv := range s.Invariants {
+		if inv.Name == "" {
+			return fmt.Errorf("%w: invariant[%d] missing name", ErrSpecValidationFailed, i)
+		}
+	}
+	for i, op := range s.Operations {
+		if op.Name == "" {
+			return fmt.Errorf("%w: operation[%d] missing name", ErrSpecValidationFailed, i)
+		}
+	}
+	if s.Engine.JitterMs[0] < 0 || s.Engine.JitterMs[1] < s.Engine.JitterMs[0] {
+		return fmt.Errorf("%w: invalid jitter range [%d, %d]", ErrSpecValidationFailed, s.Engine.JitterMs[0], s.Engine.JitterMs[1])
+	}
+	return nil
+}
+
 // DatabaseConfig holds connection and initialization paths.
 type DatabaseConfig struct {
 	Driver string `yaml:"driver"` // "sqlite", "postgres", or "mysql"

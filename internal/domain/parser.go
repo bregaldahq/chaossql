@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 )
@@ -16,20 +17,8 @@ func ParseSpecBytes(data []byte) (*Spec, error) {
 	}
 
 	// Validate mandatory fields
-	if spec.Version == "" {
-		return nil, fmt.Errorf("%w: missing or empty 'version'", ErrSpecValidationFailed)
-	}
-	if spec.Name == "" {
-		return nil, fmt.Errorf("%w: missing or empty 'name'", ErrSpecValidationFailed)
-	}
-	if spec.Database.Driver == "" {
-		return nil, fmt.Errorf("%w: missing or empty 'database.driver'", ErrSpecValidationFailed)
-	}
-	if len(spec.Invariants) == 0 {
-		return nil, fmt.Errorf("%w: 'invariants' must have at least one entry", ErrSpecValidationFailed)
-	}
-	if len(spec.Operations) == 0 {
-		return nil, fmt.Errorf("%w: 'operations' must have at least one entry", ErrSpecValidationFailed)
+	if err := spec.Validate(); err != nil {
+		return nil, err
 	}
 
 	return &spec, nil
@@ -65,7 +54,7 @@ func LoadSpec(filePath string) (*Spec, error) {
 
 	baseDir := filepath.Dir(filePath)
 
-	if spec.Database.Schema != "" {
+	if spec.Database.Schema != "" && strings.HasSuffix(strings.TrimSpace(spec.Database.Schema), ".sql") {
 		schemaPath := filepath.Join(baseDir, spec.Database.Schema)
 		schemaData, err := os.ReadFile(schemaPath)
 		if err != nil {
@@ -74,7 +63,7 @@ func LoadSpec(filePath string) (*Spec, error) {
 		spec.Database.Schema = string(schemaData)
 	}
 
-	if spec.Database.Seed != "" {
+	if spec.Database.Seed != "" && strings.HasSuffix(strings.TrimSpace(spec.Database.Seed), ".sql") {
 		seedPath := filepath.Join(baseDir, spec.Database.Seed)
 		seedData, err := os.ReadFile(seedPath)
 		if err != nil {
