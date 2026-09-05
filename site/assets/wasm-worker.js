@@ -20,24 +20,33 @@ self.onmessage = async function(e) {
         }
         goInstance = new Go();
         const url = wasmUrl || 'chaossql.wasm';
+        const response = await fetch(url);
+        if (!response.ok) {
+          throw new Error('Failed to fetch WASM binary: ' + response.status + ' ' + response.statusText);
+        }
+
         let result;
         if (WebAssembly.instantiateStreaming) {
+          const fallbackResp = response.clone();
           try {
-            const response = await fetch(url);
             result = await WebAssembly.instantiateStreaming(response, goInstance.importObject);
           } catch (streamErr) {
             // Fallback to arrayBuffer if instantiateStreaming fails (e.g. content-type issues)
-            const fallbackResp = await fetch(url);
             const buffer = await fallbackResp.arrayBuffer();
             result = await WebAssembly.instantiate(buffer, goInstance.importObject);
           }
         } else {
-          const response = await fetch(url);
           const buffer = await response.arrayBuffer();
           result = await WebAssembly.instantiate(buffer, goInstance.importObject);
         }
 
-        goInstance.run(result.instance);
+        Promise.resolve(goInstance.run(result.instance)).catch((err) => {
+          self.postMessage({
+            type: 'ERROR',
+            error: 'Go runtime exited: ' + (err && err.message ? err.message : err),
+          });
+        });
+
         isWasmReady = true;
         self.postMessage({ type: 'READY' });
       } catch (err) {
