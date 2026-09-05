@@ -21,6 +21,7 @@
   /* Surfaces & Backgrounds */
   --bg-canvas: #120E1F;
   --bg-surface: #181328;
+  --color-surface: #181328;
   --bg-surface-elevated: #1F1934;
   --bg-surface-card: #1B152E;
   --bg-terminal: #0D0A17;
@@ -230,6 +231,52 @@ code, pre {
   border-color: var(--color-yellow);
   color: var(--color-cream);
   box-shadow: 0 0 12px rgba(245, 196, 0, 0.2);
+}
+
+/* ==========================================================================
+   Bilingual Language Switcher (.lang-switch)
+   ========================================================================== */
+.lang-switch {
+  display: inline-flex;
+  align-items: center;
+  background: var(--color-surface, var(--bg-surface));
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  padding: 2px;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.lang-btn {
+  background: transparent;
+  border: none;
+  color: var(--color-cream);
+  opacity: 0.65;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 999px;
+  cursor: pointer;
+  line-height: 1.2;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.lang-btn:hover {
+  opacity: 1;
+  color: var(--color-yellow);
+}
+
+.lang-btn.active {
+  background: var(--color-yellow);
+  color: var(--color-ink);
+  opacity: 1;
+  box-shadow: 0 0 10px rgba(245, 196, 0, 0.35);
+}
+
+.mobile-nav-drawer .lang-switch {
+  align-self: flex-start;
+  margin-bottom: 8px;
 }
 
 .nav-mobile-toggle {

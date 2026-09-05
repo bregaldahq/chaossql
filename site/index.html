@@ -22,11 +22,15 @@
         <span class="brand-badge">v1.2.0</span>
       </a>
       <nav class="nav-links" id="mainNav">
-        <a href="#/" class="nav-item active" data-route="landing">Início</a>
-        <a href="#/docs" class="nav-item" data-route="docs">Documentação</a>
-        <a href="#/scenarios" class="nav-item" data-route="scenarios">Cenários &amp; Soluções</a>
-        <a href="#/visualizer" class="nav-item" data-route="visualizer">Trace Visualizer</a>
-        <a href="#/matrix" class="nav-item" data-route="matrix">Matriz de Isolamento</a>
+        <a href="#/" class="nav-item active" data-route="landing" data-i18n="nav.home">Início</a>
+        <a href="#/docs" class="nav-item" data-route="docs" data-i18n="nav.docs">Documentação</a>
+        <a href="#/scenarios" class="nav-item" data-route="scenarios" data-i18n="nav.scenarios">Cenários &amp; Soluções</a>
+        <a href="#/visualizer" class="nav-item" data-route="visualizer" data-i18n="nav.visualizer">Trace Visualizer</a>
+        <a href="#/matrix" class="nav-item" data-route="matrix" data-i18n="nav.matrix">Matriz de Isolamento</a>
+        <div class="lang-switch" role="group" aria-label="Language Selector">
+          <button class="lang-btn active" data-lang="pt" type="button" aria-pressed="true">PT</button>
+          <button class="lang-btn" data-lang="en" type="button" aria-pressed="false">EN</button>
+        </div>
         <a href="https://github.com/bregaldahq/chaossql" target="_blank" rel="noopener" class="nav-cta">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path></svg>
           GitHub
@@ -40,11 +44,15 @@
 
   <!-- Mobile Navigation Drawer -->
   <div class="mobile-nav-drawer" id="mobileNavDrawer">
-    <a href="#/" class="mobile-nav-link active" data-route="landing">Início</a>
-    <a href="#/docs" class="mobile-nav-link" data-route="docs">Documentação Técnica</a>
-    <a href="#/scenarios" class="mobile-nav-link" data-route="scenarios">Cenários &amp; Soluções</a>
-    <a href="#/visualizer" class="mobile-nav-link" data-route="visualizer">Trace Visualizer (chaossql ui)</a>
-    <a href="#/matrix" class="mobile-nav-link" data-route="matrix">Matriz de Isolamento</a>
+    <div class="lang-switch" role="group" aria-label="Language Selector">
+      <button class="lang-btn active" data-lang="pt" type="button" aria-pressed="true">PT</button>
+      <button class="lang-btn" data-lang="en" type="button" aria-pressed="false">EN</button>
+    </div>
+    <a href="#/" class="mobile-nav-link active" data-route="landing" data-i18n="nav.home">Início</a>
+    <a href="#/docs" class="mobile-nav-link" data-route="docs" data-i18n="nav.docs">Documentação Técnica</a>
+    <a href="#/scenarios" class="mobile-nav-link" data-route="scenarios" data-i18n="nav.scenarios">Cenários &amp; Soluções</a>
+    <a href="#/visualizer" class="mobile-nav-link" data-route="visualizer" data-i18n="nav.visualizer">Trace Visualizer (chaossql ui)</a>
+    <a href="#/matrix" class="mobile-nav-link" data-route="matrix" data-i18n="nav.matrix">Matriz de Isolamento</a>
     <a href="https://github.com/bregaldahq/chaossql" target="_blank" rel="noopener" class="mobile-nav-link" style="color: var(--color-yellow);">GitHub Repository ↗</a>
   </div>
 
@@ -56,19 +64,19 @@
       <!-- Hero Section -->
       <section class="hero-section">
         <div class="container">
-          <div class="hero-meta">Studio Bregalda • Systems Engineering • Version 1.2.0</div>
-          <h1 class="hero-title">Deterministic Concurrency &amp; Isolation Fuzzer</h1>
-          <p class="hero-subtitle">
+          <div class="hero-meta" data-i18n="landing.heroMeta">Studio Bregalda • Systems Engineering • Version 1.2.0</div>
+          <h1 class="hero-title" data-i18n="landing.heroTitle">Deterministic Concurrency &amp; Isolation Fuzzer</h1>
+          <p class="hero-subtitle" data-i18n="landing.heroSubtitle">
             ChaosSQL injects stochastic micro-jitter to trigger rare database race conditions, classifies isolation anomalies through Adya dependency graphs, and shrinks 100-operation execution traces to 1-minimal reproductions in milliseconds.
           </p>
 
           <div class="hero-actions">
-            <a href="#/docs" class="btn btn-primary">Explorar Documentação</a>
-            <a href="#/scenarios" class="btn btn-secondary">Ver 10 Cenários</a>
+            <a href="#/docs" class="btn btn-primary" data-i18n="landing.ctaDocs">Explorar Documentação</a>
+            <a href="#/scenarios" class="btn btn-secondary" data-i18n="landing.ctaScenarios">Ver 10 Cenários</a>
             <div class="install-command-bar">
               <span>$</span>
               <code>go install github.com/bregaldahq/chaossql/cmd/chaossql@latest</code>
-              <button class="copy-btn" id="copyInstallBtn" title="Copy command">
+              <button class="copy-btn" id="copyInstallBtn" title="Copy command" data-i18n-attr="title:landing.copyCommandTitle">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
               </button>
             </div>
@@ -88,10 +96,10 @@
                   <div class="terminal-title">chaossql run examples/banking_lost_update/chaos.yaml --seed=42</div>
                 </div>
                 <div class="terminal-actions">
-                  <button class="term-action-btn active" id="termRunBtn" title="Run full execution">▶ Run Fuzzer</button>
-                  <button class="term-action-btn" id="termJitterBtn" title="Simulate jitter injection">⚡ Inject Jitter</button>
-                  <button class="term-action-btn" id="termShrinkBtn" title="Trigger ddmin reduction">🔍 ddmin Shrink</button>
-                  <button class="term-action-btn" id="termResetBtn" title="Reset terminal state">↺ Reset</button>
+                  <button class="term-action-btn active" id="termRunBtn" title="Run full execution" data-i18n="landing.termRun">▶ Run Fuzzer</button>
+                  <button class="term-action-btn" id="termJitterBtn" title="Simulate jitter injection" data-i18n="landing.termJitter">⚡ Inject Jitter</button>
+                  <button class="term-action-btn" id="termShrinkBtn" title="Trigger ddmin reduction" data-i18n="landing.termShrink">🔍 ddmin Shrink</button>
+                  <button class="term-action-btn" id="termResetBtn" title="Reset terminal state" data-i18n="landing.termReset">↺ Reset</button>
                 </div>
               </div>
               <div class="terminal-body" id="terminalOutput">
@@ -120,8 +128,8 @@
             <!-- Right: Adya Graph SVG Diagram -->
             <div class="adya-graph-card" id="adyaGraphCard">
               <div class="adya-graph-header">
-                <span class="adya-badge">DIRECT SERIALIZATION GRAPH (DSG)</span>
-                <span class="adya-graph-title">Adya Cycle Classification</span>
+                <span class="adya-badge" data-i18n="landing.adyaBadge">DIRECT SERIALIZATION GRAPH (DSG)</span>
+                <span class="adya-graph-title" data-i18n="landing.adyaTitle">Adya Cycle Classification</span>
               </div>
               <div class="adya-svg-wrapper">
                 <svg class="adya-svg" viewBox="0 0 460 260" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -178,8 +186,8 @@
                 </svg>
               </div>
               <div class="adya-graph-footer">
-                <div>Anomalia: <strong class="adya-formula">P4 (Lost Update)</strong></div>
-                <div>Atul Adya, Ph.D. Thesis (MIT 1999)</div>
+                <div><span data-i18n="landing.adyaAnomalyLabel">Anomalia:</span> <strong class="adya-formula">P4 (Lost Update)</strong></div>
+                <div data-i18n="landing.adyaThesis">Atul Adya, Ph.D. Thesis (MIT 1999)</div>
               </div>
             </div>
           </div>
@@ -189,9 +197,9 @@
       <!-- The 6 Pillars of Engineering -->
       <section class="section" id="theory">
         <div class="container">
-          <div class="section-label">Academic Foundations &amp; Rigorous Systems</div>
-          <h2 class="section-title">Built on Formal Concurrency Research</h2>
-          <p class="section-desc">
+          <div class="section-label" data-i18n="landing.pillarsSectionLabel">Academic Foundations &amp; Rigorous Systems</div>
+          <h2 class="section-title" data-i18n="landing.pillarsTitle">Built on Formal Concurrency Research</h2>
+          <p class="section-desc" data-i18n="landing.pillarsDesc">
             ChaosSQL replaces heuristic guesswork with rigorous isolation theory, provable scheduling bounds, and algorithmic test case minimization.
           </p>
 
@@ -202,8 +210,8 @@
                 <span class="pillar-number">01 / GRAPH THEORY</span>
                 <span class="pillar-tag">FORMAL VERIFICATION</span>
               </div>
-              <h3 class="pillar-title">Adya Cycle Classification</h3>
-              <p class="pillar-body">
+              <h3 class="pillar-title" data-i18n="landing.pillar1Title">Adya Cycle Classification</h3>
+              <p class="pillar-body" data-i18n="landing.pillar1Body">
                 Constructs dynamic Direct Serialization Graphs $DSG(H) = (V, E)$ tracking write-read ($wr$), write-write ($ww$), and read-write anti-dependency ($rw$) edges to categorize anomalies (P4, A5B, A5A, G0, G2).
               </p>
               <div class="pillar-citation">
@@ -218,8 +226,8 @@
                 <span class="pillar-number">02 / PROBABILITY BOUNDS</span>
                 <span class="pillar-tag">PCT SCHEDULING</span>
               </div>
-              <h3 class="pillar-title">PCT-SQL Priority Scheduling</h3>
-              <p class="pillar-body">
+              <h3 class="pillar-title" data-i18n="landing.pillar2Title">PCT-SQL Priority Scheduling</h3>
+              <p class="pillar-body" data-i18n="landing.pillar2Body">
                 Adapts Probabilistic Concurrency Testing to SQL engines. Mathematically guarantees finding isolation bugs of bug-depth $d$ with lower bound $\mathbb{P} \ge rac{1}{n \cdot k^{d-1}}$, avoiding deadlocks and thread starvation.
               </p>
               <div class="pillar-citation">
@@ -234,8 +242,8 @@
                 <span class="pillar-number">03 / TRACE MINIMIZATION</span>
                 <span class="pillar-tag">DELTA-DEBUGGING</span>
               </div>
-              <h3 class="pillar-title">Causal Delta-Debugging ($ddmin$)</h3>
-              <p class="pillar-body">
+              <h3 class="pillar-title" data-i18n="landing.pillar3Title">Causal Delta-Debugging ($ddmin$)</h3>
+              <p class="pillar-body" data-i18n="landing.pillar3Body">
                 Partitions noisy execution histories of 100+ concurrent operations to isolate the exact 1-minimal subset of 2 steps required to reproduce the anomaly in &lt;200ms.
               </p>
               <div class="pillar-citation">
@@ -250,8 +258,8 @@
                 <span class="pillar-number">04 / OBSERVABILITY</span>
                 <span class="pillar-tag">LOCAL WEB SERVER</span>
               </div>
-              <h3 class="pillar-title">Interactive Trace Visualizer</h3>
-              <p class="pillar-body">
+              <h3 class="pillar-title" data-i18n="landing.pillar4Title">Interactive Trace Visualizer</h3>
+              <p class="pillar-body" data-i18n="landing.pillar4Body">
                 Embedded HTTP engine on port 8090 with microsecond Gantt swimlanes per goroutine, interactive Adya conflict graphs, and deep parameter query inspector.
               </p>
               <div class="pillar-citation">
@@ -266,8 +274,8 @@
                 <span class="pillar-number">05 / CI/CD GATING</span>
                 <span class="pillar-tag">SECURITY GATING</span>
               </div>
-              <h3 class="pillar-title">OASIS SARIF 2.1.0 &amp; GitHub</h3>
-              <p class="pillar-body">
+              <h3 class="pillar-title" data-i18n="landing.pillar5Title">OASIS SARIF 2.1.0 &amp; GitHub</h3>
+              <p class="pillar-body" data-i18n="landing.pillar5Body">
                 Converts database isolation flaws directly into security findings in GitHub Code Scanning with 9 formal rules, JUnit XML test results, and PR step summaries.
               </p>
               <div class="pillar-citation">
@@ -282,8 +290,8 @@
                 <span class="pillar-number">06 / ULTRA HIGH THROUGHPUT</span>
                 <span class="pillar-tag">PURE GO DRIVER</span>
               </div>
-              <h3 class="pillar-title">Zero CGO &amp; Pure Go</h3>
-              <p class="pillar-body">
+              <h3 class="pillar-title" data-i18n="landing.pillar6Title">Zero CGO &amp; Pure Go</h3>
+              <p class="pillar-body" data-i18n="landing.pillar6Body">
                 Compiled with <code>CGO_ENABLED=0</code> using <code>modernc.org/sqlite</code>. Completely static binary with zero external C libraries and micro-benchmark throughput of 13.9M operations/sec.
               </p>
               <div class="pillar-citation">
@@ -297,27 +305,27 @@
           <div class="portal-banner-grid">
             <div class="portal-banner-card">
               <div>
-                <div class="banner-badge">Documentação Técnica Completa</div>
-                <h3 class="banner-title">Centro de Engenharia &amp; Referência DSL</h3>
-                <p class="banner-desc">
+                <div class="banner-badge" data-i18n="landing.bannerDocsBadge">Documentação Técnica Completa</div>
+                <h3 class="banner-title" data-i18n="landing.bannerDocsTitle">Centro de Engenharia &amp; Referência DSL</h3>
+                <p class="banner-desc" data-i18n="landing.bannerDocsDesc">
                   Consulte os 8 capítulos completos: Guia de Início Rápido, chaos.yaml DSL, manual com 12 flags da CLI, arquitetura de drivers (Postgres, SQLite, MySQL) e Go Testing SDK.
                 </p>
               </div>
               <div>
-                <a href="#/docs" class="btn btn-primary">Acessar Documentação →</a>
+                <a href="#/docs" class="btn btn-primary" data-i18n="landing.bannerDocsCta">Acessar Documentação →</a>
               </div>
             </div>
 
             <div class="portal-banner-card">
               <div>
-                <div class="banner-badge">Showcase do Visualizador de Traces</div>
-                <h3 class="banner-title">Concorrência em Nível de Microssegundos</h3>
-                <p class="banner-desc">
+                <div class="banner-badge" data-i18n="landing.bannerVizBadge">Showcase do Visualizador de Traces</div>
+                <h3 class="banner-title" data-i18n="landing.bannerVizTitle">Concorrência em Nível de Microssegundos</h3>
+                <p class="banner-desc" data-i18n="landing.bannerVizDesc">
                   Explore interativamente o <code>chaossql ui</code>: compare o trace bruto com a redução 1-minimal de 2 passos, inspecione parâmetros de queries e navegue pelo grafo de conflitos Adya.
                 </p>
               </div>
               <div>
-                <a href="#/visualizer" class="btn btn-secondary">Abrir Trace Visualizer →</a>
+                <a href="#/visualizer" class="btn btn-secondary" data-i18n="landing.bannerVizCta">Abrir Trace Visualizer →</a>
               </div>
             </div>
           </div>
@@ -335,7 +343,7 @@
           <aside class="docs-sidebar" id="docsSidebar">
             <div class="docs-search-container">
               <svg class="docs-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-              <input type="text" class="docs-search-input" id="docsSearchInput" placeholder="Buscar na documentação...">
+              <input type="text" class="docs-search-input" id="docsSearchInput" placeholder="Buscar na documentação..." data-i18n-attr="placeholder:docs.searchPlaceholder">
             </div>
 
             <nav id="docsSidebarNav">
@@ -347,7 +355,7 @@
           <article class="docs-content-pane" id="docsContentPane">
             <!-- Breadcrumbs -->
             <div class="docs-breadcrumbs" id="docsBreadcrumbs">
-              <a href="#/">ChaosSQL</a> <span>/</span> <a href="#/docs">Docs</a> <span>/</span> <span id="breadcrumbCurrent">Começando</span>
+              <a href="#/">ChaosSQL</a> <span>/</span> <a href="#/docs" data-i18n="docs.breadcrumbDocs">Docs</a> <span>/</span> <span id="breadcrumbCurrent">Começando</span>
             </div>
 
             <!-- Chapter Header -->
@@ -366,8 +374,8 @@
 
             <!-- Footer Navigation: Previous & Next Chapter -->
             <div class="docs-footer-nav" id="docsFooterNav">
-              <button class="docs-nav-btn" id="docsPrevBtn">← Capítulo Anterior</button>
-              <button class="docs-nav-btn" id="docsNextBtn">Próximo Capítulo →</button>
+              <button class="docs-nav-btn" id="docsPrevBtn" data-i18n="docs.prevBtn">← Capítulo Anterior</button>
+              <button class="docs-nav-btn" id="docsNextBtn" data-i18n="docs.nextBtn">Próximo Capítulo →</button>
             </div>
           </article>
         </div>
@@ -380,9 +388,9 @@
     <div id="view-scenarios" class="portal-view">
       <section class="section">
         <div class="container">
-          <div class="section-label">Catálogo Interativo &amp; Produção</div>
-          <h2 class="section-title">10 Flagship Demonstration Scenarios &amp; Fixes</h2>
-          <p class="section-desc">
+          <div class="section-label" data-i18n="scenarios.sectionLabel">Catálogo Interativo &amp; Produção</div>
+          <h2 class="section-title" data-i18n="scenarios.sectionTitle">10 Flagship Demonstration Scenarios &amp; Fixes</h2>
+          <p class="section-desc" data-i18n="scenarios.sectionDesc">
             Explore anomalias de isolamento reais em livros bancários, inventário, plantões médicos e corretoras cripto — com redução causal e código de mitigação em produção.
           </p>
 
@@ -399,10 +407,10 @@
                 <p class="stage-summary" id="stageSummary">Concurrent withdrawals under READ COMMITTED overwrite balances without transactional serialization.</p>
               </div>
               <div class="stage-tabs">
-                <button class="stage-tab-btn active" data-tab="schema">Schema &amp; Seed</button>
-                <button class="stage-tab-btn" data-tab="chaos">Chaos Workload</button>
-                <button class="stage-tab-btn" data-tab="invariant">Invariant &amp; Reduction</button>
-                <button class="stage-tab-btn" data-tab="fix" style="color: var(--color-green);">Fix &amp; Mitigação no Banco</button>
+                <button class="stage-tab-btn active" data-tab="schema" data-i18n="scenarios.tabSchema">Schema &amp; Seed</button>
+                <button class="stage-tab-btn" data-tab="chaos" data-i18n="scenarios.tabChaos">Chaos Workload</button>
+                <button class="stage-tab-btn" data-tab="invariant" data-i18n="scenarios.tabInvariant">Invariant &amp; Reduction</button>
+                <button class="stage-tab-btn" data-tab="fix" style="color: var(--color-green);" data-i18n="scenarios.tabFix">Fix &amp; Mitigação no Banco</button>
               </div>
               <div class="stage-content" id="stageTabContent">
                 <!-- Rendered via app.js -->
@@ -419,9 +427,9 @@
     <div id="view-visualizer" class="portal-view">
       <section class="section">
         <div class="container">
-          <div class="section-label">chaossql ui • Live Concurrency Explorer • 127.0.0.1:8090</div>
-          <h2 class="section-title">Interactive Trace Visualizer</h2>
-          <p class="section-desc">
+          <div class="section-label" data-i18n="visualizer.sectionLabel">chaossql ui • Live Concurrency Explorer • 127.0.0.1:8090</div>
+          <h2 class="section-title" data-i18n="visualizer.sectionTitle">Interactive Trace Visualizer</h2>
+          <p class="section-desc" data-i18n="visualizer.sectionDesc">
             Servidor web de observabilidade de alta resolução. Analise o entrelaçamento de goroutines em escala de microssegundos, o Grafo de Forças Adya e compare o trace original de 20 passos com a síntese minimal de 2 passos.
           </p>
 
@@ -430,17 +438,17 @@
             <div class="viz-toolbar">
               <div class="viz-toolbar-left">
                 <div class="viz-btn-group">
-                  <button class="viz-toggle-btn active" id="vizModeRaw">Raw Trace (20 ops)</button>
-                  <button class="viz-toggle-btn" id="vizModeShrunk">1-Minimal Shrunk (2 ops)</button>
+                  <button class="viz-toggle-btn active" id="vizModeRaw" data-i18n="visualizer.modeRaw">Raw Trace (20 ops)</button>
+                  <button class="viz-toggle-btn" id="vizModeShrunk" data-i18n="visualizer.modeShrunk">1-Minimal Shrunk (2 ops)</button>
                 </div>
                 <div class="viz-btn-group">
-                  <button class="viz-toggle-btn active viz-worker-filter" data-worker="all">All Workers</button>
+                  <button class="viz-toggle-btn active viz-worker-filter" data-worker="all" data-i18n="visualizer.filterAll">All Workers</button>
                   <button class="viz-toggle-btn viz-worker-filter" data-worker="0">W0</button>
                   <button class="viz-toggle-btn viz-worker-filter" data-worker="1">W1</button>
                   <button class="viz-toggle-btn viz-worker-filter" data-worker="2">W2</button>
                   <button class="viz-toggle-btn viz-worker-filter" data-worker="3">W3</button>
                 </div>
-                <button class="btn btn-secondary" id="vizAnimateBtn" style="padding: 6px 14px; font-size: 0.78rem;">▶ Animate Execution</button>
+                <button class="btn btn-secondary" id="vizAnimateBtn" style="padding: 6px 14px; font-size: 0.78rem;" data-i18n="visualizer.animateBtn">▶ Animate Execution</button>
               </div>
               <div class="viz-status-pill" id="vizStatusPill">
                 <span>⚡</span> P4_LOST_UPDATE detected at t=184μs
@@ -457,8 +465,8 @@
               <!-- Left: Adya DAG -->
               <div class="viz-pane-card">
                 <div class="viz-pane-header">
-                  <span class="viz-pane-title">Grafo de Dependências Adya (DSG)</span>
-                  <span style="font-family: var(--font-mono); font-size: 0.72rem; color: var(--color-yellow);">Cycle: rw ∘ ww</span>
+                  <span class="viz-pane-title" data-i18n="visualizer.adyaTitle">Grafo de Dependências Adya (DSG)</span>
+                  <span style="font-family: var(--font-mono); font-size: 0.72rem; color: var(--color-yellow);" data-i18n="visualizer.cycleLabel">Cycle: rw ∘ ww</span>
                 </div>
                 <div id="vizAdyaDag" style="width: 100%; min-height: 200px; display: flex; align-items: center; justify-content: center;">
                   <!-- Populated via app.js -->
@@ -481,9 +489,9 @@
     <div id="view-matrix" class="portal-view">
       <section class="section">
         <div class="container">
-          <div class="section-label">Empirical Verification</div>
-          <h2 class="section-title">Hermitage Isolation Anomaly Matrix</h2>
-          <p class="section-desc">
+          <div class="section-label" data-i18n="matrix.sectionLabel">Empirical Verification</div>
+          <h2 class="section-title" data-i18n="matrix.sectionTitle">Hermitage Isolation Anomaly Matrix</h2>
+          <p class="section-desc" data-i18n="matrix.sectionDesc">
             Comparação empírica dos limites de isolamento entre motores SQL através de baterias automáticas de testes concorrentes fuzzed com ChaosSQL (<code>chaossql matrix</code>).
           </p>
 
@@ -491,12 +499,12 @@
             <table class="matrix-table">
               <thead>
                 <tr>
-                  <th>Anomaly / Phenonemon</th>
-                  <th>Formal Cycle</th>
-                  <th>SQLite (WAL)</th>
-                  <th>PostgreSQL (RC)</th>
-                  <th>PostgreSQL (SSI)</th>
-                  <th>MySQL (InnoDB RR)</th>
+                  <th data-i18n="matrix.thAnomaly">Anomaly / Phenonemon</th>
+                  <th data-i18n="matrix.thCycle">Formal Cycle</th>
+                  <th data-i18n="matrix.thSqlite">SQLite (WAL)</th>
+                  <th data-i18n="matrix.thPostgresRc">PostgreSQL (RC)</th>
+                  <th data-i18n="matrix.thPostgresSsi">PostgreSQL (SSI)</th>
+                  <th data-i18n="matrix.thMysql">MySQL (InnoDB RR)</th>
                 </tr>
               </thead>
               <tbody>
@@ -569,13 +577,13 @@
     <div class="container footer-content">
       <div class="footer-brand">
         <img src="assets/icone_bregalda.svg" alt="Bregalda" width="22" height="22">
-        <span class="footer-desc">Studio Bregalda builds thoughtful tools for real systems engineering problems.</span>
+        <span class="footer-desc" data-i18n="footer.desc">Studio Bregalda builds thoughtful tools for real systems engineering problems.</span>
       </div>
       <div class="footer-links">
         <a href="https://github.com/bregaldahq/chaossql" target="_blank" rel="noopener">GitHub</a>
         <a href="https://bregalda.com" target="_blank" rel="noopener">Studio Bregalda</a>
         <a href="https://www.linkedin.com/in/ricardomeneguzzibregalda" target="_blank" rel="noopener">LinkedIn</a>
-        <span>MIT License</span>
+        <span data-i18n="footer.license">MIT License</span>
       </div>
     </div>
   </footer>
