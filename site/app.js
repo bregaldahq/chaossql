@@ -164,7 +164,14 @@ const I18N = {
       "metricDuration": "Tempo de Fuzzing",
       "emptyGantt": "Execute o cenário para visualizar as raias de execução concorrente dos workers.",
       "validYaml": "✔ Especificação YAML válida!",
-      "invalidYaml": "✘ Erro na especificação YAML: "
+      "invalidYaml": "✘ Erro na especificação YAML: ",
+      "cycleDetected": "CICLO DETECTADO",
+      "okSerializable": "OK (Serializável)",
+      "adyaCycleClassified": "CICLO ADYA CLASSIFICADO:",
+      "adyaPlaceholder": "Clique em \"Executar Fuzzing (WASM)\" para gerar o Grafo Adya",
+      "legendRw": "Anti-dependência (rw)",
+      "legendWw": "Escrita-Escrita (ww)",
+      "legendWr": "Escrita-Leitura (wr)"
     }
   },
   "en": {
@@ -325,7 +332,14 @@ const I18N = {
       "metricDuration": "Fuzzing Time",
       "emptyGantt": "Run the scenario to visualize concurrent worker execution swimlanes.",
       "validYaml": "✔ Valid YAML specification!",
-      "invalidYaml": "✘ YAML specification error: "
+      "invalidYaml": "✘ YAML specification error: ",
+      "cycleDetected": "CYCLE DETECTED",
+      "okSerializable": "OK (Serializable)",
+      "adyaCycleClassified": "ADYA CYCLE CLASSIFIED:",
+      "adyaPlaceholder": "Click \"Run Fuzzing (WASM)\" to generate the Adya Graph",
+      "legendRw": "Anti-dependency (rw)",
+      "legendWw": "Write-Write (ww)",
+      "legendWr": "Write-Read (wr)"
     }
   }
 };
@@ -1795,6 +1809,8 @@ function setLanguage(lang) {
     initVisualizer();
   } else if (currentRoute === "matrix") {
     renderMatrixView();
+  } else if (currentRoute === "playground") {
+    updatePlaygroundTranslations();
   }
 
   // Persist preference to localStorage
@@ -1885,6 +1901,9 @@ let wasmWorker = null;
 let isWasmReady = false;
 let isPlaygroundRunning = false;
 let playgroundInitialized = false;
+let lastPlaygroundEdges = null;
+let lastPlaygroundAnomaly = null;
+let lastPlaygroundTrace = null;
 
 const PLAYGROUND_PRESETS = {
   banking: `version: "1.0"
@@ -2292,7 +2311,7 @@ function handlePlaygroundWorkerMessage(msg) {
       const anomalyEl = document.getElementById("pgMetricAnomaly");
       const cycleEl = document.getElementById("pgMetricCycle");
       if (anomalyEl) anomalyEl.textContent = msg.anomalyType || "CYCLE";
-      if (cycleEl) cycleEl.textContent = "CICLO DETECTADO";
+      if (cycleEl) cycleEl.textContent = t.cycleDetected || "CICLO DETECTADO";
       appendPlaygroundLog(`[ANOMALY] Ciclo Adya detectado: ${msg.anomalyType}`);
       break;
     }
@@ -2309,12 +2328,16 @@ function handlePlaygroundWorkerMessage(msg) {
         report = {};
       }
 
+      lastPlaygroundEdges = report.adyaEdges || null;
+      lastPlaygroundAnomaly = report.anomalyType || null;
+      lastPlaygroundTrace = report.trace || null;
+
       const metricOps = document.getElementById("pgMetricOps");
       const metricAnomaly = document.getElementById("pgMetricAnomaly");
       const metricDuration = document.getElementById("pgMetricDuration");
 
       if (metricOps) metricOps.textContent = `${report.totalOps || 0} ops (${report.reducedOps || 0} minimal)`;
-      if (metricAnomaly) metricAnomaly.textContent = report.anomalyType || "OK (Serializável)";
+      if (metricAnomaly) metricAnomaly.textContent = report.anomalyType || (t.okSerializable || "OK (Serializável)");
       if (metricDuration) metricDuration.textContent = `${report.durationMs || 0}ms`;
 
       appendPlaygroundLog(`[DONE] Execução concluída em ${report.durationMs || 0}ms. Anomalia: ${report.anomalyType || "NENHUMA"}`);
@@ -2349,20 +2372,66 @@ function renderPlaygroundAdya(edges, anomalyType) {
   const container = document.getElementById("pgAdyaGraphContent");
   if (!container) return;
 
-  const nodes = ["T1", "T2", "T3", "T4"];
-  const coords = {
+  const lang = window.currentLang || "pt";
+  const t = (I18N[lang] && I18N[lang].playground) ? I18N[lang].playground : I18N.pt.playground;
+
+  const normalizeNode = (id) => (id ? String(id).split("-")[0] : id);
+
+  const baseCoords = {
     T1: { x: 150, y: 100 },
     T2: { x: 450, y: 100 },
     T3: { x: 450, y: 260 },
     T4: { x: 150, y: 260 }
   };
 
+  // Collect participating nodes in cycle and all edge nodes
+  const cycleNodes = new Set();
+  const edgeNodes = [];
+  (edges || []).forEach(edge => {
+    const u = normalizeNode(edge.from);
+    const v = normalizeNode(edge.to);
+    if (u) {
+      cycleNodes.add(u);
+      if (!edgeNodes.includes(u)) edgeNodes.push(u);
+    }
+    if (v) {
+      cycleNodes.add(v);
+      if (!edgeNodes.includes(v)) edgeNodes.push(v);
+    }
+  });
+
+  const displayNodes = edgeNodes.length > 0
+    ? (edgeNodes.every(n => baseCoords[n]) ? ["T1", "T2", "T3", "T4"] : edgeNodes)
+    : ["T1", "T2", "T3", "T4"];
+
+  const coords = {};
+  displayNodes.forEach((node, idx) => {
+    if (baseCoords[node]) {
+      coords[node] = baseCoords[node];
+    } else {
+      const angle = (2 * Math.PI * idx) / Math.max(displayNodes.length, 1) - Math.PI / 2;
+      coords[node] = {
+        x: Math.round(300 + 180 * Math.cos(angle)),
+        y: Math.round(180 + 90 * Math.sin(angle))
+      };
+    }
+  });
+
+  const getCoord = (n) => {
+    const norm = normalizeNode(n);
+    if (coords[norm]) return coords[norm];
+    if (baseCoords[norm]) return baseCoords[norm];
+    return { x: 300, y: 180 };
+  };
+
   let svgHtml = "";
 
-  // Render edges
+  // Render edges with bidirectional curvature and marker boundary termination
   (edges || []).forEach(edge => {
-    const from = coords[edge.from] || { x: 200, y: 180 };
-    const to = coords[edge.to] || { x: 400, y: 180 };
+    const fromNorm = normalizeNode(edge.from);
+    const toNorm = normalizeNode(edge.to);
+    const from = getCoord(fromNorm);
+    const to = getCoord(toNorm);
 
     let color = "#e06c75";
     let marker = "url(#arrow-rw)";
@@ -2374,23 +2443,62 @@ function renderPlaygroundAdya(edges, anomalyType) {
       marker = "url(#arrow-wr)";
     }
 
-    const midX = (from.x + to.x) / 2;
-    const midY = (from.y + to.y) / 2 - 15;
+    const dx = to.x - from.x;
+    const dy = to.y - from.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+
+    let pathD = "";
+    let labelX = (from.x + to.x) / 2;
+    let labelY = (from.y + to.y) / 2;
+
+    if (dist < 1) {
+      // Self loop
+      pathD = `M ${from.x - 12} ${from.y - 18} C ${from.x - 35} ${from.y - 65}, ${from.x + 35} ${from.y - 65}, ${from.x + 12} ${from.y - 18}`;
+      labelX = from.x;
+      labelY = from.y - 50;
+    } else {
+      // Perpendicular normal vector: (dy/dist, -dx/dist) curves left of travel direction
+      const nx = dy / dist;
+      const ny = -dx / dist;
+      const curveOffset = 35;
+      const midX = (from.x + to.x) / 2 + nx * curveOffset;
+      const midY = (from.y + to.y) / 2 + ny * curveOffset;
+
+      // Terminate edges at node boundary offset (r=22) so arrowheads are visible outside circle
+      const nodeRadius = 22;
+      const vStartDist = Math.sqrt((midX - from.x) ** 2 + (midY - from.y) ** 2) || 1;
+      const startX = from.x + ((midX - from.x) / vStartDist) * nodeRadius;
+      const startY = from.y + ((midY - from.y) / vStartDist) * nodeRadius;
+
+      const vEndDist = Math.sqrt((to.x - midX) ** 2 + (to.y - midY) ** 2) || 1;
+      const targetX = to.x - ((to.x - midX) / vEndDist) * nodeRadius;
+      const targetY = to.y - ((to.y - midY) / vEndDist) * nodeRadius;
+
+      pathD = `M ${startX.toFixed(1)} ${startY.toFixed(1)} Q ${midX.toFixed(1)} ${midY.toFixed(1)} ${targetX.toFixed(1)} ${targetY.toFixed(1)}`;
+
+      // Center conflict badge directly on curve at t=0.5
+      labelX = 0.25 * startX + 0.5 * midX + 0.25 * targetX;
+      labelY = 0.25 * startY + 0.5 * midY + 0.25 * targetY;
+    }
+
+    const labelText = `${edge.type || "RW"}${edge.item ? ` (${edge.item})` : ""}`;
+    const badgeW = Math.max(48, labelText.length * 7 + 12);
+    const badgeH = 18;
 
     svgHtml += `
-      <path d="M ${from.x} ${from.y} Q ${midX} ${midY} ${to.x} ${to.y}" 
+      <path d="${pathD}" 
             stroke="${color}" stroke-width="2.5" fill="none" marker-end="${marker}" stroke-dasharray="4,2" />
-      <rect x="${midX - 25}" y="${midY - 10}" width="50" height="18" rx="4" fill="#1e2227" stroke="${color}" stroke-width="1" />
-      <text x="${midX}" y="${midY + 3}" fill="${color}" font-size="10" font-family="JetBrains Mono, monospace" text-anchor="middle">
-        ${edge.type} (${edge.item || ""})
+      <rect x="${(labelX - badgeW / 2).toFixed(1)}" y="${(labelY - badgeH / 2).toFixed(1)}" width="${badgeW}" height="${badgeH}" rx="4" fill="#1e2227" stroke="${color}" stroke-width="1" />
+      <text x="${labelX.toFixed(1)}" y="${(labelY + 4).toFixed(1)}" fill="${color}" font-size="10" font-family="JetBrains Mono, monospace" text-anchor="middle" font-weight="600">
+        ${escapeHtml(labelText)}
       </text>
     `;
   });
 
-  // Render nodes
-  nodes.forEach(node => {
+  // Render nodes with dynamic cycle highlighting
+  displayNodes.forEach(node => {
     const c = coords[node];
-    const isConflicted = Boolean(anomalyType && (node === "T1" || node === "T2"));
+    const isConflicted = Boolean(anomalyType && cycleNodes.has(node));
     const strokeColor = isConflicted ? "#e06c75" : "#61afef";
     const fillColor = isConflicted ? "#2d1f24" : "#1e2227";
 
@@ -2402,16 +2510,17 @@ function renderPlaygroundAdya(edges, anomalyType) {
         </circle>` : ""}
         <circle r="20" fill="${fillColor}" stroke="${strokeColor}" stroke-width="2" />
         <text y="5" fill="#e5e9f0" font-size="12" font-family="JetBrains Mono, monospace" font-weight="700" text-anchor="middle">
-          ${node}
+          ${escapeHtml(node)}
         </text>
       </g>
     `;
   });
 
   if (anomalyType) {
+    const bannerPrefix = t.adyaCycleClassified || "CICLO ADYA CLASSIFICADO:";
     svgHtml += `
       <text x="300" y="340" text-anchor="middle" fill="#e06c75" font-size="12" font-family="JetBrains Mono, monospace" font-weight="700">
-        CICLO ADYA CLASSIFICADO: ${anomalyType}
+        ${escapeHtml(bannerPrefix)} ${escapeHtml(anomalyType)}
       </text>
     `;
   }
@@ -2423,36 +2532,48 @@ function renderPlaygroundGantt(trace) {
   const container = document.getElementById("pgGanttContainer");
   if (!container) return;
 
+  const lang = window.currentLang || "pt";
+  const t = (I18N[lang] && I18N[lang].playground) ? I18N[lang].playground : I18N.pt.playground;
+
   if (!trace || trace.length === 0) {
-    container.innerHTML = '<div class="pg-empty-state">Nenhum evento no trace.</div>';
+    container.innerHTML = `<div class="pg-empty-state" data-i18n="playground.emptyGantt">${escapeHtml(t.emptyGantt || "Nenhum evento no trace.")}</div>`;
     return;
   }
 
-  // Group by WorkerID
+  // Group by worker_id / WorkerID
   const workers = {};
   trace.forEach(ev => {
-    const w = ev.WorkerID || 1;
+    const w = ev.worker_id || ev.WorkerID || 1;
     if (!workers[w]) workers[w] = [];
     workers[w].push(ev);
   });
 
+  const workerWord = (I18N[lang] && I18N[lang].visualizer && I18N[lang].visualizer.workerLabel) ? I18N[lang].visualizer.workerLabel : "Worker";
+
   let html = '<div class="gantt-chart-wrapper">';
-  Object.keys(workers).sort().forEach(wId => {
+  Object.keys(workers).sort((a, b) => Number(a) - Number(b)).forEach(wId => {
     html += `
       <div class="gantt-worker-row">
-        <div class="gantt-worker-label">Worker #${wId}</div>
+        <div class="gantt-worker-label">${workerWord} #${wId}</div>
         <div class="gantt-events-track">
     `;
 
     workers[wId].slice(0, 15).forEach(ev => {
+      const opType = (ev.type || ev.Type || 'EXEC').toUpperCase();
+      const sqlText = ev.sql || ev.SQL || '';
+
       let badgeClass = "ev-exec";
-      if (ev.Type === "BEGIN") badgeClass = "ev-begin";
-      else if (ev.Type === "COMMIT") badgeClass = "ev-commit";
-      else if (ev.Type === "ROLLBACK") badgeClass = "ev-rollback";
+      if (opType === "BEGIN") badgeClass = "ev-begin";
+      else if (opType === "COMMIT") badgeClass = "ev-commit";
+      else if (opType === "ROLLBACK" || opType === "ERROR") badgeClass = "ev-rollback";
+
+      const titleAttr = escapeHtml(sqlText ? `${opType}: ${sqlText}` : opType);
+      const badgeText = escapeHtml(opType);
+      const sqlDisplay = sqlText ? `: ${escapeHtml(sqlText)}` : "";
 
       html += `
-        <span class="gantt-ev-pill ${badgeClass}" title="${escapeHtml(ev.SQL || ev.Type)}">
-          ${ev.Type}
+        <span class="gantt-ev-pill ${badgeClass}" title="${titleAttr}">
+          <strong>${badgeText}</strong>${sqlDisplay}
         </span>
       `;
     });
@@ -2465,6 +2586,54 @@ function renderPlaygroundGantt(trace) {
   html += '</div>';
 
   container.innerHTML = html;
+}
+
+function updatePlaygroundTranslations() {
+  const lang = window.currentLang || "pt";
+  const t = (I18N[lang] && I18N[lang].playground) ? I18N[lang].playground : I18N.pt.playground;
+
+  // Status text
+  if (!isPlaygroundRunning) {
+    updatePlaygroundStatus(isWasmReady ? t.statusReady : t.statusInitializing, isWasmReady ? "ready" : "");
+  } else {
+    updatePlaygroundStatus(t.statusRunning, "running");
+  }
+
+  // Anomaly & Cycle metrics
+  const anomalyEl = document.getElementById("pgMetricAnomaly");
+  const cycleEl = document.getElementById("pgMetricCycle");
+  if (cycleEl && (cycleEl.textContent === "CICLO DETECTADO" || cycleEl.textContent === "CYCLE DETECTED")) {
+    cycleEl.textContent = t.cycleDetected;
+  }
+  if (anomalyEl) {
+    if (anomalyEl.textContent === "OK (Serializável)" || anomalyEl.textContent === "OK (Serializable)") {
+      anomalyEl.textContent = t.okSerializable;
+    }
+  }
+
+  // Re-render Adya graph or placeholder
+  const adyaContent = document.getElementById("pgAdyaGraphContent");
+  if (adyaContent) {
+    if (lastPlaygroundEdges && lastPlaygroundEdges.length > 0) {
+      renderPlaygroundAdya(lastPlaygroundEdges, lastPlaygroundAnomaly);
+    } else {
+      adyaContent.innerHTML = `
+        <text x="300" y="180" text-anchor="middle" fill="#61afef" font-size="14" font-family="JetBrains Mono, monospace" data-i18n="playground.adyaPlaceholder">
+          ${escapeHtml(t.adyaPlaceholder)}
+        </text>
+      `;
+    }
+  }
+
+  // Re-render Gantt chart or empty state
+  const ganttContainer = document.getElementById("pgGanttContainer");
+  if (ganttContainer) {
+    if (lastPlaygroundTrace && lastPlaygroundTrace.length > 0) {
+      renderPlaygroundGantt(lastPlaygroundTrace);
+    } else {
+      ganttContainer.innerHTML = `<div class="pg-empty-state" data-i18n="playground.emptyGantt">${escapeHtml(t.emptyGantt)}</div>`;
+    }
+  }
 }
 
 function copySnippet(button) {
@@ -2518,6 +2687,10 @@ if (typeof window !== "undefined") {
   window.renderScenarioStage = renderScenarioStage;
   window.renderMatrixView = renderMatrixView;
   window.initPlayground = initPlayground;
+  window.renderPlaygroundAdya = renderPlaygroundAdya;
+  window.renderPlaygroundGantt = renderPlaygroundGantt;
+  window.handlePlaygroundWorkerMessage = handlePlaygroundWorkerMessage;
+  window.updatePlaygroundTranslations = updatePlaygroundTranslations;
 }
 
 if (typeof module !== "undefined" && module.exports) {
