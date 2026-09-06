@@ -7,9 +7,13 @@ import (
 	"database/sql"
 	"fmt"
 	"sync"
+	"sync/atomic"
+	"time"
 
 	_ "modernc.org/sqlite"
 )
+
+var memDBSeq atomic.Uint64
 
 // SQLiteDriver implements DatabaseDriver using modernc.org/sqlite.
 type SQLiteDriver struct {
@@ -21,7 +25,8 @@ type SQLiteDriver struct {
 // NewSQLiteDriver creates a new SQLite adapter.
 func NewSQLiteDriver(dsn string) *SQLiteDriver {
 	if dsn == "" {
-		dsn = "file:chaos_mem?mode=memory&cache=shared"
+		seq := memDBSeq.Add(1)
+		dsn = fmt.Sprintf("file:chaos_mem_%d_%d?mode=memory&cache=shared", time.Now().UnixNano(), seq)
 	}
 	return &SQLiteDriver{dsn: dsn}
 }
