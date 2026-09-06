@@ -22,6 +22,16 @@ const (
 	AnomalyUnknown             AnomalyType = "UNKNOWN_INVARIANT_VIOLATION"
 )
 
+// IsolationLevel represents standard SQL transaction isolation levels.
+type IsolationLevel string
+
+const (
+	LevelReadUncommitted IsolationLevel = "READ_UNCOMMITTED"
+	LevelReadCommitted   IsolationLevel = "READ_COMMITTED"
+	LevelRepeatableRead  IsolationLevel = "REPEATABLE_READ"
+	LevelSerializable    IsolationLevel = "SERIALIZABLE"
+)
+
 // TemporalInvariantConfig defines rules evaluated against chronological traces.
 type TemporalInvariantConfig struct {
 	Name   string `yaml:"name"`
