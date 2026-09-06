@@ -1,0 +1,49 @@
+.container {
+  margin-block: var(--space-3);
+  border-radius: var(--radius-card);
+  background: color-mix(in srgb, var(--ink) 92%, var(--purple));
+  border: 1px solid color-mix(in srgb, var(--cream) 18%, transparent);
+  overflow: hidden;
+  color: var(--cream);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 1rem;
+  background: color-mix(in srgb, var(--cosmos-deep) 40%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--cream) 12%, transparent);
+  font-family: var(--font-jetbrains-mono), monospace;
+  font-size: var(--type-meta);
+  color: var(--text-secondary);
+}
+
+.copyBtn {
+  background: transparent;
+  border: 1px solid color-mix(in srgb, var(--cream) 20%, transparent);
+  color: var(--cream);
+  border-radius: var(--radius-control);
+  padding: 0.25rem 0.55rem;
+  font-family: var(--font-jetbrains-mono), monospace;
+  font-size: 0.72rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  transition: all 0.15s ease;
+}
+
+.copyBtn:hover {
+  background: var(--purple);
+  border-color: var(--purple);
+}
+
+.codeArea {
+  padding: 1rem 1.2rem;
+  overflow-x: auto;
+  font-family: var(--font-jetbrains-mono), monospace;
+  font-size: 0.85rem;
+  line-height: 1.6;
+  margin: 0;
+}

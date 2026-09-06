@@ -1,0 +1,112 @@
+/**
+ * Bregalda Design System — Canonical Design Tokens
+ * Source: bregalda_palette.svg and /root/me/bregalda-site (feat/portfolio)
+ */
+
+:root {
+  /* --- 1. Canonical Color Palette --- */
+  --cream: #fcfbf8;
+  --ink: #2a2140;
+  --purple: #4b2e83;
+  --yellow: #f5c400;
+  --green: #22c55e;
+
+  /* --- Semantic & Component Aliases --- */
+  --color-cream: var(--cream);
+  --color-ink: var(--ink);
+  --color-purple: var(--purple);
+  --color-yellow: var(--yellow);
+  --color-green: var(--green);
+  --color-red: #ef4444;
+  --color-border: var(--border-subtle);
+  --font-mono: var(--font-jetbrains-mono);
+  --font-display: 'Playfair Display', Georgia, serif;
+  --font-body: var(--font-inter);
+  --radius-sm: var(--radius-control);
+  --radius-md: var(--radius-card);
+  --radius-lg: var(--radius-modal);
+  --max-width-site: 76rem; /* 1216px constrained layout */
+
+  /* Deep Atmospheric Space */
+  --cosmos-deep: #05030c;
+  --cosmos-sky: color-mix(in srgb, var(--ink) 55%, #05030c);
+  --cosmos-center: #150f26;
+
+  /* --- 2. Spacing Rhythm (8px base) --- */
+  --space-1: 0.5rem;   /* 8px */
+  --space-2: 1rem;     /* 16px */
+  --space-3: 1.5rem;   /* 24px */
+  --space-4: 2rem;     /* 32px */
+  --space-5: 3rem;     /* 48px */
+  --space-6: 4rem;     /* 64px */
+
+  /* Semantic Aliases */
+  --space-8: var(--space-1);
+  --space-16: var(--space-2);
+  --space-24: var(--space-3);
+  --space-32: var(--space-4);
+  --space-48: var(--space-5);
+  --space-64: var(--space-6);
+
+  /* --- 3. Typography Scale & Fonts --- */
+  --font-inter: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-jetbrains-mono: 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
+
+  --type-display: clamp(2.9rem, 4.65vw, 6.5rem);
+  --type-h2: clamp(2.5rem, 5.25vw, 6rem);
+  --type-h3: clamp(1.8rem, 3.2vw, 3rem);
+  --type-body: 1rem;      /* 16px */
+  --type-body-lg: 1.125rem; /* 18px */
+  --type-action: 0.875rem; /* 14px */
+  --type-meta: 0.75rem;    /* 12px */
+
+  /* --- 4. Layout & Grid Constants --- */
+  --page-gutter: clamp(1.1rem, 4.5vw, 6rem);
+  --content-max: 90rem;   /* 1440px */
+  --stage-max: 112rem;    /* 1792px */
+  --text-max: 42rem;      /* ~62-68ch reading measure */
+  --nav-height: 76px;
+  --project-index-height: 64px;
+
+  /* --- 5. Geometry & Corner Radii --- */
+  --radius-control: 3px;
+  --radius-badge: 4px;
+  --radius-card: 9px;
+  --radius-modal: 16px;
+
+  /* --- 6. Surface Context (Light Surface Default) --- */
+  --background: var(--cream);
+  --foreground: var(--ink);
+  --text-secondary: color-mix(in srgb, var(--ink) 72%, var(--cream));
+  --border-subtle: color-mix(in srgb, var(--purple) 20%, transparent);
+  --focus-color: var(--purple);
+  --popover: var(--cream);
+  --popover-foreground: var(--ink);
+  --primary: var(--purple);
+  --primary-foreground: var(--cream);
+  --muted: color-mix(in srgb, var(--purple) 8%, var(--cream));
+  --muted-foreground: var(--ink);
+  --ring: var(--purple);
+
+  color-scheme: light;
+}
+
+/* Light Surface Explicit Class / Data-Attribute */
+.light-surface,
+[data-surface='light'] {
+  --background: var(--cream);
+  --foreground: var(--ink);
+  --text-secondary: color-mix(in srgb, var(--ink) 72%, var(--cream));
+  --border-subtle: color-mix(in srgb, var(--purple) 20%, transparent);
+  --focus-color: var(--purple); /* 3:1+ WCAG AA contrast against cream */
+}
+
+/* Dark Surface Explicit Class / Data-Attribute (Cosmic, Space, Artifacts) */
+.dark-surface,
+[data-surface='dark'] {
+  --background: var(--cosmos-sky);
+  --foreground: var(--cream);
+  --text-secondary: color-mix(in srgb, var(--cream) 72%, transparent);
+  --border-subtle: color-mix(in srgb, var(--cream) 20%, transparent);
+  --focus-color: var(--yellow); /* 3:1+ WCAG AA contrast against dark */
+}

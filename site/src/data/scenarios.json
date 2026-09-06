@@ -1,0 +1,519 @@
+[
+  {
+    "id": "banking",
+    "name": {
+      "pt": "Lost Update Bancário",
+      "en": "Banking Lost Update"
+    },
+    "code": "P4",
+    "description": {
+      "pt": "Saques concorrentes sob READ COMMITTED sobrescrevem saldos sem serialização transacional, perdendo quantias silenciosamente.",
+      "en": "Concurrent withdrawals under READ COMMITTED overwrite balances without transactional serialization, silently losing funds."
+    },
+    "summary": {
+      "pt": "Saques concorrentes sob READ COMMITTED sobrescrevem saldos sem serialização transacional, perdendo quantias silenciosamente.",
+      "en": "Concurrent withdrawals under READ COMMITTED overwrite balances without transactional serialization, silently losing funds."
+    },
+    "schema": "-- Schema\nCREATE TABLE accounts (\n    id INT PRIMARY KEY,\n    owner TEXT NOT NULL,\n    balance INT NOT NULL\n);\n\n-- Seed\nINSERT INTO accounts VALUES (1, 'Alice', 1000);",
+    "chaos": "version: \"1.0\"\nname: \"banking_lost_update\"\ndatabase:\n  driver: \"sqlite\"\noperations:\n  - name: \"withdraw_100\"\n    steps:\n      - \"SELECT balance FROM accounts WHERE id = 1 -> cur\"\n      - \"UPDATE accounts SET balance = {cur - 100} WHERE id = 1\"\ninvariants:\n  - name: \"total_balance_check\"\n    query: \"SELECT balance FROM accounts WHERE id = 1;\"\n    assert: \"balance == 1000 - (total_completed * 100)\"",
+    "reduction": {
+      "originalOps": 20,
+      "minimalOps": 2,
+      "reductionPct": "90.0%",
+      "elapsed": "68ms",
+      "cycle": "T1 ──(rw)──► T2 ──(ww)──► T1",
+      "explanation": "Two concurrent read-modify-write transactions read balance 1000 simultaneously. T1 writes 900, but T2 overwrites with 900 based on its stale read, silently losing $100."
+    },
+    "analysis": {
+      "pt": "Duas transações concorrentes de leitura-modificação-escrita leem o saldo de 1000 simultaneamente. T1 escreve 900, mas T2 sobrescreve com 900 com base em sua leitura defasada, perdendo silenciosamente $100.",
+      "en": "Two concurrent read-modify-write transactions read balance 1000 simultaneously. T1 writes 900, but T2 overwrites with 900 based on its stale read, silently losing $100."
+    },
+    "fix": {
+      "pt": {
+        "title": "Update Atômico com Predicado de Guarda ou Bloqueio Pessimista",
+        "explanation": "A anomalia ocorre pelo padrão vulnerável Read-Modify-Write sob READ COMMITTED: a aplicação lê o valor em um SELECT e computa a subtração na memória do servidor web. Se duas goroutines lerem balance=1000 ao mesmo tempo, ambas calculam 900 e o último UPDATE sobrescreve o primeiro. A mitigação transfere o cálculo para o motor de banco em uma única instrução atômica (UPDATE accounts SET balance = balance - 100 WHERE id = 1 AND balance >= 100), serializando a alteração sob o bloqueio exclusivo de linha.",
+        "code": "-- Opção 1: Update Atômico com Aritmética no Motor (Recomendado)\nUPDATE accounts \nSET balance = balance - 100 \nWHERE id = 1 AND balance >= 100;\n\n-- Opção 2: Bloqueio Pessimista dentro de Transação Explícita\nBEGIN;\nSELECT balance FROM accounts WHERE id = 1 FOR UPDATE;\n-- Aplicação valida balance >= 100 antes de submeter escrita:\nUPDATE accounts SET balance = balance - 100 WHERE id = 1;\nCOMMIT;",
+        "driverNotes": "PostgreSQL, SQLite (WAL), MySQL (InnoDB)"
+      },
+      "en": {
+        "title": "Atomic Guarded Decrement or Pessimistic Row Locking",
+        "explanation": "The anomaly is caused by the vulnerable Read-Modify-Write anti-pattern under READ COMMITTED: the application reads the balance in a SELECT statement and calculates subtraction in web server memory. If two goroutines read balance=1000 concurrently, both compute 900 and the last UPDATE overwrites the first. The mitigation delegates arithmetic directly to the database engine in a single atomic statement (UPDATE accounts SET balance = balance - 100 WHERE id = 1 AND balance >= 100), serializing execution under row exclusive locks.",
+        "code": "-- Option 1: Atomic Database-Side Arithmetic (Recommended)\nUPDATE accounts \nSET balance = balance - 100 \nWHERE id = 1 AND balance >= 100;\n\n-- Option 2: Explicit Transaction with Pessimistic Locking\nBEGIN;\nSELECT balance FROM accounts WHERE id = 1 FOR UPDATE;\n-- Application verifies balance >= 100 before issuing update:\nUPDATE accounts SET balance = balance - 100 WHERE id = 1;\nCOMMIT;",
+        "driverNotes": "PostgreSQL, SQLite (WAL), MySQL (InnoDB)"
+      },
+      "strategy": "Update Atômico com Predicado de Guarda ou Bloqueio Pessimista",
+      "sql": "-- Opção 1: Update Atômico com Aritmética no Motor (Recomendado)\nUPDATE accounts \nSET balance = balance - 100 \nWHERE id = 1 AND balance >= 100;\n\n-- Opção 2: Bloqueio Pessimista dentro de Transação Explícita\nBEGIN;\nSELECT balance FROM accounts WHERE id = 1 FOR UPDATE;\n-- Aplicação valida balance >= 100 antes de submeter escrita:\nUPDATE accounts SET balance = balance - 100 WHERE id = 1;\nCOMMIT;",
+      "explanation": "A anomalia ocorre pelo padrão vulnerável Read-Modify-Write sob READ COMMITTED: a aplicação lê o valor em um SELECT e computa a subtração na memória do servidor web. Se duas goroutines lerem balance=1000 ao mesmo tempo, ambas calculam 900 e o último UPDATE sobrescreve o primeiro. A mitigação transfere o cálculo para o motor de banco em uma única instrução atômica (UPDATE accounts SET balance = balance - 100 WHERE id = 1 AND balance >= 100), serializando a alteração sob o bloqueio exclusivo de linha.",
+      "engines": [
+        "PostgreSQL",
+        "SQLite (WAL)",
+        "MySQL (InnoDB)"
+      ]
+    }
+  },
+  {
+    "id": "inventory",
+    "name": {
+      "pt": "Venda Excessiva de Inventário (Oversell)",
+      "en": "Inventory Oversell"
+    },
+    "code": "A3",
+    "description": {
+      "pt": "Checkouts simultâneos reservam o último item disponível devido a anti-dependências de predicado (leituras fantasmas).",
+      "en": "Concurrent checkouts reserve the final available item due to predicate anti-dependencies (phantom reads)."
+    },
+    "summary": {
+      "pt": "Checkouts simultâneos reservam o último item disponível devido a anti-dependências de predicado (leituras fantasmas).",
+      "en": "Concurrent checkouts reserve the final available item due to predicate anti-dependencies (phantom reads)."
+    },
+    "schema": "-- Schema\nCREATE TABLE products (\n    id INT PRIMARY KEY,\n    name TEXT NOT NULL,\n    stock INT NOT NULL\n);\n\n-- Seed\nINSERT INTO products VALUES (1, 'RTX 5090 GPU', 1);",
+    "chaos": "version: \"1.0\"\nname: \"inventory_oversell\"\noperations:\n  - name: \"checkout\"\n    steps:\n      - \"SELECT stock FROM products WHERE id = 1 -> avail\"\n      - \"UPDATE products SET stock = {avail - 1} WHERE id = 1 AND {avail > 0}\"\ninvariants:\n  - name: \"stock_non_negative\"\n    query: \"SELECT stock FROM products WHERE id = 1;\"\n    assert: \"stock >= 0\"",
+    "reduction": {
+      "originalOps": 30,
+      "minimalOps": 2,
+      "reductionPct": "93.3%",
+      "elapsed": "74ms",
+      "cycle": "T1 ──(rw)──► T2 ──(ww)──► T1",
+      "explanation": "Both workers evaluate {avail > 0} as true before either commit updates the physical stock row, driving inventory to -1."
+    },
+    "analysis": {
+      "pt": "Ambos os workers avaliam {avail > 0} como verdadeiro antes que qualquer commit atualize o estoque físico em disco, levando o inventário a -1.",
+      "en": "Both workers evaluate {avail > 0} as true before either commit updates the physical stock row, driving inventory to -1."
+    },
+    "fix": {
+      "pt": {
+        "title": "Guarded Decrement Atômico com Verificação de Linhas Afetadas",
+        "explanation": "A condição de guarda {avail > 0} avaliada na memória da aplicação é obsoleta (stale) no momento em que a escrita chega ao disco. Ao mover a verificação diretamente para o WHERE da instrução UPDATE (AND stock >= 1), o motor de banco garante a avaliação atômica do predicado e o bloqueio de escrita sobre a linha. Se múltiplos clientes tentarem comprar a última unidade simultaneamente, exatamente um decrementará o estoque para 0 e os demais receberão 0 linhas afetadas.",
+        "code": "-- Decremento Atômico Protegido no Banco de Dados\nUPDATE products \nSET stock = stock - 1 \nWHERE id = 1 AND stock >= 1;\n\n-- No código de aplicação (Go / Node):\n-- Verificar se rows_affected == 1.\n-- Se rows_affected == 0, retornar ErrProdutoEsgotado sem prosseguir para pagamento.",
+        "driverNotes": "PostgreSQL, SQLite, MySQL (InnoDB)"
+      },
+      "en": {
+        "title": "Atomic Guarded Decrement with Rows-Affected Check",
+        "explanation": "The guard condition {avail > 0} evaluated in application memory becomes stale by the time writes hit disk. By pushing the check into the WHERE clause of the UPDATE statement (AND stock >= 1), the database engine guarantees atomic predicate verification and exclusive row locks. When multiple clients purchase the final item concurrently, exactly one decrements stock to 0 while others receive 0 rows affected.",
+        "code": "-- Atomic Guarded Decrement in Database Engine\nUPDATE products \nSET stock = stock - 1 \nWHERE id = 1 AND stock >= 1;\n\n-- In application code (Go / Node):\n-- Verify rows_affected == 1.\n-- If rows_affected == 0, return ErrOutOfStock without charging payment.",
+        "driverNotes": "PostgreSQL, SQLite, MySQL (InnoDB)"
+      },
+      "strategy": "Guarded Decrement Atômico com Verificação de Linhas Afetadas",
+      "sql": "-- Decremento Atômico Protegido no Banco de Dados\nUPDATE products \nSET stock = stock - 1 \nWHERE id = 1 AND stock >= 1;\n\n-- No código de aplicação (Go / Node):\n-- Verificar se rows_affected == 1.\n-- Se rows_affected == 0, retornar ErrProdutoEsgotado sem prosseguir para pagamento.",
+      "explanation": "A condição de guarda {avail > 0} avaliada na memória da aplicação é obsoleta (stale) no momento em que a escrita chega ao disco. Ao mover a verificação diretamente para o WHERE da instrução UPDATE (AND stock >= 1), o motor de banco garante a avaliação atômica do predicado e o bloqueio de escrita sobre a linha. Se múltiplos clientes tentarem comprar a última unidade simultaneamente, exatamente um decrementará o estoque para 0 e os demais receberão 0 linhas afetadas.",
+      "engines": [
+        "PostgreSQL",
+        "SQLite",
+        "MySQL (InnoDB)"
+      ]
+    }
+  },
+  {
+    "id": "hospital",
+    "name": {
+      "pt": "Desvio de Escrita Hospitalar (Write Skew)",
+      "en": "Hospital Write Skew"
+    },
+    "code": "A5B",
+    "description": {
+      "pt": "Dois médicos cancelam plantão simultaneamente sob Snapshot Isolation porque seus conjuntos de escrita não colidem.",
+      "en": "Two doctors independently sign off duty under Snapshot Isolation because their write sets do not overlap."
+    },
+    "summary": {
+      "pt": "Dois médicos cancelam plantão simultaneamente sob Snapshot Isolation porque seus conjuntos de escrita não colidem.",
+      "en": "Two doctors independently sign off duty under Snapshot Isolation because their write sets do not overlap."
+    },
+    "schema": "-- Schema\nCREATE TABLE doctors (\n    id INT PRIMARY KEY,\n    name TEXT NOT NULL,\n    on_duty BOOLEAN NOT NULL\n);\n\n-- Seed\nINSERT INTO doctors VALUES (1, 'Dr. Alice', true), (2, 'Dr. Bob', true);",
+    "chaos": "version: \"1.0\"\nname: \"hospital_write_skew\"\noperations:\n  - name: \"sign_off_alice\"\n    steps:\n      - \"SELECT count(*) AS active FROM doctors WHERE on_duty = true -> act\"\n      - \"UPDATE doctors SET on_duty = false WHERE id = 1 AND {act >= 2}\"\n  - name: \"sign_off_bob\"\n    steps:\n      - \"SELECT count(*) AS active FROM doctors WHERE on_duty = true -> act\"\n      - \"UPDATE doctors SET on_duty = false WHERE id = 2 AND {act >= 2}\"\ninvariants:\n  - name: \"at_least_one_doctor_on_duty\"\n    query: \"SELECT count(*) AS active FROM doctors WHERE on_duty = true;\"\n    assert: \"active >= 1\"",
+    "reduction": {
+      "originalOps": 40,
+      "minimalOps": 2,
+      "reductionPct": "95.0%",
+      "elapsed": "82ms",
+      "cycle": "T1 ──(rw)──► T2 ──(rw)──► T1",
+      "explanation": "Under Snapshot Isolation, T1 and T2 read the same snapshot (2 active doctors). T1 updates Alice, T2 updates Bob. Because their write sets are disjoint, standard SI permits both commits, leaving 0 doctors on duty."
+    },
+    "analysis": {
+      "pt": "Sob Snapshot Isolation, T1 e T2 leem o mesmo snapshot (2 médicos ativos). T1 altera Alice, T2 altera Bob. Como seus conjuntos de escrita são disjuntos, o SI padrão permite ambos os commits, deixando o hospital sem médicos.",
+      "en": "Under Snapshot Isolation, T1 and T2 read the same snapshot (2 active doctors). T1 updates Alice, T2 updates Bob. Because their write sets are disjoint, standard SI permits both commits, leaving 0 doctors on duty."
+    },
+    "fix": {
+      "pt": {
+        "title": "Elevação para Serializable Snapshot Isolation (SSI) ou Bloqueio de Conflito",
+        "explanation": "Write Skew (A5B) é o exemplo clássico de falha sob Snapshot Isolation (SI): como T1 altera a linha 1 e T2 altera a linha 2, os conjuntos de escrita não colidem (sem conflito ww), mas geram um ciclo de anti-dependência de leitura-escrita (rw). A solução canônica é configurar SERIALIZABLE (onde motores modernos com SSI rastreiam dependências rw e abortam transações concorrentes com serialization_failure) ou serializar os acessos através de um lock FOR UPDATE em uma linha mestre de escala.",
+        "code": "-- Solução A: Elevação do Nível de Isolamento para SERIALIZABLE (SSI)\nSET TRANSACTION ISOLATION LEVEL SERIALIZABLE;\nBEGIN;\nSELECT count(*) FROM doctors WHERE on_duty = true;\n-- Se count >= 2:\nUPDATE doctors SET on_duty = false WHERE id = 1;\nCOMMIT; -- O motor PostgreSQL detectará o ciclo rw e abortará T2 com código 40001!\n\n-- Solução B: Bloqueio Pessimista Compartilhado em Linha Pai de Plantão\nBEGIN;\nSELECT shift_id FROM duty_shifts WHERE shift_id = 1 FOR UPDATE;\nSELECT count(*) FROM doctors WHERE on_duty = true;\nUPDATE doctors SET on_duty = false WHERE id = 1;\nCOMMIT;",
+        "driverNotes": "PostgreSQL (SSI), CockroachDB, MySQL (SERIALIZABLE)"
+      },
+      "en": {
+        "title": "Elevation to Serializable Snapshot Isolation (SSI) or Materialized Conflict Lock",
+        "explanation": "Write Skew (A5B) is the canonical failure mode of Snapshot Isolation (SI): since T1 writes row 1 and T2 writes row 2, write sets are disjoint (no ww conflict), but generate a cyclic read-write anti-dependency (rw) loop. The standard solution is SERIALIZABLE isolation (where modern SSI engines track rw dependencies and abort concurrent transactions with SQLSTATE 40001 serialization_failure) or synchronizing transactions via a parent roster lock with FOR UPDATE.",
+        "code": "-- Solution A: Elevate Isolation Level to SERIALIZABLE (SSI)\nSET TRANSACTION ISOLATION LEVEL SERIALIZABLE;\nBEGIN;\nSELECT count(*) FROM doctors WHERE on_duty = true;\n-- If count >= 2:\nUPDATE doctors SET on_duty = false WHERE id = 1;\nCOMMIT; -- Engine detects rw conflict cycle and aborts T2 with 40001!\n\n-- Solution B: Shared Pessimistic Lock on Parent Shift Row\nBEGIN;\nSELECT shift_id FROM duty_shifts WHERE shift_id = 1 FOR UPDATE;\nSELECT count(*) FROM doctors WHERE on_duty = true;\nUPDATE doctors SET on_duty = false WHERE id = 1;\nCOMMIT;",
+        "driverNotes": "PostgreSQL (SSI), CockroachDB, MySQL (SERIALIZABLE)"
+      },
+      "strategy": "Elevação para Serializable Snapshot Isolation (SSI) ou Bloqueio de Conflito",
+      "sql": "-- Solução A: Elevação do Nível de Isolamento para SERIALIZABLE (SSI)\nSET TRANSACTION ISOLATION LEVEL SERIALIZABLE;\nBEGIN;\nSELECT count(*) FROM doctors WHERE on_duty = true;\n-- Se count >= 2:\nUPDATE doctors SET on_duty = false WHERE id = 1;\nCOMMIT; -- O motor PostgreSQL detectará o ciclo rw e abortará T2 com código 40001!\n\n-- Solução B: Bloqueio Pessimista Compartilhado em Linha Pai de Plantão\nBEGIN;\nSELECT shift_id FROM duty_shifts WHERE shift_id = 1 FOR UPDATE;\nSELECT count(*) FROM doctors WHERE on_duty = true;\nUPDATE doctors SET on_duty = false WHERE id = 1;\nCOMMIT;",
+      "explanation": "Write Skew (A5B) é o exemplo clássico de falha sob Snapshot Isolation (SI): como T1 altera a linha 1 e T2 altera a linha 2, os conjuntos de escrita não colidem (sem conflito ww), mas geram um ciclo de anti-dependência de leitura-escrita (rw). A solução canônica é configurar SERIALIZABLE (onde motores modernos com SSI rastreiam dependências rw e abortam transações concorrentes com serialization_failure) ou serializar os acessos através de um lock FOR UPDATE em uma linha mestre de escala.",
+      "engines": [
+        "PostgreSQL (SSI)",
+        "CockroachDB",
+        "MySQL (SERIALIZABLE)"
+      ]
+    }
+  },
+  {
+    "id": "financial",
+    "name": {
+      "pt": "Distorção de Leitura Financeira (Read Skew)",
+      "en": "Financial Read Skew"
+    },
+    "code": "A5A",
+    "description": {
+      "pt": "Uma consulta de auditoria observa uma transferência parcialmente aplicada, detectando uma discrepância espúria no patrimônio total.",
+      "en": "An audit query observes a partially applied transfer, detecting an artificial discrepancy in total wealth."
+    },
+    "summary": {
+      "pt": "Uma consulta de auditoria observa uma transferência parcialmente aplicada, detectando uma discrepância espúria no patrimônio total.",
+      "en": "An audit query observes a partially applied transfer, detecting an artificial discrepancy in total wealth."
+    },
+    "schema": "-- Schema\nCREATE TABLE accounts (\n    id INT PRIMARY KEY,\n    balance INT NOT NULL\n);\n\n-- Seed\nINSERT INTO accounts VALUES (1, 1000), (2, 1000);",
+    "chaos": "version: \"1.0\"\nname: \"financial_read_skew\"\noperations:\n  - name: \"transfer_100\"\n    steps:\n      - \"UPDATE accounts SET balance = balance - 100 WHERE id = 1\"\n      - \"UPDATE accounts SET balance = balance + 100 WHERE id = 2\"\n  - name: \"audit_total\"\n    steps:\n      - \"SELECT balance FROM accounts WHERE id = 1 -> b1\"\n      - \"SELECT balance FROM accounts WHERE id = 2 -> b2\"\ninvariants:\n  - name: \"total_wealth_preserved\"\n    query: \"SELECT sum(balance) AS total FROM accounts;\"\n    assert: \"total == 2000\"",
+    "reduction": {
+      "originalOps": 25,
+      "minimalOps": 3,
+      "reductionPct": "88.0%",
+      "elapsed": "61ms",
+      "cycle": "T1 ──(rw)──► T2 ──(wr)──► T1",
+      "explanation": "Under READ COMMITTED, each SELECT inside the audit transaction takes a separate snapshot. Audit reads account 1 before transfer (-$100), but reads account 2 after transfer (+$100), seeing $1000 + $1100 = $2100."
+    },
+    "analysis": {
+      "pt": "Sob READ COMMITTED, cada SELECT na transação de auditoria tira um snapshot isolado. A auditoria lê a conta 1 antes da transferência (-$100), mas lê a conta 2 após a transferência (+$100), observando $1000 + $1100 = $2100.",
+      "en": "Under READ COMMITTED, each SELECT inside the audit transaction takes a separate snapshot. Audit reads account 1 before transfer (-$100), but reads account 2 after transfer (+$100), seeing $1000 + $1100 = $2100."
+    },
+    "fix": {
+      "pt": {
+        "title": "Isolamento REPEATABLE READ / SNAPSHOT para Transações de Auditoria",
+        "explanation": "Sob READ COMMITTED, cada instrução SELECT cria uma nova fotografia temporal (snapshot). Se uma transação de transferência comitar entre a leitura da conta 1 e da conta 2, o relatório financeiro observará o estado de contas em momentos díspares do tempo. Ao elevar a transação de leitura para REPEATABLE READ (ou SNAPSHOT ISOLATION), o banco congela um único Point-in-Time Snapshot imutável no primeiro SELECT, garantindo consistência estrita de leitura sem necessidade de bloqueios.",
+        "code": "-- Transação de Auditoria em REPEATABLE READ\nSET TRANSACTION ISOLATION LEVEL REPEATABLE READ;\n\nBEGIN;\n-- Todas as consultas subsequentes leem a mesma fotografia temporal do banco:\nSELECT balance AS bal1 FROM accounts WHERE id = 1;\n-- Mesmo que a transferência ocorra e comite aqui no meio...\nSELECT balance AS bal2 FROM accounts WHERE id = 2;\n-- bal1 + bal2 sempre somará exatamente 2000!\nCOMMIT;",
+        "driverNotes": "PostgreSQL, MySQL (InnoDB), SQLite (WAL)"
+      },
+      "en": {
+        "title": "REPEATABLE READ / SNAPSHOT Isolation for Audit Transactions",
+        "explanation": "Under READ COMMITTED, each SELECT statement constructs a new point-in-time snapshot. If an independent fund transfer commits between reading account 1 and account 2, the audit query sees balances at different historical moments. Elevating the audit transaction to REPEATABLE READ (or Snapshot Isolation) pins an immutable Point-in-Time Snapshot across all queries, guaranteeing consistent multi-row reads without requiring locks.",
+        "code": "-- Audit Transaction in REPEATABLE READ\nSET TRANSACTION ISOLATION LEVEL REPEATABLE READ;\n\nBEGIN;\n-- All subsequent queries read from the exact same point-in-time snapshot:\nSELECT balance AS bal1 FROM accounts WHERE id = 1;\n-- Even if an external transfer commits right here...\nSELECT balance AS bal2 FROM accounts WHERE id = 2;\n-- bal1 + bal2 will always sum to exactly 2000!\nCOMMIT;",
+        "driverNotes": "PostgreSQL, MySQL (InnoDB), SQLite (WAL)"
+      },
+      "strategy": "Isolamento REPEATABLE READ / SNAPSHOT para Transações de Auditoria",
+      "sql": "-- Transação de Auditoria em REPEATABLE READ\nSET TRANSACTION ISOLATION LEVEL REPEATABLE READ;\n\nBEGIN;\n-- Todas as consultas subsequentes leem a mesma fotografia temporal do banco:\nSELECT balance AS bal1 FROM accounts WHERE id = 1;\n-- Mesmo que a transferência ocorra e comite aqui no meio...\nSELECT balance AS bal2 FROM accounts WHERE id = 2;\n-- bal1 + bal2 sempre somará exatamente 2000!\nCOMMIT;",
+      "explanation": "Sob READ COMMITTED, cada instrução SELECT cria uma nova fotografia temporal (snapshot). Se uma transação de transferência comitar entre a leitura da conta 1 e da conta 2, o relatório financeiro observará o estado de contas em momentos díspares do tempo. Ao elevar a transação de leitura para REPEATABLE READ (ou SNAPSHOT ISOLATION), o banco congela um único Point-in-Time Snapshot imutável no primeiro SELECT, garantindo consistência estrita de leitura sem necessidade de bloqueios.",
+      "engines": [
+        "PostgreSQL",
+        "MySQL (InnoDB)",
+        "SQLite (WAL)"
+      ]
+    }
+  },
+  {
+    "id": "auction",
+    "name": {
+      "pt": "Escrita Suja em Leilão (Dirty Write)",
+      "en": "Auction Dirty Write"
+    },
+    "code": "G0",
+    "description": {
+      "pt": "Dois licitantes concorrentes sobrescrevem colunas distintas da mesma linha de leilão sem bloqueios 2PL estritos.",
+      "en": "Two concurrent bidders overwrite separate columns of the same auction row without strict 2PL locking."
+    },
+    "summary": {
+      "pt": "Dois licitantes concorrentes sobrescrevem colunas distintas da mesma linha de leilão sem bloqueios 2PL estritos.",
+      "en": "Two concurrent bidders overwrite separate columns of the same auction row without strict 2PL locking."
+    },
+    "schema": "-- Schema\nCREATE TABLE auctions (\n    id INT PRIMARY KEY,\n    item TEXT NOT NULL,\n    highest_bid INT NOT NULL,\n    winner TEXT NOT NULL\n);\n\n-- Seed\nINSERT INTO auctions VALUES (1, 'Rare Stamp', 100, 'Original');",
+    "chaos": "version: \"1.0\"\nname: \"auction_dirty_write\"\noperations:\n  - name: \"bid_alice\"\n    steps:\n      - \"UPDATE auctions SET highest_bid = 150 WHERE id = 1\"\n      - \"UPDATE auctions SET winner = 'Alice' WHERE id = 1\"\n  - name: \"bid_bob\"\n    steps:\n      - \"UPDATE auctions SET highest_bid = 200 WHERE id = 1\"\n      - \"UPDATE auctions SET winner = 'Bob' WHERE id = 1\"\ninvariants:\n  - name: \"bid_winner_consistency\"\n    query: \"SELECT highest_bid, winner FROM auctions WHERE id = 1;\"\n    assert: \"(highest_bid == 150 AND winner == 'Alice') OR (highest_bid == 200 AND winner == 'Bob')\"",
+    "reduction": {
+      "originalOps": 15,
+      "minimalOps": 2,
+      "reductionPct": "86.7%",
+      "elapsed": "49ms",
+      "cycle": "T1 ──(ww)──► T2 ──(ww)──► T1",
+      "explanation": "Without atomic row locking or single-statement updates, Alice writes bid 150, Bob writes bid 200, but Alice's second step writes winner='Alice', creating an inconsistent state: $200 bid won by Alice."
+    },
+    "analysis": {
+      "pt": "Sem travas atômicas ou updates em instrução única, Alice escreve lance 150, Bob escreve lance 200, mas o segundo passo de Alice grava vencedor='Alice', criando um estado inconsistente: lance de $200 vencido por Alice.",
+      "en": "Without atomic row locking or single-statement updates, Alice writes bid 150, Bob writes bid 200, but Alice's second step writes winner='Alice', creating an inconsistent state: $200 bid won by Alice."
+    },
+    "fix": {
+      "pt": {
+        "title": "Atualização Atômica Multi-Coluna com Predicado Monotônico",
+        "explanation": "Dirty Writes (G0) ocorrem quando escritas não comitadas de transações simultâneas se entrelaçam sobre a mesma linha de dados. A correção definitiva consiste em unificar as atualizações de valor e titular em uma única cláusula UPDATE atômica no banco, condicionada estritamente a um lance superior ao atual (WHERE id = 1 AND highest_bid < novo_lance). Isso assegura retenção de locks 2PL estritos e garante monotonicidade sem risco de estados corrompidos híbridos.",
+        "code": "-- Update Atômico em Instrução Única com Cláusula Monotônica\nBEGIN;\nUPDATE auctions \nSET highest_bid = 200, \n    winner = 'Bob' \nWHERE id = 1 AND highest_bid < 200;\n\n-- Se rows_affected == 0, o lance já foi superado concorrentemente;\n-- Fazer ROLLBACK e notificar o usuário.\nCOMMIT;",
+        "driverNotes": "PostgreSQL, SQLite, MySQL"
+      },
+      "en": {
+        "title": "Multi-Column Atomic Update with Monotonic Predicate",
+        "explanation": "Dirty Writes (G0) occur when uncommitted writes from concurrent transactions interleave on the same physical row. The definitive fix combines price and winner updates into a single atomic UPDATE statement guarded by a monotonic predicate (WHERE id = 1 AND highest_bid < new_bid). This enforces strict 2PL lock retention and guarantees monotonic bid progression without hybrid corruption.",
+        "code": "-- Atomic Single-Statement Update with Monotonic Guard\nBEGIN;\nUPDATE auctions \nSET highest_bid = 200, \n    winner = 'Bob' \nWHERE id = 1 AND highest_bid < 200;\n\n-- If rows_affected == 0, the bid has already been surpassed concurrently;\n-- Issue ROLLBACK and notify bidder.\nCOMMIT;",
+        "driverNotes": "PostgreSQL, SQLite, MySQL"
+      },
+      "strategy": "Atualização Atômica Multi-Coluna com Predicado Monotônico",
+      "sql": "-- Update Atômico em Instrução Única com Cláusula Monotônica\nBEGIN;\nUPDATE auctions \nSET highest_bid = 200, \n    winner = 'Bob' \nWHERE id = 1 AND highest_bid < 200;\n\n-- Se rows_affected == 0, o lance já foi superado concorrentemente;\n-- Fazer ROLLBACK e notificar o usuário.\nCOMMIT;",
+      "explanation": "Dirty Writes (G0) ocorrem quando escritas não comitadas de transações simultâneas se entrelaçam sobre a mesma linha de dados. A correção definitiva consiste em unificar as atualizações de valor e titular em uma única cláusula UPDATE atômica no banco, condicionada estritamente a um lance superior ao atual (WHERE id = 1 AND highest_bid < novo_lance). Isso assegura retenção de locks 2PL estritos e garante monotonicidade sem risco de estados corrompidos híbridos.",
+      "engines": [
+        "PostgreSQL",
+        "SQLite",
+        "MySQL"
+      ]
+    }
+  },
+  {
+    "id": "crypto",
+    "name": {
+      "pt": "Informação Circular em Arbitragem Cripto",
+      "en": "Crypto Arbitrage Circular Info"
+    },
+    "code": "G1c",
+    "description": {
+      "pt": "Loop de arbitragem cross-exchange observa arestas de dependência cíclicas, levando à execução de lucros fantasmas.",
+      "en": "Cross-exchange arbitrage loop observes cyclic dependency edges, leading to phantom profit execution."
+    },
+    "summary": {
+      "pt": "Loop de arbitragem cross-exchange observa arestas de dependência cíclicas, levando à execução de lucros fantasmas.",
+      "en": "Cross-exchange arbitrage loop observes cyclic dependency edges, leading to phantom profit execution."
+    },
+    "schema": "-- Schema\nCREATE TABLE orderbooks (\n    id INT PRIMARY KEY,\n    exchange TEXT NOT NULL,\n    pair TEXT NOT NULL,\n    ask_price INT NOT NULL,\n    version INT NOT NULL\n);\n\n-- Seed\nINSERT INTO orderbooks VALUES (1, 'Binance', 'BTC/USDT', 64000, 1), (2, 'Coinbase', 'BTC/USDT', 64200, 1);",
+    "chaos": "version: \"1.0\"\nname: \"crypto_arbitrage_circular\"\noperations:\n  - name: \"arb_bot_1\"\n    steps:\n      - \"SELECT ask_price FROM orderbooks WHERE id = 1 -> p1\"\n      - \"UPDATE orderbooks SET ask_price = {p1 + 50}, version = version + 1 WHERE id = 2\"\n  - name: \"arb_bot_2\"\n    steps:\n      - \"SELECT ask_price FROM orderbooks WHERE id = 2 -> p2\"\n      - \"UPDATE orderbooks SET ask_price = {p2 - 50}, version = version + 1 WHERE id = 1\"\ninvariants:\n  - name: \"monotonic_versioning\"\n    query: \"SELECT sum(version) AS total_ver FROM orderbooks;\"\n    assert: \"total_ver <= 100\"",
+    "reduction": {
+      "originalOps": 30,
+      "minimalOps": 2,
+      "reductionPct": "93.3%",
+      "elapsed": "71ms",
+      "cycle": "T1 ──(wr)──► T2 ──(wr)──► T1",
+      "explanation": "Bot 1 reads Binance price and modifies Coinbase. Concurrently, Bot 2 reads Coinbase price and modifies Binance. The circular information flow creates a G1c cycle violating causal order."
+    },
+    "analysis": {
+      "pt": "O Bot 1 lê o preço da Binance e altera a Coinbase. Concorrentemente, o Bot 2 lê o preço da Coinbase e altera a Binance. O fluxo circular de informação cria um ciclo G1c violando a ordem causal.",
+      "en": "Bot 1 reads Binance price and modifies Coinbase. Concurrently, Bot 2 reads Coinbase price and modifies Binance. The circular information flow creates a G1c cycle violating causal order."
+    },
+    "fix": {
+      "pt": {
+        "title": "Optimistic Concurrency Control (OCC) com Versionamento ou Oráculo Serializado",
+        "explanation": "A anomalia G1c demonstra fluxos cíclicos de leitura-escrita entre pares distribuídos. Para assegurar linearizabilidade global e evitar cálculos baseados em spreads defasados, emprega-se OCC com número de versão atômico ou bloqueio explícito FOR UPDATE em ordem canônica das chaves primárias dos livros antes da validação e execução da ordem de arbitragem.",
+        "code": "-- Controle Otimista de Concorrência (OCC) com Versionamento Monotônico\nBEGIN;\nSELECT id, ask_price, version FROM orderbooks WHERE id IN (1, 2) FOR UPDATE;\n\n-- Validar spread de lucro e atualizar com incremento estrito:\nUPDATE orderbooks \nSET ask_price = :novo_preco, version = version + 1 \nWHERE id = :exchange_id AND version = :versao_esperada;\n\nCOMMIT;",
+        "driverNotes": "PostgreSQL, MySQL (InnoDB), CockroachDB"
+      },
+      "en": {
+        "title": "Optimistic Concurrency Control (OCC) with Versioning or Canonical Locks",
+        "explanation": "Anomaly G1c demonstrates cyclic read-write dependencies across distributed pairs. To preserve global linearizability and prevent execution on stale price spreads, applications should implement OCC with monotonic version numbers or acquire explicit FOR UPDATE locks in canonical primary key order across order books before evaluating arbitrage margins.",
+        "code": "-- Optimistic Concurrency Control (OCC) with Monotonic Version Check\nBEGIN;\nSELECT id, ask_price, version FROM orderbooks WHERE id IN (1, 2) FOR UPDATE;\n\n-- Validate profit spread and execute conditional update with version check:\nUPDATE orderbooks \nSET ask_price = :new_price, version = version + 1 \nWHERE id = :exchange_id AND version = :expected_version;\n\nCOMMIT;",
+        "driverNotes": "PostgreSQL, MySQL (InnoDB), CockroachDB"
+      },
+      "strategy": "Optimistic Concurrency Control (OCC) com Versionamento ou Oráculo Serializado",
+      "sql": "-- Controle Otimista de Concorrência (OCC) com Versionamento Monotônico\nBEGIN;\nSELECT id, ask_price, version FROM orderbooks WHERE id IN (1, 2) FOR UPDATE;\n\n-- Validar spread de lucro e atualizar com incremento estrito:\nUPDATE orderbooks \nSET ask_price = :novo_preco, version = version + 1 \nWHERE id = :exchange_id AND version = :versao_esperada;\n\nCOMMIT;",
+      "explanation": "A anomalia G1c demonstra fluxos cíclicos de leitura-escrita entre pares distribuídos. Para assegurar linearizabilidade global e evitar cálculos baseados em spreads defasados, emprega-se OCC com número de versão atômico ou bloqueio explícito FOR UPDATE em ordem canônica das chaves primárias dos livros antes da validação e execução da ordem de arbitragem.",
+      "engines": [
+        "PostgreSQL",
+        "MySQL (InnoDB), CockroachDB"
+      ]
+    }
+  },
+  {
+    "id": "flashcrash",
+    "name": {
+      "pt": "Leitura Suja em Flash Crash (Dirty Read)",
+      "en": "Flash Crash Dirty Read"
+    },
+    "code": "G1a",
+    "description": {
+      "pt": "Bot de liquidação lê queda de margem não comitada de uma transação que subsequentemente sofre rollback.",
+      "en": "Liquidation bot reads uncommitted margin drop from a transaction that subsequently rolls back."
+    },
+    "summary": {
+      "pt": "Bot de liquidação lê queda de margem não comitada de uma transação que subsequentemente sofre rollback.",
+      "en": "Liquidation bot reads uncommitted margin drop from a transaction that subsequently rolls back."
+    },
+    "schema": "-- Schema\nCREATE TABLE margin_accounts (\n    id INT PRIMARY KEY,\n    trader TEXT NOT NULL,\n    collateral INT NOT NULL,\n    status TEXT NOT NULL\n);\n\n-- Seed\nINSERT INTO margin_accounts VALUES (1, 'Whale_01', 50000, 'ACTIVE');",
+    "chaos": "version: \"1.0\"\nname: \"flash_crash_dirty_read\"\noperations:\n  - name: \"market_order_rollback\"\n    steps:\n      - \"UPDATE margin_accounts SET collateral = 5000 WHERE id = 1\"\n      - \"SELECT 1/0\" # Forced division by zero fault to trigger ROLLBACK\n  - name: \"liquidation_bot\"\n    steps:\n      - \"SELECT collateral FROM margin_accounts WHERE id = 1 -> col\"\n      - \"UPDATE margin_accounts SET status = 'LIQUIDATED' WHERE id = 1 AND {col < 10000}\"\ninvariants:\n  - name: \"no_spurious_liquidation\"\n    query: \"SELECT collateral, status FROM margin_accounts WHERE id = 1;\"\n    assert: \"collateral == 50000 AND status == 'ACTIVE'\"",
+    "reduction": {
+      "originalOps": 10,
+      "minimalOps": 2,
+      "reductionPct": "80.0%",
+      "elapsed": "38ms",
+      "cycle": "w1(collateral=5000) ... r2(collateral) ... a1",
+      "explanation": "T1 updates collateral to $5000 and then aborts. Under READ UNCOMMITTED, T2 reads the uncommitted $5000 drop and triggers premature liquidation of a solvent trader."
+    },
+    "analysis": {
+      "pt": "T1 atualiza o colateral para $5000 e aborta em seguida. Sob READ UNCOMMITTED, T2 lê o colateral de $5000 não comitado e dispara a liquidação indevida de um trader solvente.",
+      "en": "T1 updates collateral to $5000 and then aborts. Under READ UNCOMMITTED, T2 reads the uncommitted $5000 drop and triggers premature liquidation of a solvent trader."
+    },
+    "fix": {
+      "pt": {
+        "title": "Isolamento Mínimo READ COMMITTED no Pool de Conexões",
+        "explanation": "Dirty Reads (G1a / Aborted Reads) ocorrem quando uma transação lê modificações feitas por outra transação que posteriormente sofre abort (ROLLBACK). Em finanças e criptoativos, isso acarreta liquidações catastróficas espúrias. A mitigação arquitetural exige que o pool de conexões configure como piso inviolável o isolamento READ COMMITTED, garantindo que leituras acessem apenas tuplas comitadas de forma duradoura no write-ahead log.",
+        "code": "-- Assegurar Nível de Isolamento Mínimo READ COMMITTED no Banco\nSET TRANSACTION ISOLATION LEVEL READ COMMITTED;\n\n-- Rotina de Liquidação com Validação Transacional\nBEGIN;\nSELECT collateral, status FROM margin_accounts WHERE id = 1 FOR UPDATE;\n-- Apenas dados comitados são lidos! Transações abortadas nunca vazam.\nUPDATE margin_accounts SET status = 'LIQUIDATED' WHERE id = 1 AND collateral < 10000;\nCOMMIT;",
+        "driverNotes": "PostgreSQL (Default), SQLite (WAL), MySQL (Default)"
+      },
+      "en": {
+        "title": "Enforce Minimum READ COMMITTED in Database Connection Pool",
+        "explanation": "Dirty Reads (G1a / Aborted Reads) occur when a transaction reads uncommitted mutations from another transaction that subsequently aborts (ROLLBACK). In financial and DeFi systems, this triggers catastrophic phantom liquidations. The architectural fix enforces READ COMMITTED as the strict floor in the connection pool, ensuring queries only access tuples durably committed in the WAL.",
+        "code": "-- Enforce Minimum READ COMMITTED Isolation Level\nSET TRANSACTION ISOLATION LEVEL READ COMMITTED;\n\n-- Liquidation Routine with Row Guard Lock\nBEGIN;\nSELECT collateral, status FROM margin_accounts WHERE id = 1 FOR UPDATE;\n-- Only durably committed state is visible; aborted transactions never leak!\nUPDATE margin_accounts SET status = 'LIQUIDATED' WHERE id = 1 AND collateral < 10000;\nCOMMIT;",
+        "driverNotes": "PostgreSQL (Default), SQLite (WAL), MySQL (Default)"
+      },
+      "strategy": "Isolamento Mínimo READ COMMITTED no Pool de Conexões",
+      "sql": "-- Assegurar Nível de Isolamento Mínimo READ COMMITTED no Banco\nSET TRANSACTION ISOLATION LEVEL READ COMMITTED;\n\n-- Rotina de Liquidação com Validação Transacional\nBEGIN;\nSELECT collateral, status FROM margin_accounts WHERE id = 1 FOR UPDATE;\n-- Apenas dados comitados são lidos! Transações abortadas nunca vazam.\nUPDATE margin_accounts SET status = 'LIQUIDATED' WHERE id = 1 AND collateral < 10000;\nCOMMIT;",
+      "explanation": "Dirty Reads (G1a / Aborted Reads) ocorrem quando uma transação lê modificações feitas por outra transação que posteriormente sofre abort (ROLLBACK). Em finanças e criptoativos, isso acarreta liquidações catastróficas espúrias. A mitigação arquitetural exige que o pool de conexões configure como piso inviolável o isolamento READ COMMITTED, garantindo que leituras acessem apenas tuplas comitadas de forma duradoura no write-ahead log.",
+      "engines": [
+        "PostgreSQL (Default)",
+        "SQLite (WAL)",
+        "MySQL (Default)"
+      ]
+    }
+  },
+  {
+    "id": "ticket",
+    "name": {
+      "pt": "Ciclo de Anti-Dependência em Bilheteria (G2)",
+      "en": "Ticket Anti-Dependency Cycle"
+    },
+    "code": "G2",
+    "description": {
+      "pt": "Reservas de ingressos geram conflitos fantasmas entre predicados de assentos sob Snapshot Isolation.",
+      "en": "Concert ticket reservations generate phantom conflicts across seat range predicates under Snapshot Isolation."
+    },
+    "summary": {
+      "pt": "Reservas de ingressos geram conflitos fantasmas entre predicados de assentos sob Snapshot Isolation.",
+      "en": "Concert ticket reservations generate phantom conflicts across seat range predicates under Snapshot Isolation."
+    },
+    "schema": "-- Schema\nCREATE TABLE seats (\n    id INT PRIMARY KEY,\n    section TEXT NOT NULL,\n    seat_no INT NOT NULL,\n    reserved_by TEXT\n);\n\n-- Seed\nINSERT INTO seats VALUES (1, 'VIP', 101, NULL), (2, 'VIP', 102, NULL);",
+    "chaos": "version: \"1.0\"\nname: \"ticket_anti_dependency_g2\"\noperations:\n  - name: \"book_adjacent_left\"\n    steps:\n      - \"SELECT count(*) AS reserved FROM seats WHERE section = 'VIP' AND reserved_by IS NOT NULL -> c\"\n      - \"UPDATE seats SET reserved_by = 'Fan_A' WHERE id = 1 AND {c == 0}\"\n  - name: \"book_adjacent_right\"\n    steps:\n      - \"SELECT count(*) AS reserved FROM seats WHERE section = 'VIP' AND reserved_by IS NOT NULL -> c\"\n      - \"UPDATE seats SET reserved_by = 'Fan_B' WHERE id = 2 AND {c == 0}\"\ninvariants:\n  - name: \"max_one_seat_rule\"\n    query: \"SELECT count(*) AS reserved FROM seats WHERE section = 'VIP' AND reserved_by IS NOT NULL;\"\n    assert: \"reserved <= 1\"",
+    "reduction": {
+      "originalOps": 20,
+      "minimalOps": 2,
+      "reductionPct": "90.0%",
+      "elapsed": "65ms",
+      "cycle": "T1 ──(rw)──► T2 ──(rw)──► T1",
+      "explanation": "Predicate anti-dependency cycle: T1 checks if any VIP seat is booked (finds 0) and books seat 1. T2 simultaneously checks if any VIP seat is booked (finds 0) and books seat 2. Both commit, violating VIP exclusivity."
+    },
+    "analysis": {
+      "pt": "Ciclo de anti-dependência de predicado: T1 verifica se algum assento VIP está reservado (encontra 0) e reserva o assento 1. T2 simultaneamente verifica assentos VIP (encontra 0) e reserva o assento 2. Ambos comitam, violando a exclusividade do setor.",
+      "en": "Predicate anti-dependency cycle: T1 checks if any VIP seat is booked (finds 0) and books seat 1. T2 simultaneously checks if any VIP seat is booked (finds 0) and books seat 2. Both commit, violating VIP exclusivity."
+    },
+    "fix": {
+      "pt": {
+        "title": "Restrição de Unicidade Estrutural e Locks de Predicado Serializáveis",
+        "explanation": "Ciclos G2 ocorrem quando consultas de agregação ou intervalos checam a existência de registros através de predicados (COUNT(*) WHERE ...). Sob Snapshot Isolation, as transações não bloqueiam predicados ausentes. A adição de uma restrição UNIQUE a nível de schema converte a corrida silenciosa em um erro determinístico de integridade de índice, enquanto SELECT ... FOR UPDATE ou SSI serializam a reserva de forma infalível.",
+        "code": "-- 1. Restrição de Chave Única Composta para Garantir Atomicidade de Índice\nALTER TABLE seats \nADD CONSTRAINT uq_section_reservation UNIQUE (section, seat_no);\n\n-- 2. Predicate Lock com SELECT FOR UPDATE ou SSI\nBEGIN;\nSELECT id FROM seats \nWHERE section = 'VIP' AND reserved_by IS NULL \nLIMIT 1 FOR UPDATE;\n\nUPDATE seats SET reserved_by = 'Fan_A' WHERE id = :seat_id;\nCOMMIT;",
+        "driverNotes": "PostgreSQL, MySQL, SQLite"
+      },
+      "en": {
+        "title": "Structural Unique Constraints and Serializable Predicate Locks",
+        "explanation": "G2 cycles manifest when aggregate queries or range checks inspect row existence via predicates (COUNT(*) WHERE ...). Under Snapshot Isolation, queries do not lock non-existent keys. Introducing a schema-level UNIQUE constraint converts silent race conditions into deterministic index integrity violations, while SELECT ... FOR UPDATE or SSI serializes reservations safely.",
+        "code": "-- 1. Composite Unique Constraint for Index-Level Atomicity\nALTER TABLE seats \nADD CONSTRAINT uq_section_reservation UNIQUE (section, seat_no);\n\n-- 2. Predicate Lock via SELECT FOR UPDATE or SSI\nBEGIN;\nSELECT id FROM seats \nWHERE section = 'VIP' AND reserved_by IS NULL \nLIMIT 1 FOR UPDATE;\n\nUPDATE seats SET reserved_by = 'Fan_A' WHERE id = :seat_id;\nCOMMIT;",
+        "driverNotes": "PostgreSQL, MySQL, SQLite"
+      },
+      "strategy": "Restrição de Unicidade Estrutural e Locks de Predicado Serializáveis",
+      "sql": "-- 1. Restrição de Chave Única Composta para Garantir Atomicidade de Índice\nALTER TABLE seats \nADD CONSTRAINT uq_section_reservation UNIQUE (section, seat_no);\n\n-- 2. Predicate Lock com SELECT FOR UPDATE ou SSI\nBEGIN;\nSELECT id FROM seats \nWHERE section = 'VIP' AND reserved_by IS NULL \nLIMIT 1 FOR UPDATE;\n\nUPDATE seats SET reserved_by = 'Fan_A' WHERE id = :seat_id;\nCOMMIT;",
+      "explanation": "Ciclos G2 ocorrem quando consultas de agregação ou intervalos checam a existência de registros através de predicados (COUNT(*) WHERE ...). Sob Snapshot Isolation, as transações não bloqueiam predicados ausentes. A adição de uma restrição UNIQUE a nível de schema converte a corrida silenciosa em um erro determinístico de integridade de índice, enquanto SELECT ... FOR UPDATE ou SSI serializam a reserva de forma infalível.",
+      "engines": [
+        "PostgreSQL",
+        "MySQL",
+        "SQLite"
+      ]
+    }
+  },
+  {
+    "id": "deadlock",
+    "name": {
+      "pt": "Ciclo de Deadlock & Recuperação",
+      "en": "Deadlock Cycle & Recovery"
+    },
+    "code": "G-DL",
+    "description": {
+      "pt": "Dois workers de transferência bloqueiam contas em ordem inversa, induzindo um deadlock no grafo de espera (WFG).",
+      "en": "Two transfer workers lock accounts in reverse order, inducing a cyclic lock-wait graph (WFG) deadlock."
+    },
+    "summary": {
+      "pt": "Dois workers de transferência bloqueiam contas em ordem inversa, induzindo um deadlock no grafo de espera (WFG).",
+      "en": "Two transfer workers lock accounts in reverse order, inducing a cyclic lock-wait graph (WFG) deadlock."
+    },
+    "schema": "-- Schema\nCREATE TABLE accounts (\n    id INT PRIMARY KEY,\n    balance INT NOT NULL\n);\n\n-- Seed\nINSERT INTO accounts VALUES (1, 500), (2, 500);",
+    "chaos": "version: \"1.0\"\nname: \"deadlock_cycle_recovery\"\noperations:\n  - name: \"transfer_1_to_2\"\n    steps:\n      - \"SELECT balance FROM accounts WHERE id = 1 -> b1\"\n      - \"UPDATE accounts SET balance = balance - 100 WHERE id = 1\"\n      - \"UPDATE accounts SET balance = balance + 100 WHERE id = 2\"\n  - name: \"transfer_2_to_1\"\n    steps:\n      - \"SELECT balance FROM accounts WHERE id = 2 -> b2\"\n      - \"UPDATE accounts SET balance = balance - 100 WHERE id = 2\"\n      - \"UPDATE accounts SET balance = balance + 100 WHERE id = 1\"\ninvariants:\n  - name: \"total_balance_exact\"\n    query: \"SELECT sum(balance) AS total FROM accounts;\"\n    assert: \"total == 1000\"",
+    "reduction": {
+      "originalOps": 15,
+      "minimalOps": 2,
+      "reductionPct": "86.7%",
+      "elapsed": "54ms",
+      "cycle": "T1 ──(waits)──► T2 ──(waits)──► T1",
+      "explanation": "T1 locks Account 1 and requests lock on Account 2. Concurrently, T2 locks Account 2 and requests lock on Account 1. Mutual wait forms a cycle in the Wait-For Graph (WFG)."
+    },
+    "analysis": {
+      "pt": "T1 trava a Conta 1 e requisita trava na Conta 2. Concorrentemente, T2 trava a Conta 2 e requisita trava na Conta 1. A espera mútua induz um ciclo no Wait-For Graph (WFG).",
+      "en": "T1 locks Account 1 and requests lock on Account 2. Concurrently, T2 locks Account 2 and requests lock on Account 1. Mutual wait forms a cycle in the Wait-For Graph (WFG)."
+    },
+    "fix": {
+      "pt": {
+        "title": "Ordenação Canônica Determinística de Bloqueios (Lock Ordering)",
+        "explanation": "Deadlocks ocorrem quando diferentes transações disputam os mesmos registros em ordens inversas (T1: 1 depois 2; T2: 2 depois 1). A mitigação canônica consiste em estabelecer um protocolo estrito de ordenação hierárquica de recursos antes de adquirir qualquer bloqueio (ex: travar sempre pelo menor ID primeiro). Com ordenação canônica garantida na camada de repositório, ciclos no Wait-For Graph tornam-se matematicamente impossíveis de se formarem.",
+        "code": "-- Ordenação Padronizada de Locks pelo Menor ID\n-- Na aplicação:\n-- first_id = MIN(conta_a, conta_b)\n-- second_id = MAX(conta_a, conta_b)\n\nBEGIN;\n-- Bloquear sempre os recursos na mesma ordem canônica crescente:\nSELECT id, balance FROM accounts WHERE id = :first_id FOR UPDATE;\nSELECT id, balance FROM accounts WHERE id = :second_id FOR UPDATE;\n\nUPDATE accounts SET balance = balance - 100 WHERE id = :origem;\nUPDATE accounts SET balance = balance + 100 WHERE id = :destino;\nCOMMIT;",
+        "driverNotes": "PostgreSQL (Code 40P01), MySQL (Error 1213), SQLite"
+      },
+      "en": {
+        "title": "Deterministic Canonical Lock Ordering",
+        "explanation": "Deadlocks emerge when concurrent transactions acquire locks on the same resources in opposing sequences (T1 locks 1 then 2; T2 locks 2 then 1). The canonical solution enforces a strict resource hierarchy before acquiring any lock (e.g. always acquiring locks in ascending ID order). With canonical lock ordering at the repository layer, cycles in the Wait-For Graph become mathematically impossible.",
+        "code": "-- Standardized Lock Ordering by Ascending Primary Key\n-- In application layer:\n-- first_id = MIN(account_a, account_b)\n-- second_id = MAX(account_a, account_b)\n\nBEGIN;\n-- Always acquire exclusive locks in ascending canonical order:\nSELECT id, balance FROM accounts WHERE id = :first_id FOR UPDATE;\nSELECT id, balance FROM accounts WHERE id = :second_id FOR UPDATE;\n\nUPDATE accounts SET balance = balance - 100 WHERE id = :source_id;\nUPDATE accounts SET balance = balance + 100 WHERE id = :target_id;\nCOMMIT;",
+        "driverNotes": "PostgreSQL (Code 40P01), MySQL (Error 1213), SQLite"
+      },
+      "strategy": "Ordenação Canônica Determinística de Bloqueios (Lock Ordering)",
+      "sql": "-- Ordenação Padronizada de Locks pelo Menor ID\n-- Na aplicação:\n-- first_id = MIN(conta_a, conta_b)\n-- second_id = MAX(conta_a, conta_b)\n\nBEGIN;\n-- Bloquear sempre os recursos na mesma ordem canônica crescente:\nSELECT id, balance FROM accounts WHERE id = :first_id FOR UPDATE;\nSELECT id, balance FROM accounts WHERE id = :second_id FOR UPDATE;\n\nUPDATE accounts SET balance = balance - 100 WHERE id = :origem;\nUPDATE accounts SET balance = balance + 100 WHERE id = :destino;\nCOMMIT;",
+      "explanation": "Deadlocks ocorrem quando diferentes transações disputam os mesmos registros em ordens inversas (T1: 1 depois 2; T2: 2 depois 1). A mitigação canônica consiste em estabelecer um protocolo estrito de ordenação hierárquica de recursos antes de adquirir qualquer bloqueio (ex: travar sempre pelo menor ID primeiro). Com ordenação canônica garantida na camada de repositório, ciclos no Wait-For Graph tornam-se matematicamente impossíveis de se formarem.",
+      "engines": [
+        "PostgreSQL (Code 40P01)",
+        "MySQL (Error 1213), SQLite"
+      ]
+    }
+  },
+  {
+    "id": "fk_cascade",
+    "name": {
+      "pt": "Deadlock em Deleção em Cascata de Foreign Key",
+      "en": "Foreign Key Cascade Deadlock"
+    },
+    "code": "G-DL",
+    "description": {
+      "pt": "Inserções simultâneas em itens filhos e deleção em cascata do pedido pai invertem a hierarquia de bloqueios.",
+      "en": "Concurrent inserts into child items and cascaded parent order deletes invert the lock hierarchy."
+    },
+    "summary": {
+      "pt": "Inserções simultâneas em itens filhos e deleção em cascata do pedido pai invertem a hierarquia de bloqueios.",
+      "en": "Concurrent inserts into child items and cascaded parent order deletes invert the lock hierarchy."
+    },
+    "schema": "-- Schema\nCREATE TABLE parent_orders (\n    id INT PRIMARY KEY,\n    status TEXT NOT NULL,\n    total_cents INT NOT NULL\n);\n\nCREATE TABLE child_items (\n    id INT PRIMARY KEY,\n    order_id INT NOT NULL REFERENCES parent_orders(id) ON DELETE CASCADE,\n    sku TEXT NOT NULL,\n    price_cents INT NOT NULL\n);\n\n-- Seed\nINSERT INTO parent_orders VALUES (1, 'OPEN', 5000);\nINSERT INTO child_items VALUES (1, 1, 'ITEM-A', 2500), (2, 1, 'ITEM-B', 2500);",
+    "chaos": "version: \"1.0\"\nname: \"foreign_key_cascade_deadlock\"\noperations:\n  - name: \"add_order_item\"\n    steps:\n      - \"INSERT INTO child_items VALUES ($monotonic_counter(10, 1), 1, 'ITEM-NEW', 1500)\"\n      - \"UPDATE parent_orders SET total_cents = total_cents + 1500 WHERE id = 1\"\n  - name: \"cancel_order_cascade\"\n    steps:\n      - \"UPDATE parent_orders SET status = 'CANCELLED' WHERE id = 1\"\n      - \"DELETE FROM parent_orders WHERE id = 1\"\ninvariants:\n  - name: \"referential_integrity\"\n    query: \"SELECT count(*) AS orphan_items FROM child_items LEFT JOIN parent_orders ON child_items.order_id = parent_orders.id WHERE parent_orders.id IS NULL;\"\n    assert: \"orphan_items == 0\"",
+    "reduction": {
+      "originalOps": 20,
+      "minimalOps": 2,
+      "reductionPct": "90.0%",
+      "elapsed": "58ms",
+      "cycle": "T1: Child ──► Parent ◄──► T2: Parent ──► Child",
+      "explanation": "T1 locks child row and requests parent lock to update total; T2 locks parent row and requests cascaded child locks to delete. Lock hierarchy inversion creates deadlock (WFG cycle)."
+    },
+    "analysis": {
+      "pt": "T1 bloqueia a linha filha e requisita lock na linha pai para atualizar o total; T2 bloqueia a linha pai e requisita lock em cascata nos filhos para deletar. A inversão de hierarquia induz um deadlock no Wait-For Graph.",
+      "en": "T1 locks child row and requests parent lock to update total; T2 locks parent row and requests cascaded child locks to delete. Lock hierarchy inversion creates deadlock (WFG cycle)."
+    },
+    "fix": {
+      "pt": {
+        "title": "Índice na Chave Estrangeira e Padronização de Locks Pai-Filho",
+        "explanation": "Deadlocks em deleções em cascata ocorrem porque: (1) a ausência de índice na coluna de FK força table scans na tabela filha, gerando bloqueios abrangentes desnecessários; e (2) transações de inserção travam primeiro a tabela filha e depois o pai, enquanto cascatas travam primeiro o pai e depois os filhos. A criação do índice na FK associada ao bloqueio prévio do registro pai (FOR UPDATE) equaliza a hierarquia e extingue o risco de deadlock.",
+        "code": "-- 1. Criar Índice Dedicado na Coluna de Chave Estrangeira (CRÍTICO!)\nCREATE INDEX idx_child_items_order_id ON child_items(order_id);\n\n-- 2. Padronizar a Sequência de Bloqueios Pai -> Filhos em Cancelamentos:\nBEGIN;\n-- Bloquear a linha pai explicitamente antes de disparar deleções:\nSELECT id FROM parent_orders WHERE id = 1 FOR UPDATE;\n\n-- Deletar os filhos de forma explícita e controlada:\nDELETE FROM child_items WHERE order_id = 1;\n\n-- Deletar o pedido pai:\nDELETE FROM parent_orders WHERE id = 1;\nCOMMIT;",
+        "driverNotes": "PostgreSQL, MySQL (InnoDB), SQLite"
+      },
+      "en": {
+        "title": "Foreign Key Indexing and Parent-First Lock Standardization",
+        "explanation": "Foreign key cascade deadlocks occur because: (1) missing indexes on FK columns force table scans on child tables, acquiring broad table-level locks; and (2) insert transactions lock child first then parent, while cascades lock parent then child. Adding a dedicated B-tree index on the child FK and explicitly locking the parent record first (FOR UPDATE) normalizes the locking hierarchy and eliminates deadlock cycles.",
+        "code": "-- 1. Add Dedicated Index on Child Foreign Key Column (CRITICAL!)\nCREATE INDEX idx_child_items_order_id ON child_items(order_id);\n\n-- 2. Standardize Parent -> Child Lock Sequence during Order Cancellation:\nBEGIN;\n-- Explicitly lock parent row before triggering deletions:\nSELECT id FROM parent_orders WHERE id = 1 FOR UPDATE;\n\n-- Explicitly delete child items:\nDELETE FROM child_items WHERE order_id = 1;\n\n-- Delete parent order:\nDELETE FROM parent_orders WHERE id = 1;\nCOMMIT;",
+        "driverNotes": "PostgreSQL, MySQL (InnoDB), SQLite"
+      },
+      "strategy": "Índice na Chave Estrangeira e Padronização de Locks Pai-Filho",
+      "sql": "-- 1. Criar Índice Dedicado na Coluna de Chave Estrangeira (CRÍTICO!)\nCREATE INDEX idx_child_items_order_id ON child_items(order_id);\n\n-- 2. Padronizar a Sequência de Bloqueios Pai -> Filhos em Cancelamentos:\nBEGIN;\n-- Bloquear a linha pai explicitamente antes de disparar deleções:\nSELECT id FROM parent_orders WHERE id = 1 FOR UPDATE;\n\n-- Deletar os filhos de forma explícita e controlada:\nDELETE FROM child_items WHERE order_id = 1;\n\n-- Deletar o pedido pai:\nDELETE FROM parent_orders WHERE id = 1;\nCOMMIT;",
+      "explanation": "Deadlocks em deleções em cascata ocorrem porque: (1) a ausência de índice na coluna de FK força table scans na tabela filha, gerando bloqueios abrangentes desnecessários; e (2) transações de inserção travam primeiro a tabela filha e depois o pai, enquanto cascatas travam primeiro o pai e depois os filhos. A criação do índice na FK associada ao bloqueio prévio do registro pai (FOR UPDATE) equaliza a hierarquia e extingue o risco de deadlock.",
+      "engines": [
+        "PostgreSQL",
+        "MySQL (InnoDB), SQLite"
+      ]
+    }
+  }
+]

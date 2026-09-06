@@ -1,0 +1,178 @@
+.chaosContainer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.decision {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.eyebrow {
+  font-family: var(--font-jetbrains-mono), monospace;
+  font-size: var(--type-meta);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-secondary);
+}
+
+.anomalyBadge {
+  color: var(--yellow);
+  font-family: var(--font-jetbrains-mono), monospace;
+  font-weight: 650;
+  font-size: var(--type-action);
+}
+
+.traceTable {
+  width: 100%;
+  min-width: 0;
+  table-layout: fixed;
+  border-collapse: collapse;
+  font-size: var(--type-action);
+  line-height: 1.5;
+  margin-bottom: var(--space-2);
+}
+
+.traceTable th {
+  text-align: left;
+  font-weight: 500;
+  font-size: var(--type-meta);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary);
+  padding: 0.7rem 0.25rem;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.traceTable td {
+  padding: 0.7rem 0.25rem;
+  border-bottom: 1px solid var(--border-subtle);
+  overflow-wrap: anywhere;
+}
+
+.traceTable th:first-child {
+  width: 3.2rem;
+}
+
+.traceTable th:nth-child(2) {
+  width: 2.8rem;
+}
+
+.traceTable th:last-child {
+  width: 4.5rem;
+  text-align: right;
+}
+
+.traceTable td:last-child {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.traceTable td:first-child,
+.traceTable td:nth-child(2),
+.traceTable td:last-child {
+  font-family: var(--font-jetbrains-mono), monospace;
+}
+
+.txT1 {
+  color: var(--green);
+  font-weight: 600;
+}
+
+.txT2 {
+  color: var(--yellow);
+  font-weight: 600;
+}
+
+.rowViolated td {
+  color: var(--yellow);
+  background: color-mix(in srgb, var(--yellow) 6%, transparent);
+}
+
+.invariant {
+  border-left: 2px solid var(--yellow);
+  padding: 0.4rem 0 0.4rem var(--space-3);
+  background: color-mix(in srgb, var(--ink) 40%, transparent);
+  border-radius: 0 var(--radius-badge) var(--radius-badge) 0;
+}
+
+.violation {
+  color: var(--yellow);
+  font-size: 1.25rem;
+  font-weight: 500;
+  letter-spacing: -0.03em;
+  margin-top: 0.2rem;
+}
+
+.invariant code {
+  display: block;
+  font-family: var(--font-jetbrains-mono), monospace;
+  font-size: var(--type-meta);
+  line-height: 1.5;
+  margin-top: 0.4rem;
+  color: var(--text-secondary);
+  background: color-mix(in srgb, var(--cosmos-deep) 60%, transparent);
+  padding: 0.35rem 0.6rem;
+  border-radius: var(--radius-control);
+}
+
+.metricGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
+  gap: var(--space-2);
+  margin-block: var(--space-3) var(--space-2);
+}
+
+.metricItem dt {
+  font-size: var(--type-meta);
+  color: var(--text-secondary);
+  font-family: var(--font-jetbrains-mono), monospace;
+}
+
+.metricItem dd {
+  font-size: 1.6rem;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.04em;
+  margin: 0.2rem 0 0;
+  font-weight: 600;
+}
+
+.caption {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  margin-top: 0.4rem;
+}
+
+.reproduction {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: var(--space-2) 0 0;
+  padding: var(--space-2);
+  background: color-mix(in srgb, var(--green) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--green) 20%, transparent);
+  border-radius: var(--radius-control);
+  list-style: none;
+  font-size: var(--type-action);
+  color: var(--green);
+}
+
+.reproduction li {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.reproduction code {
+  font-family: var(--font-jetbrains-mono), monospace;
+  font-size: var(--type-meta);
+  background: color-mix(in srgb, var(--green) 15%, transparent);
+  padding: 0.2rem 0.4rem;
+  border-radius: 2px;
+}

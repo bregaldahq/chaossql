@@ -1,0 +1,485 @@
+/* VisualizerPage.module.css — Redesigned for Bregalda Design System */
+.pageContainer {
+  background-color: var(--cream);
+  min-height: 100vh;
+  padding: calc(var(--nav-height) + 32px) var(--page-gutter) 80px;
+}
+
+.inner {
+  max-width: 76rem;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* Header */
+.header {
+  margin-bottom: 8px;
+}
+
+.monoTag {
+  font-family: var(--font-jetbrains-mono);
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--purple);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 8px;
+  display: block;
+}
+
+.title {
+  font-size: clamp(2.2rem, 3.8vw, 3rem);
+  font-weight: 700;
+  color: var(--ink);
+  line-height: 1.1;
+  letter-spacing: -0.04em;
+  margin-bottom: 12px;
+}
+
+.subtitle {
+  font-family: var(--font-inter);
+  font-size: 1.05rem;
+  line-height: 1.6;
+  color: var(--text-secondary);
+  max-width: 52rem;
+}
+
+/* Controls Bar */
+.controlsBar {
+  background: #FFFFFF;
+  border: 1px solid color-mix(in srgb, var(--ink) 14%, transparent);
+  border-radius: var(--radius-card);
+  padding: 14px 20px;
+  box-shadow: 0 4px 16px color-mix(in srgb, var(--ink) 4%, transparent);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.modeSegmentedGroup {
+  background: #EFECE6;
+  border: 1px solid color-mix(in srgb, var(--ink) 12%, transparent);
+  border-radius: var(--radius-control);
+  padding: 3px;
+  display: inline-flex;
+  gap: 3px;
+}
+
+.modeBtn {
+  font-family: var(--font-jetbrains-mono);
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 7px 14px;
+  border-radius: 2px;
+  border: none;
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.modeBtn:hover {
+  color: var(--purple);
+}
+
+.modeBtnActive {
+  background: var(--purple);
+  color: #FFFFFF !important;
+  box-shadow: 0 2px 6px rgba(75, 46, 131, 0.35);
+}
+
+.filterGroup {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.filterLabel {
+  font-family: var(--font-jetbrains-mono);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-right: 4px;
+}
+
+.filterBtn {
+  font-family: var(--font-jetbrains-mono);
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: var(--radius-control);
+  border: 1px solid color-mix(in srgb, var(--ink) 18%, transparent);
+  background: #FFFFFF;
+  color: var(--ink);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.filterBtn:hover {
+  border-color: var(--purple);
+  color: var(--purple);
+}
+
+.filterBtnActive {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--yellow);
+}
+
+.animateBtn {
+  font-family: var(--font-jetbrains-mono);
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 7px 14px;
+  border-radius: var(--radius-control);
+  border: 1px solid var(--purple);
+  background: color-mix(in srgb, var(--purple) 8%, transparent);
+  color: var(--purple);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+}
+
+.animateBtn:hover {
+  background: var(--purple);
+  color: #FFFFFF;
+}
+
+.statusPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: color-mix(in srgb, #EF4444 10%, transparent);
+  border: 1px solid color-mix(in srgb, #EF4444 32%, transparent);
+  border-radius: var(--radius-control);
+  padding: 6px 12px;
+  font-family: var(--font-jetbrains-mono);
+  font-size: 0.76rem;
+  color: #DC2626;
+  font-weight: 700;
+}
+
+/* Gantt Card */
+.ganttCard {
+  background: color-mix(in srgb, var(--ink) 95%, var(--purple));
+  border: 1px solid color-mix(in srgb, var(--cream) 18%, transparent);
+  border-radius: var(--radius-card);
+  padding: 22px 24px;
+  box-shadow: 0 20px 60px rgba(10, 5, 20, 0.35);
+  overflow-x: auto;
+}
+
+.ganttHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid color-mix(in srgb, var(--cream) 14%, transparent);
+  padding-bottom: 14px;
+  margin-bottom: 16px;
+}
+
+.ganttTitle {
+  font-family: var(--font-jetbrains-mono);
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--cream);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.ganttLegend {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-family: var(--font-jetbrains-mono);
+  font-size: 0.72rem;
+  color: color-mix(in srgb, var(--cream) 70%, transparent);
+}
+
+.legendItem {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.legendColor {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+}
+
+.legendRead {
+  background: #2A1D4E;
+  border: 1px solid #7C3AED;
+}
+
+.legendWrite {
+  background: #503107;
+  border: 1px solid #F5C400;
+}
+
+.legendConflict {
+  background: #6B1515;
+  border: 1px solid #EF4444;
+}
+
+/* Gantt Inner */
+.ganttInner {
+  min-width: 720px;
+  position: relative;
+}
+
+.ganttAxis {
+  display: flex;
+  margin-left: 90px;
+  border-bottom: 1px solid color-mix(in srgb, var(--cream) 14%, transparent);
+  padding-bottom: 6px;
+  font-family: var(--font-jetbrains-mono);
+  font-size: 0.72rem;
+  color: color-mix(in srgb, var(--cream) 55%, transparent);
+}
+
+.axisTick {
+  flex: 1;
+  text-align: left;
+  border-left: 1px dashed rgba(252, 251, 248, 0.12);
+  padding-left: 4px;
+}
+
+.ganttLanes {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 14px;
+  position: relative;
+}
+
+.laneRow {
+  display: flex;
+  align-items: center;
+}
+
+.laneLabel {
+  width: 90px;
+  font-family: var(--font-jetbrains-mono);
+  font-size: 0.78rem;
+  color: var(--cream);
+  font-weight: 600;
+}
+
+.laneTrack {
+  flex-grow: 1;
+  height: 40px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid color-mix(in srgb, var(--cream) 12%, transparent);
+  border-radius: var(--radius-control);
+  position: relative;
+  overflow: hidden;
+}
+
+.ganttBlock {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  border-radius: 2px;
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  font-family: var(--font-jetbrains-mono);
+  font-size: 0.72rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+  user-select: none;
+  font-weight: 600;
+}
+
+.ganttBlock:hover {
+  filter: brightness(1.3);
+  transform: translateY(-1px);
+  z-index: 10;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+}
+
+.ganttBlockActive {
+  outline: 2px solid var(--yellow) !important;
+  box-shadow: 0 0 14px rgba(245, 196, 0, 0.7) !important;
+  z-index: 12;
+}
+
+.opRead {
+  background-color: #2A1D4E;
+  border: 1px solid #7C3AED;
+  color: #EDE9FE;
+}
+
+.opWrite {
+  background-color: #503107;
+  border: 1px solid #F5C400;
+  color: #FEF08A;
+}
+
+.opConflict {
+  background-color: #6B1515;
+  border: 1px solid #EF4444;
+  color: #FECDD3;
+}
+
+.collisionMarker {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background-color: #EF4444;
+  box-shadow: 0 0 14px rgba(239, 68, 68, 0.85);
+  z-index: 15;
+  pointer-events: none;
+}
+
+.collisionLabel {
+  position: absolute;
+  top: -24px;
+  transform: translateX(-50%);
+  background: #EF4444;
+  color: #FFFFFF;
+  font-family: var(--font-jetbrains-mono);
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 2px;
+  white-space: nowrap;
+  letter-spacing: 0.04em;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+
+/* Dual Pane Split */
+.splitGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+
+@media (max-width: 960px) {
+  .splitGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.detailCard {
+  background: color-mix(in srgb, var(--ink) 95%, var(--purple));
+  border: 1px solid color-mix(in srgb, var(--cream) 18%, transparent);
+  border-radius: var(--radius-card);
+  padding: 20px;
+  box-shadow: 0 16px 40px rgba(10, 5, 20, 0.25);
+  display: flex;
+  flex-direction: column;
+}
+
+.cardToolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid color-mix(in srgb, var(--cream) 14%, transparent);
+  padding-bottom: 12px;
+  margin-bottom: 16px;
+}
+
+.cardTitle {
+  font-family: var(--font-jetbrains-mono);
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--cream);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.cardBadge {
+  font-family: var(--font-jetbrains-mono);
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: var(--radius-control);
+}
+
+.badgeSuccess {
+  background: rgba(34, 197, 94, 0.15);
+  color: #4ADE80;
+  border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+.badgeConflict {
+  background: rgba(239, 68, 68, 0.18);
+  color: #F87171;
+  border: 1px solid rgba(239, 68, 68, 0.4);
+}
+
+/* Adya Graph */
+.adyaWrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex-grow: 1;
+}
+
+.adyaSvg {
+  width: 100%;
+  max-width: 420px;
+  max-height: 200px;
+  cursor: pointer;
+}
+
+.adyaFootnote {
+  font-family: var(--font-jetbrains-mono);
+  font-size: 0.75rem;
+  color: color-mix(in srgb, var(--cream) 70%, transparent);
+  line-height: 1.55;
+  margin-top: 14px;
+  border-top: 1px solid color-mix(in srgb, var(--cream) 14%, transparent);
+  padding-top: 10px;
+  width: 100%;
+}
+
+/* Inspector */
+.inspectorGrid {
+  display: grid;
+  grid-template-columns: 150px 1fr;
+  row-gap: 12px;
+  column-gap: 12px;
+  font-size: 0.85rem;
+  margin-bottom: 16px;
+}
+
+.inspectorKey {
+  font-family: var(--font-jetbrains-mono);
+  font-size: 0.75rem;
+  color: color-mix(in srgb, var(--cream) 60%, transparent);
+  font-weight: 600;
+}
+
+.inspectorVal {
+  font-family: var(--font-jetbrains-mono);
+  font-size: 0.82rem;
+  color: var(--cream);
+}
+
+.inspectorValHighlight {
+  color: var(--yellow);
+  font-weight: 700;
+}
+
+.inspectorValConflict {
+  color: #F87171;
+  font-weight: 700;
+}
+
+.sqlBox {
+  margin-top: 8px;
+}

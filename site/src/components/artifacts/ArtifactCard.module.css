@@ -1,0 +1,77 @@
+.surface {
+  --text-secondary: color-mix(in srgb, var(--cream) 74%, transparent);
+  --border-subtle: color-mix(in srgb, var(--cream) 22%, transparent);
+  --focus-color: var(--yellow);
+  position: relative;
+  width: 100%;
+  max-width: 48rem;
+  min-width: 0;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-card);
+  background: color-mix(in srgb, var(--ink) 92%, var(--purple));
+  box-shadow: 0 30px 100px color-mix(in srgb, var(--ink) 85%, transparent);
+  overflow: hidden;
+  color: var(--cream);
+  text-align: left;
+}
+
+.toolbar {
+  min-height: 64px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-2) 1.3rem;
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: var(--type-action);
+  line-height: 1.4;
+}
+
+.toolTitle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-weight: 500;
+  text-transform: lowercase;
+}
+
+.toolTitle svg {
+  color: var(--yellow);
+}
+
+.toolbarMeta {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.15rem;
+  text-align: right;
+}
+
+.exampleLabel {
+  color: var(--yellow);
+  font-size: var(--type-meta);
+  font-weight: 650;
+  letter-spacing: 0.025em;
+}
+
+.mono {
+  font-family: var(--font-jetbrains-mono), monospace;
+  font-size: var(--type-meta);
+  color: var(--text-secondary);
+}
+
+.appBody {
+  min-width: 0;
+  padding: clamp(var(--space-2), 2.2vw, var(--space-4));
+}
+
+.disclaimer {
+  padding: 0.75rem 1.3rem;
+  font-family: var(--font-jetbrains-mono), monospace;
+  font-size: var(--type-meta);
+  color: color-mix(in srgb, var(--cream) 45%, transparent);
+  border-top: 1px solid var(--border-subtle);
+  margin: 0;
+}

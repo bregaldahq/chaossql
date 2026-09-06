@@ -1,0 +1,17 @@
+.pageContainer {
+  padding: var(--space-4) var(--page-gutter) var(--space-6);
+  max-width: var(--content-max);
+  margin-inline: auto;
+}
+
+.docsLayout {
+  display: flex;
+  gap: var(--space-5);
+  align-items: flex-start;
+}
+
+@media (max-width: 860px) {
+  .docsLayout {
+    flex-direction: column;
+  }
+}
