@@ -6,6 +6,3 @@
 /matrix         /#/matrix         302
 /playground     /#/playground     302
 /github         https://github.com/bregaldahq/chaossql 302
-
-# SPA fallback
-/*              /index.html       200
