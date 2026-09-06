@@ -25,6 +25,7 @@
   <a href="#️-interactive-trace-visualizer-chaossql-ui">🖥️ Trace Visualizer</a> •
   <a href="#-go-developer-sdk-pkgchaostest">📦 Go SDK</a> •
   <a href="#-autonomous-multi-engine-swarm--adversarial-mutations-v14">🌪️ Swarm Fuzzing (v1.4)</a> •
+  <a href="#-layer-7-transparent-database-reverse-proxy-chaossql-proxy-v14">🔌 Transparent Proxy (v1.4)</a> •
   <a href="#️-oasis-sarif-210--github-code-scanning">🛡️ SARIF CI/CD</a>
 </p>
 
@@ -353,6 +354,55 @@ make stress-wasm
 
 ---
 
+## 🔌 Layer-7 Transparent Database Reverse Proxy (`chaossql proxy`) (v1.4)
+
+Test live applications and ORMs against concurrency defects **without modifying a single line of application code**. `chaossql proxy` sits transparently between your application and your database (PostgreSQL 3.0 or MySQL 8.0 wire protocol), intercepting SQL packets, injecting stochastic PCT micro-jitter and commit barriers, and analyzing transactions in real time with a live Shadow Dependency Serialization Graph (Shadow DSG):
+
+```
+  ┌─────────────────────────┐           ┌──────────────────────────────────────┐           ┌────────────────────────┐
+  │   Application / ORM     │  ──────►  │       ChaosSQL L7 Proxy (:5433)      │  ──────►  │    Upstream Database   │
+  │ (psql / Prisma / pgx)   │  ◄──────  │  - Zero-CGO Protocol Stream Decoder  │  ◄──────  │ (PostgreSQL 16 / MySQL)│
+  └─────────────────────────┘           │  - Stochastic PCT Micro-Jitter       │           └────────────────────────┘
+                                        │  - Pre-Commit Barrier Injection      │
+                                        │  - Real-time Shadow DSG Conflict DAG │
+                                        └──────────────────────────────────────┘
+                                                           │
+                                                           ▼
+                                        ┌──────────────────────────────────────┐
+                                        │ Diagnostics & Live Telemetry (:8095) │
+                                        │ - Real-time Adya Anomaly Detection   │
+                                        │ - OASIS SARIF 2.1.0 Security Report  │
+                                        │ - Web UI Dashboard & Telemetry JSON  │
+                                        └──────────────────────────────────────┘
+```
+
+### Key Capabilities:
+1. **Zero-CGO Layer-7 Protocol Decoders**: Fully native Go stream decoders for PostgreSQL Wire Protocol 3.0 (SSLRequest, Simple Query, Extended Query Parse/Bind/Execute) and MySQL Client/Server binary protocol.
+2. **Stochastic Micro-Jitter & Commit Barriers**: Injects pseudo-random microsecond socket delays ($50\mu\text{s}$ to $5\text{ms}$) and stalls transactions right before the `COMMIT` packet is forwarded to upstream, maximizing the window for concurrent races.
+3. **Live Shadow Serialization Graph (Shadow DSG)**: Constructs an online Adya conflict graph tracking active connections, identifying $wr, ww, rw$ edges on accessed keys, and classifying isolation anomalies on the fly:
+   - $P4$ (Lost Update)
+   - $A5B$ (Write Skew)
+   - $G1a$ (Dirty Read)
+   - $G2$ (Anti-Dependency Cycles)
+4. **OASIS SARIF 2.1.0 & Web Dashboard**: Exports findings directly to SARIF files compatible with GitHub Code Scanning (`--export-sarif`) and provides an embedded real-time web UI and JSON telemetry API (`--ui-port`).
+
+### Usage Example:
+```bash
+# Intercept PostgreSQL traffic on :5433 and forward to :5432
+chaossql proxy \
+  --listen 127.0.0.1:5433 \
+  --upstream 127.0.0.1:5432 \
+  --protocol postgres \
+  --jitter-min 100us \
+  --jitter-max 1ms \
+  --commit-barrier-min 1ms \
+  --commit-barrier-max 5ms \
+  --export-sarif proxy_report.sarif \
+  --ui-port 8095
+```
+
+---
+
 ## 🛠️ CLI Subcommands & Operational Flags
 
 | Command | Syntax | Purpose |
@@ -363,6 +413,7 @@ make stress-wasm
 | `diff` | `chaossql diff <config.yaml> --drivers sqlite,postgres` | Run differential fuzzing across multiple database engines |
 | `mutate` | `chaossql mutate <scenario.yaml> [flags]` | Generate adversarial scenario variations via stochastic AST & schedule mutations |
 | `swarm` | `chaossql swarm [diff\|run] [flags]` | Execute multi-engine differential swarm fuzzing across databases |
+| `proxy` | `chaossql proxy --listen :5433 --upstream :5432 [flags]` | Start transparent Layer-7 reverse proxy with PCT micro-jitter and live Shadow DSG |
 | `replay` | `chaossql replay <trace.json>` | Deterministically reproduce a recorded trace using identical seed and schedule |
 | `bench` | `chaossql bench [--ops 1000000]` | Measure raw engine throughput and PRNG interleaving performance |
 | `validate` | `chaossql validate <config.yaml>` | Statically validate DSL syntax, expressions, and schema consistency |
@@ -388,6 +439,7 @@ make stress-wasm
 ## 📜 License & Governance
 
 ChaosSQL is open-source software licensed under the **[MIT License](LICENSE)**.  
+For release history and version notes, see **[`CHANGELOG.md`](CHANGELOG.md)**.  
 For security guidelines and responsible disclosure, review **[`SECURITY.md`](SECURITY.md)**.
 
 Architected and maintained by **[Ricardo Bregalda](https://github.com/bregaldahq)** at **[Studio Bregalda](https://bregalda.com)**.

@@ -29,7 +29,8 @@ const ROOT_FILES = [
   'CONTRIBUTING.md',
   'README.md',
   'SECURITY.md',
-  'action.yml'
+  'action.yml',
+  'CHANGELOG.md'
 ];
 
 // Normalized exclusion rules
