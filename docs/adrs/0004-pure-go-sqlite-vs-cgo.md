@@ -1,14 +1,14 @@
-# ADR 0004: SQLite Puro em Go (modernc.org/sqlite) vs CGO
+# ADR 0004: Pure Go SQLite (modernc.org/sqlite) vs CGO
 
-* **Status:** Aceito
-* **Data:** 2026-09-01
+* **Status:** Accepted
+* **Date:** 2026-09-01
 
-## Contexto
-O driver tradicional `github.com/mattn/go-sqlite3` exige CGO, o que dificulta cross-compilação (Linux, MacOS, Windows), desativa binários estáticos e introduz overhead de troca de contexto goroutine->C.
+## Context
+The traditional `github.com/mattn/go-sqlite3` driver requires CGO, hindering seamless cross-compilation (Linux, macOS, Windows), preventing fully static binary creation, and introducing goroutine-to-C context switch overhead.
 
-## Decisão
-Adotar `modernc.org/sqlite`, uma transpilação direta do SQLite para Go puro.
+## Decision
+Adopt `modernc.org/sqlite`, a direct transpilation of SQLite into pure Go.
 
-## Consequências
-* **Compilação Cruzada Instantânea:** O binário do ChaosSQL pode ser gerado para qualquer SO com (`CGO_ENABLED=0 go build`).
-* **Segurança de Memória:** Gerenciado diretamente pelo runtime do Go.
+## Consequences
+* **Instant Cross-Compilation:** ChaosSQL binaries can be built for any target operating system using `CGO_ENABLED=0 go build`.
+* **Memory Safety & Portability:** Managed directly by the Go runtime without external dynamic library linkages.

@@ -1,14 +1,14 @@
-# ADR 0001: Geração Pseudo-Aleatória Determinística e Seeding
+# ADR 0001: Deterministic Pseudo-Random Generation and Seeding
 
-* **Status:** Aceito
-* **Data:** 2026-09-01
+* **Status:** Accepted
+* **Date:** 2026-09-01
 
-## Contexto
-Para que um fuzzer de concorrência seja útil em engenharia, qualquer falha encontrada DEVE ser 100% reproduz�ivel em outras máquinas e no CI.
+## Context
+For a concurrency fuzzer to be practical and actionable in software engineering, any detected failure MUST be 100% reproducible across different machines and in CI/CD pipelines.
 
-## Decisão
-Adotar uma instância dedicada de `random.Random(seed)` por execução. Todos os parâmetros, delays e ordem de operações são gerados a partir dessa seed, garantindo que a mesma seed sempre produza o mesmo plano.
+## Decision
+Adopt a dedicated instance of `rand.Rand` (or `random.Random(seed)`) per execution run. All parameters, delays, and operation schedules are deterministically derived from this seed, ensuring that identical seeds invariably produce identical execution plans.
 
-## Consequências
-* Developers podem compartilhar apenas a seed (ex: `--seed 42`) para reproduzir o bug.
-* O algoritmo de shrinking pode re-executar subconjuntos sabendo que os parâmetros nenhuma vez mudarão.
+## Consequences
+* Developers can share only the seed (e.g., `--seed 42`) to reproduce bugs deterministically.
+* The shrinking algorithm can re-execute sub-schedules with the mathematical guarantee that parameters and values remain invariant.

@@ -1,17 +1,17 @@
-# ADR 0005: Síntese de Teste de Reprodução Autocontido (repro_test.go)
+# ADR 0005: Self-Contained Reproduction Test Synthesis (repro_test.go)
 
-* **Status:** Aceito
-* **Data:** 2026-09-01
+* **Status:** Accepted
+* **Date:** 2026-09-01
 
-## Contexto
-Quando um bug é encontrado e reduzido, outros desenvolvedores e o pipeline de CI precisam reproduz�-lo sem necessitar da instalação do ChaosSQL completo.
+## Context
+When a concurrency anomaly is discovered and minimized, developers and CI pipelines need to reproduce it without requiring a full ChaosSQL installation.
 
-## Decisão
-Gerar um arquivo **`repro_test.go`** autocontido que inclui:
-1. O schema e seed embeddados.
-2. As goroutines exatas das 2 ou 3 transações do trace mínimo.
-3. A asserção da invariante violada.
+## Decision
+Synthesize a standalone, self-contained **`repro_test.go`** file containing:
+1. Embedded schema and seed definitions.
+2. The exact concurrent goroutines representing the 2 or 3 transactions from the minimal trace.
+3. Assertions verifying the violated invariant.
 
-## Consequências
-* Qualquer dev pode executar `go test -v repro_test.go` e ver o bug em 0.1s.
-* Serve como prova irrefutável em Pull Requests e Issues.
+## Consequences
+* Any developer can run `go test -v repro_test.go` and observe the bug in ~0.1s.
+* Serves as irrefutable proof in Pull Requests and issue trackers.

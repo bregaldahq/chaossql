@@ -1,14 +1,14 @@
-# ADR 0002: Async Step Interleaving e Jitter Injection
+# ADR 0002: Async Step Interleaving and Jitter Injection
 
-* **Status:** Aceito
-* **Data:** 2026-09-01
+* **Status:** Accepted
+* **Date:** 2026-09-01
 
-## Contexto
-Simplesmente disparar transações em paralelo nem sempre aciona a janela de condição de corrida (race condition) se as queries rodarem rápido demais.
+## Context
+Simply executing transactions in parallel rarely triggers narrow race condition windows if queries execute too rapidly without temporal friction.
 
-## Decisão
-Dividir cada operação em passos (`steps`) e injetar jitter (`asyncio.sleep(delay_ms / 1000.0)`) entre os passos dentro da mesma transação.
+## Decision
+Decompose each operation into discrete steps (`steps`) and inject micro-jitter (`time.Sleep` / `asyncio.sleep(delay_ms / 1000.0)`) between steps within the same transaction.
 
-## Consequências
-* Aumenta drasticamente a probabilidade de colisão entre leituras e escritas concorrentes.
-* Permite testar cenários de latência alta no banco.
+## Consequences
+* Drastically increases the probability of collision between concurrent reads and writes.
+* Enables testing and verification of high-latency and bursty database behavior.

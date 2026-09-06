@@ -1,14 +1,14 @@
-# ADR 0006: UI de Terminal com Bubbletea e Lipgloss
+# ADR 0006: Terminal UI with Bubbletea and Lipgloss
 
-* **Status:** Aceito
-* **Data:** 2026-09-01
+* **Status:** Accepted
+* **Date:** 2026-09-01
 
-## Contexto
-Uma ferramenta de chaos engineering precisa ser nuanciada e elegante, mostrando gráficos de barras de intercalação e tabelas de invariantes em tempo real.
+## Context
+A chaos engineering tool requires clear, nuanced terminal visualization, displaying real-time interleaving graphs and invariant verification tables.
 
-## Decisão
-Utilizar as bibliotecas **Lipgloss** e **Bubbletea** (Charm.sh) para formatação da CLI.
+## Decision
+Use the **Lipgloss** and **Bubbletea** libraries (Charm.sh) for CLI formatting and interactive terminal UI.
 
-## Consequências
-* Interface visualmente impactante (bordas arredondadas, cores de status verde/vermelho, tabelas de sums de invariantes).
-* Exportação JSON e Mermaid nativa via flags (`--json`, `--mermaid`).
+## Consequences
+* Visually impactful terminal interface (rounded borders, green/red status indicators, live invariant tables).
+* Native JSON and Mermaid diagram export via CLI flags (`--json`, `--mermaid`).

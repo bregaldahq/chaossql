@@ -1,16 +1,16 @@
-# ADR 0003: Causal Delta-Debugging (ddmin) para Transações SQL
+# ADR 0003: Causal Delta-Debugging (ddmin) for SQL Transactions
 
-* **Status:** Aceito
-* **Data:** 2026-09-01
+* **Status:** Accepted
+* **Date:** 2026-09-01
 
-## Contexto
-O algoritmo de Delta-Debugging clássico (Zeller '99) assume que os elementos do conjunto são independentes. Em bancos SQL, uma transação $T_j$ pode depender da existência de uma chave estrangeira ou entidade criada por $T_i$. Remover $T_i$ ingenuamente gera erros de *Foreign Key Constraint*, confundindo o orâculo.
+## Context
+The classic Delta-Debugging algorithm (Zeller '99) assumes elements in the candidate set are mutually independent. In relational SQL databases, a transaction $T_j$ may depend on the existence of a foreign key or entity created by transaction $T_i$. Naively removing $T_i$ triggers *Foreign Key Constraint* failures, corrupting the oracle.
 
-## Decisão
-Implementar o **Causal Delta-Debugging**:
-1. Construir um grafo acíclico de dependências causais ($T_i \to T_j$) com base nos parâmetros gerados.
-2. Ao testar um subconjunto $C'$, calcular o fechamento transitivo $\text{Closure}(C')$ para garantir que todas as dependências prévias sejam mantidas.
+## Decision
+Implement **Causal Delta-Debugging**:
+1. Construct an acyclic graph of causal dependencies ($T_i \to T_j$) based on generated runtime parameters.
+2. When testing a candidate subset $C'$, compute the transitive closure $\text{Closure}(C')$ to ensure all causal prerequisites are retained.
 
-## Consequências
-* Eliminação total de falsos positivos por erro de SQL.
-* Redução do número de passos do shrinker em até 75%.
+## Consequences
+* Total elimination of false positives caused by SQL referential integrity errors.
+* Reduction of shrinker reduction steps by up to 75%.

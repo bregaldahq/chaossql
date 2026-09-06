@@ -1,189 +1,185 @@
-# Estado da Arte Acadêmico e Modelos Formais do ChaosSQL
+# ChaosSQL Academic Foundations & Formal State of the Art
 
-Este documento consolida a pesquisa de ponta em conferências de topo (ASPLOS, VLDB, OOPSLA, SIGMOD) e estabelece a fundamentação teórica unificada do **ChaosSQL**.
+This document consolidates state-of-the-art research from top conferences (ASPLOS, VLDB, OOPSLA, SIGMOD) and establishes the unified theoretical foundation of **ChaosSQL**.
 
 ---
 
-## 1. Mapeamento da Literatura Científica de Ponta
+## 1. State-of-the-Art Scientific Literature Mapping
 
-| Modelo / Algoritmo | Autores & Conferência | Contribuição Central | Como o ChaosSQL Incorpora |
+| Model / Algorithm | Authors & Conference | Core Contribution | How ChaosSQL Incorporates It |
 | :--- | :--- | :--- | :--- |
-| **PCT (Probabilistic Concurrency Testing)** | Burckhardt, Musuvathi et al. (*ASPLOS 2010*) | Provou que bugs de concorrência possuem pequena profundidade de agendamento ($d \le 2$). Garante probabilidade $\ge \frac{1}{n \cdot k^{d-1}}$ de achar o bug. | **Motor de Agendamento Caótico:** Substitui stress testing ingênuo por agendamento estocástico guiado por prioridades de bug-depth. |
-| **Elle (Dependency Graph Inference)** | Kingsbury & Alvaro (*VLDB 2020*) | Inferência em tempo linear de grafos de dependência de Adya a partir de traces de clientes de caixa-preta. | **Sintetizador de Evidência:** Constrói o Grafo de Serialização $SG(S)$ e detecta ciclos de anomalia ($T_1 \rightleftarrows T_2$). |
-| **Hermitage (Isolation Taxonomy)** | Martin Kleppmann (*2014-2024*) | Catálogo empírico formal de discrepâncias entre documentação ANSI SQL e comportamento real dos motores (Postgres, MySQL, SQLite). | **Catálogo de Fixtures Adversariais:** Todos os casos do Hermitage compõem a suíte de validação do ChaosSQL. |
-| **NoREC, PQS & TLP (Metamorphic DB Fuzzing)** | Manuel Rigger & Zhendong Su (*OOPSLA / SIGMOD*) | Orâculos metamórficos para bancos de dados sem necessidade de orâculo pré-existente. | **Invariant Evaluator:** Avaliação de relações invariantes indutivas $\mathcal{I}(\sigma_t) \implies \mathcal{I}(\sigma_{t+1})$. |
-| **Delta Debugging ($ddmin$)** | Andreas Zeller (*IEEE TSE*) | Algoritmo formal de busca e corte binário para isolamento de causa-raiz $1$-minimal. | **Trace Minimizer:** Redução de centenas de transações para as 2 operações exatas da condição de corrida. |
-| **Differential Concurrency Swarm** | McKeeman (*Differential Testing*) / Adya (*1999*) | Detecção de divergências semânticas em compiladores e sistemas distribuídos via execução cruzada sob escalonamento idêntico. | **Differential Swarm Runner:** Execução paralela de agendamentos estocásticos com matriz de divergência de anomalias entre SQLite, PostgreSQL, MySQL e Mock. |
+| **PCT (Probabilistic Concurrency Testing)** | Burckhardt, Musuvathi et al. (*ASPLOS 2010*) | Proved that concurrency bugs exhibit small scheduling depth ($d \le 2$). Guarantees probability $\ge \frac{1}{n \cdot k^{d-1}}$ of finding the bug. | **Chaotic Scheduling Engine:** Replaces naive stress testing with stochastic scheduling guided by bug-depth priorities. |
+| **Elle (Dependency Graph Inference)** | Kingsbury & Alvaro (*VLDB 2020*) | Linear-time inference of Adya dependency graphs from black-box client traces. | **Evidence Synthesizer:** Constructs the Serialization Graph $SG(S)$ and detects anomaly cycles ($T_1 \rightleftarrows T_2$). |
+| **Hermitage (Isolation Taxonomy)** | Martin Kleppmann (*2014-2024*) | Formal empirical catalog of discrepancies between ANSI SQL documentation and real engine behavior (Postgres, MySQL, SQLite). | **Adversarial Fixture Catalog:** All Hermitage cases compose the ChaosSQL validation suite. |
+| **NoREC, PQS & TLP (Metamorphic DB Fuzzing)** | Manuel Rigger & Zhendong Su (*OOPSLA / SIGMOD*) | Metamorphic oracles for database systems without requiring a pre-existing ground truth oracle. | **Invariant Evaluator:** Evaluation of inductive invariant relations $\mathcal{I}(\sigma_t) \implies \mathcal{I}(\sigma_{t+1})$. |
+| **Delta Debugging ($ddmin$)** | Andreas Zeller (*IEEE TSE*) | Formal binary search and pruning algorithm for $1$-minimal root-cause isolation. | **Trace Minimizer:** Reduction of hundreds of transactions down to the exact 2 operations causing the race condition. |
+| **Differential Concurrency Swarm** | McKeeman (*Differential Testing*) / Adya (*1999*) | Semantic divergence detection in compilers and distributed systems via cross-execution under identical schedules. | **Differential Swarm Runner:** Parallel execution of stochastic schedules with an anomaly divergence matrix across SQLite, PostgreSQL, MySQL, and Mock. |
 
 ---
 
-## 2. O Algoritmo de Agendamento PCT-SQL
+## 2. The PCT-SQL Scheduling Algorithm
 
-O **Probabilistic Concurrency Testing (PCT)** resolve o problema fundamental do *fuzzing* tradicional de concorrência: a aleatoriedade cega raramente atinge a combinação exata de trocas de contexto necessárias.
+**Probabilistic Concurrency Testing (PCT)** solves the fundamental problem of traditional concurrency *fuzzing*: blind randomness rarely hits the exact combination of context switches required.
 
-### 2.1 Teorema de Burckhardt-Musuvathi
-Seja um programa concorrente com $n$ threads executando no máximo $k$ passos no total. Se existe um bug de concorrência cuja ativação requer uma profundidade de agendamento $d$ (onde $d$ é o número de restrições de prioridade ou trocas de contexto forçadas), o algoritmo PCT garante que o bug será detectado em uma única execução com probabilidade:
+### 2.1 Burckhardt-Musuvathi Theorem
+Let a concurrent program have $n$ threads executing at most $k$ steps in total. If there exists a concurrency bug whose activation requires a scheduling depth $d$ (where $d$ is the number of priority constraints or forced context switches), the PCT algorithm guarantees that the bug will be detected in a single run with probability:
 
-$$\mathbb{P}(\text{Detecção}) \ge \frac{1}{n \cdot k^{d-1}}$$
+$$\mathbb{P}(\text{Detection}) \ge \frac{1}{n \cdot k^{d-1}}$$
 
-### 2.2 Por que isso é revolucionário para SQL?
-Estudos empíricos (como os de Lu et al. no *ASPLOS*) demonstram que:
-* **~96% dos bugs de concorrência reais possuem profundidade $d = 1$ ou $d = 2$** (ex: *Lost Update* requer apenas 1 troca de contexto entre a leitura e escrita; *Write Skew* requer 2).
-* Para $d = 2$, a probabilidade de detecção é $\mathbb{P} \ge \frac{1}{n \cdot k}$.
-* Em um teste com $n = 5$ workers e $k = 40$ passos:
-  $$\mathbb{P}(\text{Detecção por Run}) \ge \frac{1}{5 \cdot 40} = \frac{1}{200} = 0.5%$$
-* Em uma bateria de apenas $R = 600$ iterações rápidas (que rodam em ~2 segundos em memória):
-  $$\mathbb{P}(\text{Encontrar o Bug em } R \text{ Runs}) = 1 - \left(1 - \frac{1}{200}\right)^{600} \approx 1 - e^{-3} \approx \mathbf{95.02%}$$
+### 2.2 Why This Is Revolutionary for SQL
+Empirical studies (such as those by Lu et al. in *ASPLOS*) demonstrate that:
+* **~96% of real concurrency bugs have depth $d = 1$ or $d = 2$** (e.g., *Lost Update* requires only 1 context switch between read and write; *Write Skew* requires 2).
+* For $d = 2$, the detection probability is $\mathbb{P} \ge \frac{1}{n \cdot k}$.
+* In a test with $n = 5$ workers and $k = 40$ steps:
+  $$\mathbb{P}(\text{Detection per Run}) \ge \frac{1}{5 \cdot 40} = \frac{1}{200} = 0.5\%$$
+* In a battery of only $R = 600$ rapid iterations (which run in ~2 seconds in memory):
+  $$\mathbb{P}(\text{Find Bug in } R \text{ Runs}) = 1 - \left(1 - \frac{1}{200}\right)^{600} \approx 1 - e^{-3} \approx \mathbf{95.02\%}$$
 
 ---
 
-## 3. Teoria de Inferência de Anomalias de Adya e Elle
+## 3. Adya and Elle Anomaly Inference Theory
 
-Para classificar precisamente a anomalia sem depender de instrumentação interna do banco de dados, o ChaosSQL analisa o histórico de observações do cliente:
+To classify anomalies precisely without relying on internal database instrumentation, ChaosSQL analyzes the client observation history:
 
-### 3.1 Relações de Dependência Direta
-Dados duas transações $T_i$ e $T_j$:
-* **Dependência de Escrita-Leitura (wr - Read Dependency):** $T_i \xrightarrow{wr} T_j$ se $T_i$ escreve uma versão de $x$ e $T_j$ le essa mesma versão.
-* **Dependência de Escrita-Escrita (ww - Overwrite Dependency):** $T_i \xrightarrow{ww} T_j$ se $T_i$ escreve uma versão de $x$ e $T_j$ subsequentemente sobrescreve $x$.
-* **Dependência de Anti-Leitura (rw - Anti-Dependency):** $T_i \xrightarrow{rw} T_j$ se $T_i$ le uma versão de $x$ e $T_j$ subsequentemente sobrescreve $x$ com uma versão mais recente.
+### 3.1 Direct Dependency Relations
+Given two transactions $T_i$ and $T_j$:
+* **Write-Read Dependency (wr - Read Dependency):** $T_i \xrightarrow{wr} T_j$ if $T_i$ writes a version of $x$ and $T_j$ reads that same version.
+* **Write-Write Dependency (ww - Overwrite Dependency):** $T_i \xrightarrow{ww} T_j$ if $T_i$ writes a version of $x$ and $T_j$ subsequently overwrites $x$.
+* **Anti-Read Dependency (rw - Anti-Dependency):** $T_i \xrightarrow{rw} T_j$ if $T_i$ reads a version of $x$ and $T_j$ subsequently overwrites $x$ with a newer version.
 
-### 3.2 Classificação Matemática de Anomalias por Ciclos
+### 3.2 Mathematical Classification of Anomalies by Cycles
 
-| Anomalia | Assinatura Formal de Ciclo no Grafo de Adya | Nível que Permite |
+| Anomaly | Formal Cycle Signature in Adya Graph | Permitting Isolation Level |
 | :--- | :--- | :--- |
-| **G0 (Dirty Write)** | Ciclo contendo apenas arestas $\xrightarrow{ww}$ | Violado até em *Read Uncommitted* |
-| **G1a (Aborted Read)** | $T_i \xrightarrow{wr} T_j$ onde $a_i \in T_i$ (le de transação abortada) | Violado em *Read Uncommitted* |
-| **G1b (Intermediate Read)** | $T_j$ le um estado intermediário não final de $T_i$ | Violado em *Read Uncommitted* |
-| **G1c (Circular Information Flow)** | Ciclo contendo apenas arestas $\xrightarrow{wr}$ e $\xrightarrow{ww}$ | Violado em *Read Committed* |
-| **G-single (Lost Update)** | Ciclo de comprimento 2 com arestas $\xrightarrow{rw}$ e $\xrightarrow{ww}$: $T_1 \xrightarrow{rw} T_2 \xrightarrow{ww} T_1$ | Violado em *Read Committed* |
-| **G2-item (Write Skew)** | Ciclo contendo arestas $\xrightarrow{rw}$: $T_1 \xrightarrow{rw} T_2 \xrightarrow{rw} T_1$ | Violado em *Repeatable Read* |
+| **G0 (Dirty Write)** | Cycle containing only $\xrightarrow{ww}$ edges | Violated even in *Read Uncommitted* |
+| **G1a (Aborted Read)** | $T_i \xrightarrow{wr} T_j$ where $a_i \in T_i$ (reads from aborted transaction) | Violated in *Read Uncommitted* |
+| **G1b (Intermediate Read)** | $T_j$ reads an intermediate, non-final state of $T_i$ | Violated in *Read Uncommitted* |
+| **G1c (Circular Information Flow)** | Cycle containing only $\xrightarrow{wr}$ and $\xrightarrow{ww}$ edges | Violated in *Read Committed* |
+| **G-single (Lost Update)** | Cycle of length 2 with edges $\xrightarrow{rw}$ and $\xrightarrow{ww}$: $T_1 \xrightarrow{rw} T_2 \xrightarrow{ww} T_1$ | Violated in *Read Committed* |
+| **G2-item (Write Skew)** | Cycle containing $\xrightarrow{rw}$ edges: $T_1 \xrightarrow{rw} T_2 \xrightarrow{rw} T_1$ | Violated in *Repeatable Read* |
 
 ---
 
-## 4. Teoria da Minimização de Delta-Debugging com Restrições Causais
+## 4. Causal Delta-Debugging Minimization Theory
 
-No teste de concorrência, o $ddmin$ clássico pode falhar se remover uma transação que gerava uma chave estrangeira ou dado inicial necessário para transações subsequentes.
+In concurrency testing, classic $ddmin$ can fail if it prunes a transaction that generated a foreign key or initial data required by subsequent transactions.
 
-### 4.1 O Algoritmo Causal-$ddmin$
-O ChaosSQL implementa o **Causal Delta-Debugging**:
-1. Antes de testar um subconjunto $C' \subset C$, o motor constrói o **Grafo de Causalidade de Parâmetros** (ex: se $T_2$ transfere da conta criada por $T_1$, $T_2$ depende causalmente de $T_1$).
-2. Se $T_2 \in C'$, então $T_1$ é obrigatoriamente incluído no fechamento causal $\text{Closure}(C')$.
-3. Isso elimina falsos positivos por erros de integridade referencial (`FOREIGN KEY constraint failed`) e acelera o shrinking em até **$4\times$**.
+### 4.1 The Causal-$ddmin$ Algorithm
+ChaosSQL implements **Causal Delta-Debugging**:
+1. Before testing a subset $C' \subset C$, the engine constructs the **Parameter Causality Graph** (e.g., if $T_2$ transfers funds from an account created by $T_1$, $T_2$ causally depends on $T_1$).
+2. If $T_2 \in C'$, then $T_1$ is mandatory included in the causal closure $\text{Closure}(C')$.
+3. This eliminates false positives caused by referential integrity errors (`FOREIGN KEY constraint failed`) and accelerates shrinking by up to **$4\times$**.
 
 ---
 
 ## 5. Client-Side In-Browser Formal Verification (WASM Architecture)
 
-Tradicionalmente, a verificação formal de escalonamentos concorrentes e a detecção de anomalias em bancos de dados relacionais exigem orquestração complexa de infraestrutura de backend (daemons PostgreSQL/MySQL em containers Docker, proxies instrumentados e agentes de monitoramento em servidores remotos). O ChaosSQL v1.3 introduz uma fundamentação teórica inovadora: a **verificação formal e determinística executada integralmente no lado do cliente (*client-side*)** em ambiente WebAssembly (WASM), acessível interativamente através de [`chaossql.bregalda.com/#/playground`](https://chaossql.bregalda.com/#/playground).
+Traditionally, formal verification of concurrent schedules and anomaly detection in relational databases requires complex backend infrastructure orchestration (PostgreSQL/MySQL daemons in Docker containers, instrumented proxies, and monitoring agents on remote servers). ChaosSQL introduces an innovative theoretical foundation: **deterministic formal verification executed entirely client-side** in a WebAssembly (WASM) environment, interactively accessible at [`chaossql.bregalda.com/#/playground`](https://chaossql.bregalda.com/#/playground).
 
-### 5.1 Justificativa Teórica da Arquitetura WASM em Web Worker
-A execução em navegador de algoritmos de teste probabilístico de concorrência (Burckhardt PCT), classificação de ciclos de dependência (Adya Direct Serialization Graph - DSG) e minimização causal de falhas (Zeller $ddmin$) baseia-se em três pilares formais:
+### 5.1 Theoretical Rationale for the WASM Web Worker Architecture
+Executing probabilistic concurrency testing algorithms (Burckhardt PCT), dependency cycle classification (Adya Direct Serialization Graph - DSG), and causal fault minimization (Zeller $ddmin$) inside the browser rests on three formal pillars:
 
-1. **Determinismo Algorítmico do PRNG Interleaving:**
-   O motor de agendamento estocástico atribui prioridades e atrasos de micro-jitter baseando-se em geradores lineares congruenciais determinísticos parametrizados por uma semente pseudo-aleatória $S \in \mathbb{N}$. Na compilação Go para WebAssembly (`CGO_ENABLED=0 GOOS=js GOARCH=wasm`), a máquina virtual de pilha Wasm garante semântica determinística estrita para operações de ponto fixo e controle de fluxo. Para uma semente fixada $S$, a sequência de trocas de contexto e interleavings forçados entre as goroutines de simulação é idêntica à de um binário nativo x86-64/ARM64:
+1. **Algorithmic Determinism of PRNG Interleaving:**
+   The stochastic scheduling engine assigns priorities and micro-jitter delays using deterministic linear congruential generators parameterized by a pseudo-random seed $S \in \mathbb{N}$. Under Go compilation to WebAssembly (`CGO_ENABLED=0 GOOS=js GOARCH=wasm`), the Wasm stack virtual machine guarantees strict deterministic semantics for fixed-point operations and control flow. For a fixed seed $S$, the sequence of context switches and forced interleavings between simulation goroutines is identical to that of a native x86-64/ARM64 binary:
    $$\tau_{\text{wasm}}(S) \equiv \tau_{\text{native}}(S)$$
-   Isso permite que qualquer anomalia de concorrência observada no navegador seja exportável e reproduzível com fidelidade exata em pipelines de CI/CD de linha de comando.
+   This enables any concurrency anomaly observed in the browser to be exported and reproduced with exact fidelity in command-line CI/CD pipelines.
 
-2. **Isolamento de Concorrência e Execução Não-Bloqueante (Web Worker):**
-   A execução de dezenas de transações e a exploração de múltiplos agendamentos concorrentes demandam computação CPU-bound intensiva e pausas controladas (`time.Sleep` micro-jitter). A execução direta na thread principal de renderização do navegador induziria congelamentos e degradação da UI (quebra da taxa de 60 FPS). 
-   Para contornar isso, o motor WASM do ChaosSQL opera isolado dentro de um **Web Worker dedicado** (`site/assets/wasm-worker.js`), comunicando-se com a interface gráfica via protocolo RPC assíncrono baseado em passagem de mensagens (`postMessage` com objetos estruturados JSON). Esse desacoplamento assegura que a animação da interface, a navegação interativa e a renderização em tempo real do grafo de conflitos permaneçam fluidas enquanto o motor explora milhares de combinações interleaving no Worker.
+2. **Concurrency Isolation and Non-Blocking Execution (Web Worker):**
+   Executing dozens of transactions and exploring multiple concurrent schedules demands intensive CPU-bound computation and controlled delays (`time.Sleep` micro-jitter). Direct execution on the main browser rendering thread would introduce freezes and UI degradation (dropping below the 60 FPS target).
+   To prevent this, the ChaosSQL WASM engine operates isolated inside a **dedicated Web Worker** (`site/assets/wasm-worker.js`), communicating with the graphical user interface via an asynchronous message-passing RPC protocol (`postMessage` with structured JSON objects). This decoupling guarantees that UI animation, interactive navigation, and real-time rendering of the conflict graph remain fluid while the engine explores thousands of interleaving combinations in the Worker.
 
-3. **Inferência de Ciclos Adya em Tempo Linear e Causal $ddmin$ Client-Side:**
-   - **Construção do DSG ($SG(S)$):** A partir dos logs de operações transacionais observados no cliente, o motor WebAssembly constrói o Grafo Direto de Serialização $DSG = (V, E)$ onde $V$ são as transações concluídas e $E \in \{wr, ww, rw\}$ são as arestas de conflito direto. A identificação de ciclos é executada via algoritmo de Tarjan para Componentes Fortemente Conexos (SCC) em complexidade de tempo linear $O(|V| + |E|)$.
-   - **Minimização Causal $ddmin$:** Ao detectar uma violação de invariante, o algoritmo de Delta-Debugging causal particiona o histórico de transações e computa o subconjunto 1-minimal de operações causalmente fechadas. Por ser executado inteiramente na memória linear WebAssembly local (sem nenhuma chamada de rede ou latência de Round-Trip Time - RTT = 0), o ciclo completo de redução transacional converge em menos de $200\text{ms}$.
+3. **Linear-Time Adya Cycle Inference and Client-Side Causal $ddmin$:**
+   - **DSG ($SG(S)$) Construction:** From transactional operation logs observed on the client, the WebAssembly engine constructs the Direct Serialization Graph $DSG = (V, E)$, where $V$ represents committed transactions and $E \in \{wr, ww, rw\}$ represents direct conflict edges. Cycle detection is performed via Tarjan's Strongly Connected Components (SCC) algorithm in linear time complexity $O(|V| + |E|)$.
+   - **Causal $ddmin$ Minimization:** Upon detecting an invariant violation, the causal Delta-Debugging algorithm partitions the transaction history and computes the 1-minimal subset of causally closed operations. Because execution takes place entirely within local WebAssembly linear memory (with zero network requests and Round-Trip Time $\text{RTT} = 0$), the complete transactional reduction cycle converges in under $200\text{ms}$.
 
-### 5.2 Modelos Formais de Isolamento com Dependência Zero de Servidor e Zero Exfiltração
-O WebAssembly Playground formaliza a verificação dos principais modelos de isolamento propostos na ciência da computação:
+### 5.2 Formal Isolation Models with Zero Server Dependency and Zero Exfiltration
+The WebAssembly Playground formalizes the verification of principal isolation models proposed in computer science:
 
-1. **Classificação Fenomenológica de ANSI SQL-92:**
-   - O padrão ANSI SQL original baseou-se na proibição empírica de três fenômenos: *Dirty Read* ($A1$), *Non-repeatable Read* ($A2$) e *Phantom Read* ($A3$).
-   - O trabalho seminal de Berenson, Bernstein, Gray, Melton, O'Neil e O'Neil (*SIGMOD 1995*) demonstrou que essa taxonomia era incompleta e ambígua, deixando de capturar anomalias críticas que ocorrem sob níveis comerciais usuais como `READ COMMITTED` e `REPEATABLE READ`.
+1. **Phenomenological Classification of ANSI SQL-92:**
+   - The original ANSI SQL standard relied on the empirical prohibition of three phenomena: *Dirty Read* ($A1$), *Non-repeatable Read* ($A2$), and *Phantom Read* ($A3$).
+   - The seminal work of Berenson, Bernstein, Gray, Melton, O'Neil, and O'Neil (*SIGMOD 1995*) demonstrated that this taxonomy was incomplete and ambiguous, failing to capture critical anomalies occurring under common commercial levels such as `READ COMMITTED` and `REPEATABLE READ`.
 
-2. **Formalismo de Grafos de Adya (1999):**
-   O ChaosSQL adota a teoria de isolamento de Atul Adya baseada na proibição de configurações de ciclos dirigidos sobre o Grafo de Serialização Direta ($DSG$):
-   - **Nível PL-1 (Read Uncommitted):** Garante a ausência de ciclos no subgrafo de dependências de escrita $\xrightarrow{ww}$ (ausência de anomalia $G0$).
-   - **Nível PL-2 (Read Committed):** Garante PL-1 e proíbe leitura de transações abortadas ($G1a$), leituras intermediárias ($G1b$) e ciclos direcionados constituídos de arestas $\xrightarrow{wr}$ e $\xrightarrow{ww}$ ($G1c$).
-   - **Nível PL-2+ / Snapshot Isolation:** Proíbe ciclos unários de anti-dependência de item ($G\text{-single}$ ou *Lost Update* $P4$), permitindo entretanto ciclos de anti-dependência cruzada $T_1 \xrightarrow{rw} T_2 \xrightarrow{rw} T_1$ ($G2\text{-item}$ ou *Write Skew* $A5B$).
-   - **Nível PL-3 (Full Serializability):** Garante que o grafo completo $DSG$ é estritamente acíclico ($\text{acyclic}(DSG)$).
+2. **Adya Graph Formalism (1999):**
+   ChaosSQL adopts Atul Adya's isolation theory based on prohibiting directed cycle configurations over the Direct Serialization Graph ($DSG$):
+   - **Level PL-1 (Read Uncommitted):** Guarantees the absence of cycles in the write-dependency subgraph $\xrightarrow{ww}$ (absence of anomaly $G0$).
+   - **Level PL-2 (Read Committed):** Guarantees PL-1 and forbids reads from aborted transactions ($G1a$), intermediate reads ($G1b$), and directed cycles composed of $\xrightarrow{wr}$ and $\xrightarrow{ww}$ edges ($G1c$).
+   - **Level PL-2+ / Snapshot Isolation:** Forbids unary anti-dependency item cycles ($G\text{-single}$ or *Lost Update* $P4$), while permitting crossed anti-dependency cycles $T_1 \xrightarrow{rw} T_2 \xrightarrow{rw} T_1$ ($G2\text{-item}$ or *Write Skew* $A5B$).
+   - **Level PL-3 (Full Serializability):** Guarantees that the complete graph $DSG$ is strictly acyclic ($\text{acyclic}(DSG)$).
 
-3. **Garantia de Zero Exfiltração e Dependência Zero de Backend:**
-   Diferente de ambientes de verificação em nuvem que exigem o upload de esquemas, consultas e credenciais para servidores de terceiros, o ChaosSQL WASM compila o analisador, o escalonador e o avaliador de invariantes para código de máquina WebAssembly executado na sandbox do navegador cliente.
-   - **Privacidade Absoluta:** Nenhuma consulta SQL, valor de tabela ou especificação de cenário trafega pela rede.
-   - **Isolamento de Segurança:** O ambiente de simulação reside integralmente na memória volátil do navegador, garantindo conformidade rigorosa com normas de governança e proteção de dados (LGPD, GDPR, HIPAA, SOC2).
+3. **Zero Exfiltration and Zero Backend Dependency Guarantees:**
+   Unlike cloud verification environments that require uploading schemas, queries, and credentials to third-party servers, ChaosSQL WASM compiles the parser, scheduler, and invariant evaluator into WebAssembly machine code executed inside the client browser sandbox.
+   - **Absolute Privacy:** No SQL query, table value, or scenario specification travels across the network.
+   - **Security Isolation:** The simulation environment resides entirely within volatile browser memory, ensuring strict compliance with data governance and privacy standards (LGPD, GDPR, HIPAA, SOC2).
 
-### 5.3 Acesso ao Playground Interativo
-A implementação completa desta arquitetura está disponível e pode ser explorada interativamente em:
+### 5.3 Interactive Playground Access
+The complete implementation of this architecture is available and can be explored interactively at:
 👉 **[https://chaossql.bregalda.com/#/playground](https://chaossql.bregalda.com/#/playground)**
 
 ---
 
 ## 6. Autonomous Multi-Engine Differential Swarm & Concurrency Stress Testing (v1.4)
 
-A versão 1.4 do ChaosSQL expande as fronteiras da verificação formal de concorrência e isolamento ao introduzir um **Swarm de Testes Diferenciais Multi-Motor**, **Mutações Adversariais Estocásticas** e **Harness Headless WebAssembly com Limites Estritos de Memória e Latência**.
+Version 1.4 of ChaosSQL expands the frontiers of formal concurrency and isolation verification by introducing a **Multi-Engine Differential Testing Swarm**, **Stochastic Adversarial Mutations**, and a **Headless WebAssembly Harness with Strict Memory and Latency Bounds**.
 
-#### 15.1 Theoretical Justification of Stochastic Adversarial Mutations
+### 6.1 Theoretical Justification of Stochastic Adversarial Mutations
+Naive concurrency fuzzing tends to generate invalid or redundant schedules. The `pkg/mutator` subsystem introduces four stochastic operators grounded in graph theory and concurrency invariants that explore the transactional state space while preserving 100% of the structural and semantic integrity of the original specification:
 
-O fuzzing ingênuo de concorrência tende a gerar agendamentos inválidos ou redundantes. O subsistema `pkg/mutator` introduz quatro operadores estocásticos fundamentados em teoria dos grafos e invariantes de concorrência que exploram o espaço de estados transacionais preservando 100% da integridade estrutural e semântica da especificação original:
+1. **Stochastic Micro-Jitter Delay Perturbation (`InterleaveDelayMutation`):**
+   - **Theoretical Foundation**: As proven in the Probabilistic Concurrency Testing (PCT) model by Burckhardt et al. (*ASPLOS 2010*), the probability of triggering a concurrency bug with scheduling depth $d$ is $\mathbb{P} \ge \frac{1}{n \cdot k^{d-1}}$, where temporal interleaving across concurrent threads governs priority switch points.
+   - **Mechanism**: Injects pseudo-random delays $\Delta t \sim \text{Uniform}(\text{jitter}_{\min}, \text{jitter}_{\max})$ between consecutive transaction steps. This micro-temporal perturbation disrupts artificial synchrony induced by the operating system scheduler, exposing critical race windows where concurrent reads and writes interleave unpredictably.
 
-1. **Perturbação de Atraso por Micro-Jitter Estocástico (`InterleaveDelayMutation`):**
-   - **Fundamentação Teórica**: Conforme demonstrado no modelo Probabilistic Concurrency Testing (PCT) por Burckhardt et al. (*ASPLOS 2010*), a probabilidade de ativar um bug de concorrência com profundidade de agendamento $d$ é $\mathbb{P} \ge \frac{1}{n \cdot k^{d-1}}$, onde a alternância temporal entre threads concorrentes governa as trocas de contexto (*priority switch points*).
-   - **Mecanismo**: Injeta atrasos pseudo-aleatórios $\Delta t \sim \text{Uniform}(\text{jitter}_{\min}, \text{jitter}_{\max})$ entre passos consecutivos de transações. Essa perturbação micro-temporal quebra o sincronismo artificial induzido pelo escalonador do sistema operacional, expondo janelas de corrida críticas (*race windows*) em que leituras e escritas concorrentes se intercalam de forma imprevisível.
-
-2. **Ciclo de Vida LIFO de Savepoints Aninhados (`SavepointRollbackMutation`):**
-   - **Fundamentação Teórica**: Transações complexas dependem de pontos de salvamento aninhados para recuperação atômica parcial. Em motores relacionais como SQLite, savepoints não liberados retêm travas exclusivas de tabela; em PostgreSQL e MySQL, savepoints criam subtransações com visibilidade e isolamento próprios na árvore transacional.
-   - **Mecanismo**: O mutador sintetiza savepoints estritamente balanceados segundo a invariante formal de pilha LIFO (Last-In-First-Out):
+2. **LIFO Lifecycle of Nested Savepoints (`SavepointRollbackMutation`):**
+   - **Theoretical Foundation**: Complex transactions rely on nested savepoints for partial atomic recovery. In relational engines such as SQLite, unreleased savepoints retain exclusive table locks; in PostgreSQL and MySQL, savepoints create subtransactions with distinct visibility and isolation within the transaction tree.
+   - **Mechanism**: The mutator synthesizes strictly balanced savepoints adhering to the formal Last-In-First-Out (LIFO) stack invariant:
      $$\text{SAVEPOINT } sp_i \to \dots \to [\text{ROLLBACK TO } sp_i] \to \dots \to \text{RELEASE } sp_i$$
-     O fechamento estrito via `RELEASE` garante ausência de vazamento de travas (`lock leak`), enquanto o `ROLLBACK TO` condicional valida se as anomalias de visibilidade e leitura suja persistem controladas após reversões intermediárias.
+     Strict release via `RELEASE` guarantees the absence of lock leaks, while conditional `ROLLBACK TO` validates that visibility anomalies and dirty reads remain controlled following intermediate rollbacks.
 
-3. **Permutação Causal de Passos por Ordenação Topológica em DAG (`StepShuffleMutation`):**
-   - **Fundamentação Teórica**: A reordenação arbitrária de operações SQL viola dependências causais, como o consumo de variáveis capturadas (`{bal1 - 50}`) ou integridade de chaves estrangeiras.
-   - **Mecanismo**: O mutador modela o fluxo transacional como um Grafo Direcionado Acíclico (DAG) causal $G = (V, E)$, onde a aresta $(u, v) \in E$ denota que $v$ consome uma variável capturada em $u$, compartilha mutação de escrita sobre a mesma tabela, ou reside em fronteira de savepoint. Um algoritmo de ordenação topológica aleatorizada gera permutações válidas:
+3. **Causal Step Permutation via Topological DAG Sorting (`StepShuffleMutation`):**
+   - **Theoretical Foundation**: Arbitrary reordering of SQL operations violates causal dependencies, such as consuming captured variables (`{bal1 - 50}`) or maintaining foreign key integrity.
+   - **Mechanism**: The mutator models transactional workflow as a causal Directed Acyclic Graph (DAG) $G = (V, E)$, where edge $(u, v) \in E$ denotes that $v$ consumes a variable captured in $u$, shares a write mutation on the same table, or resides across a savepoint boundary. A randomized topological sorting algorithm generates valid permutations:
      $$\pi \in \text{TopologicalSorts}(G)$$
-     Essa abordagem viabiliza a exploração de agendamentos intrinsecamente diversos mantendo a garantia formal de que nenhuma instrução falhará por variáveis indefinidas ou violações de integridade referencial.
+     This approach enables the exploration of intrinsically diverse schedules while formally guaranteeing that no statement fails due to undefined variables or referential integrity violations.
 
-4. **Inversão de Ordem de Aquisição de Travas (`LockOrderInversionMutation`):**
-   - **Fundamentação Teórica**: A clássica condição de Coffman para ocorrência de deadlocks transacionais requer espera circular (*circular wait*) na aquisição de travas exclusivas sobre múltiplos recursos.
-   - **Mecanismo**: O mutador identifica transações concorrentes que atualizam conjuntos disjuntos de registros (ex: $T_1$ acessa $R_1 \to R_2$ enquanto $T_2$ acessa $R_2 \to R_1$). Ao inverter a ordem de acesso em transações selecionadas, provoca-se deliberadamente a formação de ciclos no Grafo de Espera de Travas (*Wait-For Graph* $WFG$):
+4. **Lock Acquisition Order Inversion (`LockOrderInversionMutation`):**
+   - **Theoretical Foundation**: Coffman's classical condition for transactional deadlock requires circular wait during exclusive lock acquisition across multiple resources.
+   - **Mechanism**: The mutator identifies concurrent transactions updating disjoint sets of records (e.g., $T_1$ accesses $R_1 \to R_2$ while $T_2$ accesses $R_2 \to R_1$). By deliberately inverting the access order in selected transactions, cycle formation is provoked in the Wait-For Graph ($WFG$):
      $$T_1 \xrightarrow{\text{waits-for}} T_2 \xrightarrow{\text{waits-for}} T_1 \implies G\text{-DL}$$
-     Isso afere a capacidade dos motores em detectar impasses, aplicar resolução justa de lock timeouts e abortar transações conflitantes com os respectivos códigos formais (`40P01 deadlock_detected` no Postgres, `1213 Deadlock found` no MySQL).
+     This validates engine capabilities to detect deadlocks, enforce fair lock timeout resolution, and abort conflicting transactions with proper formal error codes (`40P01 deadlock_detected` in Postgres, `1213 Deadlock found` in MySQL).
 
-#### 15.2 Multi-Engine Differential Isolation Matrix
+### 6.2 Multi-Engine Differential Isolation Matrix
+Cross-engine differential verification synchronizes deterministic schedules across multiple relational database engines and classifies compliance divergences between the theoretical ANSI SQL specification and observable empirical behavior.
 
-A verificação diferencial cross-engine sincroniza o escalonamento determinístico através de múltiplos motores de banco de dados relacionais e classifica divergências de conformidade entre a especificação teórica ANSI SQL e o comportamento empírico observável.
-
-1. **Sincronização Determinística de Agendamento:**
-   Dado um cenário $\mathcal{S}$ e uma semente PRNG $S_0$, o gerador de escalonamento sintetiza uma sequência canônica de operações e amarrações de parâmetros perfeitamente idêntica para todos os drivers:
+1. **Deterministic Schedule Synchronization:**
+   Given a scenario $\mathcal{S}$ and a PRNG seed $S_0$, the schedule generator synthesizes a canonical sequence of operations and parameter bindings that is perfectly identical across all drivers:
    $$\tau(E_{\text{sqlite}}, S_0) \equiv \tau(E_{\text{postgres}}, S_0) \equiv \tau(E_{\text{mysql}}, S_0) \equiv \tau(E_{\text{mock}}, S_0)$$
 
-2. **Matriz de Divergência Comportamental:**
-   O oráculo diferencial executa o agendamento em paralelo e avalia a função de divergência semântica:
+2. **Behavioral Divergence Matrix:**
+   The differential oracle executes the schedule in parallel and evaluates the semantic divergence function:
    $$\mathcal{D}(\mathcal{S}) = \bigvee_{i \ne j} \Big( \mathcal{V}(E_i, \mathcal{S}) \ne \mathcal{V}(E_j, \mathcal{S}) \;\lor\; \mathcal{A}(E_i, \mathcal{S}) \ne \mathcal{A}(E_j, \mathcal{S}) \Big)$$
-   onde $\mathcal{V}(E, \mathcal{S}) \in \{\text{SAFE}, \text{VIOLATION}\}$ é a satisfação dos invariantes declarados e $\mathcal{A}(E, \mathcal{S})$ é o fenótipo de anomalia classificado no grafo de Adya ($P4, A5A, A5B, G0, G1a, G1c, G2$).
+   where $\mathcal{V}(E, \mathcal{S}) \in \{\text{SAFE}, \text{VIOLATION}\}$ denotes declared invariant satisfaction and $\mathcal{A}(E, \mathcal{S})$ denotes the anomaly phenotype classified in the Adya graph ($P4, A5A, A5B, G0, G1a, G1c, G2$).
 
-   | Motor de Banco de Dados | Mecanismo de Concorrência Interno | Lost Update ($P4$) em Read Committed | Write Skew ($A5B$) em Snapshot / RR | Resolução de Deadlock ($G\text{-DL}$) |
+   | Database Engine | Internal Concurrency Mechanism | Lost Update ($P4$) in Read Committed | Write Skew ($A5B$) in Snapshot / RR | Deadlock Resolution ($G\text{-DL}$) |
    | :--- | :--- | :--- | :--- | :--- |
-   | **SQLite (In-Memory / WAL)** | Locks de tabela com serialização em nível de processo (`busy_timeout`) | Previne via serialização global de escrita ou falha com `database is locked` | Não detecta sem serialização estrita; permite leituras desatualizadas sob leitores concorrentes | Timeout determinístico sem grafo de espera fino |
-   | **PostgreSQL 16** | MVCC puro com SSI (SIREAD locks em tuplas/páginas) | Permite sob `READ COMMITTED`; aborta com serialização sob `REPEATABLE READ` | Bloqueia/aborta sob `SERIALIZABLE` via SSI (`40001 serialization_failure`) | Detecta ciclos em $WFG$ instantaneamente e aborta a transação mais jovem |
-   | **MySQL 8.0 (InnoDB)** | 2PL com Next-Key Locking e MVCC via Undo Logs | Permite sob `READ COMMITTED`; bloqueia leituras com `FOR UPDATE` | Permite sob `REPEATABLE READ` devido a leituras consistentes não-bloqueantes | Algoritmo de busca em grafo de espera de travas com rollback automático |
-   | **Mock Driver** | Estado volátil em memória sem barreiras atômicas | Permite consistentemente (baseline de anomalia para teste de oráculo) | Permite consistentemente | Não bloqueia; serve de oráculo de máxima permissividade |
+   | **SQLite (In-Memory / WAL)** | Table locks with process-level serialization (`busy_timeout`) | Prevented via global write serialization or fails with `database is locked` | Undetected without strict serialization; permits stale reads under concurrent readers | Deterministic timeout without fine-grained wait graph |
+   | **PostgreSQL 16** | Pure MVCC with SSI (SIREAD locks on tuples/pages) | Permitted under `READ COMMITTED`; aborts with serialization failure under `REPEATABLE READ` | Blocked/aborted under `SERIALIZABLE` via SSI (`40001 serialization_failure`) | Detects cycles in $WFG$ instantly and aborts the youngest transaction |
+   | **MySQL 8.0 (InnoDB)** | 2PL with Next-Key Locking and MVCC via Undo Logs | Permitted under `READ COMMITTED`; blocks reads with `FOR UPDATE` | Permitted under `REPEATABLE READ` due to non-blocking consistent reads | Lock wait graph search algorithm with automatic rollback |
+   | **Mock Driver** | Volatile in-memory state without atomic barriers | Permitted consistently (anomaly baseline for oracle testing) | Permitted consistently | Non-blocking; serves as maximal permissiveness baseline |
 
-#### 15.3 Headless WebAssembly V8 Memory & 60 FPS Frame Budget Bounds
+### 6.3 Headless WebAssembly V8 Memory & 60 FPS Frame Budget Bounds
+Continuous execution of fuzzing batteries inside WebAssembly environments (browser and Node.js V8) requires strict resource stability bounds to prevent heap exhaustion and user experience degradation.
 
-A execução contínua de baterias de fuzzing dentro de ambientes WebAssembly (navegador e Node.js V8) exige provas estritas de estabilidade de recursos para prevenir vazamentos de heap e degradação da experiência do usuário.
-
-1. **Demonstração de Estabilidade de Memória Linear WebAssembly:**
-   - A especificação WebAssembly reserva memória através de páginas discretas de 64 KiB ($65.536\text{ bytes}$).
-   - O runtime Go compilado para WASM (`chaossql.wasm`) gerencia seu heap através de uma arena contígua.
-   - Seja $M(n)$ a memória linear WebAssembly (`wasmMemory.buffer.byteLength`) após a execução de $n$ cenários consecutivos de estresse:
+1. **WebAssembly Linear Memory Stability Proof:**
+   - The WebAssembly specification allocates memory via discrete 64 KiB pages ($65,536\text{ bytes}$).
+   - The Go runtime compiled to WASM (`chaossql.wasm`) manages its heap through a contiguous arena.
+   - Let $M(n)$ be the WebAssembly linear memory (`wasmMemory.buffer.byteLength`) after executing $n$ consecutive stress scenarios:
      $$\lim_{n \to \infty} \frac{\mathrm{d}M}{\mathrm{d}n} = 0 \implies \Delta M_{\text{wasm}} = O(1)$$
-   - Sob 100 execuções ininterruptas, a memória linear estabiliza estritamente abaixo do limite de segurança de $32\text{MB}$ (valor medido de $16.00\text{MB}$ com delta de apenas $+7.50\text{MB}$ referente à expansão da tabela de símbolos inicial), enquanto o RSS do processo Node.js permanece contido em $< 100\text{MB}$ (medido $34.22\text{MB}$) e o heap V8 em $< 15\text{MB}$ (medido $+1.19\text{MB}$). Isso constitui prova empírica de **ausência de vazamento de memória acumulativa**.
+   - Across 100 uninterrupted executions, linear memory strictly stabilizes below the safety bound of $32\text{MB}$ (measured at $16.00\text{MB}$ with a delta of only $+7.50\text{MB}$ corresponding to initial symbol table expansion), while Node.js process RSS remains bounded below $< 100\text{MB}$ (measured at $34.22\text{MB}$) and V8 heap below $< 15\text{MB}$ (measured at $+1.19\text{MB}$). This provides empirical proof of the **absence of cumulative memory leaks**.
 
-2. **Garantia de Não-Bloqueio da Thread Principal e Orçamento de 60 FPS:**
-   - A taxa de atualização fluida da interface gráfica estipula um orçamento de frame de:
+2. **Main Thread Non-Blocking Guarantee & 60 FPS Budget:**
+   - Maintaining fluid UI frame rates requires a frame budget of:
      $$T_{\text{frame}} \le \frac{1000\text{ms}}{60} \approx 16.66\text{ms}$$
-   - Ao desacoplar o escalonador e o avaliador de invariantes através de um **Web Worker isolado** (`site/assets/wasm-worker.js`), o ciclo de eventos da thread principal (*main event loop*) opera com latência residual desprezível:
+   - By decoupling the scheduler and invariant evaluator into an **isolated Web Worker** (`site/assets/wasm-worker.js`), the main thread event loop operates with negligible residual latency:
      $$\Delta t_{\text{event\_loop}} \le 0.5\text{ms} \ll 16.66\text{ms}$$
-   - A computação de layout e geração de SVG do Grafo de Serialização Direta (Adya DSG) foi submetida a benchmark formal em topologias com múltiplos nós e ciclos complexos:
+   - Layout computation and SVG generation for the Direct Serialization Graph (Adya DSG) were subjected to formal benchmarking across topologies with multiple nodes and complex cycles:
      $$\bar{t}_{\text{layout}} = 0.063\text{ms}, \quad P_{95} = 0.184\text{ms}, \quad t_{\max} = 1.158\text{ms} < 16.66\text{ms}$$
-   - Dessa forma, 100% dos frames satisfazem a restrição de $16.66\text{ms}$ ($\text{compliance} = 100\%$, taxa de jank frames $= 0\%$), comprovando matematicamente que o motor de estresse e visualização não degrada a fluidez interativa da UI.
-
+   - Consequently, 100% of frames satisfy the $16.66\text{ms}$ budget constraint ($\text{compliance} = 100\%$, dropped frame rate $= 0\%$), mathematically demonstrating that the stress and visualization engine does not compromise interactive UI fluidity.
