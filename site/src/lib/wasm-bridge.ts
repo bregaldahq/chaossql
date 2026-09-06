@@ -448,18 +448,30 @@ export class ChaosSqlWasmBridge {
         }
         break;
 
+      case 'CYCLE_DETECTED':
+      case 'ANOMALY':
       case 'PROGRESS':
         if (this.onProgressCallback) {
           this.onProgressCallback(data);
         }
         break;
 
+      case 'COMPLETE':
       case 'REPORT':
-      case 'DONE':
+      case 'DONE': {
+        let rep: WasmExecutionReport = data;
+        if (data.report) {
+          try {
+            rep = typeof data.report === 'string' ? JSON.parse(data.report) : data.report;
+          } catch (_) {
+            rep = data.report;
+          }
+        }
         if (this.onReportCallback) {
-          this.onReportCallback(data);
+          this.onReportCallback(rep);
         }
         break;
+      }
 
       case 'ERROR':
         if (this.onErrorCallback) {
