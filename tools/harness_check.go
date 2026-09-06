@@ -57,15 +57,15 @@ func main() {
 	missing := 0
 	for _, f := range requiredFiles {
 		if _, err := os.Stat(f); os.IsNotExist(err) {
-			fmt.Printf("❌ [FALTANDO] Artefato obrigatorio do Harness: %s\n", f)
+			fmt.Printf("❌ [MISSING] Required Harness artifact: %s\n", f)
 			missing++
 		}
 	}
 
 	if missing > 0 {
-		fmt.Printf("\n[ERRO] %d artefatos ausentes no Harness.\n", missing)
+		fmt.Printf("\n[ERROR] %d artifacts missing in Harness.\n", missing)
 		os.Exit(1)
 	}
 
-	fmt.Printf("[HARNESS OK] Todos os %d artefatos do Harness estao presentes e validados.\n", len(requiredFiles))
+	fmt.Printf("[HARNESS OK] All %d Harness artifacts are present and verified.\n", len(requiredFiles))
 }

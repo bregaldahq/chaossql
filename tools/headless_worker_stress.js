@@ -379,7 +379,7 @@ function setupAdyaBenchmark() {
     if (anomalyType) {
       svgHtml += `
         <text x="300" y="340" text-anchor="middle" fill="#e06c75" font-size="12" font-family="monospace" font-weight="700">
-          CICLO ADYA CLASSIFICADO: ${escapeHtml(anomalyType)}
+          CLASSIFIED ADYA CYCLE: ${escapeHtml(anomalyType)}
         </text>
       `;
     }

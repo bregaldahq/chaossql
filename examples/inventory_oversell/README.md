@@ -11,7 +11,7 @@ During a flash sale promotion, an e-commerce platform makes available only **10 
 ## Business Invariant
 $$\text{Remaining Stock} + \text{Total Sold} == 10 \quad \land \quad \text{Total Sold} \le 10$$
 
-## Mitigation Strategies
+## Formal Mitigation
 * **Atomic Decrement with Guard Predicate:**
   ```sql
   UPDATE products SET stock = stock - 1 WHERE id = 1 AND stock >= 1;
