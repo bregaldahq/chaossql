@@ -24,7 +24,7 @@ type SQLiteDriver struct {
 
 // NewSQLiteDriver creates a new SQLite adapter.
 func NewSQLiteDriver(dsn string) *SQLiteDriver {
-	if dsn == "" {
+	if dsn == "" || dsn == ":memory:" {
 		seq := memDBSeq.Add(1)
 		dsn = fmt.Sprintf("file:chaos_mem_%d_%d?mode=memory&cache=shared", time.Now().UnixNano(), seq)
 	}

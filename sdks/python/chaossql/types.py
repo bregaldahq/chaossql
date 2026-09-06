@@ -40,13 +40,13 @@ class ChaosResult:
 
     @property
     def all_invariants_satisfied(self) -> bool:
-        """True if execution concluded with all invariant assertions intact."""
-        return not self.violation_detected
+        """True if execution concluded successfully with all invariant assertions intact."""
+        return self.success and not self.violation_detected
 
     @property
     def is_clean(self) -> bool:
-        """Synonym for all_invariants_satisfied (no anomalies discovered)."""
-        return not self.violation_detected
+        """Synonym for all_invariants_satisfied (no anomalies discovered and execution succeeded)."""
+        return self.success and not self.violation_detected
 
     @property
     def anomaly_detected(self) -> bool:

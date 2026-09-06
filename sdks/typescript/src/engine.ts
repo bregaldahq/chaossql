@@ -17,12 +17,18 @@ export function findChaosSQLBinary(explicitPath?: string): string {
     return path.resolve(envPath);
   }
 
+  const binName = process.platform === 'win32' ? 'chaossql.exe' : 'chaossql';
+
   // Walk up directory tree from current module looking for bin/chaossql
   let currentDir = __dirname;
   for (let i = 0; i < 6; i++) {
-    const candidate = path.join(currentDir, 'bin', 'chaossql');
+    const candidate = path.join(currentDir, 'bin', binName);
     if (fs.existsSync(candidate)) {
       return candidate;
+    }
+    const candidateNoExt = path.join(currentDir, 'bin', 'chaossql');
+    if (fs.existsSync(candidateNoExt)) {
+      return candidateNoExt;
     }
     const parent = path.dirname(currentDir);
     if (parent === currentDir) break;
@@ -32,9 +38,13 @@ export function findChaosSQLBinary(explicitPath?: string): string {
   // Look in PATH
   const envPaths = (process.env.PATH || '').split(path.delimiter);
   for (const p of envPaths) {
-    const candidate = path.join(p, 'chaossql');
+    const candidate = path.join(p, binName);
     if (fs.existsSync(candidate)) {
       return candidate;
+    }
+    const candidateNoExt = path.join(p, 'chaossql');
+    if (fs.existsSync(candidateNoExt)) {
+      return candidateNoExt;
     }
   }
 
@@ -56,7 +66,7 @@ function deriveAnomalyCode(anomalyType: string): string {
   return t;
 }
 
-export function executeIPC(payload: any, binaryPath?: string): Promise<ChaosResult> {
+export function executeIPC(payload: any, binaryPath?: string, timeoutMs: number = 60000): Promise<ChaosResult> {
   return new Promise((resolve, reject) => {
     let bin: string;
     try {
@@ -72,6 +82,11 @@ export function executeIPC(payload: any, binaryPath?: string): Promise<ChaosResu
     let stdoutData = '';
     let stderrData = '';
 
+    const timer = setTimeout(() => {
+      child.kill();
+      reject(new Error(`ChaosSQL engine execution timed out after ${timeoutMs}ms`));
+    }, timeoutMs);
+
     child.stdout.on('data', (chunk) => {
       stdoutData += chunk.toString();
     });
@@ -81,10 +96,12 @@ export function executeIPC(payload: any, binaryPath?: string): Promise<ChaosResu
     });
 
     child.on('error', (err) => {
+      clearTimeout(timer);
       reject(new Error(`Failed to spawn ChaosSQL engine process (${bin}): ${err.message}`));
     });
 
     child.on('close', (code) => {
+      clearTimeout(timer);
       if (code !== 0 && !stdoutData.trim()) {
         return reject(
           new Error(`ChaosSQL engine exited with code ${code}. Stderr:\n${stderrData.trim()}`)

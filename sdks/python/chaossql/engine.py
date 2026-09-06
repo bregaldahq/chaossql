@@ -6,6 +6,7 @@ import json
 import os
 import shutil
 import subprocess
+import sys
 from typing import Any, Dict, Optional
 from .types import ChaosResult
 
@@ -26,10 +27,12 @@ def find_chaossql_binary(explicit_path: Optional[str] = None) -> str:
     if env_path and os.path.isfile(env_path) and os.access(env_path, os.X_OK):
         return os.path.abspath(env_path)
 
+    binary_name = "chaossql.exe" if sys.platform == "win32" else "chaossql"
+
     # Check relative to SDK file location up to root bin/chaossql
     current_dir = os.path.dirname(os.path.abspath(__file__))
     for _ in range(5):
-        candidate = os.path.join(current_dir, "bin", "chaossql")
+        candidate = os.path.join(current_dir, "bin", binary_name)
         if os.path.isfile(candidate) and os.access(candidate, os.X_OK):
             return candidate
         parent = os.path.dirname(current_dir)
@@ -38,7 +41,7 @@ def find_chaossql_binary(explicit_path: Optional[str] = None) -> str:
         current_dir = parent
 
     # Check system PATH
-    which_bin = shutil.which("chaossql")
+    which_bin = shutil.which("chaossql") or shutil.which("chaossql.exe")
     if which_bin:
         return which_bin
 
@@ -48,7 +51,11 @@ def find_chaossql_binary(explicit_path: Optional[str] = None) -> str:
     )
 
 
-def execute_ipc(payload: Dict[str, Any], binary_path: Optional[str] = None) -> ChaosResult:
+def execute_ipc(
+    payload: Dict[str, Any],
+    binary_path: Optional[str] = None,
+    timeout_sec: float = 60.0,
+) -> ChaosResult:
     """
     Executes a scenario payload against chaossql engine via bidirectional JSON streaming over stdin/stdout.
     """
@@ -64,7 +71,14 @@ def execute_ipc(payload: Dict[str, Any], binary_path: Optional[str] = None) -> C
         bufsize=0,
     )
 
-    stdout_data, stderr_data = process.communicate(input=json_input)
+    try:
+        stdout_data, stderr_data = process.communicate(input=json_input, timeout=timeout_sec)
+    except subprocess.TimeoutExpired:
+        process.kill()
+        stdout_data, stderr_data = process.communicate()
+        raise TimeoutError(
+            f"ChaosSQL engine process timed out after {timeout_sec}s. Stderr: {stderr_data}"
+        )
 
     if process.returncode != 0 and not stdout_data:
         raise RuntimeError(

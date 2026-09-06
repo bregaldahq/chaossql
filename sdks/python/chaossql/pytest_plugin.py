@@ -16,8 +16,9 @@ class ChaosSQLRunner:
     Test helper exposed via `chaossql_runner` pytest fixture.
     """
 
-    def __init__(self, binary_path: Optional[str] = None):
+    def __init__(self, binary_path: Optional[str] = None, defaults: Optional[dict] = None):
         self.binary_path = binary_path or find_chaossql_binary()
+        self.defaults = defaults or {}
 
     def run_scenario(
         self,
@@ -36,13 +37,17 @@ class ChaosSQLRunner:
         if not os.path.isfile(scenario_path):
             raise FileNotFoundError(f"ChaosSQL scenario file not found: {scenario_path}")
 
+        eff_workers = workers if workers is not None else self.defaults.get("workers")
+        eff_iterations = iterations if iterations is not None else self.defaults.get("iterations")
+        eff_seed = seed if seed is not None else self.defaults.get("seed")
+
         cmd = [self.binary_path, "run", scenario_path, "--json"]
-        if workers is not None:
-            cmd.extend(["--workers", str(workers)])
-        if iterations is not None:
-            cmd.extend(["--iterations", str(iterations)])
-        if seed is not None:
-            cmd.extend(["--seed", str(seed)])
+        if eff_workers is not None:
+            cmd.extend(["--workers", str(eff_workers)])
+        if eff_iterations is not None:
+            cmd.extend(["--iterations", str(eff_iterations)])
+        if eff_seed is not None:
+            cmd.extend(["--seed", str(eff_seed)])
 
         res = subprocess.run(
             cmd,
@@ -82,14 +87,13 @@ def chaossql_runner(request: Any) -> ChaosSQLRunner:
     Provides an active ChaosSQL runner configured according to optional @pytest.mark.chaossql parameters.
     """
     bin_path = os.getenv("CHAOSSQL_BIN_PATH")
-    runner = ChaosSQLRunner(binary_path=bin_path)
+    default_kwargs = {}
 
     marker = request.node.get_closest_marker("chaossql")
-    if marker:
-        # Markers can be inspected or used for test metadata
-        pass
+    if marker and marker.kwargs:
+        default_kwargs = dict(marker.kwargs)
 
-    return runner
+    return ChaosSQLRunner(binary_path=bin_path, defaults=default_kwargs)
 
 
 # Direct alias as documented in technical architecture

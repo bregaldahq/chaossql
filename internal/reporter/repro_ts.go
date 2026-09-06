@@ -104,17 +104,28 @@ func GenerateStandaloneTypeScriptRepro(spec domain.Spec, ops []domain.ScheduledO
 }
 
 function substituteParams(sql, params, captures) {
-  let res = sql;
-  for (const [k, v] of Object.entries(params || {})) {
-    res = res.replaceAll('{' + k + '}', String(v));
-    res = res.replaceAll(':' + k, String(v));
+  const combined = { ...(params || {}), ...(captures || {}) };
+  let res = sql.replace(/\{([^}]+)\}/g, (_, inner) => {
+    for (const [k, v] of Object.entries(combined)) {
+      inner = inner.replace(new RegExp('\\b' + k + '\\b', 'g'), String(v));
+    }
+    return evalSimpleArithmetic(inner);
+  });
+  for (const [k, v] of Object.entries(combined)) {
+    res = res.replace(new RegExp(':' + k + '\\b', 'g'), String(v));
   }
-  for (const [k, v] of Object.entries(captures || {})) {
-    res = res.replaceAll('{' + k + '}', String(v));
-    res = res.replaceAll(':' + k, String(v));
-  }
-  res = res.replace(/\{([^}]+)\}/g, (_, inner) => evalSimpleArithmetic(inner));
   return res;
+}
+
+function evaluateAssertion(expr, actual) {
+  try {
+    const keys = Object.keys(actual || {});
+    const values = Object.values(actual || {});
+    const fn = new Function(...keys, 'return Boolean(' + expr + ');');
+    return fn(...values);
+  } catch (_) {
+    return false;
+  }
 }
 
 /**
@@ -137,10 +148,9 @@ async function executeOp(db, op) {
 }
 
 /**
- * Minimal in-process SQLite driver adapter using available Node sqlite bindings.
+ * In-process SQLite driver adapter using node:sqlite, better-sqlite3, or fallback.
  */
 async function createDatabaseClient() {
-  // Support node:sqlite (Node 22+) or better-sqlite3 or sqlite3
   try {
     const { DatabaseSync } = require('node:sqlite');
     const db = new DatabaseSync(':memory:');
@@ -151,13 +161,23 @@ async function createDatabaseClient() {
       close: () => db.close()
     };
   } catch (_) {
-    // Fallback: simple mock in-memory store for syntax validation
-    return {
-      exec: async () => {},
-      run: async () => {},
-      get: async () => null,
-      close: async () => {}
-    };
+    try {
+      const Database = require('better-sqlite3');
+      const db = new Database(':memory:');
+      return {
+        exec: (sql) => db.exec(sql),
+        run: (sql) => db.exec(sql),
+        get: (sql) => db.prepare(sql).get(),
+        close: () => db.close()
+      };
+    } catch (_) {
+      return {
+        exec: async () => {},
+        run: async () => {},
+        get: async () => null,
+        close: async () => {}
+      };
+    }
   }
 }
 
@@ -183,6 +203,10 @@ async function runRepro() {
 test('ChaosSQL Anomaly Reproduction Suite', async (t) => {
   await t.test('Reproduce isolation anomaly: ' + INVARIANT_NAME, async () => {
     const { dbState } = await runRepro();
+    if (dbState && INVARIANT_ASSERT) {
+      const satisfied = evaluateAssertion(INVARIANT_ASSERT, dbState);
+      assert.strictEqual(satisfied, false, 'Expected anomaly: invariant was satisfied instead of violated');
+    }
     console.log('[ChaosSQL Repro] Verified schedule with DB state:', dbState);
   });
 });

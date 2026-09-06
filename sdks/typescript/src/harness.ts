@@ -48,9 +48,36 @@ export class ChaosHarness {
   public addOperation(
     name: string,
     steps: Array<string | ScheduledOpStep>,
+    weight?: number,
+    params?: Record<string, string>
+  ): this;
+  public addOperation(
+    name: string,
+    steps: Array<string | ScheduledOpStep>,
     params?: Record<string, string>,
-    weight: number = 1.0
+    weight?: number
+  ): this;
+  public addOperation(
+    name: string,
+    steps: Array<string | ScheduledOpStep>,
+    weightOrParams?: number | Record<string, string>,
+    paramsOrWeight?: Record<string, string> | number
   ): this {
+    let weight = 1.0;
+    let params: Record<string, string> | undefined;
+
+    if (typeof weightOrParams === 'number') {
+      weight = weightOrParams;
+      if (typeof paramsOrWeight === 'object' && paramsOrWeight !== null) {
+        params = paramsOrWeight as Record<string, string>;
+      }
+    } else if (typeof weightOrParams === 'object' && weightOrParams !== null) {
+      params = weightOrParams;
+      if (typeof paramsOrWeight === 'number') {
+        weight = paramsOrWeight;
+      }
+    }
+
     const parsedSteps: ScheduledOpStep[] = steps.map((s) => {
       if (typeof s === 'string') {
         return { sql: s };
@@ -94,6 +121,9 @@ export class ChaosHarness {
 
   public async assertNoAnomalies(options: RunOptions = {}): Promise<ChaosResult> {
     const result = await this.run(options);
+    if (result.error || (!result.success && !result.violationDetected)) {
+      throw new Error(`ChaosSQL engine execution failed: ${result.error || 'Unknown engine execution error'}`);
+    }
     if (result.violationDetected) {
       const invName = result.failingInvariant?.name || 'unknown';
       const lines = [

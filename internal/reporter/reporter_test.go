@@ -410,6 +410,13 @@ func TestGenerateStandalonePythonRepro(t *testing.T) {
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("generated python code failed compilation: %v\nOutput: %s\nCode:\n%s", err, string(out), pyCode)
 	}
+
+	runCmd := exec.Command("python3", tmpPy)
+	if out, err := runCmd.CombinedOutput(); err != nil {
+		t.Fatalf("executing generated python repro failed: %v\nOutput: %s\nCode:\n%s", err, string(out), pyCode)
+	} else if !strings.Contains(string(out), "reproduced deterministically") {
+		t.Fatalf("expected python repro execution to confirm anomaly reproduction, got:\n%s", string(out))
+	}
 }
 
 func TestGenerateStandaloneTypeScriptRepro(t *testing.T) {
@@ -461,6 +468,13 @@ func TestGenerateStandaloneTypeScriptRepro(t *testing.T) {
 	cmd := exec.Command("node", "--check", tmpJs)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("generated typescript/node code failed check: %v\nOutput: %s\nCode:\n%s", err, string(out), tsCode)
+	}
+
+	runCmd := exec.Command("node", tmpJs)
+	if out, err := runCmd.CombinedOutput(); err != nil {
+		t.Fatalf("executing generated typescript/node repro failed: %v\nOutput: %s\nCode:\n%s", err, string(out), tsCode)
+	} else if !strings.Contains(string(out), "ChaosSQL Reproduction executed successfully") {
+		t.Fatalf("expected node repro execution to succeed, got:\n%s", string(out))
 	}
 }
 

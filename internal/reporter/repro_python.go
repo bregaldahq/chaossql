@@ -88,20 +88,17 @@ func GenerateStandalonePythonRepro(spec domain.Spec, ops []domain.ScheduledOp, f
     return expr
 
 def substitute_params(sql: str, params: dict, captures: dict) -> str:
-    res = sql
-    for k, v in params.items():
-        res = res.replace("{" + k + "}", str(v))
-        res = res.replace(":" + k, str(v))
-    for k, v in captures.items():
-        res = res.replace("{" + k + "}", str(v))
-        res = res.replace(":" + k, str(v))
-
+    combined = {**(params or {}), **(captures or {})}
     pattern = re.compile(r"\{([^}]+)\}")
-    for match in pattern.finditer(res):
-        full_match = match.group(0)
+    def replacer(match):
         inner = match.group(1).strip()
-        computed = eval_simple_arithmetic(inner)
-        res = res.replace(full_match, computed)
+        for k, v in combined.items():
+            inner = re.sub(r"\b" + re.escape(str(k)) + r"\b", str(v), inner)
+        return eval_simple_arithmetic(inner)
+
+    res = pattern.sub(replacer, sql)
+    for k, v in combined.items():
+        res = re.sub(r":" + re.escape(str(k)) + r"\b", str(v), res)
     return res
 
 def execute_op(db_path: str, op: dict) -> None:
@@ -126,9 +123,7 @@ def execute_op(db_path: str, op: dict) -> None:
 
 def evaluate_assert(assert_expr: str, actuals: dict) -> bool:
     clean_expr = assert_expr.strip()
-    # Normalize operators if needed
     try:
-        # Safe eval using observed columns in actuals
         return bool(eval(clean_expr, {"__builtins__": {}}, actuals))
     except Exception:
         return False
@@ -148,7 +143,8 @@ def run_repro() -> bool:
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=max(1, len(MINIMAL_OPS))) as executor:
             futures = [executor.submit(execute_op, db_path, op) for op in MINIMAL_OPS]
-            concurrent.futures.wait(futures)
+            for f in concurrent.futures.as_completed(futures):
+                f.result()  # Propagate any worker thread exceptions
 
         if INVARIANT_QUERY:
             conn = sqlite3.connect(db_path)

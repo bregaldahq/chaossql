@@ -109,6 +109,10 @@ class ChaosHarness:
         formatting the isolated anomaly class, minimal counterexample, and Mermaid sequence.
         """
         result = self.run(workers=workers, iterations=iterations, seed=seed)
+        if result.error or (not result.success and not result.violation_detected):
+            err = result.error or "ChaosSQL engine execution failed"
+            raise RuntimeError(f"ChaosSQL engine execution error: {err}")
+
         if result.violation_detected:
             inv_name = "unknown"
             if result.failing_invariant:

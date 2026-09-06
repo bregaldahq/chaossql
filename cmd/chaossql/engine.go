@@ -43,10 +43,10 @@ type IPCInvariant struct {
 
 // IPCEngineConfig mirrors domain.EngineConfig with flexible JSON tags.
 type IPCEngineConfig struct {
-	Workers    int    `json:"workers,omitempty"`
-	Iterations int    `json:"iterations,omitempty"`
-	Seed       uint64 `json:"seed,omitempty"`
-	JitterMs   [2]int `json:"jitter_ms,omitempty"`
+	Workers    int     `json:"workers,omitempty"`
+	Iterations int     `json:"iterations,omitempty"`
+	Seed       *uint64 `json:"seed,omitempty"`
+	JitterMs   [2]int  `json:"jitter_ms,omitempty"`
 }
 
 // IPCDatabaseConfig mirrors domain.DatabaseConfig with flexible JSON tags.
@@ -68,7 +68,7 @@ type IPCPayload struct {
 	Seed       string             `json:"seed,omitempty"`
 	Workers    int                `json:"workers,omitempty"`
 	Iterations int                `json:"iterations,omitempty"`
-	SeedValue  uint64             `json:"seed_value,omitempty"`
+	SeedValue  *uint64            `json:"seed_value,omitempty"`
 	Database   *IPCDatabaseConfig `json:"database,omitempty"`
 	Engine     *IPCEngineConfig   `json:"engine,omitempty"`
 	Invariants []IPCInvariant     `json:"invariants"`
@@ -166,14 +166,20 @@ func executeIPCPayload(ctx context.Context, p IPCPayload) IPCResponse {
 	if driverName == "" {
 		driverName = "sqlite"
 	}
-	if driverName == "sqlite" && dsn == "" {
+	if driverName == "sqlite" && (dsn == "" || dsn == ":memory:") {
 		dsn = fmt.Sprintf("file:chaossql_ipc_%d?mode=memory&cache=shared", time.Now().UnixNano())
 	}
 
 	workers := p.Workers
 	iterations := p.Iterations
-	seed := p.SeedValue
 	jitter := [2]int{1, 5}
+
+	var seed uint64
+	seedProvided := false
+	if p.SeedValue != nil {
+		seed = *p.SeedValue
+		seedProvided = true
+	}
 
 	if p.Engine != nil {
 		if p.Engine.Workers > 0 {
@@ -182,8 +188,9 @@ func executeIPCPayload(ctx context.Context, p IPCPayload) IPCResponse {
 		if p.Engine.Iterations > 0 {
 			iterations = p.Engine.Iterations
 		}
-		if p.Engine.Seed > 0 {
-			seed = p.Engine.Seed
+		if p.Engine.Seed != nil {
+			seed = *p.Engine.Seed
+			seedProvided = true
 		}
 		if p.Engine.JitterMs[1] > 0 {
 			jitter = p.Engine.JitterMs
@@ -196,7 +203,7 @@ func executeIPCPayload(ctx context.Context, p IPCPayload) IPCResponse {
 	if iterations <= 0 {
 		iterations = 10
 	}
-	if seed == 0 {
+	if !seedProvided {
 		seed = uint64(time.Now().UnixNano())
 	}
 
