@@ -1,10 +1,10 @@
 # Spec 03: Delta-Debugging Trace Shrinker
 
-## Objetivo
-Reduzir uma sequência caótica de $N$ operações que quebrou uma invariante para o **subconjunto mínimo (1-minimal)** que ainda reproduz a falha.
+## Objective
+Reduce a chaotic schedule of $N$ operations that violated an invariant into the **1-minimal subset** that still reproduces the failure.
 
-## Requisitos Verificáveis
-1. **Algoritmo ddmin:** Divide o plano em blocos (chunks de tamanho $N/2, N/4, \dots, 1$) e testa a remoção de cada bloco.
-2. **Reset Atômico:** Cada teste do shrinker reseta o banco para o estado inicial com `schema.sql` e `seed.sql`.
-3. **Garantia de 1-Minimalidade:** Ao concluir, nenhuma única operação pode ser removida do plano resultante sem que a invariante volte a passar.
-4. **Metricas de Redução:** Calcula a porcentagem de redução (geralmente $> 90%$) e o número de execuções de verificação.
+## Verifiable Requirements
+1. **$ddmin$ Algorithm:** Partitions the schedule into granular chunks (sizes $N/2, N/4, \dots, 1$) and tests the elimination of each chunk.
+2. **Atomic Reset:** Every shrinker trial resets the database to its pristine initial state using `schema.sql` and `seed.sql`.
+3. **1-Minimality Guarantee:** Upon completion, no single remaining operation can be eliminated from the reduced schedule without causing the invariant to pass.
+4. **Reduction Metrics:** Quantifies the reduction ratio (typically $> 90\%$) and the total count of verification trials executed.

@@ -1,8 +1,8 @@
-# Eval 03: Reprodutibilidade e Convergência Determinística ($100\%$)
+# Eval 03: Deterministic Reproducibility and Convergence ($100\%$)
 
-## Objetivo
-Garantir que a mesma `seed` gere exatamente a mesma sequência de operações e resultado em 100% das execuções.
+## Objective
+Guarantee that identical `seed` values produce identical operation schedules and verification outcomes across 100% of executions.
 
-## Critérios de Aceite
-1. **Identidade de Plano:** Duas execuções com a mesma seed devem gerar o mesmo slice de `ScheduledOp` (mesmos IDs, nomes e parâmetros).
-2. **Determinismo do Shrinker:** O trace m�nimo resultante deve conter exatamente os mesmos IDs de operação em todas as rodadas.
+## Acceptance Criteria
+1. **Schedule Identity:** Two executions initialized with the identical seed must generate an identical sequence of `ScheduledOp` instances (identical IDs, operation names, and parameters).
+2. **Shrinker Determinism:** The synthesized minimal failure trace must contain identical operation IDs across all independent runs given the same seed.

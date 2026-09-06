@@ -1,9 +1,9 @@
-# Eval 01: Taxa de Redução do Shrinker ($> 85%$)
+# Eval 01: Shrinker Reduction Ratio ($> 85\%$)
 
-## Objetivo
-Garantir que o algoritmo de Causal Delta-Debugging ($ddmin$) seja capaz de reduzir traces caóticos de $N \ge 50$ operações para um subconjunto $1$-minimal (geralmente $\le 3$ operações).
+## Objective
+Ensure that the Causal Delta-Debugging ($ddmin$) algorithm reduces chaotic traces of $N \ge 50$ operations to a 1-minimal counterexample subset (typically $\le 3$ operations).
 
-## Critérios de Aceite
-1. **Taxa de Redução:** $\frac{|C_{\text{original}}| - |C_{\text{minimal}}|}{|C_{\text{original}}|} \times 100\% \ge 85\%$.
-2. **1-Minimalidade:** Para todo $op \in C_{\text{minimal}}$, a remoção de $op$ faz a invariante passar ($\text{test}(C \setminus \{op\}) = \text{PASS}$).
-3. **Tempo Limite:** O shrinking deve convergir em menos de 2 segundos em ambiente local.
+## Acceptance Criteria
+1. **Reduction Ratio Formula:** $\frac{|C_{\text{original}}| - |C_{\text{minimal}}|}{|C_{\text{original}}|} \times 100\% \ge 85\%$.
+2. **1-Minimality:** For every $op \in C_{\text{minimal}}$, eliminating $op$ causes the invariant test to pass ($\text{test}(C \setminus \{op\}) = \text{PASS}$).
+3. **Time Limit:** Shrinking convergence must complete in under 2 seconds in a local execution environment.

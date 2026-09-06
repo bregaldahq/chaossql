@@ -1,9 +1,9 @@
 # Spec 04: Evidence Synthesis (Mermaid & Repro Script)
 
-## Objetivo
-Transformar o trace m�nimo de falha em artefatos visuais e executáveis para diagnóstico imediato.
+## Objective
+Transform the minimal failure trace into visual and standalone executable artifacts for immediate post-mortem diagnosis.
 
-## Requisitos Verificáveis
-1. **Diagrama Mermaid:** Gera um `sequenceDiagram` com atores por worker, mostrando a ordem de intercalação e a nota de violação no banco.
-2. **Script Standalone (repro_test.py):** Gera um script Python autocontido (sem depender do ChaosSQL instalado) que reproduz a falha em 1 segundo.
-3. **Relatório no Terminal:** Painel Rich com tabela de invariantes, mostrando valores esperados vs reais.
+## Verifiable Requirements
+1. **Mermaid Sequence Diagram:** Generates a `sequenceDiagram` with actors partitioned per worker, highlighting interleaving order, critical transitions, and the database invariant violation note.
+2. **Standalone Repro Script (`repro_test.go`):** Synthesizes a self-contained Go test script (independent of external ChaosSQL dependencies) that deterministically reproduces the race condition in under 1 second.
+3. **Terminal Report:** Emits an interactive or formatted terminal panel with an invariant summary table comparing expected vs. actual database values.
