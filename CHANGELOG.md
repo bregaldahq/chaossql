@@ -10,6 +10,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.4.0] - 2026-09-06
 
 ### Added
+- **Multi-Language SDKs & Embedded Engine Binary IPC (Python, TypeScript & Node.js)**:
+  - Zero-CGO Embedded Engine Binary IPC architecture (`chaossql engine`) utilizing bidirectional JSON streaming over standard I/O (GIL bypass, memory isolation, and cross-language type safety).
+  - Python SDK (`chaossql-py` / `pip install chaossql` at `sdks/python/`) featuring fluent `ChaosHarness`, `@pytest.mark.chaossql` marker, and `chaossql_runner` pytest fixture.
+  - TypeScript / Node.js SDK (`@chaossql/test` / `npm install @chaossql/test` at `sdks/typescript/`) featuring fluent `ChaosHarness`, TypeScript 5.0+ declaration typings (`.d.ts`), and support for Vitest, Jest, and Node test runner (`node:test`).
+  - Zero-dependency standalone regression test synthesizers (`internal/reporter/repro_python.go` and `repro_ts.go`) producing executable test files.
+  - Formal capability specification [specs/17_multi_language_sdks.md](specs/17_multi_language_sdks.md).
 - **Layer-7 Transparent Database Reverse Proxy (chaossql proxy)**:
   - Zero-CGO PostgreSQL Wire Protocol 3.0 streaming decoder supporting SSLRequest negotiation, Simple Query ('Q'), Parse ('P'), CommandComplete ('C'), and ReadyForQuery ('Z').
   - Zero-CGO MySQL Client/Server protocol streaming decoder supporting packet framing, COM_QUERY, COM_STMT_PREPARE, COM_STMT_EXECUTE, OK_Packet, and ERR_Packet (deadlock 1213 handling).
