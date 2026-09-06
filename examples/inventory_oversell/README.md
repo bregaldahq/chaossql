@@ -1,19 +1,26 @@
-# Cenário 02: E-Commerce Inventory Oversell
+# Scenario 02: E-Commerce Inventory Oversell (Anomaly A3 / P4)
 
-## Contexto de Negócio
-Uma promoção relâmpago disponibiliza apenas **10 unidades** de uma Super GPU. Dezenas de usuários tentam comprar simultaneamente.
+## Business Context
+During a flash sale promotion, an e-commerce platform makes available only **10 units** of a high-demand item (Super GPU). Dozens of concurrent buyers attempt checkout simultaneously.
 
-## O Bug (Condição de Corrida de Estoque)
-1. **Workers leem o estoque** (ex: `stock = 1`) e consideram que a compra é válida.
-2. M workers criam suas ordens (insert em `orders`) e decrementam o estoque.
-3. **Resultado Caótico:** Foram vendidas 14 unidades, mas havia apenas 10 em estoque!
+## Anomaly Breakdown
+1. **Workers read available stock** (e.g., `stock = 1`) and determine that the purchase is valid.
+2. Multiple concurrent workers insert orders into `orders` and decrement the product inventory.
+3. **Chaotic Outcome:** 14 units are sold even though only 10 were in stock!
 
-## Invariante de Negócio
-$$\text{Estoque Restante} + \text{Total Vendido} == 10 \quad \land \quad \text{Total Vendido} \le 10$$
+## Business Invariant
+$$\text{Remaining Stock} + \text{Total Sold} == 10 \quad \land \quad \text{Total Sold} \le 10$$
 
-## Como Corrigir
-* **Decremento Atômico com Guard:**
+## Mitigation Strategies
+* **Atomic Decrement with Guard Predicate:**
   ```sql
   UPDATE products SET stock = stock - 1 WHERE id = 1 AND stock >= 1;
   ```
-  Se nenhuma linha for afetada, a compra é rejeitada imediatamente.
+  If no rows are affected (`RowsAffected == 0`), the purchase is rejected immediately.
+* **Pessimistic Row Locking:**
+  Acquire an exclusive lock before inspecting inventory:
+  ```sql
+  SELECT stock FROM products WHERE id = 1 FOR UPDATE;
+  ```
+* **Database Check Constraint:**
+  Enforce integrity at the schema level (`CHECK (stock >= 0)`), ensuring any transaction attempting to decrement below zero triggers an immediate constraint violation and rolls back.

@@ -1,20 +1,27 @@
-# Cenário 01: Fintech Lost Update (Anomalia P4)
+# Scenario 01: Fintech Lost Update (Anomaly P4)
 
-## Contexto de Negócio
-Em um sistema bancário, dois saques simultâneos ocorrem na conta de *Alice* (saldo inicial: R$ 1.000).
+## Business Context
+In a banking system, two concurrent withdrawals occur on *Alice*'s account (initial balance: $1,000).
 
-## O Bug (Read-Modify-Write Sem Lock)
-1. **Worker 1** le o saldo (R$ 1.000) e prepara saque de R$ 100 (saldo final deveria ser R$ 900).
-2. **Worker 2** le o mesmo saldo (R$ 1.000) antes do Worker 1 comitar e prepara saque de R$ 150 (saldo final deveria ser R$ 850).
-3. Ambos escrevem os saldos calculados em memória.
+## Anomaly Breakdown
+1. **Worker 1** reads the balance ($1,000) and prepares a withdrawal of $100 (expected final balance: $900).
+2. **Worker 2** reads the same balance ($1,000) before Worker 1 commits, preparing a withdrawal of $150 (expected final balance: $850).
+3. Both workers write their in-memory calculated balances back to the database.
 
-* **Resultado Real:** O saldo vira R$ 850, mas o extrato (ledger) registrou R$ 250 de débitos! O banco perdeu R$ 100.
+* **Real-World Impact:** The balance becomes $850, but the audit ledger recorded $250 in total debits! The bank loses $100 due to a lost update anomaly ($P4$ / $G\text{-single}$).
 
-## Invariante de Consistência
-$$\text{Saldo Atual} == 1000 - \sum(\text{Débitos do Extrato})$$
+## Consistency Invariant
+$$\text{Current Balance} == 1000 - \sum(\text{Ledger Debits})$$
 
-## Como Corrigir
-* **Correção Atômica no SQL:**
+## Formal Mitigation
+* **Atomic In-Database Update:**
   ```sql
   UPDATE accounts SET balance = balance - :amount WHERE id = 1 AND balance >= :amount;
   ```
+* **Pessimistic Concurrency Control (2PL):**
+  Acquire an exclusive row lock prior to evaluating balance:
+  ```sql
+  SELECT balance FROM accounts WHERE id = 1 FOR UPDATE;
+  ```
+* **Serializable Isolation:**
+  Under `SERIALIZABLE` isolation, the database detects the read-write dependency cycle ($T_1 \xrightarrow{rw} T_2 \xrightarrow{ww} T_1$) and aborts one of the conflicting transactions with a serialization failure.

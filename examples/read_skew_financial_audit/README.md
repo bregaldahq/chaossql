@@ -1,33 +1,38 @@
-# Cenário 04: Financial Audit Read Skew (Anomalia A5A)
+# Scenario 04: Financial Audit Read Skew (Anomaly A5A)
 
-## Contexto de Negócio
-Em uma instituição financeira, um cliente possui duas contas vinculadas: **Checking** (Corrente, saldo inicial: R$ 500) e **Savings** (Poupança, saldo inicial: R$ 500). O patrimônio total do cliente é de R$ 1.000.
-Um processo de auditoria ou extrato consolidado ($T_1$) calcula o patrimônio total lendo o saldo de ambas as contas. Concomitantemente, transações de transferência ($T_2$) movimentam fundos entre as contas.
+## Business Context
+In a financial institution, a customer holds two linked accounts: **Checking** (initial balance: $500) and **Savings** (initial balance: $500). Total customer net wealth is $1,000.
+An audit or consolidated reporting process ($T_1$) computes total wealth by reading the balance of both accounts sequentially. Concurrently, fund transfer transactions ($T_2$) move capital between the accounts.
 
-## O Bug (Read Skew / A5A sob Read Committed)
-A anomalia **A5A (Read Skew)** ocorre quando uma transação de leitura inconsistente observa um estado parcial de outra transação concorrente:
-1. $T_1$ (Auditoria) lê a conta **Checking** ($x = 500$).
-2. $T_2$ (Transferência) transfere R$ 100 de Checking para Savings:
-   - Decrementa Checking: $x \leftarrow 400$
-   - Incrementa Savings: $y \leftarrow 600$
-   - Registra auditoria em `transfers`.
-   - $T_2$ comita com sucesso.
-3. $T_1$ lê a conta **Savings** ($y = 600$), observando a escrita feita por $T_2$.
-4. $T_1$ calcula a riqueza total: $500 + 600 = 1100 \ne 1000$.
+## Anomaly Breakdown
+The **A5A (Read Skew)** anomaly occurs when an inconsistent read transaction observes a partial state of another concurrent transaction under `READ COMMITTED`:
+1. $T_1$ (Audit) reads the **Checking** account ($x = 500$).
+2. $T_2$ (Transfer) transfers $100 from Checking to Savings:
+   - Decrements Checking: $x \leftarrow 400$
+   - Increments Savings: $y \leftarrow 600$
+   - Records transfer in `transfers`.
+   - $T_2$ commits successfully.
+3. $T_1$ reads the **Savings** account ($y = 600$), observing the write committed by $T_2$.
+4. $T_1$ calculates total wealth: $500 + 600 = 1100 \ne 1000$.
 
-### Definição Matemática Formal (Adya / Berenson et al.)
-No grafo de dependências diretas de Adya (DSG), o Read Skew é caracterizado pelo ciclo contendo uma anti-dependência de leitura ($rw$) e uma dependência de escrita-leitura ($wr$):
+### Mathematical Formulation (Adya / Berenson et al.)
+In Adya's direct serialization graph (DSG), Read Skew is characterized by a cycle containing a read anti-dependency ($rw$) and a write-read dependency ($wr$):
 $$T_1 \xrightarrow{rw} T_2 \xrightarrow{wr} T_1$$
 
-Onde:
-- $T_1 \xrightarrow{rw} T_2$ no item $x$ (`accounts:1` / Checking): $T_1$ leu a versão de $x$ anterior à modificação feita por $T_2$.
-- $T_2 \xrightarrow{wr} T_1$ no item $y$ (`accounts:2` / Savings): $T_1$ leu a versão de $y$ escrita e comitada por $T_2$.
+Where:
+- $T_1 \xrightarrow{rw} T_2$ on item $x$ (`accounts:1` / Checking): $T_1$ read the version of $x$ prior to the modification made by $T_2$.
+- $T_2 \xrightarrow{wr} T_1$ on item $y$ (`accounts:2` / Savings): $T_1$ read the version of $y$ written and committed by $T_2$.
 
-## Invariante de Preservação de Riqueza
+## Wealth Conservation Invariant
 $$\text{total\_balance} == 1000$$
 
-## Como Corrigir
-* **Nível de Isolamento SERIALIZABLE ou REPEATABLE READ / SNAPSHOT ISOLATION:**
-  Garante que $T_1$ leia uma visão consistente e congelada no tempo de todo o banco de dados (snapshot no início de $T_1$), lendo $x = 500$ e $y = 500$ (total = 1000).
-* **Transações Atômicas com Lock Pessimista (`SELECT ... FOR UPDATE`):**
-  Bloqueia ambos os registros durante a leitura da auditoria para impedir modificações concorrentes até o término de $T_1$.
+## Formal Mitigation
+* **SERIALIZABLE or REPEATABLE READ / SNAPSHOT ISOLATION Level:**
+  Ensures $T_1$ reads a temporally consistent, frozen-in-time snapshot of the database (snapshot established at the start of $T_1$), reading $x = 500$ and $y = 500$ ($\text{total} = 1000$).
+* **Atomic Single-Statement Query:**
+  Execute aggregate balance checks in a single SQL statement (`SELECT SUM(balance) FROM accounts;`), guaranteeing the database evaluates the sum across a single statement snapshot.
+* **Atomic Transactions with Pessimistic Locking (`SELECT ... FOR UPDATE`):**
+  Lock both records during audit evaluation to block concurrent modifications until $T_1$ completes:
+  ```sql
+  SELECT balance FROM accounts WHERE id IN (1, 2) FOR UPDATE;
+  ```

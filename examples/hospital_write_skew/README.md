@@ -1,17 +1,24 @@
-# Cenário 03: Hospital Write Skew (Anomalia A5B)
+# Scenario 03: Hospital Write Skew (Anomaly A5B)
 
-## Contexto de Negócio
-Regra hospitalar: **Pelo menos um médico deve estar de plantão ativo a qualquer momento**.
-Inicialmente, o Dr. Alice e o Dr. Bob estão de plantão (`is_on_call = 1`).
+## Business Context
+Hospital operational rule: **At least one doctor must remain on active on-call duty at all times**.
+Initially, both Dr. Alice and Dr. Bob are on call (`is_on_call = 1`).
 
-## O Bug (Write Skew sob Snapshot Isolation)
-1. **Dr. Alice** tenta sair do plantão: consulta (retorna 2 ativos). Como $2 >= 2$, ela atualiza seu status para 0 e comita.
-2. **Dr. Bob** simultaneamente tenta sair do plantão: consulta (retorna 2 ativos na sua snapshot). Como $2 >= 2$, ele atualiza seu status para 0 e comita.
-3. **Resultado Catastrófico:** **Zero médicos de plantão!** A invariante hospitalar foi violada.
+## Anomaly Breakdown
+1. **Dr. Alice** attempts to leave on-call duty: queries active doctors (returns 2 active). Since $2 \ge 2$, she updates her status to 0 (`is_on_call = 0`) and commits.
+2. **Dr. Bob** concurrently attempts to leave on-call duty: queries active doctors (returns 2 active in his snapshot). Since $2 \ge 2$, he updates his status to 0 (`is_on_call = 0`) and commits.
+3. **Catastrophic Outcome:** **Zero doctors on call!** The hospital invariant is violated because the transactions modify disjoint rows ($\mathcal{W}_1 \cap \mathcal{W}_2 = \emptyset$), bypassing traditional write-write conflict detection under Snapshot Isolation.
 
-## Invariante Hospitalar
-$$\sum(\text{is_on_call}) \ge 1$$
+## Hospital Invariant
+$$\sum(\text{is\_on\_call}) \ge 1$$
 
-## Como Corrigir
-* **Isolamento SERIALIZABLE (SSI):** O banco (ex: PostgreSQL) detecta o ciclo $T_1 \rightleftarrows T_2$ e aborta uma das transações com erro `40001 serialization_failure`.
-* **Bloqueio Pessimista:** Fazer `SELECT ... FOR UPDATE` nas linhas lidas.
+## Formal Mitigation
+* **SERIALIZABLE Isolation (SSI):**
+  The database engine (e.g., PostgreSQL SSI) tracks anti-dependency cycles ($T_1 \xrightarrow{rw} T_2 \xrightarrow{rw} T_1$) and aborts one of the conflicting transactions with `SQLSTATE 40001` (`serialization_failure`).
+* **Pessimistic Locking (`SELECT ... FOR UPDATE`):**
+  Lock the evaluated doctor rows to serialize concurrent reads and writes:
+  ```sql
+  SELECT is_on_call FROM doctors WHERE is_on_call = 1 FOR UPDATE;
+  ```
+* **Materialized Conflict:**
+  Lock a common department or shift parent record to turn predicate-like anti-dependencies into explicit write-write conflicts.
