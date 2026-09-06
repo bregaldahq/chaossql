@@ -22,8 +22,16 @@ jobs:
         go-version: 'stable'
         cache: true
 
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+
     - name: Validate Harness Artifacts
       run: make check-harness
+
+    - name: Verify English Purity Gate
+      run: node tools/test_english_purity.js
 
     - name: Run Linter & Vet
       run: make lint
