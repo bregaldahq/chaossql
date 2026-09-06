@@ -1,0 +1,84 @@
+.contact {
+  position: relative;
+  background: var(--purple);
+  color: var(--cream);
+  text-align: center;
+  padding: clamp(5rem, 8vw, 8rem) var(--page-gutter);
+}
+
+.eyebrow {
+  color: color-mix(in srgb, var(--cream) 70%, transparent);
+  font-family: var(--font-jetbrains-mono), monospace;
+  font-size: var(--type-meta);
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+.title {
+  font-size: clamp(2.6rem, 5.5vw, 6.5rem);
+  font-weight: 500;
+  letter-spacing: -0.06em;
+  line-height: 1.06;
+  margin-block: var(--space-3);
+  text-wrap: balance;
+}
+
+.copy {
+  font-size: var(--type-body-lg);
+  line-height: 1.85;
+  color: color-mix(in srgb, var(--cream) 80%, transparent);
+  max-width: 36rem;
+  margin-inline: auto;
+}
+
+.buttonRow {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-3);
+  margin-top: var(--space-5);
+}
+
+.contactCta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.2rem;
+  min-height: 52px;
+  padding: 0.85rem 1.85rem;
+  background: var(--cream);
+  color: var(--purple);
+  font-size: var(--type-action);
+  font-weight: 650;
+  border-radius: var(--radius-control);
+  text-decoration: none;
+  transition: background 0.2s ease, transform 0.2s ease, color 0.2s ease;
+}
+
+.contactCta:hover {
+  background: var(--yellow);
+  color: var(--ink);
+  transform: translateY(-2px);
+}
+
+.githubCta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.8rem;
+  min-height: 52px;
+  padding: 0.85rem 1.6rem;
+  background: transparent;
+  color: var(--cream);
+  border: 1px solid color-mix(in srgb, var(--cream) 30%, transparent);
+  font-size: var(--type-action);
+  font-weight: 600;
+  border-radius: var(--radius-control);
+  text-decoration: none;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.githubCta:hover {
+  border-color: var(--cream);
+  background: color-mix(in srgb, var(--cream) 10%, transparent);
+}
