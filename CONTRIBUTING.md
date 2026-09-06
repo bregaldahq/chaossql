@@ -1,10 +1,18 @@
-# Guia de Contribuição — ChaosSQL
+# Contributing Guide — ChaosSQL
 
-Obrigado por seu interesse em contribuir com o **ChaosSQL**!
+Thank you for your interest in contributing to **ChaosSQL**!
 
-## Princípios de Engenharia
-1. **Determinismo Estrito:** Qualquer novo recurso deve ser 100% reprodutível sob a mesma seed.
-2. **Test-Driven Development (TDD):** Toda funcionalidade ou correção deve conter testes unitários e de concorrência (go test -race).
-3. **Zero CGO:** O código deve compilar estaticamente sem dependências externas de C.
+## Engineering Principles
+1. **Strict Determinism:** Any new capability must be 100% reproducible under the same seed.
+2. **Test-Driven Development (TDD):** Every feature or bugfix must include unit and integration tests (`go test -race`).
+3. **Zero CGO:** Code must compile statically without external C dependencies (`CGO_ENABLED=0`).
+4. **Language Purity:** All non-portal codebase files, CLI commands, logs, and documentation must be written in 100% professional English.
 
-## Comandos Úteis
+## Useful Commands
+
+```bash
+make verify      # Run unified quality gate
+make demo        # Run 10 interactive demonstration scenarios
+make test        # Run test suite
+make build       # Compile chaossql binary (Zero CGO)
+```

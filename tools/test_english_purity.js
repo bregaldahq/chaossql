@@ -17,13 +17,26 @@ const TARGET_DIRS = [
   'cmd',
   'internal',
   'pkg',
-  'tools'
+  'tools',
+  'internal_docs'
+];
+
+// Target root-level files to audit
+const ROOT_FILES = [
+  'Makefile',
+  'ARCHITECTURE.md',
+  'AGENTS.md',
+  'CONTRIBUTING.md',
+  'README.md',
+  'SECURITY.md',
+  'action.yml'
 ];
 
 // Normalized exclusion rules
 const EXCLUDED_PATTERNS = [
   /\.git([\\/]|$)/,
-  /(\.?)superpowers([\\/]|$)/,
+  /\.superpowers([\\/]|$)/,
+  /(?:^|[\\/])docs[\\/]superpowers([\\/]|$)/, // Historical planning and design ledgers
   /node_modules([\\/]|$)/,
   /^site([\\/]|$)/,
   /[\\/]site([\\/]|$)/,
@@ -69,81 +82,76 @@ const PORTUGUESE_KEYWORDS = [
   'leitura', 'leituras',
   'escrita', 'escritas',
   'registro', 'registros',
-  'validação', 'validacao', 'validações', 'validacoes',
-  'verificação', 'verificacao', 'verificações', 'verificacoes',
-  'operação', 'operações', 'operacao', 'operacoes',
-  'configuração', 'configuracao', 'configurações', 'configuracoes',
-  'padrão', 'padrao', 'padrões', 'padroes',
-  'usuário', 'usuario', 'usuários', 'usuarios',
-  'descrição', 'descricao', 'descrições', 'descricoes',
-  'solução', 'solucao', 'soluções', 'solucoes',
-  'informação', 'informacao', 'informações', 'informacoes',
-  'código', 'codigo', 'códigos', 'codigos'
+  'validação', 'validacao',
+  'verificação', 'verificacao',
+  'demonstrando', 'demonstracao', 'demonstração',
+  'compilando', 'iniciando', 'baixando', 'baixa'
 ];
 
+// Unicode-aware word boundary pattern for each Portuguese keyword
 const KEYWORD_REGEX = new RegExp(
   '(?:^|[^\\p{L}\\p{N}_])(' + PORTUGUESE_KEYWORDS.join('|') + ')(?:[^\\p{L}\\p{N}_]|$)',
   'iu'
 );
 
-function isExcluded(relPath) {
-  const normalized = relPath.replace(/\\/g, '/');
+function isExcluded(relativePath) {
+  const normalized = relativePath.replace(/\\/g, '/');
   return EXCLUDED_PATTERNS.some((pattern) => pattern.test(normalized));
 }
 
-function collectFiles(dirPath, relBase = '') {
-  let fileList = [];
-  if (!fs.existsSync(dirPath)) return fileList;
+function collectFiles(dirPath, relativeBase) {
+  let results = [];
+  if (!fs.existsSync(dirPath)) return results;
 
   const entries = fs.readdirSync(dirPath, { withFileTypes: true });
   for (const entry of entries) {
     const fullPath = path.join(dirPath, entry.name);
-    const relPath = path.join(relBase, entry.name);
+    const relPath = path.join(relativeBase, entry.name);
 
-    if (isExcluded(relPath)) {
-      continue;
-    }
+    if (isExcluded(relPath)) continue;
 
     if (entry.isDirectory()) {
-      fileList = fileList.concat(collectFiles(fullPath, relPath));
+      results = results.concat(collectFiles(fullPath, relPath));
     } else if (entry.isFile()) {
-      // Skip known binary extensions
       const ext = path.extname(entry.name).toLowerCase();
-      if (['.wasm', '.png', '.jpg', '.jpeg', '.gif', '.ico', '.exe', '.db', '.sqlite', '.bin'].includes(ext)) {
+      // Skip binaries and images
+      if (['.wasm', '.png', '.jpg', '.jpeg', '.gif', '.ico', '.exe', '.db', '.sqlite', '.bin', '.diff'].includes(ext)) {
         continue;
       }
-      fileList.push({ fullPath, relPath });
+      results.push({ fullPath, relPath });
     }
   }
-  return fileList;
+  return results;
 }
 
 function auditFile(fileObj) {
-  const violations = [];
   const content = fs.readFileSync(fileObj.fullPath, 'utf8');
-  const lines = content.split('\n');
+  const lines = content.split(/\r?\n/);
+  const violations = [];
 
   lines.forEach((line, idx) => {
     const lineNum = idx + 1;
 
-    // 1. Check for Portuguese keywords
-    const kwMatch = line.match(KEYWORD_REGEX);
-    if (kwMatch) {
+    // Check for common Portuguese keywords
+    const keywordMatch = line.match(KEYWORD_REGEX);
+    if (keywordMatch) {
       violations.push({
         line: lineNum,
         type: 'KEYWORD',
-        token: kwMatch[1],
+        token: keywordMatch[1],
         snippet: line.trim()
       });
       return;
     }
 
-    // 2. Check for accented Portuguese characters (allowing known citations)
+    // Scrub allowed citations case-insensitively before checking for accents
     let scrubbedLine = line;
     for (const citation of ALLOWED_CITATIONS) {
-      scrubbedLine = scrubbedLine.replaceAll(citation, '');
+      const citeRegex = new RegExp(citation, 'gi');
+      scrubbedLine = scrubbedLine.replace(citeRegex, '');
     }
 
+    // Check for Portuguese accented characters
     const accentMatch = scrubbedLine.match(ACCENT_REGEX);
     if (accentMatch) {
       violations.push({
@@ -161,19 +169,30 @@ function auditFile(fileObj) {
 function main() {
   console.log('===============================================================');
   console.log('  ChaosSQL — Automated English Purity Verification Gate');
-  console.log('===============================================================\n');
+  console.log('===============================================================');
 
   let allFiles = [];
+
+  // 1. Audit root-level files
+  for (const rootFile of ROOT_FILES) {
+    const fullPath = path.join(ROOT_DIR, rootFile);
+    if (fs.existsSync(fullPath) && !isExcluded(rootFile)) {
+      allFiles.push({ fullPath, relPath: rootFile });
+    }
+  }
+
+  // 2. Audit directories
   for (const dir of TARGET_DIRS) {
     const dirPath = path.join(ROOT_DIR, dir);
     allFiles = allFiles.concat(collectFiles(dirPath, dir));
   }
 
-  console.log(`Auditing ${allFiles.length} files across target directories:`);
+  console.log(`Auditing ${allFiles.length} files across target directories & repository roots:`);
   TARGET_DIRS.forEach((d) => console.log(`  - ${d}/`));
+  ROOT_FILES.forEach((f) => console.log(`  - ${f}`));
   console.log('\nExclusions applied:');
   console.log('  - .git/');
-  console.log('  - superpowers/ & .superpowers/');
+  console.log('  - .superpowers/ & docs/superpowers/ (historical plans)');
   console.log('  - node_modules/');
   console.log('  - site/ (legitimate Portuguese i18n dictionaries)');
   console.log('  - tools/test_playground_ui.js (bilingual UI toggle test)');
