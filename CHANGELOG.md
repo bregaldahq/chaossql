@@ -33,10 +33,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - **In-Browser WebAssembly (WASM) Playground & Client-Side Verification Engine**:
-  - Virtual SQLite compiled to WebAssembly (GOOS=js GOARCH=wasm) running 100% inside client-side browser Web Workers with zero backend server dependencies.
-  - Interactive web playground deployed at [chaossql.bregalda.com/#/playground](https://chaossql.bregalda.com/#/playground).
-  - Client-side execution of the Adya Direct Serialization Graph (DSG) with SVG cycle visualization and causal Delta-Debugging ($) trace shrinker.
-  - Formal capability specification [specs/14_wasm_in_browser_playground.md](specs/14_wasm_in_browser_playground.md).
+  - Virtual SQLite compiled to WebAssembly (`GOOS=js GOARCH=wasm`) running 100% inside client-side browser Web Workers with zero backend server dependencies.
+  - Pure-Go zero-CGO compilation target with `-ldflags="-s -w -X main.version=1.3.0" -trimpath` under 8MB uncompressed (< 2.2MB gzipped / brotli).
+  - Dedicated Web Worker RPC Protocol (`site/assets/wasm-worker.js`) supporting asynchronous event streaming (`INIT`, `VALIDATE`, `RUN`, `CANCEL`, `PROGRESS`, `CYCLE_DETECTED`, `COMPLETE`) to preserve 60 FPS UI performance.
+  - Interactive Web Playground Studio (`site/#/playground`) featuring 1-click loading of 10 canonical concurrency anomaly scenarios.
+  - Live YAML scenario editor with real-time validation and interactive runtime sliders for concurrency workers (1–8), iterations (5–50), and micro-jitter (0–50ms).
+  - Client-side execution of the Adya Direct Serialization Graph (DSG) with responsive SVG conflict graph ($ww, wr, rw$) and pulsing cycle animations.
+  - Microsecond Gantt swimlane timeline visualizing worker interleavings and operation latency.
+  - Causal Delta-Debugging ($ddmin$) inspector comparing raw schedules against 1-minimal counterexample schedules.
+  - Dynamic bilingual localization (PT / EN) with real-time translation of traces, timeline markers, anomaly badges, and console logs.
+  - In-browser benchmark telemetry (`site/assets/wasm-bench.js`) and headless stress harness (`tools/headless_worker_stress.js`) validating V8 heap growth < 15MB and WASM linear memory stability.
+  - Automated quality gates including structural DOM hierarchy assertions (`tools/test_playground_ui.js`) and English purity enforcement (`tools/test_english_purity.js`).
+  - Formal capability specification [specs/14_wasm_in_browser_playground.md](specs/14_wasm_in_browser_playground.md) and release notes [docs/releases/v1.3.0.md](docs/releases/v1.3.0.md).
+
 
 ---
 
