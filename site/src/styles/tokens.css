@@ -11,6 +11,22 @@
   --yellow: #f5c400;
   --green: #22c55e;
 
+  /* --- Semantic & Component Aliases --- */
+  --color-cream: var(--cream);
+  --color-ink: var(--ink);
+  --color-purple: var(--purple);
+  --color-yellow: var(--yellow);
+  --color-green: var(--green);
+  --color-red: #ef4444;
+  --color-border: var(--border-subtle);
+  --font-mono: var(--font-jetbrains-mono);
+  --font-display: 'Playfair Display', Georgia, serif;
+  --font-body: var(--font-inter);
+  --radius-sm: var(--radius-control);
+  --radius-md: var(--radius-card);
+  --radius-lg: var(--radius-modal);
+  --max-width-site: 76rem; /* 1216px constrained layout */
+
   /* Deep Atmospheric Space */
   --cosmos-deep: #05030c;
   --cosmos-sky: color-mix(in srgb, var(--ink) 55%, #05030c);

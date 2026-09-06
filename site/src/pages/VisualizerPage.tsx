@@ -69,27 +69,27 @@ export const VisualizerPage: React.FC<VisualizerPageProps> = ({ lang = 'pt' }) =
         {/* Header */}
         <header className={styles.header}>
           <span className={styles.monoTag}>
-            {isPt ? 'TERMINAL // TRACE DE CONCORRÊNCIA' : 'TERMINAL // CONCURRENCY TRACE'}
+            {isPt ? 'TERMINAL // CONCURRENCY TRACE (chaossql ui)' : 'TERMINAL // CONCURRENCY TRACE (chaossql ui)'}
           </span>
           <h1 className={styles.title}>
             {isPt ? 'Trace Visualizer' : 'Trace Visualizer'}
           </h1>
           <p className={styles.subtitle}>
             {isPt
-              ? 'Simulação interativa e de alta fidelidade da suíte chaossql ui. Inspecione a timeline de execução paralela entre goroutines, navegue no grafo de dependências cíclicas Adya e alterne entre a execução original de 20 operações e a sequência 1-minimal isolada por delta debugging (ddmin).'
-              : 'High-fidelity interactive simulation of the chaossql ui suite. Inspect the interleaved execution timeline across goroutines, explore the cyclic Adya dependency graph, and toggle between raw 20-operation executions and 1-minimal ddmin sequences.'}
+              ? 'Simulação interativa da suíte chaossql ui. Inspecione o entrelaçamento de goroutines em escala de microssegundos, investigue o Grafo de Dependências Adya (DSG) e compare o trace original de 20 operações com a síntese 1-minimal isolada por delta-debugging (ddmin).'
+              : 'Interactive high-fidelity simulation of the chaossql ui suite. Inspect microsecond-scale goroutine interleaving, explore the cyclic Adya Dependency Graph (DSG), and compare raw 20-operation executions with 1-minimal ddmin shrunk traces.'}
           </p>
         </header>
 
         {/* Controls Bar */}
         <div className={styles.controlsBar}>
-          <div className={styles.modeGroup}>
+          <div className={styles.modeSegmentedGroup}>
             <button
               type="button"
               className={`${styles.modeBtn} ${mode === 'raw' ? styles.modeBtnActive : ''}`}
               onClick={() => handleModeChange('raw')}
             >
-              {isPt ? 'Trace Completo (Raw — 20 ops)' : 'Full Trace (Raw — 20 ops)'}
+              {isPt ? 'Raw Trace (20 ops)' : 'Raw Trace (20 ops)'}
             </button>
             <button
               type="button"
@@ -98,19 +98,11 @@ export const VisualizerPage: React.FC<VisualizerPageProps> = ({ lang = 'pt' }) =
             >
               {isPt ? '1-Minimal Shrunk (4 ops / ddmin)' : '1-Minimal Shrunk (4 ops / ddmin)'}
             </button>
-            <button
-              type="button"
-              className={styles.animateBtn}
-              onClick={handleAnimate}
-              title={isPt ? 'Reproduzir sequência de execução' : 'Replay execution sequence'}
-            >
-              <span>▶</span> {isPt ? 'Simular Replay' : 'Replay Trace'}
-            </button>
           </div>
 
           <div className={styles.filterGroup}>
-            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: 'var(--color-gray-600)', marginRight: 4 }}>
-              {isPt ? 'Filtrar Worker:' : 'Filter Worker:'}
+            <span className={styles.filterLabel}>
+              {isPt ? 'Filtrar Worker:' : 'Filter:'}
             </span>
             <button
               type="button"
@@ -131,8 +123,17 @@ export const VisualizerPage: React.FC<VisualizerPageProps> = ({ lang = 'pt' }) =
             ))}
           </div>
 
+          <button
+            type="button"
+            className={styles.animateBtn}
+            onClick={handleAnimate}
+            title={isPt ? 'Reproduzir sequência de execução' : 'Replay execution sequence'}
+          >
+            <span>▶</span> {isPt ? 'Simular Replay' : 'Replay Trace'}
+          </button>
+
           <div className={styles.statusPill}>
-            <span className={styles.statusPillBolt}>⚡</span>
+            <span>⚡</span>
             <span>
               {isPt
                 ? `P4_LOST_UPDATE detectado em t=${collisionUs}μs`
@@ -158,7 +159,7 @@ export const VisualizerPage: React.FC<VisualizerPageProps> = ({ lang = 'pt' }) =
               </div>
               <div className={styles.legendItem}>
                 <span className={`${styles.legendColor} ${styles.legendConflict}`} />
-                <span>{isPt ? 'Conflito / Invariante' : 'Conflict / Invariant'}</span>
+                <span>{isPt ? 'Colisão / Invariante' : 'Collision / Invariant'}</span>
               </div>
             </div>
           </div>
@@ -180,7 +181,7 @@ export const VisualizerPage: React.FC<VisualizerPageProps> = ({ lang = 'pt' }) =
               style={{ left: `calc(90px + (100% - 90px) * (${collisionPct} / 100))` }}
             >
               <div className={styles.collisionLabel}>
-                {isPt ? `Colisão P4 (${collisionUs}μs)` : `P4 Collision (${collisionUs}μs)`}
+                {isPt ? `P4 Colisão (${collisionUs}μs)` : `P4 Collision (${collisionUs}μs)`}
               </div>
             </div>
 
@@ -200,7 +201,7 @@ export const VisualizerPage: React.FC<VisualizerPageProps> = ({ lang = 'pt' }) =
                     <div className={styles.laneTrack}>
                       {workerOps.map((op) => {
                         const leftPct = (op.startUs / maxTime) * 100;
-                        const widthPct = Math.max((op.durationUs / maxTime) * 100, 6.5);
+                        const widthPct = Math.max((op.durationUs / maxTime) * 100, 7.5);
                         const isSelected = op.id === activeOpId;
                         const isPulsing = animatingIndex !== null && opsList[animatingIndex]?.id === op.id;
 
@@ -216,7 +217,6 @@ export const VisualizerPage: React.FC<VisualizerPageProps> = ({ lang = 'pt' }) =
                               left: `${leftPct}%`,
                               width: `${widthPct}%`,
                               transform: isPulsing ? 'scale(1.12)' : undefined,
-                              transition: 'transform 0.15s ease',
                             }}
                             onClick={() => handleSelectOp(op)}
                             title={`${op.tx}: ${op.name}`}
@@ -242,20 +242,20 @@ export const VisualizerPage: React.FC<VisualizerPageProps> = ({ lang = 'pt' }) =
                 {isPt ? 'Grafo de Dependências Adya (DSG)' : 'Adya Dependency Graph (DSG)'}
               </span>
               <span className={`${styles.cardBadge} ${styles.badgeConflict}`}>
-                {isPt ? 'Ciclo Anômalo Detectado' : 'Anomaly Cycle Detected'}
+                {isPt ? 'Ciclo Anômalo: rw ∘ ww' : 'Anomaly Cycle: rw ∘ ww'}
               </span>
             </div>
 
             <div className={styles.adyaWrapper}>
-              <svg viewBox="0 0 380 180" className={styles.adyaSvg}>
+              <svg viewBox="0 0 420 190" className={styles.adyaSvg}>
                 <defs>
                   <marker
                     id="viz-arrow-yellow"
                     viewBox="0 0 10 10"
-                    refX="6"
+                    refX="7"
                     refY="5"
-                    markerWidth="6"
-                    markerHeight="6"
+                    markerWidth="7"
+                    markerHeight="7"
                     orient="auto-start-reverse"
                   >
                     <path d="M 0 1 L 10 5 L 0 9 z" fill="#F5C400" />
@@ -263,10 +263,10 @@ export const VisualizerPage: React.FC<VisualizerPageProps> = ({ lang = 'pt' }) =
                   <marker
                     id="viz-arrow-red"
                     viewBox="0 0 10 10"
-                    refX="6"
+                    refX="7"
                     refY="5"
-                    markerWidth="6"
-                    markerHeight="6"
+                    markerWidth="7"
+                    markerHeight="7"
                     orient="auto-start-reverse"
                   >
                     <path d="M 0 1 L 10 5 L 0 9 z" fill="#EF4444" />
@@ -282,15 +282,15 @@ export const VisualizerPage: React.FC<VisualizerPageProps> = ({ lang = 'pt' }) =
                   }}
                 >
                   <path
-                    d="M 100 80 C 140 20, 240 20, 280 80"
+                    d="M 110 80 C 160 20, 260 20, 310 80"
                     stroke="#F5C400"
-                    strokeWidth="2.4"
+                    strokeWidth="2.5"
                     fill="none"
                     markerEnd="url(#viz-arrow-yellow)"
-                    strokeDasharray="4, 2"
+                    strokeDasharray="5, 3"
                   />
-                  <rect x="165" y="24" width="50" height="20" rx="3" fill="#0D0A17" stroke="#F5C400" strokeWidth="1.2" />
-                  <text x="190" y="38" fill="#F5C400" fontFamily="JetBrains Mono" fontSize="11" fontWeight="700" textAnchor="middle">
+                  <rect x="185" y="24" width="50" height="22" rx="3" fill="#0D0A17" stroke="#F5C400" strokeWidth="1.2" />
+                  <text x="210" y="39" fill="#F5C400" fontFamily="JetBrains Mono" fontSize="11" fontWeight="700" textAnchor="middle">
                     rw
                   </text>
                 </g>
@@ -304,15 +304,15 @@ export const VisualizerPage: React.FC<VisualizerPageProps> = ({ lang = 'pt' }) =
                   }}
                 >
                   <path
-                    d="M 280 100 C 240 160, 140 160, 100 100"
+                    d="M 310 110 C 260 170, 160 170, 110 110"
                     stroke="#EF4444"
-                    strokeWidth="2.4"
+                    strokeWidth="2.5"
                     fill="none"
                     markerEnd="url(#viz-arrow-red)"
-                    strokeDasharray="4, 2"
+                    strokeDasharray="5, 3"
                   />
-                  <rect x="165" y="136" width="50" height="20" rx="3" fill="#0D0A17" stroke="#EF4444" strokeWidth="1.2" />
-                  <text x="190" y="150" fill="#EF4444" fontFamily="JetBrains Mono" fontSize="11" fontWeight="700" textAnchor="middle">
+                  <rect x="185" y="142" width="50" height="22" rx="3" fill="#0D0A17" stroke="#EF4444" strokeWidth="1.2" />
+                  <text x="210" y="157" fill="#EF4444" fontFamily="JetBrains Mono" fontSize="11" fontWeight="700" textAnchor="middle">
                     ww
                   </text>
                 </g>
@@ -325,8 +325,8 @@ export const VisualizerPage: React.FC<VisualizerPageProps> = ({ lang = 'pt' }) =
                     setActiveOpId(op.id);
                   }}
                 >
-                  <circle cx="80" cy="90" r="28" fill="#1F1934" stroke="#4B2E83" strokeWidth="2.4" />
-                  <text x="80" y="95" fill="#FCFBF8" fontFamily="Inter" fontSize="15" fontWeight="700" textAnchor="middle">
+                  <circle cx="90" cy="95" r="30" fill="#1F1934" stroke="#7C3AED" strokeWidth="2.5" />
+                  <text x="90" y="101" fill="#FCFBF8" fontFamily="Inter" fontSize="16" fontWeight="700" textAnchor="middle">
                     T₁
                   </text>
                 </g>
@@ -339,8 +339,8 @@ export const VisualizerPage: React.FC<VisualizerPageProps> = ({ lang = 'pt' }) =
                     setActiveOpId(op.id);
                   }}
                 >
-                  <circle cx="300" cy="90" r="28" fill="#1F1934" stroke="#F5C400" strokeWidth="2.4" />
-                  <text x="300" y="95" fill="#FCFBF8" fontFamily="Inter" fontSize="15" fontWeight="700" textAnchor="middle">
+                  <circle cx="330" cy="95" r="30" fill="#1F1934" stroke="#F5C400" strokeWidth="2.5" />
+                  <text x="330" y="101" fill="#FCFBF8" fontFamily="Inter" fontSize="16" fontWeight="700" textAnchor="middle">
                     T₂
                   </text>
                 </g>
@@ -349,7 +349,7 @@ export const VisualizerPage: React.FC<VisualizerPageProps> = ({ lang = 'pt' }) =
               <div className={styles.adyaFootnote}>
                 <strong>{isPt ? 'Teorema de Adya (MIT 1999):' : 'Adya Theorem (MIT 1999):'}</strong>{' '}
                 {isPt
-                  ? 'A presença do ciclo direcionado T1 ──(rw)──► T2 ──(ww)──► T1 prova formalmente a quebra de serializabilidade (Lost Update P4). Clique nos nós ou arestas para sincronizar com o inspetor.'
+                  ? 'A presença do ciclo direcionado T1 ──(rw)──► T2 ──(ww)──► T1 prova matematicamente a quebra de serializabilidade (Lost Update P4). Clique nos nós ou arestas para sincronizar com o inspetor.'
                   : 'The directed cycle T1 ──(rw)──► T2 ──(ww)──► T1 formally proves violation of serializability (P4 Lost Update). Click nodes or edges to sync with the inspector.'}
               </div>
             </div>
@@ -401,10 +401,10 @@ export const VisualizerPage: React.FC<VisualizerPageProps> = ({ lang = 'pt' }) =
                 }`}
               >
                 {currentOp.type === 'conflict'
-                  ? 'T1 ──(rw)──► T2 ──(ww)──► T1 [CICLO ANÔMALO DETECTADO]'
+                  ? 'T1 ──(rw)──► T2 ──(ww)──► T1 [CICLO ANÔMALO]'
                   : isPt
-                  ? 'Sem ciclo nesta transação (Passo serializável)'
-                  : 'No cycle in this transaction (Serializable step)'}
+                  ? 'Passo serializável (Sem conflito direto)'
+                  : 'Serializable step (No direct conflict)'}
               </span>
             </div>
 

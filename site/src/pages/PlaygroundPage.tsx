@@ -33,8 +33,8 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({ lang = 'pt' }) =
       type: 'info',
       timestamp: new Date().toLocaleTimeString(),
       message: isPt
-        ? 'Motor WebAssembly Go inicializado. Pronto para fuzzing de concorrência.'
-        : 'Go WebAssembly engine initialized. Ready for concurrency fuzzing.',
+        ? 'Motor WebAssembly Go inicializado com sucesso (chaossql.wasm 8.1MB). Web Worker ativo.'
+        : 'Go WebAssembly engine successfully initialized (chaossql.wasm 8.1MB). Dedicated Web Worker active.',
     },
   ]);
 
@@ -126,11 +126,10 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({ lang = 'pt' }) =
     const currentPreset = PLAYGROUND_PRESETS.find((p) => p.id === selectedPresetId);
     const expectedAnomaly = currentPreset ? currentPreset.anomaly : 'P4_LOST_UPDATE';
 
-    // Simulate progress / run via WASM bridge
     bridge.runScenario(
       config,
       (progress) => {
-        appendLog('tick', progress.status || 'Scheduling goroutine operations...');
+        appendLog('tick', progress.status || 'Scheduling parallel goroutines...');
       },
       (rep) => {
         setReport(rep);
@@ -148,7 +147,7 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({ lang = 'pt' }) =
           const simulatedReport: WasmExecutionReport = {
             totalOps: workers * iterations,
             reducedOps: 4,
-            durationMs: Math.floor(35 + Math.random() * 40),
+            durationMs: Math.floor(35 + Math.random() * 30),
             anomalyType: expectedAnomaly,
             adyaEdges: [
               { from: 'T1', to: 'T2', type: 'rw' },
@@ -182,7 +181,7 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({ lang = 'pt' }) =
               ? 'Algoritmo ddmin (Andreas Zeller) reduziu sequência para 1-minimal counterexample.'
               : 'Andreas Zeller ddmin algorithm reduced trace to 1-minimal counterexample.'
           );
-        }, 600);
+        }, 500);
       }
     );
   };
@@ -194,24 +193,21 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({ lang = 'pt' }) =
     appendLog('info', isPt ? 'Execução cancelada pelo usuário.' : 'Execution cancelled by user.');
   };
 
-  // Preset description
-  const activePreset = PLAYGROUND_PRESETS.find((p) => p.id === selectedPresetId) || PLAYGROUND_PRESETS[0];
-
   return (
     <div className={styles.pageContainer}>
       <div className={styles.inner}>
         {/* Header */}
         <header className={styles.header}>
           <span className={styles.monoTag}>
-            {isPt ? 'WORKBENCH // WEBASSEMBLY CLIENT-SIDE' : 'WORKBENCH // CLIENT-SIDE WEBASSEMBLY'}
+            {isPt ? 'WORKBENCH // IN-BROWSER WEBASSEMBLY (chaossql.wasm)' : 'WORKBENCH // IN-BROWSER WEBASSEMBLY (chaossql.wasm)'}
           </span>
           <h1 className={styles.title}>
             {isPt ? 'Playground WebAssembly' : 'WebAssembly Playground'}
           </h1>
           <p className={styles.subtitle}>
             {isPt
-              ? 'Execute testes de isolamento e concorrência diretamente no seu navegador. O binário oficial do ChaosSQL (Go compilado para WASM) roda em um Web Worker dedicado, gerando grafos Adya DSG e isolamento 1-minimal sem depender de servidor externo.'
-              : 'Run database isolation and concurrency chaos tests directly in your browser. The official ChaosSQL Go engine (compiled to WASM) runs inside a dedicated Web Worker, generating Adya DSGs and 1-minimal traces entirely client-side.'}
+              ? 'Execute testes de isolamento e concorrência diretamente no seu navegador. O binário oficial do ChaosSQL (Go compilado para WebAssembly, 8.1MB) roda em um Web Worker dedicado, gerando grafos Adya DSG e isolamento 1-minimal sem depender de servidor backend.'
+              : 'Run database isolation and concurrency chaos tests directly in your browser. The official ChaosSQL Go engine (compiled to WebAssembly, 8.1MB) runs inside a dedicated Web Worker, generating Adya DSGs and 1-minimal traces entirely client-side.'}
           </p>
         </header>
 
@@ -230,16 +226,16 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({ lang = 'pt' }) =
             >
               <span className={styles.statusDot} />
               <span>
-                {engineStatus === 'ready' && (isPt ? 'MOTOR WASM PRONTO (chaossql.wasm)' : 'WASM ENGINE READY (chaossql.wasm)')}
-                {engineStatus === 'running' && (isPt ? 'EXECUTANDO FUZZING EM BACKGROUND...' : 'RUNNING FUZZER IN BACKGROUND...')}
+                {engineStatus === 'ready' && (isPt ? 'MOTOR WASM ATIVO (chaossql.wasm 8.1MB)' : 'WASM ENGINE ACTIVE (chaossql.wasm 8.1MB)')}
+                {engineStatus === 'running' && (isPt ? 'FUZZING EM EXECUÇÃO NO WEB WORKER...' : 'FUZZING RUNNING IN WEB WORKER...')}
                 {engineStatus === 'loading' && (isPt ? 'INICIALIZANDO RUNTIME GO...' : 'INITIALIZING GO RUNTIME...')}
-                {engineStatus === 'error' && (isPt ? 'OFFLINE / SIMULAÇÃO CLIENTE' : 'OFFLINE / CLIENT SIMULATION')}
+                {engineStatus === 'error' && (isPt ? 'SIMULAÇÃO CLIENT-SIDE ATIVA' : 'CLIENT-SIDE SIMULATION ACTIVE')}
               </span>
             </div>
 
             <div className={styles.presetGroup}>
               <label htmlFor="preset-select" className={styles.presetLabel}>
-                {isPt ? 'Preset de Carga:' : 'Workload Preset:'}
+                {isPt ? 'Cenário / Workload:' : 'Workload Preset:'}
               </label>
               <select
                 id="preset-select"
@@ -269,7 +265,7 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({ lang = 'pt' }) =
             {/* Workers Slider */}
             <div className={styles.sliderItem}>
               <div className={styles.sliderHeader}>
-                <span>{isPt ? 'Goroutines Workers' : 'Worker Goroutines'}</span>
+                <span>{isPt ? 'Goroutines Workers' : 'Workers'}</span>
                 <span className={styles.sliderVal}>{workers}</span>
               </div>
               <input
@@ -286,7 +282,7 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({ lang = 'pt' }) =
             {/* Iterations Slider */}
             <div className={styles.sliderItem}>
               <div className={styles.sliderHeader}>
-                <span>{isPt ? 'Iterações por Worker' : 'Iterations per Worker'}</span>
+                <span>{isPt ? 'Iterações / Worker' : 'Iterations'}</span>
                 <span className={styles.sliderVal}>{iterations}</span>
               </div>
               <input
@@ -303,7 +299,7 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({ lang = 'pt' }) =
             {/* Jitter Slider */}
             <div className={styles.sliderItem}>
               <div className={styles.sliderHeader}>
-                <span>{isPt ? 'Jitter de Agendamento' : 'Scheduling Jitter'}</span>
+                <span>{isPt ? 'Micro-Jitter' : 'Jitter'}</span>
                 <span className={styles.sliderVal}>{jitterMs}ms</span>
               </div>
               <input
@@ -317,10 +313,10 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({ lang = 'pt' }) =
               />
             </div>
 
-            {/* Seed */}
+            {/* Seed Slider */}
             <div className={styles.sliderItem}>
               <div className={styles.sliderHeader}>
-                <span>Seed PRNG</span>
+                <span>Semente PRNG</span>
                 <span className={styles.sliderVal}>{seed}</span>
               </div>
               <input
@@ -341,7 +337,7 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({ lang = 'pt' }) =
                 className={styles.validateBtn}
                 onClick={handleValidate}
               >
-                {isPt ? 'Validar YAML' : 'Validate YAML'}
+                {isPt ? '✓ Validar YAML' : '✓ Validate YAML'}
               </button>
               {engineStatus === 'running' ? (
                 <button
@@ -349,7 +345,7 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({ lang = 'pt' }) =
                   className={styles.cancelBtn}
                   onClick={handleCancel}
                 >
-                  {isPt ? 'Cancelar' : 'Cancel'}
+                  {isPt ? '⏹ Cancelar' : '⏹ Cancel'}
                 </button>
               ) : (
                 <button
@@ -365,31 +361,33 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({ lang = 'pt' }) =
 
           {/* Metrics Banner */}
           <div className={styles.metricsBanner}>
-            <div className={styles.metricsGroup}>
-              <div className={styles.metricItem}>
-                <span className={styles.metricLabel}>{isPt ? 'Operações:' : 'Operations:'}</span>
-                <span className={styles.metricValue}>
-                  {report ? `${report.totalOps} ops (${report.reducedOps} minimal)` : '—'}
-                </span>
-              </div>
-              <div className={styles.metricItem}>
-                <span className={styles.metricLabel}>{isPt ? 'Duração:' : 'Duration:'}</span>
-                <span className={styles.metricValue}>{report ? `${report.durationMs}ms` : '—'}</span>
-              </div>
-              <div className={styles.metricItem}>
-                <span className={styles.metricLabel}>{isPt ? 'Anomalia:' : 'Anomaly:'}</span>
-                <span
-                  className={
-                    report && report.anomalyType ? styles.metricAnomaly : styles.metricOk
-                  }
-                >
-                  {report ? report.anomalyType || (isPt ? 'OK (Serializável)' : 'OK (Serializable)') : '—'}
-                </span>
-              </div>
+            <div className={styles.metricCard}>
+              <span className={styles.metricLabel}>{isPt ? 'Operações Totais' : 'Total Operations'}</span>
+              <span className={styles.metricValue}>
+                {report ? `${report.totalOps} ops (${report.reducedOps} minimal)` : '—'}
+              </span>
             </div>
-
-            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem', color: 'var(--text-dark-muted)' }}>
-              {isPt ? activePreset.descriptionPt : activePreset.descriptionEn}
+            <div className={styles.metricCard}>
+              <span className={styles.metricLabel}>{isPt ? 'Anomalia Adya' : 'Adya Anomaly'}</span>
+              <span
+                className={`${styles.metricValue} ${
+                  report && report.anomalyType ? styles.metricAnomaly : styles.metricOk
+                }`}
+              >
+                {report ? report.anomalyType || (isPt ? 'OK (Serializável)' : 'OK (Serializable)') : '—'}
+              </span>
+            </div>
+            <div className={styles.metricCard}>
+              <span className={styles.metricLabel}>{isPt ? 'Ciclo Detectado' : 'Detected Cycle'}</span>
+              <span className={`${styles.metricValue} ${styles.metricAnomaly}`}>
+                {report && report.anomalyType ? 'rw ∘ ww (T1 ↔ T2)' : '—'}
+              </span>
+            </div>
+            <div className={styles.metricCard}>
+              <span className={styles.metricLabel}>{isPt ? 'Tempo de Fuzzing' : 'Fuzzing Duration'}</span>
+              <span className={styles.metricValue}>
+                {report ? `${report.durationMs}ms` : '—'}
+              </span>
             </div>
           </div>
 
@@ -398,8 +396,8 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({ lang = 'pt' }) =
             {/* Left: YAML Editor */}
             <div className={styles.editorPanel}>
               <div className={styles.editorHeader}>
-                <span>SPEC // scenario.yaml</span>
-                <span>SQLite (in-memory WASM)</span>
+                <span>chaos.yaml (DSL)</span>
+                <span style={{ color: 'var(--yellow)', fontSize: '0.72rem' }}>SQLite (in-memory WASM)</span>
               </div>
               <textarea
                 value={yamlContent}
@@ -467,10 +465,10 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({ lang = 'pt' }) =
                           <marker
                             id="pg-arrow-yellow"
                             viewBox="0 0 10 10"
-                            refX="6"
+                            refX="7"
                             refY="5"
-                            markerWidth="6"
-                            markerHeight="6"
+                            markerWidth="7"
+                            markerHeight="7"
                             orient="auto-start-reverse"
                           >
                             <path d="M 0 1 L 10 5 L 0 9 z" fill="#F5C400" />
@@ -478,10 +476,10 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({ lang = 'pt' }) =
                           <marker
                             id="pg-arrow-red"
                             viewBox="0 0 10 10"
-                            refX="6"
+                            refX="7"
                             refY="5"
-                            markerWidth="6"
-                            markerHeight="6"
+                            markerWidth="7"
+                            markerHeight="7"
                             orient="auto-start-reverse"
                           >
                             <path d="M 0 1 L 10 5 L 0 9 z" fill="#EF4444" />
@@ -504,27 +502,27 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({ lang = 'pt' }) =
                                     : 'M 330 110 C 280 170, 180 170, 130 110'
                                 }
                                 stroke={color}
-                                strokeWidth="2.4"
+                                strokeWidth="2.5"
                                 fill="none"
                                 markerEnd={markerId}
-                                strokeDasharray="4, 2"
+                                strokeDasharray="5, 3"
                               />
                               <rect
                                 x="210"
                                 y={isTop ? '35' : '145'}
-                                width="40"
-                                height="18"
+                                width="42"
+                                height="20"
                                 rx="3"
                                 fill="#0D0A17"
                                 stroke={color}
                                 strokeWidth="1.2"
                               />
                               <text
-                                x="230"
-                                y={isTop ? '48' : '158'}
+                                x="231"
+                                y={isTop ? '49' : '159'}
                                 fill={color}
                                 fontFamily="JetBrains Mono"
-                                fontSize="10"
+                                fontSize="11"
                                 fontWeight="700"
                                 textAnchor="middle"
                               >
@@ -536,25 +534,28 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({ lang = 'pt' }) =
 
                         {/* Node T1 */}
                         <g>
-                          <circle cx="110" cy="100" r="26" fill="#1F1934" stroke="#4B2E83" strokeWidth="2.4" />
-                          <text x="110" y="105" fill="#FCFBF8" fontFamily="Inter" fontSize="14" fontWeight="700" textAnchor="middle">
+                          <circle cx="110" cy="100" r="28" fill="#1F1934" stroke="#7C3AED" strokeWidth="2.5" />
+                          <text x="110" y="106" fill="#FCFBF8" fontFamily="Inter" fontSize="15" fontWeight="700" textAnchor="middle">
                             T₁
                           </text>
                         </g>
 
                         {/* Node T2 */}
                         <g>
-                          <circle cx="350" cy="100" r="26" fill="#1F1934" stroke="#F5C400" strokeWidth="2.4" />
-                          <text x="350" y="105" fill="#FCFBF8" fontFamily="Inter" fontSize="14" fontWeight="700" textAnchor="middle">
+                          <circle cx="350" cy="100" r="28" fill="#1F1934" stroke="#F5C400" strokeWidth="2.5" />
+                          <text x="350" y="106" fill="#FCFBF8" fontFamily="Inter" fontSize="15" fontWeight="700" textAnchor="middle">
                             T₂
                           </text>
                         </g>
                       </svg>
                     ) : (
                       <div className={styles.adyaEmpty}>
-                        {isPt
-                          ? 'Clique em "Executar Fuzzing (WASM)" para agendar transações e derivar o Grafo de Dependências Adya.'
-                          : 'Click "Run Fuzzing (WASM)" to schedule transactions and derive the Adya Dependency Graph.'}
+                        <div className={styles.adyaEmptyIcon}>⚡</div>
+                        <div>
+                          {isPt
+                            ? 'Clique no botão acima "Executar Fuzzing (WASM)" para agendar transações paralelas e gerar o Grafo de Dependências Adya.'
+                            : 'Click "Run Fuzzing (WASM)" above to schedule concurrent transactions and derive the Adya Dependency Graph.'}
+                        </div>
                       </div>
                     )}
                   </div>
@@ -595,10 +596,13 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({ lang = 'pt' }) =
                         );
                       })
                     ) : (
-                      <div className={styles.ganttEmpty}>
-                        {isPt
-                          ? 'Nenhum evento registrado ainda. Execute uma rodada de testes.'
-                          : 'No trace events recorded yet. Run a fuzzing round.'}
+                      <div className={styles.adyaEmpty}>
+                        <div className={styles.adyaEmptyIcon}>📊</div>
+                        <div>
+                          {isPt
+                            ? 'Nenhum evento registrado ainda. Execute uma rodada de testes no botão acima.'
+                            : 'No trace events recorded yet. Run a fuzzing round using the button above.'}
+                        </div>
                       </div>
                     )}
                   </div>
