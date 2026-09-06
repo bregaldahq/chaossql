@@ -1,0 +1,184 @@
+.contentPane {
+  flex: 1;
+  min-width: 0;
+  padding: var(--space-3) 0 var(--space-6) var(--space-4);
+}
+
+.articleInner {
+  max-width: var(--text-max);
+}
+
+.breadcrumbs {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: var(--space-2);
+  font-family: var(--font-jetbrains-mono), monospace;
+  font-size: var(--type-meta);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.badge {
+  display: inline-block;
+  padding: 0.2rem 0.6rem;
+  background: color-mix(in srgb, var(--purple) 8%, var(--cream));
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-badge);
+  font-family: var(--font-jetbrains-mono), monospace;
+  font-size: var(--type-meta);
+  color: var(--purple);
+  margin-bottom: var(--space-2);
+}
+
+.title {
+  font-size: clamp(2.2rem, 4vw, 3.4rem);
+  font-weight: 500;
+  letter-spacing: -0.05em;
+  line-height: 1.08;
+  color: var(--ink);
+  margin-bottom: var(--space-3);
+  text-wrap: balance;
+}
+
+.summaryBox {
+  padding: 1.2rem 1.4rem;
+  background: color-mix(in srgb, var(--purple) 4%, var(--cream));
+  border-left: 3px solid var(--purple);
+  border-radius: 0 var(--radius-badge) var(--radius-badge) 0;
+  font-size: var(--type-body-lg);
+  line-height: 1.75;
+  color: var(--ink);
+  margin-bottom: var(--space-4);
+}
+
+.htmlContent {
+  font-size: var(--type-body);
+  line-height: 1.8;
+  color: var(--ink);
+}
+
+.htmlContent h2 {
+  font-size: 1.7rem;
+  font-weight: 550;
+  letter-spacing: -0.04em;
+  margin-top: var(--space-4);
+  margin-bottom: var(--space-2);
+  color: var(--ink);
+}
+
+.htmlContent h3 {
+  font-size: 1.25rem;
+  font-weight: 550;
+  letter-spacing: -0.03em;
+  margin-top: var(--space-3);
+  margin-bottom: var(--space-2);
+  color: var(--ink);
+}
+
+.htmlContent p {
+  margin-bottom: var(--space-2);
+}
+
+.htmlContent ul,
+.htmlContent ol {
+  padding-left: 1.4rem;
+  margin-bottom: var(--space-3);
+}
+
+.htmlContent li {
+  margin-bottom: 0.4rem;
+}
+
+.htmlContent code {
+  font-family: var(--font-jetbrains-mono), monospace;
+  font-size: 0.85em;
+  background: color-mix(in srgb, var(--purple) 7%, var(--cream));
+  border: 1px solid var(--border-subtle);
+  padding: 0.15rem 0.35rem;
+  border-radius: var(--radius-control);
+  color: var(--purple);
+}
+
+.htmlContent pre {
+  margin-block: var(--space-3);
+  padding: 1rem 1.2rem;
+  background: color-mix(in srgb, var(--ink) 92%, var(--purple));
+  border: 1px solid color-mix(in srgb, var(--cream) 18%, transparent);
+  border-radius: var(--radius-card);
+  overflow-x: auto;
+  color: var(--cream);
+  font-family: var(--font-jetbrains-mono), monospace;
+  font-size: 0.85rem;
+  line-height: 1.6;
+}
+
+.htmlContent pre code {
+  background: transparent;
+  border: none;
+  padding: 0;
+  color: inherit;
+}
+
+.htmlContent table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-block: var(--space-3);
+  font-size: 0.88rem;
+}
+
+.htmlContent th {
+  text-align: left;
+  padding: 0.6rem 0.5rem;
+  border-bottom: 2px solid var(--border-subtle);
+  font-family: var(--font-jetbrains-mono), monospace;
+  font-size: var(--type-meta);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-secondary);
+}
+
+.htmlContent td {
+  padding: 0.6rem 0.5rem;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.footerNav {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-top: var(--space-6);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.navBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: var(--cream);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-control);
+  padding: 0.75rem 1.25rem;
+  color: var(--ink);
+  font-size: var(--type-action);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.navBtn:hover {
+  border-color: var(--purple);
+  color: var(--purple);
+}
+
+@media (max-width: 860px) {
+  .contentPane {
+    padding-left: 0;
+  }
+
+  .footerNav {
+    flex-direction: column;
+  }
+}
