@@ -1,0 +1,156 @@
+.pageContainer {
+  padding: var(--space-4) var(--page-gutter) var(--space-6);
+  max-width: var(--content-max);
+  margin-inline: auto;
+}
+
+.header {
+  margin-bottom: var(--space-4);
+}
+
+.layout {
+  display: flex;
+  gap: var(--space-4);
+  align-items: flex-start;
+}
+
+.scenariosNav {
+  width: 100%;
+  max-width: 19rem;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding-right: var(--space-3);
+  border-right: 1px solid var(--border-subtle);
+}
+
+.scenarioBtn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.65rem 0.85rem;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+  cursor: pointer;
+  text-align: left;
+  font-size: 0.88rem;
+  color: var(--ink);
+  transition: all 0.15s ease;
+}
+
+.scenarioBtn:hover {
+  background: color-mix(in srgb, var(--purple) 5%, var(--cream));
+}
+
+.scenarioBtnActive {
+  background: color-mix(in srgb, var(--purple) 10%, var(--cream));
+  border-color: color-mix(in srgb, var(--purple) 30%, transparent);
+  color: var(--purple);
+  font-weight: 650;
+}
+
+.stagePane {
+  flex: 1;
+  min-width: 0;
+  max-width: var(--text-max);
+}
+
+.anomalyBadge {
+  display: inline-block;
+  padding: 0.2rem 0.5rem;
+  background: color-mix(in srgb, var(--yellow) 15%, var(--cream));
+  border: 1px solid color-mix(in srgb, var(--yellow) 40%, transparent);
+  color: var(--ink);
+  border-radius: var(--radius-badge);
+  font-family: var(--font-jetbrains-mono), monospace;
+  font-size: var(--type-meta);
+  font-weight: 700;
+}
+
+.stageTitle {
+  font-size: clamp(1.8rem, 3.2vw, 2.5rem);
+  font-weight: 550;
+  letter-spacing: -0.04em;
+  margin-block: var(--space-2);
+  color: var(--ink);
+}
+
+.summary {
+  font-size: var(--type-body-lg);
+  line-height: 1.75;
+  color: var(--text-secondary);
+  margin-bottom: var(--space-4);
+}
+
+.tabsBar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  border-bottom: 1px solid var(--border-subtle);
+  margin-bottom: var(--space-3);
+}
+
+.tabBtn {
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: 0.6rem 0.9rem;
+  font-family: var(--font-jetbrains-mono), monospace;
+  font-size: 0.8rem;
+  font-weight: 550;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.tabBtn:hover {
+  color: var(--purple);
+}
+
+.tabBtnActive {
+  color: var(--purple);
+  border-bottom-color: var(--purple);
+}
+
+.infoBox {
+  background: color-mix(in srgb, var(--purple) 4%, var(--cream));
+  border-left: 3px solid var(--purple);
+  padding: 1rem 1.2rem;
+  border-radius: 0 var(--radius-badge) var(--radius-badge) 0;
+  margin-bottom: var(--space-3);
+  font-size: var(--type-body);
+  line-height: 1.65;
+}
+
+.enginesTagList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: var(--space-2);
+}
+
+.engineTag {
+  background: color-mix(in srgb, var(--green) 12%, var(--cream));
+  border: 1px solid color-mix(in srgb, var(--green) 30%, transparent);
+  color: color-mix(in srgb, var(--ink) 80%, var(--green));
+  padding: 0.2rem 0.55rem;
+  border-radius: var(--radius-badge);
+  font-family: var(--font-jetbrains-mono), monospace;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+@media (max-width: 860px) {
+  .layout {
+    flex-direction: column;
+  }
+
+  .scenariosNav {
+    max-width: 100%;
+    border-right: none;
+    border-bottom: 1px solid var(--border-subtle);
+    padding-bottom: var(--space-3);
+  }
+}
