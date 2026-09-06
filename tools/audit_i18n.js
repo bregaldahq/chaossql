@@ -315,31 +315,31 @@ console.log('\n--> Checking Test 5: English Mode Linguistic Purity...');
 
 // Common Portuguese tokens that should never appear in English UI prose
 const PT_PORTUGUESE_INDICATORS = [
-  /\bInício\b/i,
-  /\bDocumentação\b/i,
-  /\bCenários\b/i,
-  /\bSoluções\b/i,
+  /\bIn\u00edcio\b/i,
+  /\bDocumenta\u00e7\u00e3o\b/i,
+  /\bCen\u00e1rios\b/i,
+  /\bSolu\u00e7\u00f5es\b/i,
   /\bMatriz\b/i,
-  /\bVisão\b/i,
-  /\bExecução\b/i,
-  /\bConcorrência\b/i,
+  /\bVis\u00e3o\b/i,
+  /\bExecu\u00e7\u00e3o\b/i,
+  /\bConcorr\u00eancia\b/i,
   /\bIsolamento\b/i,
   /\bInjetar\b/i,
   /\bReiniciar\b/i,
   /\bReduzir\b/i,
   /\bAnomalia\b/i,
-  /\bFundações\b/i,
-  /\bConstruído\b/i,
+  /\bFunda\u00e7\u00f5es\b/i,
+  /\bConstru\u00eddo\b/i,
   /\bPesquisa\b/i,
   /\bAnterior\b/i,
-  /\bPróximo\b/i,
+  /\bPr\u00f3ximo\b/i,
   /\bRastro\b/i,
   /\bInvariante\b/i,
   /\bPermitido\b/i,
   /\bPrevenido\b/i,
   /\bDetectado\b/i,
   /\bBuscar\b/i,
-  /\bCapítulo\b/i,
+  /\bCap\u00edtulo\b/i,
   /\bCopiar\b/i,
   /\bCopiado\b/i,
   /\bExibir\b/i,
@@ -405,7 +405,7 @@ function checkEncoding(text, location) {
   if (typeof text !== 'string') return;
   // Match single or double question mark surrounded by letters (e.g. In?cio, Documenta??o, Vers?o)
   // or arrow/math patterns like "rw ? ww", "P ? 1", "Documentation ?"
-  if (/[a-zA-ZÀ-ÿ]\?[a-zA-ZÀ-ÿ]/.test(text) || /\?\?/.test(text)) {
+  if (/[a-zA-Z\u00C0-\u00FF]\?[a-zA-Z\u00C0-\u00FF]/.test(text) || /\?\?/.test(text)) {
     encodingIssues.push(`${location}: possible broken accent: "${text}"`);
   }
   if (/\b\?\b/.test(text) && !location.includes('search') && !text.endsWith('?')) {

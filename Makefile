@@ -86,6 +86,6 @@ stress-wasm: ## Run headless WebAssembly & worker stress harness
 test-wasm-stress: stress-wasm
 
 verify: check-harness lint test
-	@node tools/test_wasm_worker.js && node tools/test_playground_ui.js && node tools/test_wasm_bench.js && node tools/headless_worker_stress.js
+	@node tools/test_english_purity.js && node tools/test_wasm_worker.js && node tools/test_playground_ui.js && node tools/test_wasm_bench.js && node tools/headless_worker_stress.js
 	@echo ""
-	@echo "✔ Gate de verificacao concluido com sucesso!"
+	@echo "✔ Verification gate completed successfully!"

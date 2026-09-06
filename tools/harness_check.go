@@ -52,6 +52,7 @@ func main() {
 		"site/assets/wasm-worker.js",
 		"site/assets/wasm_exec.js",
 		"examples/foreign_key_cascade_deadlock/chaos.yaml",
+		"tools/test_english_purity.js",
 	}
 
 	missing := 0

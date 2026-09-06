@@ -23,12 +23,12 @@ def main() -> int:
             missing.append(rel)
 
     if missing:
-        print("[HARNESS ERROR] Faltando arquivos obrigatórios do harness:", file=sys.stderr)
+        print("[HARNESS ERROR] Missing mandatory harness files:", file=sys.stderr)
         for m in missing:
             print(f" - {m}", file=sys.stderr)
         return 1
 
-    print("[HARNESS OK] Todos os ártefatos do harness estão presentes e consistentes.")
+    print("[HARNESS OK] All harness artifacts are present and consistent.")
     return 0
 
 if __name__ == "__main__":
