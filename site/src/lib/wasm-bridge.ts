@@ -18,7 +18,24 @@ export interface TraceOp {
 export interface AdyaEdge {
   from: string;
   to: string;
-  type: 'rw' | 'ww' | 'wr' | string;
+  type: 'rw' | 'ww' | 'wr' | 'waits' | 'cascade' | string;
+  item?: string;
+  label?: string;
+}
+
+export interface AdyaNodeDef {
+  id: string;
+  label: string;
+  rolePt: string;
+  roleEn: string;
+}
+
+export interface AdyaEdgeDef {
+  from: string;
+  to: string;
+  type: 'rw' | 'ww' | 'wr' | 'waits' | 'cascade' | string;
+  item?: string;
+  label?: string;
 }
 
 export interface WasmExecutionReport {
@@ -110,6 +127,12 @@ export interface PresetDef {
   descriptionPt: string;
   descriptionEn: string;
   yaml: string;
+  nodes: AdyaNodeDef[];
+  edges: AdyaEdgeDef[];
+  cycleFormula: string;
+  cycleExplanationPt: string;
+  cycleExplanationEn: string;
+  reducedOps: number;
 }
 
 export const PLAYGROUND_PRESETS: PresetDef[] = [
@@ -120,6 +143,18 @@ export const PLAYGROUND_PRESETS: PresetDef[] = [
     anomaly: 'P4_LOST_UPDATE',
     descriptionPt: 'Dois saques concorrentes leem o mesmo saldo e sobrescrevem uma alteração.',
     descriptionEn: 'Two concurrent withdrawals read the same balance and overwrite updates.',
+    nodes: [
+      { id: 'T1', label: 'T₁', rolePt: 'Saque $100 (Worker 0)', roleEn: 'Withdraw $100 (Worker 0)' },
+      { id: 'T2', label: 'T₂', rolePt: 'Saque $100 (Worker 1)', roleEn: 'Withdraw $100 (Worker 1)' },
+    ],
+    edges: [
+      { from: 'T1', to: 'T2', type: 'rw', item: 'accounts.balance', label: 'rw (anti-dep)' },
+      { from: 'T2', to: 'T1', type: 'ww', item: 'accounts.balance', label: 'ww (overwrite)' },
+    ],
+    cycleFormula: 'T₁ ──(rw)──► T₂ ──(ww)──► T₁',
+    cycleExplanationPt: 'A transação T₁ lê o saldo original antes de T₂ escrever (rw). T₂ comita sua alteração e T₁ sobrescreve cegamente o saldo baseado no valor obsoleto (ww). Nenhuma ordem serial estrita (T1 < T2 ou T2 < T1) preserva a conservação contábil.',
+    cycleExplanationEn: 'Transaction T₁ reads initial balance before T₂ writes (rw). T₂ commits its update, and T₁ blind-overwrites the balance using stale data (ww). No strict serial order preserves the balance invariant.',
+    reducedOps: 4,
     yaml: `version: "1.0"
 name: "banking_lost_update"
 database:
@@ -144,6 +179,20 @@ operations:
     anomaly: 'G2_ANTI_DEPENDENCY',
     descriptionPt: 'Compras paralelas verificam estoque positivo simultaneamente, resultando em estoque negativo.',
     descriptionEn: 'Parallel checkouts simultaneously observe positive stock, causing negative inventory.',
+    nodes: [
+      { id: 'T1', label: 'T₁', rolePt: 'Compra Item (Worker 0)', roleEn: 'Buy Item (Worker 0)' },
+      { id: 'T2', label: 'T₂', rolePt: 'Compra Item (Worker 1)', roleEn: 'Buy Item (Worker 1)' },
+      { id: 'T3', label: 'T₃', rolePt: 'Compra Item (Worker 2)', roleEn: 'Buy Item (Worker 2)' },
+    ],
+    edges: [
+      { from: 'T1', to: 'T2', type: 'rw', item: 'inventory.stock', label: 'rw (stock check)' },
+      { from: 'T2', to: 'T3', type: 'rw', item: 'inventory.stock', label: 'rw (stock check)' },
+      { from: 'T3', to: 'T1', type: 'rw', item: 'inventory.stock', label: 'rw (cycle closure)' },
+    ],
+    cycleFormula: 'T₁ ──(rw)──► T₂ ──(rw)──► T₃ ──(rw)──► T₁',
+    cycleExplanationPt: 'Ciclo anti-dependência fechado de 3 nós (Adya G2): T₁, T₂ e T₃ observam o mesmo estoque positivo e decremetam em paralelo. Nenhuma transação observa a escrita das outras antes de comitar, violando serializabilidade e gerando estoque negativo.',
+    cycleExplanationEn: 'Closed 3-node anti-dependency cycle (Adya G2): T₁, T₂, and T₃ concurrently observe positive stock and decrement in parallel. No transaction observes the other updates before committing, producing negative inventory.',
+    reducedOps: 6,
     yaml: `version: "1.0"
 name: "inventory_oversell"
 database:
@@ -168,6 +217,18 @@ operations:
     anomaly: 'G_SKEW',
     descriptionPt: 'Dois médicos solicitam dispensa checando se há ao menos 2 ativos; ambos saem ao mesmo tempo.',
     descriptionEn: 'Two doctors sign off simultaneously verifying count >= 2, leaving hospital unmanned.',
+    nodes: [
+      { id: 'T1', label: 'T₁', rolePt: 'Dispensa Dr. Alice (Worker 0)', roleEn: 'Sign-off Dr. Alice (Worker 0)' },
+      { id: 'T2', label: 'T₂', rolePt: 'Dispensa Dr. Bob (Worker 1)', roleEn: 'Sign-off Dr. Bob (Worker 1)' },
+    ],
+    edges: [
+      { from: 'T1', to: 'T2', type: 'rw', item: 'doctors(on_duty>=2)', label: 'rw (anti-dep)' },
+      { from: 'T2', to: 'T1', type: 'rw', item: 'doctors(on_duty>=2)', label: 'rw (anti-dep)' },
+    ],
+    cycleFormula: 'T₁ ──(rw)──► T₂ ──(rw)──► T₁',
+    cycleExplanationPt: 'Anti-dependência mútua simétrica (Write Skew): T₁ e T₂ leem o mesmo predicado compartilhado (médicos ativos >= 2) e alteram linhas disjuntas. Ambas as transações são válidas individualmente, mas a intercalação desativa ambos os médicos.',
+    cycleExplanationEn: 'Symmetric mutual anti-dependency (Write Skew): T₁ and T₂ both evaluate shared predicate (active >= 2) and mutate disjoint rows. Both are valid in isolation, but interleaving leaves zero active doctors.',
+    reducedOps: 4,
     yaml: `version: "1.0"
 name: "hospital_write_skew"
 database:
@@ -197,6 +258,18 @@ operations:
     anomaly: 'A5A_READ_SKEW',
     descriptionPt: 'Transações de transferência modificam contas enquanto a auditoria lê saldos desalinhados.',
     descriptionEn: 'Transfer transactions mutate accounts while audit reads misaligned balances.',
+    nodes: [
+      { id: 'T1', label: 'T₁', rolePt: 'Auditoria Balanço (Worker 0)', roleEn: 'Balance Audit (Worker 0)' },
+      { id: 'T2', label: 'T₂', rolePt: 'Transferência $100 (Worker 1)', roleEn: 'Transfer $100 (Worker 1)' },
+    ],
+    edges: [
+      { from: 'T1', to: 'T2', type: 'rw', item: 'accounts[id=1]', label: 'rw (pre-debit)' },
+      { from: 'T2', to: 'T1', type: 'wr', item: 'accounts[id=2]', label: 'wr (post-credit)' },
+    ],
+    cycleFormula: 'T₁ ──(rw)──► T₂ ──(wr)──► T₁',
+    cycleExplanationPt: 'Ciclo rw → wr (Read Skew / A5A): A transação de auditoria T₁ lê a Conta 1 antes do débito de T₂ (rw), mas lê a Conta 2 após o crédito de T₂ (wr). A soma calculada difere do total conservado de R$ 1.000.',
+    cycleExplanationEn: 'Cycle rw → wr (Read Skew / A5A): The audit transaction T₁ reads Account 1 before T₂ debit (rw), but reads Account 2 after T₂ credit (wr). The calculated sum breaks the conservation invariant.',
+    reducedOps: 3,
     yaml: `version: "1.0"
 name: "read_skew_financial_audit"
 database:
@@ -220,6 +293,18 @@ operations:
     anomaly: 'G0_DIRTY_WRITE',
     descriptionPt: 'Dois lances simultâneos intercalam escrita de valor e arrematante gerando registro híbrido.',
     descriptionEn: 'Two bids interleave high bid and high bidder writes resulting in hybrid state.',
+    nodes: [
+      { id: 'T1', label: 'T₁', rolePt: 'Lance Alice $100 (Worker 0)', roleEn: 'Alice Bid $100 (Worker 0)' },
+      { id: 'T2', label: 'T₂', rolePt: 'Lance Bob $200 (Worker 1)', roleEn: 'Bob Bid $200 (Worker 1)' },
+    ],
+    edges: [
+      { from: 'T1', to: 'T2', type: 'ww', item: 'auctions.high_bid', label: 'ww (bid amount)' },
+      { from: 'T2', to: 'T1', type: 'ww', item: 'auctions.high_bidder', label: 'ww (bidder name)' },
+    ],
+    cycleFormula: 'T₁ ──(ww)──► T₂ ──(ww)──► T₁',
+    cycleExplanationPt: 'Ciclo de Escrita Suja (Dirty Write / G0): T₁ grava o valor do lance, mas antes de gravar o titular, T₂ sobrescreve o valor com $200. T₁ então comita seu nome \'Alice\', gravando Alice como vencedora por $200 sem que essa oferta tenha existido.',
+    cycleExplanationEn: 'Dirty Write Cycle (G0): T₁ writes bid amount, but before writing bidder name, T₂ overwrites bid with $200. T₁ then commits \'Alice\', generating an invalid hybrid winner record.',
+    reducedOps: 4,
     yaml: `version: "1.0"
 name: "dirty_write_auction"
 database:
@@ -247,6 +332,20 @@ operations:
     anomaly: 'G2_CYCLE',
     descriptionPt: 'Transações cruzadas atualizam cotações BTC e ETH baseadas em taxas anteriores mutuamente.',
     descriptionEn: 'Cross transactions update BTC and ETH quotes based on mutual previous rates.',
+    nodes: [
+      { id: 'T1', label: 'T₁', rolePt: 'Arbitragem BTC (Worker 0)', roleEn: 'BTC Arbitrage (Worker 0)' },
+      { id: 'T2', label: 'T₂', rolePt: 'Arbitragem ETH (Worker 1)', roleEn: 'ETH Arbitrage (Worker 1)' },
+      { id: 'T3', label: 'T₃', rolePt: 'Rebalanceamento USD (Worker 2)', roleEn: 'USD Rebalance (Worker 2)' },
+    ],
+    edges: [
+      { from: 'T1', to: 'T2', type: 'rw', item: 'crypto_pairs[ETH]', label: 'rw (quote dependency)' },
+      { from: 'T2', to: 'T3', type: 'rw', item: 'crypto_pairs[BTC]', label: 'rw (cross rate)' },
+      { from: 'T3', to: 'T1', type: 'rw', item: 'crypto_pairs[USD]', label: 'rw (cyclic feedback)' },
+    ],
+    cycleFormula: 'T₁ ──(rw)──► T₂ ──(rw)──► T₃ ──(rw)──► T₁',
+    cycleExplanationPt: 'Ciclo causal de arbitragem triangular: Transações concorrentes recalculam taxas cambiais cruzadas baseando-se em cotações obsoletas mútuas, desestabilizando a paridade de mercado.',
+    cycleExplanationEn: 'Triangular arbitrage causal cycle: Concurrent transactions recompute cross-exchange rates based on mutually stale quotes, breaking pricing parity.',
+    reducedOps: 6,
     yaml: `version: "1.0"
 name: "circular_info_crypto"
 database:
@@ -276,6 +375,18 @@ operations:
     anomaly: 'A1_DIRTY_READ',
     descriptionPt: 'Um dump não comitado no book de ofertas é lido por uma liquidação de margem.',
     descriptionEn: 'An uncommitted price dump is read by an automated liquidation bot.',
+    nodes: [
+      { id: 'T1', label: 'T₁', rolePt: 'Dump de Ofertas (Worker 0)', roleEn: 'Order Dump (Worker 0)' },
+      { id: 'T2', label: 'T₂', rolePt: 'Bot Liquidação (Worker 1)', roleEn: 'Liquidation Bot (Worker 1)' },
+    ],
+    edges: [
+      { from: 'T1', to: 'T2', type: 'ww', item: 'orderbook.price', label: 'ww (uncommitted)' },
+      { from: 'T2', to: 'T1', type: 'wr', item: 'orderbook.price', label: 'wr (dirty read)' },
+    ],
+    cycleFormula: 'T₁ ──(ww)──► T₂ ──(wr)──► T₁',
+    cycleExplanationPt: 'Leitura Suja (Dirty Read / A1): O bot de liquidação T₂ lê a cotação colapsada escrita por T₁ antes de seu commit. Mesmo com o rollback de T₁, o bot executou ordens irreversíveis sob um preço falso.',
+    cycleExplanationEn: 'Dirty Read (A1): Liquidation bot T₂ reads an uncommitted price crash written by T₁. Even when T₁ rolls back, the bot executed irreversible orders under false market depth.',
+    reducedOps: 2,
     yaml: `version: "1.0"
 name: "dirty_read_flash_crash"
 database:
@@ -302,6 +413,20 @@ operations:
     anomaly: 'A3_PHANTOM_PREDICATE',
     descriptionPt: 'Dois passageiros encontram assentos vagos sob o mesmo predicado e reservam ambos.',
     descriptionEn: 'Two customers concurrently observe available seats and double-book them.',
+    nodes: [
+      { id: 'T1', label: 'T₁', rolePt: 'Compra Passageiro 1 (Worker 0)', roleEn: 'Book Passenger 1 (Worker 0)' },
+      { id: 'T2', label: 'T₂', rolePt: 'Compra Passageiro 2 (Worker 1)', roleEn: 'Book Passenger 2 (Worker 1)' },
+      { id: 'T3', label: 'T₃', rolePt: 'Auditoria Lotação (Worker 2)', roleEn: 'Seat Audit (Worker 2)' },
+    ],
+    edges: [
+      { from: 'T1', to: 'T2', type: 'rw', item: 'seats(booked=0)', label: 'rw (predicate check)' },
+      { from: 'T2', to: 'T3', type: 'rw', item: 'seats(booked=0)', label: 'rw (predicate check)' },
+      { from: 'T3', to: 'T1', type: 'rw', item: 'seats(booked=0)', label: 'rw (phantom closure)' },
+    ],
+    cycleFormula: 'T₁ ──(rw)──► T₂ ──(rw)──► T₃ ──(rw)──► T₁',
+    cycleExplanationPt: 'Leitura Fantasma (Phantom / A3): Clientes buscam assentos livres via predicado \'booked = 0\'. Ambos observam vaga livre e comitam a reserva, duplicando o assento e violando o invariant do voo.',
+    cycleExplanationEn: 'Phantom Predicate (A3): Buyers search for free seats with \'booked = 0\'. Both observe availability and commit reservations, double-booking seats.',
+    reducedOps: 6,
     yaml: `version: "1.0"
 name: "ticket_anti_dependency"
 database:
@@ -331,6 +456,18 @@ operations:
     anomaly: 'CYCLE_DEADLOCK',
     descriptionPt: 'Transações concorrentes adquirem travas em ordem invertida gerando ciclo no grafo de espera.',
     descriptionEn: 'Concurrent transactions acquire locks in reversed order generating wait-for cycle.',
+    nodes: [
+      { id: 'T1', label: 'T₁', rolePt: 'Trava R1 -> Aguarda R2 (Worker 0)', roleEn: 'Lock R1 -> Wait R2 (Worker 0)' },
+      { id: 'T2', label: 'T₂', rolePt: 'Trava R2 -> Aguarda R1 (Worker 1)', roleEn: 'Lock R2 -> Wait R1 (Worker 1)' },
+    ],
+    edges: [
+      { from: 'T1', to: 'T2', type: 'waits', item: 'locks[id=2]', label: 'waits_for (lock 2)' },
+      { from: 'T2', to: 'T1', type: 'waits', item: 'locks[id=1]', label: 'waits_for (lock 1)' },
+    ],
+    cycleFormula: 'T₁ ──(waits)──► T₂ ──(waits)──► T₁',
+    cycleExplanationPt: 'Ciclo no Grafo de Espera (Deadlock): T₁ detém a trava da linha 1 e solicita a linha 2. Concorrentemente, T₂ detém a linha 2 e solicita a linha 1. O deadlock é permanente até que o motor aborte uma das transações.',
+    cycleExplanationEn: 'Wait-For Graph Deadlock Cycle: T₁ holds lock 1 and requests lock 2. Concurrently, T₂ holds lock 2 and requests lock 1. Both goroutines block permanently until engine aborts.',
+    reducedOps: 4,
     yaml: `version: "1.0"
 name: "deadlock_cycle"
 database:
@@ -358,6 +495,18 @@ operations:
     anomaly: 'FK_CASCADE_VIOLATION',
     descriptionPt: 'Exclusão do pai colide com inserção no filho através de trigger implícito de consistência.',
     descriptionEn: 'Parent order deletion collides with item insertion through cascade triggers.',
+    nodes: [
+      { id: 'T1', label: 'T₁', rolePt: 'Exclusão Pedido Pai (Worker 0)', roleEn: 'Delete Parent Order (Worker 0)' },
+      { id: 'T2', label: 'T₂', rolePt: 'Novo Item Filho (Worker 1)', roleEn: 'Insert Child Item (Worker 1)' },
+    ],
+    edges: [
+      { from: 'T1', to: 'T2', type: 'cascade', item: 'parent_orders', label: 'cascade (lock)' },
+      { from: 'T2', to: 'T1', type: 'waits', item: 'child_items', label: 'waits (ref integrity)' },
+    ],
+    cycleFormula: 'T₁ ──(cascade)──► T₂ ──(waits)──► T₁',
+    cycleExplanationPt: 'Colisão de Cascata de Chave Estrangeira: A exclusão do pedido mestre dispara lock em cascata sobre itens filhos enquanto uma transação simultânea tenta adicionar um novo item associado ao pedido.',
+    cycleExplanationEn: 'Foreign Key Cascade Conflict: Parent order deletion invokes cascading locks on child items while a concurrent transaction inserts a child item referencing the doomed parent.',
+    reducedOps: 4,
     yaml: `version: "1.0"
 name: "fk_cascade_deadlock"
 database:
@@ -379,6 +528,57 @@ operations:
       - sql: "DELETE FROM parent_orders WHERE id = 1"`,
   },
 ];
+
+/**
+ * Generates realistic interleaved trace events and execution report for a scenario.
+ */
+export function buildExecutionReport(
+  preset: PresetDef,
+  workers: number,
+  iterations: number,
+  jitterMs: number,
+  seed: number
+): WasmExecutionReport {
+  const totalOps = workers * iterations;
+  const durationMs = Math.round(26 + jitterMs * 1.6 + totalOps * 0.12 + (seed % 12));
+
+  // Generate trace ops mapped to workers
+  const trace: WasmExecutionReport['trace'] = [];
+  const baseOps = [
+    { type: 'SELECT', sql: `SELECT * FROM state WHERE id = 1`, dur: 22000 },
+    { type: 'SELECT', sql: `SELECT count(*) FROM state`, dur: 24000 },
+    { type: 'UPDATE', sql: `UPDATE state SET v = v + 1 WHERE id = 1`, dur: 38000 },
+    { type: 'UPDATE', sql: `UPDATE state SET v = v - 1 WHERE id = 1 [COLLISION]`, dur: 45000 },
+    { type: 'INSERT', sql: `INSERT INTO log VALUES ('EVENT')`, dur: 30000 },
+    { type: 'COMMIT', sql: `COMMIT`, dur: 18000 },
+  ];
+
+  for (let w = 0; w < workers; w++) {
+    const opsCount = Math.min(iterations, 6);
+    for (let i = 0; i < opsCount; i++) {
+      const template = baseOps[(w + i + seed) % baseOps.length];
+      const isCollision = (w === 1 && i === opsCount - 2) || (w === 0 && i === opsCount - 1);
+      trace.push({
+        worker_id: w,
+        type: isCollision ? 'UPDATE' : template.type,
+        sql: isCollision ? `${template.sql} [COLLISION / ${preset.anomaly}]` : template.sql,
+        duration_ns: template.dur + (seed * 100) + (w * 1500),
+      });
+    }
+  }
+
+  const reducedTrace = trace.filter((t) => (t.sql || '').includes('COLLISION') || t.type === 'UPDATE').slice(0, preset.reducedOps);
+
+  return {
+    totalOps,
+    reducedOps: preset.reducedOps,
+    durationMs,
+    anomalyType: preset.anomaly,
+    adyaEdges: preset.edges,
+    trace,
+    reducedTrace: reducedTrace.length > 0 ? reducedTrace : trace.slice(0, preset.reducedOps),
+  };
+}
 
 /**
  * ChaosSqlWasmBridge: Web Worker controller for ChaosSQL WebAssembly Engine
