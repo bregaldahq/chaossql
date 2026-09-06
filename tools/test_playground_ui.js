@@ -415,6 +415,69 @@ async function runTests() {
     console.log("  ✔ 4.2: setLanguage() dynamically re-renders playground UI via updatePlaygroundTranslations()");
   }
 
+  // ==========================================================================
+  // Suite 5: HTML Structural Integrity & View Hierarchy Verification
+  // ==========================================================================
+  console.log("\n[Suite 5] Verifying site/index.html Portal Views Hierarchy & IDs...");
+  {
+    const indexHtmlPath = path.join(SITE_DIR, "index.html");
+    const indexHtml = fs.readFileSync(indexHtmlPath, "utf8");
+
+    // Extract content inside <main>
+    const mainMatch = indexHtml.match(/<main[\s\S]*?<\/main>/);
+    assert(mainMatch, "site/index.html must contain a <main> element");
+    const mainContent = mainMatch[0];
+
+    const expectedViews = [
+      "view-landing",
+      "view-docs",
+      "view-scenarios",
+      "view-visualizer",
+      "view-matrix",
+      "view-playground"
+    ];
+
+    for (const viewId of expectedViews) {
+      assert(mainContent.includes(`id="${viewId}"`), `site/index.html must contain view id "${viewId}" inside <main>`);
+    }
+
+    // Verify each view is a top-level child of <main> by verifying it is not nested inside another portal-view
+    const viewPositions = expectedViews.map(id => ({
+      id,
+      index: mainContent.indexOf(`id="${id}"`)
+    })).sort((a, b) => a.index - b.index);
+
+    // Verify view-matrix closing tag appears BEFORE view-playground opening tag
+    const matrixIdx = mainContent.indexOf('id="view-matrix"');
+    const playgroundIdx = mainContent.indexOf('id="view-playground"');
+    assert(matrixIdx !== -1 && playgroundIdx !== -1, "Both view-matrix and view-playground must exist");
+    assert(matrixIdx < playgroundIdx, "view-matrix must precede view-playground");
+
+    const between = mainContent.slice(matrixIdx, playgroundIdx);
+    const openDivCount = (between.match(/<div[\s>]/g) || []).length;
+    const closeDivCount = (between.match(/<\/div>/g) || []).length;
+    assert.strictEqual(
+      openDivCount,
+      closeDivCount,
+      `Unclosed <div> detected in view-matrix before view-playground! (opened: ${openDivCount}, closed: ${closeDivCount})`
+    );
+    console.log("  ✔ 5.1: Verified view-matrix is properly closed before view-playground begins (no DOM nesting bug)");
+
+    // Verify all mandatory Playground interactive IDs exist in index.html
+    const mandatoryIds = [
+      "pgPresetSelect", "pgYamlEditor", "pgResetYamlBtn", "pgRunBtn",
+      "pgValidateBtn", "pgCancelBtn", "pgAlertBox", "pgWorkersRange",
+      "pgIterationsRange", "pgJitterRange", "pgSeedInput", "pgAdyaSvg",
+      "pgGanttContainer", "pgConsoleOutput", "pgWasmStatusText",
+      "pgMetricOps", "pgMetricAnomaly", "pgMetricCycle", "pgMetricDuration"
+    ];
+
+    for (const elId of mandatoryIds) {
+      assert(indexHtml.includes(`id="${elId}"`), `Mandatory playground element id="${elId}" missing from site/index.html`);
+    }
+    console.log(`  ✔ 5.2: All ${mandatoryIds.length} interactive playground element IDs exist in site/index.html`);
+  }
+
   console.log("\n✔ All ChaosSQL Playground UI behavioral tests passed successfully.");
 }
 
