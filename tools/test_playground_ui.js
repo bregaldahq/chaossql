@@ -58,6 +58,10 @@ function createPlaygroundDOM() {
       },
       set innerHTML(val) {
         this._innerHTML = String(val);
+        if (val === "") {
+          this.children = [];
+          delete this._textContent;
+        }
       },
       addEventListener(evt, fn) {
         if (!this._listeners[evt]) this._listeners[evt] = [];
@@ -476,6 +480,64 @@ async function runTests() {
       assert(indexHtml.includes(`id="${elId}"`), `Mandatory playground element id="${elId}" missing from site/index.html`);
     }
     console.log(`  ✔ 5.2: All ${mandatoryIds.length} interactive playground element IDs exist in site/index.html`);
+  }
+
+  // ==========================================================================
+  // Suite 6: Bilingual Trace & Raw Log Verification (EN vs PT)
+  // ==========================================================================
+  console.log("\n[Suite 6] Verifying Bilingual Trace & Log Console Dynamic Translation...");
+  {
+    const { context, doc, window: win } = createPlaygroundDOM();
+    const handleMsg = vm.runInContext("handlePlaygroundWorkerMessage", context);
+    const setLanguage = vm.runInContext("setLanguage", context);
+    const consoleEl = doc.getElementById("pgConsoleOutput");
+
+    // 6.1: Run in English mode
+    vm.runInContext('currentRoute = "playground"', context);
+    setLanguage("en");
+    assert.strictEqual(win.currentLang, "en", "Must be in EN mode");
+
+    handleMsg({ type: "READY" });
+    handleMsg({ type: "PROGRESS", iteration: 1, ops: 5 });
+    handleMsg({
+      type: "COMPLETE",
+      report: {
+        totalOps: 2,
+        reducedOps: 2,
+        anomalyType: "P4_LOST_UPDATE",
+        durationMs: 4,
+        trace: [
+          { worker_id: 1, type: "READ", sql: "SELECT balance FROM accounts WHERE id = 1;", duration_ns: 25000 },
+          { worker_id: 2, type: "WRITE", sql: "UPDATE accounts SET balance = 900 WHERE id = 1;", duration_ns: 45000 }
+        ]
+      }
+    });
+
+    const enText = consoleEl.textContent;
+    assert(enText.includes("--- RAW EXECUTION TRACE"), "EN trace console must contain English trace header");
+    assert(enText.includes("Iteration 1: 5 operations executed"), "EN progress log must be in English");
+    assert(enText.includes("Execution completed in 4ms"), "EN completion log must be in English");
+    assert(enText.includes("SELECT balance FROM accounts"), "Trace console must output SQL statements");
+    assert(!enText.includes("Iteração"), "EN log must not contain Portuguese 'Iteração'");
+    assert(!enText.includes("operações executadas"), "EN log must not contain Portuguese 'operações executadas'");
+    assert(!enText.includes("Execução concluída"), "EN log must not contain Portuguese 'Execução concluída'");
+    console.log("  ✔ 6.1: Executing in English mode outputs 100% English traces and logs with zero Portuguese");
+
+    // 6.2: Dynamically switch to Portuguese and assert instant translation of all log lines
+    setLanguage("pt");
+    assert.strictEqual(win.currentLang, "pt", "Must be in PT mode");
+    const ptText = consoleEl.textContent;
+    assert(ptText.includes("--- RASTRO BRUTO DE EXECUÇÃO"), "Switching to PT must dynamically translate trace header");
+    assert(ptText.includes("Iteração 1: 5 operações executadas"), "Switching to PT must translate progress log to Portuguese");
+    assert(ptText.includes("Execução concluída em 4ms"), "Switching to PT must translate completion log to Portuguese");
+    console.log("  ✔ 6.2: Switching language dynamically re-renders all existing trace and console lines");
+
+    // 6.3: Switch back to English
+    setLanguage("en");
+    const enTextSwitched = consoleEl.textContent;
+    assert(enTextSwitched.includes("--- RAW EXECUTION TRACE"), "Switching back to EN must restore English trace header");
+    assert(!enTextSwitched.includes("Iteração"), "Switching back to EN must eliminate Portuguese words");
+    console.log("  ✔ 6.3: Switching back to English restores English trace and logs");
   }
 
   console.log("\n✔ All ChaosSQL Playground UI behavioral tests passed successfully.");

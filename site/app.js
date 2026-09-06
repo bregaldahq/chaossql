@@ -171,7 +171,28 @@ const I18N = {
       "adyaPlaceholder": "Clique em \"Executar Fuzzing (WASM)\" para gerar o Grafo Adya",
       "legendRw": "Anti-dependência (rw)",
       "legendWw": "Escrita-Escrita (ww)",
-      "legendWr": "Escrita-Leitura (wr)"
+      "legendWr": "Escrita-Leitura (wr)",
+      "tabAdya": "Adya DSG",
+      "tabGantt": "Gantt Swimlanes",
+      "tabLog": "Trace Raw / Log",
+      "consoleInitial": "// Console de execução WASM inicializado.",
+      "logDispatch": "[INIT] Disparando schedule com {workers} workers, {iterations} iterações, jitter={jitter}ms, seed={seed}",
+      "logCancel": "[CANCEL] Cancelamento solicitado pelo usuário.",
+      "logReady": "[READY] ChaosSQL v1.4.0 WebAssembly Engine instanciado com sucesso no Web Worker.",
+      "logCancelled": "[INFO] Execução cancelada.",
+      "logProgress": "[PROGRESS] Iteração {iteration}: {ops} operações executadas.",
+      "logAnomaly": "[ANOMALY] Ciclo Adya detectado: {anomaly}",
+      "logDone": "[DONE] Execução concluída em {duration}ms. Anomalia: {anomaly}",
+      "logNone": "NENHUMA",
+      "logError": "[ERROR] {error}",
+      "traceHeader": "--- RASTRO BRUTO DE EXECUÇÃO ({count} operações) ---",
+      "shrunkHeader": "--- SEQUÊNCIA 1-MINIMAL REDUZIDA ({count} operações) ---",
+      "worker": "Worker",
+      "statusErrorAlert": "Erro: ",
+      "unknownError": "falha desconhecida",
+      "validationOps": "({ops} operações, {invariants} invariantes)",
+      "wasmNotReady": "Motor WASM ainda não está pronto. Aguarde o carregamento...",
+      "wasmNotInit": "Motor WASM ainda não inicializou completamente." 
     }
   },
   "en": {
@@ -339,7 +360,28 @@ const I18N = {
       "adyaPlaceholder": "Click \"Run Fuzzing (WASM)\" to generate the Adya Graph",
       "legendRw": "Anti-dependency (rw)",
       "legendWw": "Write-Write (ww)",
-      "legendWr": "Write-Read (wr)"
+      "legendWr": "Write-Read (wr)",
+      "tabAdya": "Adya DSG",
+      "tabGantt": "Gantt Swimlanes",
+      "tabLog": "Raw Trace / Log",
+      "consoleInitial": "// WASM execution console initialized.",
+      "logDispatch": "[INIT] Dispatching schedule with {workers} workers, {iterations} iterations, jitter={jitter}ms, seed={seed}",
+      "logCancel": "[CANCEL] Cancellation requested by user.",
+      "logReady": "[READY] ChaosSQL v1.4.0 WebAssembly Engine initialized in Web Worker.",
+      "logCancelled": "[INFO] Execution cancelled.",
+      "logProgress": "[PROGRESS] Iteration {iteration}: {ops} operations executed.",
+      "logAnomaly": "[ANOMALY] Adya cycle detected: {anomaly}",
+      "logDone": "[DONE] Execution completed in {duration}ms. Anomaly: {anomaly}",
+      "logNone": "NONE",
+      "logError": "[ERROR] {error}",
+      "traceHeader": "--- RAW EXECUTION TRACE ({count} operations) ---",
+      "shrunkHeader": "--- 1-MINIMAL SHRUNK SEQUENCE ({count} operations) ---",
+      "worker": "Worker",
+      "statusErrorAlert": "Error: ",
+      "unknownError": "unknown failure",
+      "validationOps": "({ops} operations, {invariants} invariants)",
+      "wasmNotReady": "WASM engine not ready yet. Please wait for initialization...",
+      "wasmNotInit": "WASM engine is still initializing." 
     }
   }
 };
@@ -964,6 +1006,7 @@ function handleRoute() {
     renderMatrixView();
   } else if (route === "playground") {
     initPlayground();
+    updatePlaygroundTranslations();
   }
 
   window.scrollTo({ top: 0, behavior: "instant" });
@@ -2212,7 +2255,13 @@ function initPlayground() {
         seed: parseInt(seedInput?.value || "42", 10)
       };
 
-      appendPlaygroundLog(`[INIT] Disparando schedule com ${config.workers} workers, ${config.iterations} iterações, jitter=${config.jitterMs}ms, seed=${config.seed}`);
+      logPlaygroundEvent({
+        type: "INIT",
+        workers: config.workers,
+        iterations: config.iterations,
+        jitter: config.jitterMs,
+        seed: config.seed
+      });
       wasmWorker.postMessage({ action: "RUN", config });
     });
   }
@@ -2222,7 +2271,7 @@ function initPlayground() {
     cancelBtn.addEventListener("click", () => {
       if (wasmWorker && isPlaygroundRunning) {
         wasmWorker.postMessage({ action: "CANCEL" });
-        appendPlaygroundLog("[CANCEL] Cancelamento solicitado pelo usuário.");
+        logPlaygroundEvent({ type: "CANCEL" });
       }
     });
   }
@@ -2270,14 +2319,104 @@ function showPlaygroundAlert(msg, isSuccess) {
   }, 4000);
 }
 
-function appendPlaygroundLog(text) {
+let playgroundLogs = [];
+
+function formatPlaygroundLog(entry, lang) {
+  const t = (I18N[lang] && I18N[lang].playground) ? I18N[lang].playground : I18N.pt.playground;
+  if (!entry) return "";
+  if (entry.type === "INIT") {
+    return (t.logDispatch || "")
+      .replace("{workers}", entry.workers)
+      .replace("{iterations}", entry.iterations)
+      .replace("{jitter}", entry.jitter)
+      .replace("{seed}", entry.seed);
+  }
+  if (entry.type === "READY") {
+    return t.logReady || "[READY] ChaosSQL WebAssembly Engine Ready.";
+  }
+  if (entry.type === "CANCEL") {
+    return t.logCancel || "[CANCEL] Cancellation requested.";
+  }
+  if (entry.type === "CANCELLED") {
+    return t.logCancelled || "[INFO] Execution cancelled.";
+  }
+  if (entry.type === "PROGRESS") {
+    return (t.logProgress || "")
+      .replace("{iteration}", entry.iteration)
+      .replace("{ops}", entry.ops);
+  }
+  if (entry.type === "ANOMALY") {
+    return (t.logAnomaly || "").replace("{anomaly}", entry.anomaly);
+  }
+  if (entry.type === "DONE") {
+    const anomalyStr = entry.anomaly || (t.logNone || "NONE");
+    return (t.logDone || "")
+      .replace("{duration}", entry.duration)
+      .replace("{anomaly}", anomalyStr);
+  }
+  if (entry.type === "TRACE_HEADER") {
+    return (t.traceHeader || "").replace("{count}", entry.count);
+  }
+  if (entry.type === "TRACE_OP") {
+    const wLbl = t.worker || "Worker";
+    return `  [#${String(entry.index).padStart(2, '0')}] ${wLbl} ${entry.worker} | ${entry.opType.padEnd(8)} | ${entry.sql} (${entry.durationUs}μs)`;
+  }
+  if (entry.type === "SHRUNK_HEADER") {
+    return (t.shrunkHeader || "").replace("{count}", entry.count);
+  }
+  if (entry.type === "SHRUNK_OP") {
+    const wLbl = t.worker || "Worker";
+    return `  [*] ${wLbl} ${entry.worker} | ${entry.opType.padEnd(8)} | ${entry.sql}`;
+  }
+  if (entry.type === "ERROR") {
+    return (t.logError || "").replace("{error}", entry.error);
+  }
+  if (entry.type === "RAW") {
+    return (lang === "en" && entry.textEn) ? entry.textEn : entry.text;
+  }
+  return entry.text || "";
+}
+
+function logPlaygroundEvent(entry) {
+  playgroundLogs.push(entry);
   const consoleEl = document.getElementById("pgConsoleOutput");
   if (!consoleEl) return;
+  const lang = window.currentLang || "pt";
+  const formatted = formatPlaygroundLog(entry, lang);
+  if (!formatted) return;
   const line = document.createElement("div");
   line.className = "term-dim";
-  line.textContent = text;
+  line.textContent = formatted;
   consoleEl.appendChild(line);
   consoleEl.scrollTop = consoleEl.scrollHeight;
+}
+
+function renderPlaygroundLogs() {
+  const consoleEl = document.getElementById("pgConsoleOutput");
+  if (!consoleEl) return;
+  const lang = window.currentLang || "pt";
+  const t = (I18N[lang] && I18N[lang].playground) ? I18N[lang].playground : I18N.pt.playground;
+
+  consoleEl.innerHTML = "";
+  const initialLine = document.createElement("div");
+  initialLine.className = "term-dim";
+  initialLine.textContent = t.consoleInitial || "// Console inicializado.";
+  consoleEl.appendChild(initialLine);
+
+  playgroundLogs.forEach(entry => {
+    const formatted = formatPlaygroundLog(entry, lang);
+    if (formatted) {
+      const line = document.createElement("div");
+      line.className = "term-dim";
+      line.textContent = formatted;
+      consoleEl.appendChild(line);
+    }
+  });
+  consoleEl.scrollTop = consoleEl.scrollHeight;
+}
+
+function appendPlaygroundLog(text, textEn = null) {
+  logPlaygroundEvent({ type: "RAW", text, textEn });
 }
 
 function handlePlaygroundWorkerMessage(msg) {
@@ -2288,12 +2427,15 @@ function handlePlaygroundWorkerMessage(msg) {
     case "READY":
       isWasmReady = true;
       updatePlaygroundStatus(t.statusReady, "ready");
-      appendPlaygroundLog("[READY] ChaosSQL v1.3.0 WebAssembly Engine instanciado com sucesso no Web Worker.");
+      logPlaygroundEvent({ type: "READY" });
       break;
 
     case "VALIDATION_RESULT":
       if (msg.valid) {
-        showPlaygroundAlert(`${t.validYaml} (${msg.numOperations} operações, ${msg.numInvariants} invariantes)`, true);
+        const opsSuffix = (t.validationOps || "({ops} ops, {invariants} inv)")
+          .replace("{ops}", msg.numOperations || 0)
+          .replace("{invariants}", msg.numInvariants || 0);
+        showPlaygroundAlert(`${t.validYaml} ${opsSuffix}`, true);
       } else {
         showPlaygroundAlert(t.invalidYaml + msg.error, false);
       }
@@ -2304,9 +2446,13 @@ function handlePlaygroundWorkerMessage(msg) {
         isPlaygroundRunning = false;
         resetPlaygroundButtons();
         updatePlaygroundStatus(t.statusReady, "ready");
-        appendPlaygroundLog("[INFO] Execução cancelada.");
+        logPlaygroundEvent({ type: "CANCELLED" });
       } else {
-        appendPlaygroundLog(`[PROGRESS] Iteração ${msg.iteration || 0}: ${msg.ops || 0} operações executadas.`);
+        logPlaygroundEvent({
+          type: "PROGRESS",
+          iteration: msg.iteration || 0,
+          ops: msg.ops || 0
+        });
       }
       break;
 
@@ -2314,8 +2460,11 @@ function handlePlaygroundWorkerMessage(msg) {
       const anomalyEl = document.getElementById("pgMetricAnomaly");
       const cycleEl = document.getElementById("pgMetricCycle");
       if (anomalyEl) anomalyEl.textContent = msg.anomalyType || "CYCLE";
-      if (cycleEl) cycleEl.textContent = t.cycleDetected || "CICLO DETECTADO";
-      appendPlaygroundLog(`[ANOMALY] Ciclo Adya detectado: ${msg.anomalyType}`);
+      if (cycleEl) cycleEl.textContent = t.cycleDetected || "CYCLE DETECTED";
+      logPlaygroundEvent({
+        type: "ANOMALY",
+        anomaly: msg.anomalyType
+      });
       break;
     }
 
@@ -2340,10 +2489,53 @@ function handlePlaygroundWorkerMessage(msg) {
       const metricDuration = document.getElementById("pgMetricDuration");
 
       if (metricOps) metricOps.textContent = `${report.totalOps || 0} ops (${report.reducedOps || 0} minimal)`;
-      if (metricAnomaly) metricAnomaly.textContent = report.anomalyType || (t.okSerializable || "OK (Serializável)");
+      if (metricAnomaly) metricAnomaly.textContent = report.anomalyType || (t.okSerializable || "OK (Serializable)");
       if (metricDuration) metricDuration.textContent = `${report.durationMs || 0}ms`;
 
-      appendPlaygroundLog(`[DONE] Execução concluída em ${report.durationMs || 0}ms. Anomalia: ${report.anomalyType || "NENHUMA"}`);
+      logPlaygroundEvent({
+        type: "DONE",
+        duration: report.durationMs || 0,
+        anomaly: report.anomalyType
+      });
+
+      if (report.trace && report.trace.length > 0) {
+        logPlaygroundEvent({
+          type: "TRACE_HEADER",
+          count: report.trace.length
+        });
+        report.trace.forEach((ev, idx) => {
+          const w = ev.worker_id || ev.WorkerID || 1;
+          const opType = (ev.type || ev.Type || 'EXEC').toUpperCase();
+          const sql = ev.sql || ev.SQL || '';
+          const durUs = ev.duration_ns ? Math.round(ev.duration_ns / 1000) : 0;
+          logPlaygroundEvent({
+            type: "TRACE_OP",
+            index: idx + 1,
+            worker: w,
+            opType: opType,
+            sql: sql,
+            durationUs: durUs
+          });
+        });
+
+        if (report.reducedTrace && report.reducedTrace.length > 0) {
+          logPlaygroundEvent({
+            type: "SHRUNK_HEADER",
+            count: report.reducedTrace.length
+          });
+          report.reducedTrace.forEach(ev => {
+            const w = ev.worker_id || ev.WorkerID || 1;
+            const opType = (ev.type || ev.Type || 'EXEC').toUpperCase();
+            const sql = ev.sql || ev.SQL || '';
+            logPlaygroundEvent({
+              type: "SHRUNK_OP",
+              worker: w,
+              opType: opType,
+              sql: sql
+            });
+          });
+        }
+      }
 
       if (report.adyaEdges) {
         renderPlaygroundAdya(report.adyaEdges, report.anomalyType);
@@ -2358,8 +2550,11 @@ function handlePlaygroundWorkerMessage(msg) {
       isPlaygroundRunning = false;
       resetPlaygroundButtons();
       updatePlaygroundStatus(t.statusError, "error");
-      showPlaygroundAlert("Erro: " + (msg.error || "falha desconhecida"), false);
-      appendPlaygroundLog("[ERROR] " + (msg.error || ""));
+      showPlaygroundAlert((t.statusErrorAlert || "Error: ") + (msg.error || (t.unknownError || "failure")), false);
+      logPlaygroundEvent({
+        type: "ERROR",
+        error: msg.error || (t.unknownError || "failure")
+      });
       break;
   }
 }
@@ -2637,6 +2832,9 @@ function updatePlaygroundTranslations() {
       ganttContainer.innerHTML = `<div class="pg-empty-state" data-i18n="playground.emptyGantt">${escapeHtml(t.emptyGantt)}</div>`;
     }
   }
+
+  // Re-render raw trace / console logs in active language
+  renderPlaygroundLogs();
 }
 
 function copySnippet(button) {

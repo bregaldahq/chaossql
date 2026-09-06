@@ -687,9 +687,9 @@
                   <h3 class="panel-title" data-i18n="playground.vizTitle">Observabilidade em Tempo Real</h3>
                 </div>
                 <div class="playground-tabs">
-                  <button type="button" class="pg-tab-btn active" data-tab="adya" id="pgTabAdya">Adya DSG</button>
-                  <button type="button" class="pg-tab-btn" data-tab="gantt" id="pgTabGantt">Gantt Swimlanes</button>
-                  <button type="button" class="pg-tab-btn" data-tab="log" id="pgTabLog">Trace Raw</button>
+                  <button type="button" class="pg-tab-btn active" data-tab="adya" id="pgTabAdya" data-i18n="playground.tabAdya">Adya DSG</button>
+                  <button type="button" class="pg-tab-btn" data-tab="gantt" id="pgTabGantt" data-i18n="playground.tabGantt">Gantt Swimlanes</button>
+                  <button type="button" class="pg-tab-btn" data-tab="log" id="pgTabLog" data-i18n="playground.tabLog">Trace Raw / Log</button>
                 </div>
               </div>
 
@@ -752,7 +752,7 @@
               <!-- Tab 3: Trace Raw / Terminal Log -->
               <div class="pg-tab-pane" id="pgPaneLog" style="display: none;">
                 <div class="pg-console" id="pgConsoleOutput">
-                  <div class="term-dim">// Console de execução WASM inicializado.</div>
+                  <div class="term-dim" id="pgConsoleInitial" data-i18n="playground.consoleInitial">// Console de execução WASM inicializado.</div>
                 </div>
               </div>
             </div>
