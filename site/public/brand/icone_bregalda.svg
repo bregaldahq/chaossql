@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg"
+     viewBox="0 0 512 512"
+     width="512" height="512"
+     role="img"
+     aria-label="Ícone roxo com símbolo branco e estrela verde">
+
+  <!-- Fundo -->
+  <rect x="16" y="16" width="480" height="480" rx="92" ry="92"
+        fill="#422678"/>
+
+  <!-- Símbolo branco reconstruído manualmente com curvas limpas -->
+  <path
+    d="
+      M 256 111
+      C 257 111, 258 112, 259 114
+      L 416 389
+
+      C 390 387, 369 378, 353 360
+      C 347 353, 341 344, 336 335
+      L 258 204
+
+      C 257 202, 255 202, 254 204
+      L 176 335
+      C 170 345, 165 353, 158 360
+      C 142 378, 122 387, 96 389
+
+      L 253 114
+      C 254 112, 255 111, 256 111
+      Z"
+    fill="#FFFFFF"/>
+
+  <!-- Estrela verde -->
+  <path
+    d="
+      M 256 309
+      C 261 329, 270 341, 291 349
+      C 270 357, 261 369, 256 390
+      C 251 369, 242 357, 221 349
+      C 242 341, 251 329, 256 309
+      Z"
+    fill="#20D866"/>
+
+</svg>

@@ -1,0 +1,9 @@
+# ChaosSQL Cloudflare Redirects & Section Shortcuts
+
+/theory         /#theory          302
+/scenarios      /#scenarios       302
+/sdk            /#sdk             302
+/matrix         /#matrix          302
+/cli            /#cli             302
+/docs           /#theory          302
+/github         https://github.com/bregaldahq/chaossql 302

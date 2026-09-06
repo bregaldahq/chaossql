@@ -3,7 +3,7 @@
 
 name = "chaossql"
 compatibility_date = "2024-09-01"
-pages_build_output_dir = "dist"
+pages_build_output_dir = "."
 
 # Custom Domain Route Configuration
 # Canonical URL: https://chaossql.bregalda.com
