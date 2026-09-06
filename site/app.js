@@ -1,4 +1,4 @@
-// ChaosSQL — Studio Bregalda Interactive Controller (v1.3.0)
+// ChaosSQL — Studio Bregalda Interactive Controller (v1.4.0)
 // High-fidelity Multi-View Portal, Hash Router, Docs Hub, Scenarios with Fixes, & Trace Visualizer
 // Dynamic Bilingual i18n Engine: [ PT | EN ]
 

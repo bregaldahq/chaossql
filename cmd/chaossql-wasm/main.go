@@ -103,7 +103,7 @@ func main() {
 	}))
 
 	js.Global().Set("ChaosSQL_GetVersion", js.FuncOf(func(this js.Value, args []js.Value) any {
-		return "1.3.0-wasm"
+		return "1.4.0-wasm"
 	}))
 
 	<-c
