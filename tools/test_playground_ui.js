@@ -424,7 +424,8 @@ async function runTests() {
   // ==========================================================================
   console.log("\n[Suite 5] Verifying site/index.html Portal Views Hierarchy & IDs...");
   {
-    const indexHtmlPath = path.join(SITE_DIR, "index.html");
+    const legacySitePath = path.resolve(__dirname, "../site_legacy/index.html");
+    const indexHtmlPath = fs.existsSync(legacySitePath) ? legacySitePath : path.join(SITE_DIR, "index.html");
     const indexHtml = fs.readFileSync(indexHtmlPath, "utf8");
 
     // Extract content inside <main>
