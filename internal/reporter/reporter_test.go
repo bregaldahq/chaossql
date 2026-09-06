@@ -359,3 +359,108 @@ func TestTerminal_Renderers(t *testing.T) {
 		t.Errorf("expected full report to contain ChaosSQL, got: %s", fullReport)
 	}
 }
+
+func TestGenerateStandalonePythonRepro(t *testing.T) {
+	spec := domain.Spec{
+		Name: "banking_lost_update",
+		Database: domain.DatabaseConfig{
+			Driver: "sqlite",
+			Schema: "CREATE TABLE accounts (id INT PRIMARY KEY, balance INT);",
+			Seed:   "INSERT INTO accounts VALUES (1, 1000);",
+		},
+		Invariants: []domain.InvariantConfig{
+			{
+				Name:   "balance_conserved",
+				Query:  "SELECT balance FROM accounts WHERE id = 1;",
+				Assert: "balance == 800",
+			},
+		},
+	}
+
+	ops := []domain.ScheduledOp{
+		{
+			ID:   1,
+			Name: "withdraw",
+			Steps: []domain.StepConfig{
+				{SQL: "SELECT balance FROM accounts WHERE id = 1;", Capture: "cur"},
+				{SQL: "UPDATE accounts SET balance = {cur - 100} WHERE id = 1;"},
+			},
+		},
+	}
+
+	failingInv := &domain.InvariantResult{
+		Name:       "balance_conserved",
+		Passed:     false,
+		Expression: "balance == 800",
+	}
+
+	pyCode := reporter.GenerateStandalonePythonRepro(spec, ops, failingInv)
+	if !strings.Contains(pyCode, "import sqlite3") {
+		t.Fatalf("expected python code to import sqlite3")
+	}
+	if !strings.Contains(pyCode, "balance_conserved") {
+		t.Fatalf("expected python code to contain invariant name")
+	}
+
+	tmpPy := filepath.Join(t.TempDir(), "repro_test.py")
+	if err := os.WriteFile(tmpPy, []byte(pyCode), 0644); err != nil {
+		t.Fatalf("failed to write tmp python script: %v", err)
+	}
+	cmd := exec.Command("python3", "-m", "py_compile", tmpPy)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("generated python code failed compilation: %v\nOutput: %s\nCode:\n%s", err, string(out), pyCode)
+	}
+}
+
+func TestGenerateStandaloneTypeScriptRepro(t *testing.T) {
+	spec := domain.Spec{
+		Name: "hospital_write_skew",
+		Database: domain.DatabaseConfig{
+			Driver: "sqlite",
+			Schema: "CREATE TABLE doctors (id INT PRIMARY KEY, on_call INT);",
+			Seed:   "INSERT INTO doctors VALUES (1, 1), (2, 1);",
+		},
+		Invariants: []domain.InvariantConfig{
+			{
+				Name:   "at_least_one_doctor",
+				Query:  "SELECT count(*) as active FROM doctors WHERE on_call = 1;",
+				Assert: "active >= 1",
+			},
+		},
+	}
+
+	ops := []domain.ScheduledOp{
+		{
+			ID:   1,
+			Name: "alice_leaves",
+			Steps: []domain.StepConfig{
+				{SQL: "SELECT count(*) as cnt FROM doctors WHERE on_call = 1;", Capture: "active"},
+				{SQL: "UPDATE doctors SET on_call = 0 WHERE id = 1;"},
+			},
+		},
+	}
+
+	failingInv := &domain.InvariantResult{
+		Name:       "at_least_one_doctor",
+		Passed:     false,
+		Expression: "active >= 1",
+	}
+
+	tsCode := reporter.GenerateStandaloneTypeScriptRepro(spec, ops, failingInv)
+	if !strings.Contains(tsCode, "node:test") {
+		t.Fatalf("expected typescript code to use node:test")
+	}
+	if !strings.Contains(tsCode, "at_least_one_doctor") {
+		t.Fatalf("expected typescript code to contain invariant name")
+	}
+
+	tmpJs := filepath.Join(t.TempDir(), "repro_test.js")
+	if err := os.WriteFile(tmpJs, []byte(tsCode), 0644); err != nil {
+		t.Fatalf("failed to write tmp js script: %v", err)
+	}
+	cmd := exec.Command("node", "--check", tmpJs)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("generated typescript/node code failed check: %v\nOutput: %s\nCode:\n%s", err, string(out), tsCode)
+	}
+}
+

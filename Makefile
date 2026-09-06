@@ -85,7 +85,15 @@ stress-wasm: ## Run headless WebAssembly & worker stress harness
 
 test-wasm-stress: stress-wasm
 
-verify: check-harness lint test
+test-python: build
+	@CHAOSSQL_BIN_PATH=$(PWD)/bin/chaossql python3 -m pytest sdks/python/tests -v
+
+test-typescript: build
+	@cd sdks/typescript && npm test
+
+test-sdks: test-python test-typescript
+
+verify: check-harness lint test test-sdks
 	@node tools/test_english_purity.js && node tools/test_wasm_worker.js && node tools/test_playground_ui.js && node tools/test_wasm_bench.js && node tools/headless_worker_stress.js
 	@echo ""
 	@echo "✔ Verification gate completed successfully!"

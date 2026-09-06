@@ -25,6 +25,7 @@ noisy execution traces to minimal, deterministic reproductions.`,
 	mutateCmd := newMutateCmd()
 	swarmCmd := newSwarmCmd()
 	proxyCmd := newProxyCmd()
+	engineCmd := newEngineCmd()
 
 	rootCmd.AddCommand(
 		runCmd,
@@ -39,6 +40,7 @@ noisy execution traces to minimal, deterministic reproductions.`,
 		mutateCmd,
 		swarmCmd,
 		proxyCmd,
+		engineCmd,
 	)
 
 	return rootCmd

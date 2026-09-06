@@ -50,6 +50,7 @@ func main() {
 		"specs/14_wasm_in_browser_playground.md",
 		"specs/15_multiagent_qa_and_swarm_fuzzing.md",
 		"specs/16_transparent_database_proxy.md",
+		"specs/17_multi_language_sdks.md",
 		"CHANGELOG.md",
 		"site/assets/wasm-worker.js",
 		"site/assets/wasm_exec.js",

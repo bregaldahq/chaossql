@@ -93,3 +93,12 @@ sequenceDiagram
     end
     S-->>C: Minimal Trace (2 ops) + Repro Script + Mermaid Diagram
 ```
+
+---
+
+## 4. Multi-Language SDK Architecture (Python & TypeScript)
+
+Following the proven distribution model of Prisma and esbuild:
+- **Embedded Engine Binary**: Python (`chaossql-py`) and TypeScript (`@chaossql/test`) packages interact with the static zero-CGO `chaossql` binary.
+- **Bidirectional JSON Streaming (IPC)**: Host language processes invoke `chaossql engine` and communicate over standard I/O (stdin/stdout) via structured JSON payloads. This completely eliminates interpreter hangs, bypasses the Python GIL, and preserves full memory isolation.
+- **Automated Standalone Synthesis**: On discovering an invariant anomaly and reducing the trace via $ddmin$, the engine and SDKs emit self-contained, zero-dependency Python (`repro.py` via `sqlite3`) and TypeScript (`repro.ts` via `node:test`) scripts that execute independently inside the developer's native IDE environment.

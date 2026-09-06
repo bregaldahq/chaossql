@@ -244,6 +244,93 @@ func TestAccountTransfer_NoLostUpdates(t *testing.T) {
 
 ---
 
+## 🐍 Python SDK (`chaossql-py` / `pip install chaossql`)
+
+Embed deterministic concurrency fuzzer tests directly into `pytest` or `unittest`:
+
+```python
+from chaossql import ChaosHarness
+
+def test_banking_lost_update_prevented():
+    harness = ChaosHarness(driver="sqlite", dsn=":memory:")
+
+    result = (
+        harness.with_schema("CREATE TABLE accounts (id INT PRIMARY KEY, balance INT NOT NULL);")
+               .with_seed("INSERT INTO accounts VALUES (1, 1000), (2, 1000);")
+               .with_invariant(
+                   name="total_wealth_conserved",
+                   query="SELECT sum(balance) AS total FROM accounts;",
+                   assertion="total == 2000"
+               )
+               .add_operation("transfer_1_to_2", [
+                   "SELECT balance FROM accounts WHERE id = 1 -> cur",
+                   "UPDATE accounts SET balance = {cur - 50} WHERE id = 1",
+                   "UPDATE accounts SET balance = balance + 50 WHERE id = 2"
+               ])
+               .add_operation("transfer_2_to_1", [
+                   "SELECT balance FROM accounts WHERE id = 2 -> cur",
+                   "UPDATE accounts SET balance = {cur - 50} WHERE id = 2",
+                   "UPDATE accounts SET balance = balance + 50 WHERE id = 1"
+               ])
+               .assert_no_anomalies(workers=4, iterations=50, seed=42)
+    )
+    assert result.all_invariants_satisfied
+```
+
+### Pytest Fixture Integration
+
+```python
+import pytest
+
+@pytest.mark.chaossql(workers=4, duration="5s", seed=100)
+def test_inventory_under_concurrency(chaossql_runner):
+    report = chaossql_runner.run_scenario("examples/inventory_oversell/chaos.yaml")
+    assert report.is_clean
+```
+
+---
+
+## ⚡ TypeScript / Node.js SDK (`@chaossql/test` / `npm install @chaossql/test`)
+
+Native, strongly-typed fluent testing SDK compatible with Vitest, Jest, and Node.js Test Runner:
+
+```typescript
+import { describe, it, expect } from 'vitest';
+import { ChaosHarness } from '@chaossql/test';
+
+describe('Concurrency Isolation Suite', () => {
+  it('should detect write skew in hospital on-call roster', async () => {
+    const harness = new ChaosHarness({ driver: 'sqlite' });
+
+    const result = await harness
+      .withSchema(`
+        CREATE TABLE doctors (id INT PRIMARY KEY, name TEXT, on_call INT);
+        INSERT INTO doctors VALUES (1, 'Alice', 1), (2, 'Bob', 1);
+      `)
+      .withInvariant(
+        'at_least_one_doctor_on_call',
+        'SELECT count(*) as active FROM doctors WHERE on_call = 1;',
+        'active >= 1'
+      )
+      .addOperation('alice_leaves', [
+        'SELECT count(*) as cnt FROM doctors WHERE on_call = 1 -> active',
+        'UPDATE doctors SET on_call = 0 WHERE id = 1 AND {active > 1}'
+      ])
+      .addOperation('bob_leaves', [
+        'SELECT count(*) as cnt FROM doctors WHERE on_call = 1 -> active',
+        'UPDATE doctors SET on_call = 0 WHERE id = 2 AND {active > 1}'
+      ])
+      .runAndShrink({ workers: 2, iterations: 20, seed: 1337 });
+
+    expect(result.anomalyDetected).toBe(true);
+    expect(result.anomalyCode).toBe('A5B');
+    expect(result.minimalOperations.length).toBe(2);
+  });
+});
+```
+
+---
+
 ## 🛡️ OASIS SARIF 2.1.0 & GitHub Code Scanning
 
 Export industry-standard SARIF 2.1.0 security reports to display concurrency race conditions as automated **GitHub Security Advisories**:
