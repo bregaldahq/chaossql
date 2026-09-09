@@ -1,3 +1,5 @@
+const DEFAULT_DISCORD_WEBHOOK = "https://discord.com/api/webhooks/1547260093618327612/nQo6Orm496uN4AW0i0vCui2UyllzWibNzT2sH6R_mqgUCmDLNUG2XunB98D-RGwGNKeX";
+
 interface Env {
   ASSETS: {
     fetch: (request: Request) => Promise<Response>;
@@ -53,7 +55,7 @@ export default {
             });
           }
 
-          const webhookUrl = env.DISCORD_WEBHOOK_URL || env.WAITLIST_WEBHOOK_URL;
+          const webhookUrl = env?.DISCORD_WEBHOOK_URL || env?.WAITLIST_WEBHOOK_URL || DEFAULT_DISCORD_WEBHOOK;
           let dispatched = false;
 
           if (webhookUrl) {
@@ -105,8 +107,6 @@ export default {
             } catch (dispatchErr) {
               console.error('Failed to dispatch Discord webhook:', dispatchErr);
             }
-          } else {
-            console.warn('DISCORD_WEBHOOK_URL or WAITLIST_WEBHOOK_URL environment variable is not configured');
           }
 
           return new Response(
