@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { SiteNav } from './components/ui/SiteNav';
 import { SiteFooter } from './components/ui/SiteFooter';
 import { LandingPage } from './pages/LandingPage';
+import { DashboardPage } from './pages/DashboardPage';
 import { DocsPage } from './pages/DocsPage';
 import { ScenariosPage } from './pages/ScenariosPage';
 import { MatrixPage } from './pages/MatrixPage';
@@ -12,6 +13,7 @@ import { useI18n } from './lib/i18n';
 function parseRoute(): string {
   if (typeof window === 'undefined') return 'landing';
   const hash = window.location.hash || '';
+  if (hash.startsWith('#/dashboard')) return 'dashboard';
   if (hash.startsWith('#/docs')) return 'docs';
   if (hash.startsWith('#/scenarios')) return 'scenarios';
   if (hash.startsWith('#/visualizer')) return 'visualizer';
@@ -49,6 +51,7 @@ export default function App() {
 
       <main style={{ flexGrow: 1 }}>
         {route === 'landing' && <LandingPage lang={lang} />}
+        {route === 'dashboard' && <DashboardPage lang={lang} />}
         {route === 'docs' && <DocsPage lang={lang} />}
         {route === 'scenarios' && <ScenariosPage lang={lang} />}
         {route === 'visualizer' && <VisualizerPage lang={lang} />}

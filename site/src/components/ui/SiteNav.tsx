@@ -19,6 +19,7 @@ export function SiteNav({
 
   const navItems = [
     { id: 'landing', labelPt: 'Início', labelEn: 'Home', path: '#/' },
+    { id: 'dashboard', labelPt: 'Cloud Dashboard ●', labelEn: 'Cloud Dashboard ●', path: '#/dashboard' },
     { id: 'docs', labelPt: 'Documentação', labelEn: 'Docs', path: '#/docs' },
     { id: 'scenarios', labelPt: 'Cenários (9)', labelEn: 'Scenarios (9)', path: '#/scenarios' },
     { id: 'visualizer', labelPt: 'Trace Visualizer', labelEn: 'Trace Visualizer', path: '#/visualizer' },
