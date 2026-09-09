@@ -1,8 +1,9 @@
-# ChaosSQL Cloudflare Redirects & Section Shortcuts
-
 /docs           /#/docs           302
 /scenarios      /#/scenarios      302
 /visualizer     /#/visualizer     302
 /matrix         /#/matrix         302
 /playground     /#/playground     302
+/dashboard      /#/dashboard      302
+/pricing        /#/pricing        302
 /github         https://github.com/bregaldahq/chaossql 302
+/*              /index.html       200
