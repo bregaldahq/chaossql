@@ -10,7 +10,10 @@ import (
 	"strings"
 	"syscall"
 
+	"time"
+
 	"github.com/bregaldahq/chaossql/internal/analyzer"
+	"github.com/bregaldahq/chaossql/internal/cloud"
 	"github.com/bregaldahq/chaossql/internal/domain"
 	"github.com/bregaldahq/chaossql/internal/drivers"
 	"github.com/bregaldahq/chaossql/internal/engine"
@@ -32,7 +35,18 @@ var (
 	exportSummaryFlag string
 	exportSARIFFlag   string
 	uiFlag            bool
+	cloudTokenFlag    string
+	cloudURLFlag      string
+	cloudFailFastFlag bool
 )
+
+
+func defaultCloudURL() string {
+	if u := os.Getenv("CHAOSSQL_CLOUD_URL"); u != "" {
+		return u
+	}
+	return "https://api.chaossql.bregalda.com"
+}
 
 func newRunCmd() *cobra.Command {
 	runCmd := &cobra.Command{
@@ -54,6 +68,10 @@ func newRunCmd() *cobra.Command {
 	runCmd.Flags().StringVar(&exportSummaryFlag, "export-summary", "", "Export execution report as GitHub Step Summary markdown to file path")
 	runCmd.Flags().StringVar(&exportSARIFFlag, "export-sarif", "", "Export execution security findings as OASIS SARIF 2.1.0 to file path")
 	runCmd.Flags().BoolVar(&uiFlag, "ui", false, "Launch interactive trace viewer UI web server after execution")
+	runCmd.Flags().StringVar(&cloudTokenFlag, "cloud-token", os.Getenv("CHAOSSQL_CLOUD_TOKEN"), "ChaosSQL Cloud API authentication token (or set CHAOSSQL_CLOUD_TOKEN)")
+	runCmd.Flags().StringVar(&cloudURLFlag, "cloud-url", defaultCloudURL(), "ChaosSQL Cloud API base URL (or set CHAOSSQL_CLOUD_URL)")
+	runCmd.Flags().BoolVar(&cloudFailFastFlag, "cloud-fail-fast", false, "Abort execution with error if Cloud publishing fails")
+
 
 	return runCmd
 }
@@ -74,6 +92,10 @@ func newDemoCmd() *cobra.Command {
 	demoCmd.Flags().StringVar(&exportSummaryFlag, "export-summary", "", "Export execution report as GitHub Step Summary markdown to file path")
 	demoCmd.Flags().StringVar(&exportSARIFFlag, "export-sarif", "", "Export execution security findings as OASIS SARIF 2.1.0 to file path")
 	demoCmd.Flags().BoolVar(&uiFlag, "ui", false, "Launch interactive trace viewer UI web server after execution")
+	demoCmd.Flags().StringVar(&cloudTokenFlag, "cloud-token", os.Getenv("CHAOSSQL_CLOUD_TOKEN"), "ChaosSQL Cloud API authentication token (or set CHAOSSQL_CLOUD_TOKEN)")
+	demoCmd.Flags().StringVar(&cloudURLFlag, "cloud-url", defaultCloudURL(), "ChaosSQL Cloud API base URL (or set CHAOSSQL_CLOUD_URL)")
+	demoCmd.Flags().BoolVar(&cloudFailFastFlag, "cloud-fail-fast", false, "Abort execution with error if Cloud publishing fails")
+
 
 	return demoCmd
 }
@@ -390,6 +412,13 @@ func executeChaos(specPath string) error {
 			"html_report":        htmlReport,
 			"otel_trace":         otelTrace,
 		}
+		if cloudTokenFlag != "" {
+			cloudResp, _ := publishToCloud(ctx, *spec, runResult, shrinkResult, minimalTrace, anomaly, reproCode, mermaidCode)
+			if cloudResp != nil {
+				output["cloud"] = cloudResp
+			}
+		}
+
 		enc := json.NewEncoder(os.Stdout)
 		enc.SetIndent("", "  ")
 		return enc.Encode(output)
@@ -397,10 +426,111 @@ func executeChaos(specPath string) error {
 
 	reporter.PrintTerminalReport(*spec, runResult, shrinkResult, anomaly)
 
+	if cloudTokenFlag != "" {
+		if _, err := publishToCloud(ctx, *spec, runResult, shrinkResult, minimalTrace, anomaly, reproCode, mermaidCode); err != nil && cloudFailFastFlag {
+			return err
+		}
+	}
+
 	if uiFlag {
 		htmlContent := reporter.GenerateEmbeddedTraceViewerHTML(minimalTrace, *spec, graph, shrinkResult, invResults)
 		return serveTraceViewer("127.0.0.1:8090", htmlContent, false)
 	}
 
 	return nil
+}
+
+
+func publishToCloud(
+	ctx context.Context,
+	spec domain.Spec,
+	runResult *engine.RunResult,
+	shrinkResult *domain.ShrinkResult,
+	minimalTrace domain.ExecutionTrace,
+	anomaly domain.AnomalyType,
+	reproCode, mermaidCode string,
+) (*cloud.RunIngestResponse, error) {
+	status := "passed"
+	if runResult.ViolationDetected {
+		status = "failed"
+	}
+
+	var failingInv *cloud.InvariantSummary
+	if runResult.FailingInvariant != nil {
+		failingInv = &cloud.InvariantSummary{
+			Name:      runResult.FailingInvariant.Name,
+			Assertion: runResult.FailingInvariant.Expression,
+			Actual:    fmt.Sprintf("%v", runResult.FailingInvariant.ActualValues),
+		}
+	}
+
+	var reproData *cloud.ReproductionData
+	if shrinkResult != nil || len(minimalTrace) > 0 {
+		minOpsCount := len(runResult.ScheduledOps)
+		shrinkMS := int64(0)
+		if shrinkResult != nil {
+			minOpsCount = len(shrinkResult.MinimalOps)
+			shrinkMS = shrinkResult.Duration.Milliseconds()
+		}
+		reproData = &cloud.ReproductionData{
+			MinimalOperationsCount: minOpsCount,
+			ShrinkDurationMS:       shrinkMS,
+			ReproGoCode:            reproCode,
+			MermaidDiagram:         mermaidCode,
+			SanitizedMinimalTrace:  cloud.SanitizeTrace(minimalTrace),
+		}
+	}
+
+	req := &cloud.RunIngestRequest{
+		Version:   "1.0",
+		Timestamp: time.Now().UTC(),
+		CI:        cloud.DetectCIContext(),
+		Scenario: cloud.ScenarioMetadata{
+			Name:       spec.Name,
+			Driver:     spec.Database.Driver,
+			Workers:    spec.Engine.Workers,
+			Iterations: spec.Engine.Iterations,
+			Seed:       spec.Engine.Seed,
+		},
+		Result: cloud.ExecutionSummary{
+			Status:            status,
+			Success:           runResult.Success,
+			ViolationDetected: runResult.ViolationDetected,
+			AnomalyType:       string(anomaly),
+			DurationMS:        runResult.Duration.Milliseconds(),
+			TotalSchedules:    spec.Engine.Iterations,
+			FailingInvariant:  failingInv,
+		},
+		Reproduction: reproData,
+	}
+
+	client := cloud.NewClient(cloud.Config{
+		BaseURL:  cloudURLFlag,
+		Token:    cloudTokenFlag,
+		FailFast: cloudFailFastFlag,
+	})
+
+	if !jsonFlag {
+		fmt.Printf("\n[☁️ ChaosSQL Cloud] Publishing execution metadata to %s...\n", client.BaseURL())
+	}
+
+	resp, err := client.PublishRun(ctx, req)
+	if err != nil {
+		if cloudFailFastFlag {
+			return nil, fmt.Errorf("failed to publish to ChaosSQL Cloud: %w", err)
+		}
+		if !jsonFlag {
+			fmt.Fprintf(os.Stderr, "  [!] Warning: failed to publish to ChaosSQL Cloud: %v\n", err)
+		}
+		return nil, nil
+	}
+
+	if !jsonFlag {
+		fmt.Printf("  [✓] Run recorded: %s\n", resp.URL)
+		if resp.IsRegression {
+			fmt.Printf("  🚨 CONCURRENCY REGRESSION DETECTED against baseline (Branch: %s)\n", resp.Baseline.Branch)
+		}
+	}
+
+	return resp, nil
 }

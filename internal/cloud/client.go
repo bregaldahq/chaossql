@@ -126,3 +126,9 @@ func (c *Client) PublishRun(ctx context.Context, req *RunIngestRequest) (*RunIng
 
 	return nil, fmt.Errorf("%w: %v", ErrCloudUnavailable, lastErr)
 }
+
+
+// BaseURL returns the configured base URL
+func (c *Client) BaseURL() string {
+	return c.cfg.BaseURL
+}
