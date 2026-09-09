@@ -4,98 +4,118 @@
 
 # ChaosSQL
 
-### Deterministic Concurrency & Isolation Fuzzer for SQL Databases
+### Catch database concurrency bugs before production does.
 
 [![Documentation Portal](https://img.shields.io/badge/Docs-chaossql.bregalda.com-4B2E83?style=for-the-badge&logo=cloudflare&logoColor=white)](https://chaossql.bregalda.com)
 [![Release Version](https://img.shields.io/badge/Release-v1.4.0-F5C400?style=for-the-badge&logo=github&labelColor=2A2140)](https://github.com/bregaldahq/chaossql/releases/tag/v1.4.0)
 [![Go Version](https://img.shields.io/badge/Go-1.22+-00ADD8?style=for-the-badge&logo=go&logoColor=white)](https://golang.org)
 [![Zero CGO](https://img.shields.io/badge/CGO-Disabled_(Pure_Go)-22C55E?style=for-the-badge)](https://modernc.org/sqlite)
 [![CI Pipeline](https://img.shields.io/badge/CI-Passing-22C55E?style=for-the-badge&logo=githubactions&logoColor=white)](https://github.com/bregaldahq/chaossql/actions)
-[![OASIS SARIF](https://img.shields.io/badge/SARIF-2.1.0_Compliant-0052CC?style=for-the-badge)](https://docs.oasis-open.org/sarif/sarif/v2.1.0/sarif-v2.1.0.html)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](LICENSE)
 
 <p align="center">
-  <b>Uncover rare database race conditions • Classify isolation anomalies via Adya Dependency Graphs • Shrink 100-operation failure traces to 1-minimal reproductions in milliseconds</b>
+  <b>Deterministic Concurrency & Invariant Testing for PostgreSQL, MySQL, and SQLite.</b><br />
+  Stop silent data corruption, write skew, and lost updates in CI/CD before they reach production.
 </p>
 
 <p align="center">
-  <a href="https://chaossql.bregalda.com">🌐 Official Portal & Documentation</a> •
-  <a href="#-quickstart">🚀 Quickstart</a> •
-  <a href="#-10-flagship-concurrency-scenarios">🔬 10 Scenarios & Fixes</a> •
-  <a href="#️-interactive-trace-visualizer-chaossql-ui">🖥️ Trace Visualizer</a> •
-  <a href="#-go-developer-sdk-pkgchaostest">📦 Go SDK</a> •
-  <a href="#-autonomous-multi-engine-swarm--adversarial-mutations-v14">🌪️ Swarm Fuzzing (v1.4)</a> •
-  <a href="#-layer-7-transparent-database-reverse-proxy-chaossql-proxy-v14">🔌 Transparent Proxy (v1.4)</a> •
-  <a href="#️-oasis-sarif-210--github-code-scanning">🛡️ SARIF CI/CD</a>
+  <a href="https://chaossql.bregalda.com">🌐 Official Portal</a> •
+  <a href="https://chaossql.bregalda.com/#/playground">🧪 Interactive WASM Playground</a> •
+  <a href="#-quickstart-in-30-seconds">🚀 Quickstart</a> •
+  <a href="#-3-flagship-concurrency-demos">🔬 3 Key Demos</a> •
+  <a href="#️-chaossql-cloud--concurrency-audit">☁️ Cloud Early Access</a>
 </p>
 
 </div>
 
 ---
 
-## ⚡ The Concurrency Challenge in Modern Databases
+## ⚡ The Concurrency Blindspot in Modern Databases
 
-Data corruption caused by concurrency defects—such as **Lost Updates**, **Write Skew**, **Read Skew**, **Dirty Writes**, **Dirty Reads**, **Circular Information Flows**, **Phantom Collisions**, and **Transactional Deadlocks**—are among the most insidious bugs in production:
+Unit tests verify functions in isolation. In production, concurrent transactions interleave in unpredictable orders, causing silent data corruption that standard tests miss:
 
-1. **Rare & Flaky**: They rely on microsecond race conditions between concurrent worker threads, network delays, and engine-level scheduling that unit tests fail to reproduce.
-2. **Untraceable in Logs**: When a database invariant breaks (e.g. an account balance drops below zero or inventory is oversold), production logs contain thousands of interleaved operations, turning root-cause debugging into guesswork.
-3. **Subtle Engine Discrepancies**: `READ COMMITTED` and `SNAPSHOT ISOLATION` behave differently across SQLite, PostgreSQL, and MySQL (e.g., predicate locks, next-key locks, gap locks, and SSI serializable aborts).
-
-**ChaosSQL solves this deterministically:**
-
-```
-  ┌─────────────────┐       ┌────────────────────────┐       ┌────────────────────────┐       ┌──────────────────┐
-  │  chaos.yaml DSL │ ───►  │ Stochastic Mutator     │ ───►  │ Differential Swarm     │ ───►  │ Adya Classifier │
-  │ Invariant Spec  │       │ Jitter/LIFO/DAG/Invert │       │ SQLite/PG/MySQL/Mock   │       │  Cycle Analysis  │
-  └─────────────────┘       └────────────────────────┘       └────────────────────────┘       └──────────────────┘
-                                                                         │                              │
-                                                                         ▼                              ▼
-                                                             ┌────────────────────────┐       ┌──────────────────┐
-                                                             │ Headless WASM Stress   │ ───►  │ Causal Shrinker  │
-                                                             │ V8 Bounded / 60 FPS    │       │ ddmin (1-Minimal)│
-                                                             └────────────────────────┘       └──────────────────┘
-                                                                                                        │
-                                                                                                        ▼
-                                                                                              ┌──────────────────┐
-                                                                                              │ Visualizer & CI  │
-                                                                                              │ SARIF / Summary  │
-                                                                                              └──────────────────┘
+```text
+❌ Lost Update Detected (P4 Anomaly)
+─────────────────────────────────────────────────────────────────────────────
+Expected Account Balance:   $2,000.00
+Actual Account Balance:     $1,950.00 (Silent race condition under READ COMMITTED)
+Deterministic Seed:         184729
+Root Cause:                 T1 and T2 concurrently read balance=2000 before either commit
+Minimal Reproduction:       4 operations synthesized in repro_test.go (< 200ms)
+─────────────────────────────────────────────────────────────────────────────
 ```
 
-* **Stochastic Micro-Jitter & PCT Scheduling**: Provably hits rare execution interleavings ($\mathbb{P} \ge \frac{1}{n \cdot k^{d-1}}$) using randomized priority assignment and controlled barrier delays.
-* **Autonomous Swarm Fuzzing & Mutation (`chaossql mutate`)**: Generates valid adversarial scenario variations via micro-jitter perturbations, LIFO nested savepoints, causal DAG topological step shuffling, and lock order inversion.
-* **Multi-Engine Differential Isolation Matrix (`chaossql swarm`)**: Dispatches synchronized deterministic schedules across SQLite, PostgreSQL 16, MySQL 8.0, and Mock drivers to isolate semantic divergence.
-* **Adya Direct Serialization Graph ($SG(S)$)**: Maps transaction nodes ($T_1, T_2, \dots$) and conflict edges ($rw, ww, wr$) to mathematically classify exact isolation anomalies ($P4, A5B, A5A, G0, G1a, G1b, G1c, G2, G\text{-DL}$).
-* **Causal Delta-Debugging ($ddmin$)**: Shrinks a chaotic 100-operation failure schedule down to the exact 2 or 3 operations responsible for the invariant violation in $< 200\text{ms}$.
-* **Headless WebAssembly Stress Harness**: Validates 100+ consecutive fuzzing iterations in V8 / Web Worker sandbox with bounded linear memory (< 32MB) and 60 FPS non-blocking UI rendering (< 16.6ms).
-* **Interactive Trace Visualizer (`chaossql ui`)**: Embedded microsecond Gantt swimlane and SVG conflict graph server.
-* **In-Browser WebAssembly Playground (`chaossql-wasm`)**: Execute fuzzer schedules, Adya cycle classification, and causal delta-debugging 100% inside your browser at `chaossql.bregalda.com/#/playground` with zero backend server.
-* **Native CI/CD Quality Gate**: Emits standardized OASIS SARIF 2.1.0 reports for GitHub Code Scanning, GitHub Step Summaries, JUnit XML, and OpenTelemetry OTLP tracing.
-* **Pure Go & Zero CGO**: Built-in SQLite driver (`modernc.org/sqlite`) running over 13.9M operations/sec with zero native C compiler dependencies.
+**ChaosSQL finds these bugs deterministically, synthesizes a 1-minimal reproduction, and guards your Pull Requests from regressions.**
 
 ---
 
-## 🌐 Official Documentation & Bilingual Portal
+## 🚀 Quickstart in 30 Seconds
 
-Visit the interactive documentation hub: **[https://chaossql.bregalda.com](https://chaossql.bregalda.com)**
+Install the standalone CLI binary with zero CGO dependencies:
 
-* **Bilingual Switcher [ PT | EN ]**: Seamless one-click client-side toggling between English and Portuguese with zero page reloads.
-* **WebAssembly Playground (`#/playground`)**: Run the concurrency engine, test custom YAML scenarios, and render live Adya conflict graphs client-side.
-* **8 Technical Chapters**: Quickstart, `chaos.yaml` DSL specification, complete CLI manual (9 subcommands, 12 flags), visualizer guide, CI/CD SARIF, database driver internals, Go SDK, and formal concurrency theory (Bernstein conditions, CSR theorem, Burckhardt PCT, Zeller $ddmin$).
-* **Interactive Trace Visualizer Demo**: Real-time microsecond Gantt swimlanes and SVG Adya DAG simulator.
-* **Hermitage Isolation Matrix**: Empirical isolation phenomena comparison across SQLite, PostgreSQL, and MySQL.
+```bash
+# Install CLI via Go (Go 1.22+)
+go install github.com/bregaldahq/chaossql/cmd/chaossql@latest
 
-### 🌐 In-Browser WebAssembly Playground (v1.3)
+# Run the flagship banking lost-update scenario
+chaossql run examples/banking_lost_update/chaos.yaml
+```
 
-Experience deterministic concurrency fuzzing and formal isolation verification instantly with zero installation and zero backend dependencies:
+ChaosSQL schedules concurrent worker transactions, detects invariant violations, and generates a standalone Go reproduction test (`repro_test.go`) ready for your test suite.
 
-👉 **[Launch Playground (chaossql.bregalda.com/#/playground)](https://chaossql.bregalda.com/#/playground)**
+---
 
-* **Zero-Install, Zero-Server Studio**: The entire ChaosSQL verification core—including PRNG scheduling, Adya Direct Serialization Graph (DSG) cycle classification, and causal $ddmin$ delta-debugging—executes 100% client-side inside a browser Web Worker via WebAssembly (`chaossql.wasm`).
-* **Live SVG Adya Conflict Graph**: Visualizes concurrent transaction nodes ($T_1, T_2, \dots$) and directed conflict edges ($rw$ anti-dependency, $ww$ write-write, $wr$ read-dependency) with animated highlights of detected anomaly cycles ($P4, A5B, G0, G1a, G1c, G2$).
-* **Interactive Gantt Interleaving Timeline**: Microsecond-precision horizontal swimlanes detailing concurrent worker interleavings, lock contention, and statement execution order.
-* **10 Flagship Scenario Presets**: Load and test banking lost updates, hospital write skew, stock oversell, and deadlock cycles with 1 click, or author custom `chaos.yaml` scenarios in the built-in editor.
-* **Privacy & Isolation by Design**: Zero data exfiltration—all SQL statements, schema migrations, and invariant evaluations run strictly within the client's browser sandbox.
+## 🔬 3 Flagship Concurrency Demos
+
+Explore classic race conditions with pre-packaged scenarios, or test them 100% in your browser without installing anything:
+
+| Scenario | Anomaly & Impact | Test in Browser | CLI Command |
+| :--- | :--- | :---: | :--- |
+| **🏦 Banking Transfer** | **Lost Update ($P4$):** Concurrent debits overwrite balance changes under `READ COMMITTED`. | [Launch Playground](https://chaossql.bregalda.com/#/playground) | `chaossql run examples/banking_lost_update/chaos.yaml` |
+| **🏥 Hospital Shift** | **Write Skew ($A5B$):** Two doctors concurrently drop shift, leaving 0 on duty under `REPEATABLE READ`. | [Launch Playground](https://chaossql.bregalda.com/#/playground) | `chaossql run examples/hospital_write_skew/chaos.yaml` |
+| **🔒 Deadlock Cycle** | **Resource Deadlock ($G	ext{-DL}$):** Inverted key lock acquisitions lock worker goroutines permanently. | [Launch Playground](https://chaossql.bregalda.com/#/playground) | `chaossql run examples/deadlock_cycle/chaos.yaml` |
+
+---
+
+## 🤖 Continuous Concurrency in CI/CD
+
+Prevent concurrency regressions from ever reaching `main`. Add ChaosSQL to your GitHub Actions pipeline:
+
+```yaml
+name: Concurrency Guard
+on: [pull_request, push]
+
+jobs:
+  concurrency:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: bregaldahq/chaossql@v1
+        with:
+          spec-path: examples/banking_lost_update/chaos.yaml
+          export-summary: true
+```
+
+When an invariant fails, the action blocks the pull request, publishes a GitHub Step Summary with the minimal execution trace, and synthesizes a `repro_test.go` artifact.
+
+---
+
+## ☁️ ChaosSQL Cloud & Concurrency Audit
+
+### 1. ChaosSQL Cloud (CI/CD Regression Guard)
+* **Main Branch Baseline:** Automatically stores invariant baselines for your default branch.
+* **Pull Request Comments:** Instantly comments on failing PRs with the root-cause trace and anomaly classification ($P4$, $A5B$, etc.).
+* **Zero Sensitive Data:** Queries and database payloads remain inside your CI runner—only execution metadata and minimal traces are reported.
+
+👉 **[Join the Cloud Early Access Waitlist](https://chaossql.bregalda.com/#waitlist)**
+
+### 2. ChaosSQL Concurrency Audit
+Preparing a major launch, financial ledger, or high-throughput reservation engine? Studio Bregalda provides dedicated **Database Concurrency Audits** ($500 – $2,000):
+* Formal invariant specification of your critical transaction flows.
+* Multi-engine isolation analysis (PostgreSQL vs. MySQL vs. SQLite).
+* Turnkey minimal reproductions and mitigation blueprints (`SELECT ... FOR UPDATE`, OCC versioning, SSI).
+
+👉 **[Request an Audit for Your Team](https://chaossql.bregalda.com/#waitlist)**
 
 ---
 
@@ -141,61 +161,6 @@ chaossql run examples/banking_lost_update/chaos.yaml --ui
 * **Adya Dependency Graph**: Interactive SVG Direct Serialization Graph (DSG) highlighting read-write ($rw$), write-write ($ww$), and write-read ($wr$) cycles.
 * **1-Minimal Causal Comparison**: Toggle between the noisy raw trace (e.g. 20 operations) and the $ddmin$-shrunk minimal reproduction (2 operations).
 * **Statement Inspector**: View exact SQL statements, bound dynamic parameters, executed latencies, and invariant assertion expressions.
-
----
-
-## 🚀 Quickstart
-
-### Installation
-
-```bash
-# Install latest CLI binary via Go (Go 1.22+)
-go install github.com/bregaldahq/chaossql/cmd/chaossql@latest
-
-# Verify installation
-chaossql --help
-```
-
-### 1. Scaffold a New Scenario
-```bash
-chaossql init transfer_test --driver sqlite
-cd transfer_test
-```
-
-### 2. Define the Invariant & Workload (`chaos.yaml`)
-```yaml
-version: "1.2"
-driver: "sqlite"
-dsn: "file::memory:?cache=shared"
-
-setup:
-  - "CREATE TABLE accounts (id INT PRIMARY KEY, balance INT NOT NULL);"
-  - "INSERT INTO accounts VALUES (1, 1000), (2, 1000);"
-
-workload:
-  workers: 4
-  duration: 10s
-  jitter:
-    min_us: 10
-    max_us: 250
-
-transactions:
-  - name: "transfer"
-    steps:
-      - "SELECT balance FROM accounts WHERE id = 1 -> bal1;"
-      - "UPDATE accounts SET balance = {bal1 - 50} WHERE id = 1;"
-      - "UPDATE accounts SET balance = balance + 50 WHERE id = 2;"
-
-invariants:
-  - name: "total_wealth_conserved"
-    query: "SELECT sum(balance) AS total FROM accounts;"
-    assert: "total == 2000"
-```
-
-### 3. Run Deterministic Fuzzing & Delta-Debugging
-```bash
-chaossql run chaos.yaml --ddmin --ui
-```
 
 ---
 
