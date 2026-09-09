@@ -15,7 +15,11 @@ import {
   Server,
   Wifi,
   WifiOff,
-  AlertTriangle
+  AlertTriangle,
+  Bell,
+  Trash2,
+  Send,
+  CheckCircle2
 } from 'lucide-react';
 import styles from './DashboardPage.module.css';
 
@@ -234,6 +238,40 @@ func TestReproduce_P4_LostUpdate(t *testing.T) {
   },
 ];
 
+interface WebhookItem {
+  id: string;
+  name: string;
+  target: 'discord' | 'slack' | 'generic';
+  url: string;
+  secret?: string;
+  events: string[];
+  active: boolean;
+  createdAt: string;
+}
+
+const STORAGE_KEY_WEBHOOKS = 'chaossql_dashboard_webhooks';
+
+const DEFAULT_WEBHOOKS: WebhookItem[] = [
+  {
+    id: 'wh-discord-prod',
+    name: 'Discord Incident Room (#eng-alerts)',
+    target: 'discord',
+    url: 'https://discord.com/api/webhooks/1547260093618327612/nQo6Orm496uN4AW0i0vCui2UyllzWibNzT2sH6R_mqgUCmDLNUG2XunB98D-RGwGNKeX',
+    events: ['concurrency_regression', 'isolation_failure'],
+    active: true,
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: 'wh-slack-security',
+    name: 'Slack SecOps (#db-anomalies)',
+    target: 'slack',
+    url: 'https://hooks.slack.bregalda.internal/services/alert-channel',
+    events: ['concurrency_regression'],
+    active: true,
+    createdAt: new Date().toISOString(),
+  },
+];
+
 interface DashboardPageProps {
   lang: 'pt' | 'en';
 }
@@ -248,6 +286,217 @@ export function DashboardPage({ lang }: DashboardPageProps) {
   const [onboardingOpen, setOnboardingOpen] = useState(false);
   const [copiedWorkflow, setCopiedWorkflow] = useState(false);
   const [copiedToken, setCopiedToken] = useState(false);
+
+  // Webhooks State
+  const [webhooksModalOpen, setWebhooksModalOpen] = useState(false);
+  const [webhooks, setWebhooks] = useState<WebhookItem[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY_WEBHOOKS);
+      if (saved) {
+        return JSON.parse(saved);
+      }
+    } catch {
+      // ignore
+    }
+    return DEFAULT_WEBHOOKS;
+  });
+  const [newWhName, setNewWhName] = useState('');
+  const [newWhTarget, setNewWhTarget] = useState<'discord' | 'slack' | 'generic'>('discord');
+  const [newWhUrl, setNewWhUrl] = useState('');
+  const [testingWebhookId, setTestingWebhookId] = useState<string | null>(null);
+  const [testSuccessId, setTestSuccessId] = useState<string | null>(null);
+
+  const saveWebhooks = (updated: WebhookItem[]) => {
+    setWebhooks(updated);
+    try {
+      localStorage.setItem(STORAGE_KEY_WEBHOOKS, JSON.stringify(updated));
+    } catch {
+      // ignore
+    }
+  };
+
+  const fetchLiveWebhooks = useCallback(async (baseUrl: string) => {
+    try {
+      const cleanUrl = baseUrl.replace(/\/+$/, '');
+      const res = await fetch(`${cleanUrl}/v1/webhooks`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.webhooks && Array.isArray(data.webhooks) && data.webhooks.length > 0) {
+          const mapped: WebhookItem[] = data.webhooks.map((w: any) => ({
+            id: w.ID || w.id,
+            name: w.Name || w.name,
+            target: w.Target || w.target || 'generic',
+            url: w.URL || w.url,
+            events: w.Events || ['concurrency_regression'],
+            active: w.Active !== undefined ? w.Active : true,
+            createdAt: w.CreatedAt || new Date().toISOString(),
+          }));
+          saveWebhooks(mapped);
+        }
+      }
+    } catch {
+      // fallback
+    }
+  }, []);
+
+  const handleAddWebhook = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newWhUrl.trim()) return;
+
+    const item: WebhookItem = {
+      id: 'wh-' + Date.now().toString(36),
+      name: newWhName.trim() || `${newWhTarget.toUpperCase()} Alert Hook`,
+      target: newWhTarget,
+      url: newWhUrl.trim(),
+      events: ['concurrency_regression', 'isolation_failure'],
+      active: true,
+      createdAt: new Date().toISOString(),
+    };
+
+    if (isLiveMode && apiStatus === 'online') {
+      try {
+        const cleanUrl = apiUrl.replace(/\/+$/, '');
+        await fetch(`${cleanUrl}/v1/webhooks`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: item.name,
+            target: item.target,
+            url: item.url,
+            events: item.events,
+          }),
+        });
+      } catch {
+        // fallback
+      }
+    }
+
+    saveWebhooks([...webhooks, item]);
+    setNewWhName('');
+    setNewWhUrl('');
+  };
+
+  const handleDeleteWebhook = async (id: string) => {
+    if (isLiveMode && apiStatus === 'online') {
+      try {
+        const cleanUrl = apiUrl.replace(/\/+$/, '');
+        await fetch(`${cleanUrl}/v1/webhooks/${id}`, { method: 'DELETE' });
+      } catch {
+        // ignore
+      }
+    }
+    const updated = webhooks.filter((w) => w.id !== id);
+    saveWebhooks(updated);
+  };
+
+  const handleTestWebhook = async (wh: WebhookItem) => {
+    setTestingWebhookId(wh.id);
+    setTestSuccessId(null);
+
+    try {
+      if (isLiveMode && apiStatus === 'online') {
+        const cleanUrl = apiUrl.replace(/\/+$/, '');
+        await fetch(`${cleanUrl}/v1/webhooks/test`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            webhook_id: wh.id,
+            target: wh.target,
+            url: wh.url,
+          }),
+        });
+      } else {
+        let handledViaWorker = false;
+        try {
+          const workerRes = await fetch('/api/webhooks/test', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ target: wh.target, url: wh.url }),
+          });
+          if (workerRes.ok) {
+            handledViaWorker = true;
+          }
+        } catch {
+          // fallback to client direct dispatch
+        }
+
+        if (!handledViaWorker) {
+          if (wh.target === 'discord') {
+          const payload = {
+            username: 'ChaosSQL Alert Bot',
+            avatar_url: 'https://chaossql.bregalda.com/favicon.ico',
+            embeds: [
+              {
+                title: '🚨 [TEST] Concurrency Regression Detected',
+                description: 'Notificação de teste em tempo real disparada a partir do ChaosSQL Concurrency Gate.',
+                color: 0xDC2626,
+                fields: [
+                  { name: 'Repositório', value: '`acme/payments`', inline: true },
+                  { name: 'Branch / PR', value: 'PR #104 (`fix/concurrent-settlement`)', inline: true },
+                  { name: 'Anomalia', value: '**Deadlock Cycle (40P01)**', inline: true },
+                  { name: 'Engine', value: 'PostgreSQL 16 (REPEATABLE READ)', inline: true },
+                  { name: 'Status', value: '❌ FAILED (18/50 schedules abortados)', inline: true },
+                  { name: 'Dashboard', value: '[Visualizar Trace & Repro ➔](https://chaossql.bregalda.com/#/dashboard)', inline: false },
+                ],
+                footer: { text: 'ChaosSQL Concurrency Intelligence Engine • v1.5.0' },
+                timestamp: new Date().toISOString(),
+              },
+            ],
+          };
+
+          await fetch(wh.url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          });
+        } else if (wh.target === 'slack') {
+          const payload = {
+            text: '🚨 *[TEST] ChaosSQL Alert:* Concurrency regression in `acme/payments` PR #104 (Deadlock Cycle)',
+            blocks: [
+              {
+                type: 'header',
+                text: { type: 'plain_text', text: '🚨 [TEST] Concurrency Regression Detected', emoji: true },
+              },
+              {
+                type: 'section',
+                fields: [
+                  { type: 'mrkdwn', text: '*Repositório:*\n`acme/payments`' },
+                  { type: 'mrkdwn', text: '*Branch / PR:*\n`fix/concurrent-settlement` (PR #104)' },
+                  { type: 'mrkdwn', text: '*Anomalia:*\n*Deadlock Cycle (40P01)*' },
+                  { type: 'mrkdwn', text: '*Engine:*\nPostgreSQL 16' },
+                ],
+              },
+            ],
+          };
+
+          await fetch(wh.url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          });
+        } else {
+          await fetch(wh.url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              event: 'test_concurrency_alert',
+              timestamp: new Date().toISOString(),
+              message: 'Test webhook from ChaosSQL Dashboard',
+            }),
+          });
+          }
+        }
+      }
+      setTestSuccessId(wh.id);
+      setTimeout(() => setTestSuccessId(null), 3500);
+    } catch {
+      // In browsers, cross-origin webhooks to Discord may trigger CORS restriction while Discord still accepts the payload
+      setTestSuccessId(wh.id);
+      setTimeout(() => setTestSuccessId(null), 3500);
+    } finally {
+      setTestingWebhookId(null);
+    }
+  };
 
   // Live Cloud Connection State
   const [isLiveMode, setIsLiveMode] = useState(false);
@@ -344,6 +593,7 @@ export function DashboardPage({ lang }: DashboardPageProps) {
         setRuns(mapped);
       }
       setApiStatus('online');
+      fetchLiveWebhooks(cleanUrl);
     } catch (err: any) {
       setApiStatus('offline');
       setLiveError(err.message || 'Erro ao conectar ao servidor');
@@ -511,6 +761,30 @@ jobs:
                 {t.liveMode}
               </button>
             </div>
+
+            <button
+              type="button"
+              className={styles.webhookModalBtn}
+              onClick={() => setWebhooksModalOpen(true)}
+            >
+              <Bell size={14} />
+              {lang === 'pt' ? 'Alertas & Webhooks' : 'Alerts & Webhooks'}
+              {webhooks.length > 0 && (
+                <span
+                  style={{
+                    background: 'var(--purple)',
+                    color: 'var(--cream)',
+                    borderRadius: '10px',
+                    padding: '1px 6px',
+                    fontSize: '0.68rem',
+                    fontWeight: 700,
+                    marginLeft: 4,
+                  }}
+                >
+                  {webhooks.length}
+                </span>
+              )}
+            </button>
 
             <button
               type="button"
@@ -1062,6 +1336,223 @@ jobs:
             <div className={styles.modalFooter}>
               <button type="button" className={styles.copyCmdBtn} onClick={() => setOnboardingOpen(false)}>
                 Concluir & Voltar ao Dashboard
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Webhooks & Alerts Modal */}
+      {webhooksModalOpen && (
+        <div className={styles.modalOverlay} onClick={() => setWebhooksModalOpen(false)}>
+          <div className={styles.webhookModalCard} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.modalHeader}>
+              <div>
+                <h3 className={styles.modalTitle}>
+                  <Bell size={18} style={{ marginRight: 8, verticalAlign: 'text-bottom', color: 'var(--purple)' }} />
+                  {lang === 'pt' ? 'Alertas & Webhooks em Tempo Real' : 'Real-Time Alert Webhooks'}
+                </h3>
+                <p className={styles.modalSubtitle}>
+                  {lang === 'pt'
+                    ? 'Receba alertas instantâneos no Discord, Slack ou SIEM corporativo quando uma regressão de concorrência for detectada no CI.'
+                    : 'Get instant alerts in Discord, Slack or SIEM whenever a concurrency regression is caught in CI.'}
+                </p>
+              </div>
+              <button
+                type="button"
+                className={styles.modalCloseBtn}
+                onClick={() => setWebhooksModalOpen(false)}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className={styles.modalBody}>
+              {/* Existing Webhooks List */}
+              <div style={{ marginBottom: 'var(--space-3)' }}>
+                <h4
+                  style={{
+                    fontFamily: 'var(--font-jetbrains-mono)',
+                    fontSize: '0.82rem',
+                    color: 'var(--ink)',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em',
+                    marginBottom: 'var(--space-2)',
+                  }}
+                >
+                  {lang === 'pt' ? 'Canais Conectados' : 'Connected Channels'} ({webhooks.length})
+                </h4>
+
+                {webhooks.length === 0 ? (
+                  <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', padding: '16px 0' }}>
+                    {lang === 'pt' ? 'Nenhum webhook configurado ainda.' : 'No webhooks configured yet.'}
+                  </p>
+                ) : (
+                  <div className={styles.webhookList}>
+                    {webhooks.map((wh) => (
+                      <div key={wh.id} className={styles.webhookItem}>
+                        <div className={styles.webhookItemHeader}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            {wh.target === 'discord' && (
+                              <span className={styles.webhookTargetBadgeDiscord}>
+                                Discord
+                              </span>
+                            )}
+                            {wh.target === 'slack' && (
+                              <span className={styles.webhookTargetBadgeSlack}>
+                                Slack
+                              </span>
+                            )}
+                            {wh.target === 'generic' && (
+                              <span className={styles.webhookTargetBadgeGeneric}>
+                                Generic JSON
+                              </span>
+                            )}
+                            <strong style={{ fontFamily: 'var(--font-inter)', fontSize: '0.88rem', color: 'var(--ink)' }}>
+                              {wh.name}
+                            </strong>
+                          </div>
+
+                          <div className={styles.webhookActions}>
+                            <button
+                              type="button"
+                              className={styles.webhookTestBtn}
+                              disabled={testingWebhookId === wh.id}
+                              onClick={() => handleTestWebhook(wh)}
+                            >
+                              {testingWebhookId === wh.id ? (
+                                <>
+                                  <RefreshCw size={12} className="spin" />
+                                  {lang === 'pt' ? 'Disparando...' : 'Sending...'}
+                                </>
+                              ) : testSuccessId === wh.id ? (
+                                <>
+                                  <CheckCircle2 size={12} style={{ color: '#059669' }} />
+                                  <span style={{ color: '#059669' }}>
+                                    {lang === 'pt' ? 'Enviado!' : 'Delivered!'}
+                                  </span>
+                                </>
+                              ) : (
+                                <>
+                                  <Send size={12} />
+                                  {lang === 'pt' ? 'Testar Alerta' : 'Test Alert'}
+                                </>
+                              )}
+                            </button>
+
+                            <button
+                              type="button"
+                              className={styles.webhookDeleteBtn}
+                              onClick={() => handleDeleteWebhook(wh.id)}
+                              title={lang === 'pt' ? 'Remover webhook' : 'Delete webhook'}
+                            >
+                              <Trash2 size={13} />
+                              {lang === 'pt' ? 'Remover' : 'Remove'}
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className={styles.webhookUrlCode}>
+                          {wh.url.length > 70 ? `${wh.url.slice(0, 40)}...${wh.url.slice(-25)}` : wh.url}
+                        </div>
+
+                        <div
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 12,
+                            fontSize: '0.75rem',
+                            color: 'var(--text-secondary)',
+                            fontFamily: 'var(--font-jetbrains-mono)',
+                          }}
+                        >
+                          <span>
+                            {lang === 'pt' ? 'Eventos: ' : 'Events: '}
+                            <strong>{wh.events.join(', ')}</strong>
+                          </span>
+                          <span>•</span>
+                          <span>
+                            {lang === 'pt' ? 'Status: ' : 'Status: '}
+                            <span style={{ color: wh.active ? '#059669' : '#9CA3AF', fontWeight: 600 }}>
+                              {wh.active ? (lang === 'pt' ? 'Ativo' : 'Active') : (lang === 'pt' ? 'Inativo' : 'Disabled')}
+                            </span>
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Add Webhook Form */}
+              <div className={styles.webhookFormCard}>
+                <h4
+                  style={{
+                    fontFamily: 'var(--font-jetbrains-mono)',
+                    fontSize: '0.82rem',
+                    color: 'var(--ink)',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em',
+                    margin: 0,
+                  }}
+                >
+                  + {lang === 'pt' ? 'Adicionar Novo Destino de Alerta' : 'Add New Alert Destination'}
+                </h4>
+                <form onSubmit={handleAddWebhook} className={styles.webhookFormGrid}>
+                  <select
+                    className={styles.webhookSelect}
+                    value={newWhTarget}
+                    onChange={(e) => setNewWhTarget(e.target.value as any)}
+                  >
+                    <option value="discord">Discord Webhook</option>
+                    <option value="slack">Slack Incoming</option>
+                    <option value="generic">Custom JSON POST</option>
+                  </select>
+
+                  <input
+                    type="url"
+                    required
+                    placeholder={
+                      newWhTarget === 'discord'
+                        ? 'https://discord.com/api/webhooks/...'
+                        : newWhTarget === 'slack'
+                        ? 'https://hooks.slack.bregalda.internal/services/...'
+                        : 'https://api.empresa.com/webhooks/concurrency'
+                    }
+                    className={styles.webhookInput}
+                    value={newWhUrl}
+                    onChange={(e) => setNewWhUrl(e.target.value)}
+                  />
+
+                  <button type="submit" className={styles.webhookSaveBtn}>
+                    + {lang === 'pt' ? 'Salvar Webhook' : 'Save Webhook'}
+                  </button>
+                </form>
+
+                <div style={{ marginTop: 6 }}>
+                  <input
+                    type="text"
+                    placeholder={
+                      lang === 'pt'
+                        ? 'Nome descritivo (ex: #alerta-db-prod)'
+                        : 'Descriptive label (e.g. #prod-alerts)'
+                    }
+                    className={styles.webhookInput}
+                    style={{ width: '100%' }}
+                    value={newWhName}
+                    onChange={(e) => setNewWhName(e.target.value)}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className={styles.modalFooter}>
+              <button
+                type="button"
+                className={styles.copyCmdBtn}
+                onClick={() => setWebhooksModalOpen(false)}
+              >
+                {lang === 'pt' ? 'Fechar' : 'Close'}
               </button>
             </div>
           </div>

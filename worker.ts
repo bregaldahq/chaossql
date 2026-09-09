@@ -145,6 +145,117 @@ export default {
       });
     }
 
+
+    // Webhook Test Dispatcher Route
+    if (url.pathname === '/api/webhooks/test') {
+      if (request.method === 'OPTIONS') {
+        return new Response(null, {
+          status: 204,
+          headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'POST, OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type',
+          },
+        });
+      }
+
+      if (request.method === 'POST') {
+        try {
+          const data = (await request.json()) as {
+            target?: string;
+            url?: string;
+          };
+
+          const targetUrl = data.url;
+          if (!targetUrl || !targetUrl.startsWith('http')) {
+            return new Response(JSON.stringify({ error: 'Valid webhook url is required' }), {
+              status: 400,
+              headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+            });
+          }
+
+          const target = data.target || 'generic';
+          let bodyPayload: any;
+
+          if (target === 'discord') {
+            bodyPayload = {
+              username: 'ChaosSQL Alert Bot',
+              avatar_url: 'https://chaossql.bregalda.com/brand/icone_bregalda.svg',
+              embeds: [
+                {
+                  title: '🚨 [TEST] Concurrency Regression Detected',
+                  description: 'Notificação de teste em tempo real disparada a partir do ChaosSQL Concurrency Gate.',
+                  color: 0xDC2626,
+                  fields: [
+                    { name: 'Repositório', value: '`acme/payments`', inline: true },
+                    { name: 'Branch / PR', value: 'PR #104 (`fix/concurrent-settlement`)', inline: true },
+                    { name: 'Anomalia', value: '**Deadlock Cycle (40P01)**', inline: true },
+                    { name: 'Engine', value: 'PostgreSQL 16 (REPEATABLE READ)', inline: true },
+                    { name: 'Status', value: '❌ FAILED (18/50 schedules abortados)', inline: true },
+                    { name: 'Dashboard', value: '[Visualizar Trace & Repro ➔](https://chaossql.bregalda.com/#/dashboard)', inline: false },
+                  ],
+                  footer: {
+                    text: 'ChaosSQL Concurrency Intelligence Engine • v1.5.0',
+                    icon_url: 'https://chaossql.bregalda.com/brand/icone_bregalda.svg',
+                  },
+                  timestamp: new Date().toISOString(),
+                },
+              ],
+            };
+          } else if (target === 'slack') {
+            bodyPayload = {
+              text: '🚨 *[TEST] ChaosSQL Alert:* Concurrency regression in `acme/payments` PR #104 (Deadlock Cycle)',
+              blocks: [
+                {
+                  type: 'header',
+                  text: { type: 'plain_text', text: '🚨 [TEST] Concurrency Regression Detected', emoji: true },
+                },
+                {
+                  type: 'section',
+                  fields: [
+                    { type: 'mrkdwn', text: '*Repositório:*\n`acme/payments`' },
+                    { type: 'mrkdwn', text: '*Branch / PR:*\n`fix/concurrent-settlement` (PR #104)' },
+                    { type: 'mrkdwn', text: '*Anomalia:*\n*Deadlock Cycle (40P01)*' },
+                    { type: 'mrkdwn', text: '*Engine:*\nPostgreSQL 16' },
+                  ],
+                },
+              ],
+            };
+          } else {
+            bodyPayload = {
+              event: 'test_concurrency_alert',
+              timestamp: new Date().toISOString(),
+              message: 'Test webhook from ChaosSQL Dashboard',
+            };
+          }
+
+          const resp = await fetch(targetUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'User-Agent': 'ChaosSQL-Webhook-Dispatcher/1.5',
+            },
+            body: JSON.stringify(bodyPayload),
+          });
+
+          return new Response(JSON.stringify({ success: true, status: resp.status }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+          });
+        } catch (err: any) {
+          return new Response(JSON.stringify({ error: err?.message || 'Failed to dispatch webhook' }), {
+            status: 500,
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+          });
+        }
+      }
+
+      return new Response('Method Not Allowed', {
+        status: 405,
+        headers: { 'Access-Control-Allow-Origin': '*' },
+      });
+    }
+
     // Default: Serve static assets via Cloudflare Assets binding
     return env.ASSETS.fetch(request);
   },
