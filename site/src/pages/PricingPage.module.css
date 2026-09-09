@@ -1,0 +1,535 @@
+.pricingPage {
+  max-width: 90rem;
+  margin: 0 auto;
+  padding: 3rem 1.5rem 6rem 1.5rem;
+  font-family: var(--font-sans, Inter, sans-serif);
+}
+
+.heroArea {
+  text-align: center;
+  max-width: 52rem;
+  margin: 0 auto 3.5rem auto;
+}
+
+.badge {
+  display: inline-block;
+  padding: 0.35rem 0.85rem;
+  background: rgba(75, 46, 131, 0.08);
+  border: 1px solid rgba(75, 46, 131, 0.16);
+  border-radius: 3px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #4b2e83;
+  margin-bottom: 1rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.mainTitle {
+  font-size: clamp(2.2rem, 4.5vw, 3.75rem);
+  font-weight: 600;
+  color: #2a2140;
+  letter-spacing: -0.04em;
+  line-height: 1.08;
+  margin: 0 0 1rem 0;
+}
+
+.mainSubtitle {
+  font-size: 1.125rem;
+  color: #575267;
+  line-height: 1.6;
+  margin: 0 0 2rem 0;
+}
+
+/* Switch */
+.switchWrapper {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: #f3f1ec;
+  padding: 0.35rem 0.75rem;
+  border-radius: 4px;
+  border: 1px solid rgba(42, 33, 64, 0.1);
+}
+
+.switchLabel {
+  font-size: 0.875rem;
+  color: #777;
+  font-weight: 500;
+}
+
+.switchLabelActive {
+  color: #2a2140;
+  font-weight: 600;
+}
+
+.switchToggle {
+  width: 44px;
+  height: 24px;
+  background: #4b2e83;
+  border-radius: 12px;
+  border: none;
+  cursor: pointer;
+  position: relative;
+  padding: 2px;
+  transition: background 0.2s ease;
+}
+
+.toggleKnob {
+  display: block;
+  width: 20px;
+  height: 20px;
+  background: #ffffff;
+  border-radius: 50%;
+  transition: transform 0.2s ease;
+}
+
+.switchToggleAnnual .toggleKnob {
+  transform: translateX(20px);
+}
+
+.discountPill {
+  background: #22c55e;
+  color: #ffffff;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  padding: 0.15rem 0.45rem;
+  border-radius: 3px;
+}
+
+/* Cards Grid */
+.cardsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 5rem;
+}
+
+.planCard {
+  background: #ffffff;
+  border: 1px solid rgba(42, 33, 64, 0.12);
+  border-radius: 9px;
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 4px 16px rgba(42, 33, 64, 0.04);
+  position: relative;
+}
+
+.popularCard {
+  border: 2px solid #4b2e83;
+  box-shadow: 0 12px 36px rgba(75, 46, 131, 0.14);
+}
+
+.popularBadge {
+  position: absolute;
+  top: -12px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #4b2e83;
+  color: #f5c400;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 0.25rem 0.75rem;
+  border-radius: 3px;
+}
+
+.planHeader {
+  margin-bottom: 1.25rem;
+}
+
+.planName {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #2a2140;
+  margin-bottom: 0.35rem;
+}
+
+.planDesc {
+  font-size: 0.875rem;
+  color: #666;
+  min-height: 40px;
+  margin: 0;
+  line-height: 1.45;
+}
+
+.priceRow {
+  display: flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  margin-bottom: 0.25rem;
+}
+
+.priceNum {
+  font-size: 2.75rem;
+  font-weight: 700;
+  color: #2a2140;
+  letter-spacing: -0.04em;
+  line-height: 1;
+}
+
+.pricePeriod {
+  font-size: 0.875rem;
+  color: #777;
+}
+
+.billingSub {
+  font-size: 0.75rem;
+  color: #888;
+  margin-bottom: 1.5rem;
+  min-height: 16px;
+}
+
+.featureList {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 2rem 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  flex-grow: 1;
+}
+
+.featureList li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  color: #3f3a4d;
+  line-height: 1.4;
+}
+
+.checkIcon {
+  color: #22c55e;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.checkIconPopular {
+  color: #4b2e83;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.ctaSecondary {
+  display: block;
+  text-align: center;
+  background: #f4f2ee;
+  border: 1px solid rgba(42, 33, 64, 0.16);
+  color: #2a2140;
+  padding: 0.75rem 1rem;
+  border-radius: 3px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.ctaSecondary:hover {
+  background: #ece7de;
+}
+
+.ctaPrimary {
+  display: block;
+  text-align: center;
+  background: #4b2e83;
+  border: none;
+  color: #fcfbf8;
+  padding: 0.75rem 1rem;
+  border-radius: 3px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.ctaPrimary:hover {
+  background: #391f69;
+}
+
+/* Audit Section */
+.auditSection {
+  background: #181226;
+  border: 1px solid rgba(245, 196, 0, 0.25);
+  border-radius: 9px;
+  padding: 3rem 2.5rem;
+  color: #fcfbf8;
+  box-shadow: 0 20px 60px rgba(24, 18, 38, 0.3);
+}
+
+.auditInner {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: 3rem;
+  align-items: center;
+}
+
+.auditTag {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.75rem;
+  color: #f5c400;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: 0.75rem;
+}
+
+.auditTitle {
+  font-size: clamp(1.8rem, 3vw, 2.5rem);
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+  margin: 0 0 1rem 0;
+}
+
+.auditSubtitle {
+  font-size: 1.0625rem;
+  color: rgba(252, 251, 248, 0.8);
+  line-height: 1.6;
+  margin: 0 0 2rem 0;
+}
+
+.auditDeliverables {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.deliverableItem {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+}
+
+.deliverableItem strong {
+  display: block;
+  font-size: 0.9375rem;
+  color: #fcfbf8;
+  margin-bottom: 0.2rem;
+}
+
+.deliverableItem p {
+  font-size: 0.8125rem;
+  color: rgba(252, 251, 248, 0.65);
+  margin: 0;
+  line-height: 1.4;
+}
+
+.auditCard {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  padding: 2rem;
+}
+
+.auditCardHeader {
+  margin-bottom: 1.5rem;
+}
+
+.auditDuration {
+  font-size: 0.8125rem;
+  color: #f5c400;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.35rem;
+}
+
+.auditPriceRow {
+  font-size: 3rem;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: -0.04em;
+  line-height: 1;
+}
+
+.auditPriceNote {
+  font-size: 0.8125rem;
+  color: rgba(252, 251, 248, 0.6);
+  margin-top: 0.35rem;
+}
+
+.auditList {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 1.75rem 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  font-size: 0.875rem;
+  color: rgba(252, 251, 248, 0.85);
+}
+
+.auditCtaBtn {
+  display: block;
+  width: 100%;
+  background: #f5c400;
+  border: none;
+  color: #181226;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  padding: 0.875rem;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.auditCtaBtn:hover {
+  background: #ffd324;
+}
+
+/* Modal */
+.modalBackdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(18, 14, 28, 0.75);
+  backdrop-filter: blur(4px);
+  z-index: 100;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 1.5rem;
+}
+
+.modalCard {
+  background: #ffffff;
+  width: 100%;
+  max-width: 540px;
+  border-radius: 9px;
+  border: 1px solid rgba(42, 33, 64, 0.16);
+  padding: 2rem;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+}
+
+.modalHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1.5rem;
+}
+
+.modalSelectedPlan {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.75rem;
+  color: #4b2e83;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.modalTitle {
+  margin: 0.25rem 0 0 0;
+  font-size: 1.35rem;
+  color: #2a2140;
+}
+
+.modalClose {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: #777;
+}
+
+.formContent {
+  display: flex;
+  flex-direction: column;
+  gap: 1.15rem;
+}
+
+.inputGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.inputGroup label {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #3f3a4d;
+}
+
+.inputGroup input,
+.inputGroup select,
+.inputGroup textarea {
+  padding: 0.65rem 0.85rem;
+  border: 1px solid rgba(42, 33, 64, 0.2);
+  border-radius: 3px;
+  font-size: 0.875rem;
+  font-family: inherit;
+  outline: none;
+}
+
+.inputGroup input:focus,
+.inputGroup select:focus,
+.inputGroup textarea:focus {
+  border-color: #4b2e83;
+}
+
+.formRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.modalSubmitBtn {
+  background: #4b2e83;
+  color: #fcfbf8;
+  border: none;
+  padding: 0.85rem;
+  border-radius: 3px;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 0.5rem;
+}
+
+.successState {
+  text-align: center;
+  padding: 2rem 0;
+}
+
+.successIcon {
+  width: 48px;
+  height: 48px;
+  background: #dcfce7;
+  color: #15803d;
+  font-size: 1.5rem;
+  font-weight: bold;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1rem;
+}
+
+.successState h4 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.25rem;
+  color: #2a2140;
+}
+
+.successState p {
+  color: #666;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  margin: 0 0 1.5rem 0;
+}
+
+.closeBtnFinal {
+  background: #f4f2ee;
+  border: 1px solid rgba(42, 33, 64, 0.2);
+  padding: 0.6rem 1.5rem;
+  border-radius: 3px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+@media (max-width: 900px) {
+  .auditInner {
+    grid-template-columns: 1fr;
+  }
+}

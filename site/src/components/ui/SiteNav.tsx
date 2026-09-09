@@ -25,6 +25,7 @@ export function SiteNav({
     { id: 'visualizer', labelPt: 'Trace Visualizer', labelEn: 'Trace Visualizer', path: '#/visualizer' },
     { id: 'matrix', labelPt: 'Matriz Hermitage', labelEn: 'Hermitage Matrix', path: '#/matrix' },
     { id: 'playground', labelPt: 'Playground WASM', labelEn: 'WASM Playground', path: '#/playground' },
+    { id: 'pricing', labelPt: 'Preços', labelEn: 'Pricing', path: '#/pricing' },
   ];
 
   const handleNavClick = (id: string, path: string) => {

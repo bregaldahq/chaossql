@@ -3,6 +3,7 @@ import { SiteNav } from './components/ui/SiteNav';
 import { SiteFooter } from './components/ui/SiteFooter';
 import { LandingPage } from './pages/LandingPage';
 import { DashboardPage } from './pages/DashboardPage';
+import { PricingPage } from './pages/PricingPage';
 import { DocsPage } from './pages/DocsPage';
 import { ScenariosPage } from './pages/ScenariosPage';
 import { MatrixPage } from './pages/MatrixPage';
@@ -19,6 +20,7 @@ function parseRoute(): string {
   if (hash.startsWith('#/visualizer')) return 'visualizer';
   if (hash.startsWith('#/matrix')) return 'matrix';
   if (hash.startsWith('#/playground')) return 'playground';
+  if (hash.startsWith('#/pricing')) return 'pricing';
   return 'landing';
 }
 
@@ -57,6 +59,7 @@ export default function App() {
         {route === 'visualizer' && <VisualizerPage lang={lang} />}
         {route === 'matrix' && <MatrixPage lang={lang} />}
         {route === 'playground' && <PlaygroundPage lang={lang} />}
+        {route === 'pricing' && <PricingPage lang={lang} />}
       </main>
 
       <SiteFooter lang={lang} />
