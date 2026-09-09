@@ -240,6 +240,9 @@ export function DashboardPage({ lang }: DashboardPageProps) {
   const [selectedRun, setSelectedRun] = useState<RunItem | null>(null);
   const [copiedCode, setCopiedCode] = useState(false);
   const [copiedCmd, setCopiedCmd] = useState(false);
+  const [onboardingOpen, setOnboardingOpen] = useState(false);
+  const [copiedWorkflow, setCopiedWorkflow] = useState(false);
+  const [copiedToken, setCopiedToken] = useState(false);
 
   const t = {
     title: lang === 'pt' ? 'Dashboard de Concorrência' : 'Concurrency Health Dashboard',
@@ -305,6 +308,46 @@ export function DashboardPage({ lang }: DashboardPageProps) {
     setTimeout(() => setCopiedCmd(false), 2000);
   };
 
+  const handleCopyWorkflow = () => {
+    const yaml = `name: Concurrency Verification (ChaosSQL)
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  concurrency-gate:
+    name: Concurrency Invariant & Isolation Fuzzing
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run ChaosSQL
+        uses: bregaldahq/chaossql@v1.5.0
+        with:
+          spec-path: 'chaos.yaml'
+          cloud-token: \${{ secrets.CHAOSSQL_CLOUD_TOKEN }}
+          github-token: \${{ secrets.GITHUB_TOKEN }}
+          post-pr-comment: 'true'
+`;
+    navigator.clipboard.writeText(yaml);
+    setCopiedWorkflow(true);
+    setTimeout(() => setCopiedWorkflow(false), 2000);
+  };
+
+  const handleCopyToken = () => {
+    navigator.clipboard.writeText("csql_live_demo_acme_8912b7fa");
+    setCopiedToken(true);
+    setTimeout(() => setCopiedToken(false), 2000);
+  };
+
   const handleDownloadCode = () => {
     if (!selectedRun?.reproGoCode) return;
     const blob = new Blob([selectedRun.reproGoCode], { type: 'text/plain' });
@@ -324,7 +367,15 @@ export function DashboardPage({ lang }: DashboardPageProps) {
             <span className={styles.orgDot}></span>
             <span>Organization: <strong>Acme Fintech</strong> (Team Pro)</span>
           </div>
-          <h1 className={styles.mainTitle}>{t.title}</h1>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+            <h1 className={styles.mainTitle}>{t.title}</h1>
+            <button
+              className={styles.connectRepoBtn}
+              onClick={() => setOnboardingOpen(true)}
+            >
+              + Conectar Novo Repositório
+            </button>
+          </div>
           <p className={styles.mainSubtitle}>{t.subtitle}</p>
         </div>
 
@@ -656,6 +707,107 @@ export function DashboardPage({ lang }: DashboardPageProps) {
           </div>
         </div>
       )}
+
+      {/* Onboarding / Connect Repository Modal */}
+      {onboardingOpen && (
+        <div className={styles.modalBackdrop} onClick={() => setOnboardingOpen(false)}>
+          <div className={styles.onboardingCard} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.modalHeader}>
+              <div>
+                <span className={styles.modalSelectedPlan}>Setup em 60 Segundos</span>
+                <h3 className={styles.modalTitle}>Conectar Repositório ao ChaosSQL Cloud</h3>
+              </div>
+              <button className={styles.closeBtn} onClick={() => setOnboardingOpen(false)}>
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className={styles.onboardingBody}>
+              <div className={styles.onboardingStep}>
+                <div className={styles.stepNum}>1</div>
+                <div className={styles.stepContent}>
+                  <h4>Copie seu Token de Autenticação da Organização</h4>
+                  <p>Adicione este token seguro como Secret no seu repositório GitHub para autenticar runners.</p>
+                  <div className={styles.tokenBox}>
+                    <code>csql_live_demo_acme_8912b7fa</code>
+                    <button className={styles.actionBtnSmall} onClick={handleCopyToken}>
+                      {copiedToken ? <Check size={14} /> : <Copy size={14} />}
+                      {copiedToken ? 'Copiado!' : 'Copiar Token'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div className={styles.onboardingStep}>
+                <div className={styles.stepNum}>2</div>
+                <div className={styles.stepContent}>
+                  <h4>Configure o Secret no GitHub</h4>
+                  <p>
+                    No seu repositório no GitHub, acesse <strong>Settings → Secrets and variables → Actions → New repository secret</strong>.
+                    Defina o nome como <code className={styles.secretName}>CHAOSSQL_CLOUD_TOKEN</code>.
+                  </p>
+                </div>
+              </div>
+
+              <div className={styles.onboardingStep}>
+                <div className={styles.stepNum}>3</div>
+                <div className={styles.stepContent}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <h4>Adicione o Workflow no Repositório</h4>
+                    <button className={styles.actionBtnSmall} onClick={handleCopyWorkflow}>
+                      {copiedWorkflow ? <Check size={14} /> : <Copy size={14} />}
+                      {copiedWorkflow ? 'YAML Copiado!' : 'Copiar Workflow YAML'}
+                    </button>
+                  </div>
+                  <p>Crie o arquivo <code>.github/workflows/concurrency.yml</code> com o conteúdo abaixo:</p>
+                  <pre className={styles.yamlPre}>
+                    <code>{`name: Concurrency Verification (ChaosSQL)
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  concurrency-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: bregaldahq/chaossql@v1.5.0
+        with:
+          spec-path: 'chaos.yaml'
+          cloud-token: \${{ secrets.CHAOSSQL_CLOUD_TOKEN }}
+          github-token: \${{ secrets.GITHUB_TOKEN }}
+          post-pr-comment: 'true'`}</code>
+                  </pre>
+                </div>
+              </div>
+
+              <div className={styles.onboardingStep}>
+                <div className={styles.stepNum}>4</div>
+                <div className={styles.stepContent}>
+                  <h4>Abra um Pull Request de Teste</h4>
+                  <p>
+                    O ChaosSQL executará os testes de concorrência em paralelo, comentará o resultado no PR e sincronizará o histórico aqui no Dashboard automaticamente!
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className={styles.modalFooter}>
+              <button className={styles.copyCmdBtn} onClick={() => setOnboardingOpen(false)}>
+                Concluir & Voltar ao Dashboard
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

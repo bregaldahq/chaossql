@@ -83,16 +83,27 @@ Prevent concurrency regressions from ever reaching `main`. Add ChaosSQL to your 
 
 ```yaml
 name: Concurrency Guard
-on: [pull_request, push]
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+permissions:
+  contents: read
+  pull-requests: write
 
 jobs:
   concurrency:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: bregaldahq/chaossql@v1
+      - uses: bregaldahq/chaossql@v1.5.0
         with:
           spec-path: examples/banking_lost_update/chaos.yaml
+          cloud-token: ${{ secrets.CHAOSSQL_CLOUD_TOKEN }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          post-pr-comment: 'true'
           export-summary: true
 ```
 
@@ -107,7 +118,7 @@ When an invariant fails, the action blocks the pull request, publishes a GitHub 
 * **Pull Request Comments:** Instantly comments on failing PRs with the root-cause trace and anomaly classification ($P4$, $A5B$, etc.).
 * **Zero Sensitive Data:** Queries and database payloads remain inside your CI runner—only execution metadata and minimal traces are reported.
 
-👉 **[Join the Cloud Early Access Waitlist](https://chaossql.bregalda.com/#waitlist)**
+👉 **[Explore Cloud Dashboard](https://chaossql.bregalda.com/#/dashboard)** • **[View Plans & Pricing](https://chaossql.bregalda.com/#/pricing)** • **[Join Early Access](https://chaossql.bregalda.com/#waitlist)**
 
 ### 2. ChaosSQL Concurrency Audit
 Preparing a major launch, financial ledger, or high-throughput reservation engine? Studio Bregalda provides dedicated **Database Concurrency Audits** ($500 – $2,000):
