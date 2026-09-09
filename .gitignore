@@ -16,8 +16,10 @@ bin/
 *.out
 coverage.html
 
-# IDEs & Env
+# IDEs, OS & Env
+.DS_Store
 .ds_store
+Thumbs.db
 .idea/
 .vscode/
 .venv/
@@ -26,6 +28,9 @@ __pycache__/
 .pytest_cache/
 node_modules/
 dist/
+.vite/
+.turbo/
+*.log
 
 # Agent Scratch
 .superpowers/
