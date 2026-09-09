@@ -32,3 +32,4 @@ dist/
 
 # Internal Architecture & Roadmap (Confidential / Not for Git)
 internal_docs/
+.wrangler
