@@ -41,6 +41,19 @@ inputs:
     description: 'Export execution sequence diagram as Mermaid format (trace.mermaid)'
     required: false
     default: 'false'
+  cloud-token:
+    description: 'ChaosSQL Cloud API authentication token (or secret ${{ secrets.CHAOSSQL_CLOUD_TOKEN }})'
+    required: false
+    default: ''
+  cloud-url:
+    description: 'ChaosSQL Cloud API base URL'
+    required: false
+    default: 'https://api.chaossql.bregalda.com'
+  cloud-fail-fast:
+    description: 'Fail step if publishing to ChaosSQL Cloud fails (true|false)'
+    required: false
+    default: 'false'
+
 
 runs:
   using: 'composite'
@@ -86,6 +99,15 @@ runs:
         fi
         if [ "${{ inputs.export-mermaid }}" = "true" ]; then
           ARGS+=("--export-mermaid")
+        fi
+        if [ -n "${{ inputs.cloud-token }}" ]; then
+          ARGS+=("--cloud-token" "${{ inputs.cloud-token }}")
+        fi
+        if [ -n "${{ inputs.cloud-url }}" ]; then
+          ARGS+=("--cloud-url" "${{ inputs.cloud-url }}")
+        fi
+        if [ "${{ inputs.cloud-fail-fast }}" = "true" ]; then
+          ARGS+=("--cloud-fail-fast")
         fi
 
         /tmp/chaossql "${ARGS[@]}"
