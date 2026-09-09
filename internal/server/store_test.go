@@ -93,3 +93,38 @@ func TestStoreRunsAndBaselines(t *testing.T) {
 		t.Errorf("expected baseline run %s, got %s", run1.ID, base.ID)
 	}
 }
+
+func TestStoreListRecentRuns(t *testing.T) {
+	s := newTestStore(t)
+	orgID := "org_list_test"
+	_ = s.CreateOrganization(orgID, "List Org", "free")
+	repo, _ := s.GetOrCreateRepo(orgID, "bregaldahq/auth", "main")
+	sc, _ := s.GetOrCreateScenario(repo.ID, "session_race", "sqlite")
+
+	for i := 0; i < 5; i++ {
+		_ = s.SaveRun(&RunRecord{
+			ID:          "run_test_" + string(rune('a'+i)),
+			RepoID:      repo.ID,
+			ScenarioID:  sc.ID,
+			CommitSHA:   "sha_" + string(rune('a'+i)),
+			Branch:      "main",
+			Status:      "passed",
+			AnomalyType: "NONE",
+			Seed:        uint64(100 + i),
+			DurationMS:  int64(10 + i),
+			CreatedAt:   time.Now().UTC().Add(time.Duration(i) * time.Minute),
+		}, nil)
+	}
+
+	recent, err := s.ListRecentRuns(10, 0)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(recent) != 5 {
+		t.Errorf("expected 5 recent runs, got %d", len(recent))
+	}
+	// Verify descending order
+	if recent[0].ID != "run_test_e" {
+		t.Errorf("expected newest run_test_e first, got %s", recent[0].ID)
+	}
+}

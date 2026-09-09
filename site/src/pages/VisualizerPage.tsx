@@ -8,7 +8,18 @@ interface VisualizerPageProps {
 }
 
 export const VisualizerPage: React.FC<VisualizerPageProps> = ({ lang = 'pt' }) => {
-  const [mode, setMode] = useState<'raw' | 'shrunk'>('raw');
+  // Read optional deep-link params from URL hash (e.g. #/visualizer?scenario=ecommerce_double_charge&seed=184729&mode=shrunk)
+  const hash = typeof window !== 'undefined' ? window.location.hash : '';
+  const queryStr = hash.includes('?') ? hash.split('?')[1] : '';
+  const queryParams = new URLSearchParams(queryStr);
+  const paramScenario = queryParams.get('scenario');
+  const paramSeed = queryParams.get('seed');
+  const paramMode = queryParams.get('mode') as 'raw' | 'shrunk' | null;
+
+  const [mode, setMode] = useState<'raw' | 'shrunk'>(() => {
+    if (paramMode === 'raw' || paramMode === 'shrunk') return paramMode;
+    return paramScenario ? 'shrunk' : 'raw';
+  });
   const [selectedWorker, setSelectedWorker] = useState<string>('all');
   const [activeOpId, setActiveOpId] = useState<string>('op_13');
   const [animatingIndex, setAnimatingIndex] = useState<number | null>(null);
@@ -66,6 +77,27 @@ export const VisualizerPage: React.FC<VisualizerPageProps> = ({ lang = 'pt' }) =
   return (
     <div className={styles.pageContainer}>
       <div className={styles.inner}>
+        {paramScenario && (
+          <div className={styles.deepLinkBanner}>
+            <div className={styles.deepLinkInfo}>
+              <span className={styles.deepLinkBadge}>
+                ⚡ {isPt ? 'Inspecionando Regressão do CI' : 'Inspecting CI Finding'}
+              </span>
+              <span className={styles.deepLinkScenario}>
+                {isPt ? 'Cenário:' : 'Scenario:'} <strong>{paramScenario}</strong>
+              </span>
+              {paramSeed && (
+                <span className={styles.deepLinkSeed}>
+                  Seed: <code>{paramSeed}</code>
+                </span>
+              )}
+            </div>
+            <a href="#/dashboard" className={styles.deepLinkBackBtn}>
+              ← {isPt ? 'Voltar ao Concurrency Dashboard' : 'Back to Concurrency Dashboard'}
+            </a>
+          </div>
+        )}
+
         {/* Header */}
         <header className={styles.header}>
           <span className={styles.monoTag}>

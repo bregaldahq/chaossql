@@ -333,3 +333,25 @@ func (s *Store) ListRuns(repoID string, limit, offset int) ([]*RunRecord, error)
 	}
 	return results, rows.Err()
 }
+
+func (s *Store) ListRecentRuns(limit, offset int) ([]*RunRecord, error) {
+	if limit <= 0 {
+		limit = 50
+	}
+	rows, err := s.db.Query(`SELECT id, repo_id, scenario_id, commit_sha, branch, pr_number, status, anomaly_type, seed, duration_ms, created_at
+		FROM runs ORDER BY created_at DESC LIMIT ? OFFSET ?`, limit, offset)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+
+	var results []*RunRecord
+	for rows.Next() {
+		var r RunRecord
+		if err := rows.Scan(&r.ID, &r.RepoID, &r.ScenarioID, &r.CommitSHA, &r.Branch, &r.PRNumber, &r.Status, &r.AnomalyType, &r.Seed, &r.DurationMS, &r.CreatedAt); err != nil {
+			return nil, err
+		}
+		results = append(results, &r)
+	}
+	return results, rows.Err()
+}

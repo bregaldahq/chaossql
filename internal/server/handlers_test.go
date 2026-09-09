@@ -203,3 +203,68 @@ func TestIngestRunFlowAndRegression(t *testing.T) {
 		t.Errorf("expected run and finding in payload, got %v", getResult)
 	}
 }
+
+func TestCORSHeaders(t *testing.T) {
+	handler, _, _ := newTestServer(t)
+
+	// OPTIONS preflight
+	req := httptest.NewRequest(http.MethodOptions, "/v1/health", nil)
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+
+	if w.Code != http.StatusNoContent {
+		t.Fatalf("expected 204 No Content for OPTIONS, got %d", w.Code)
+	}
+	if w.Header().Get("Access-Control-Allow-Origin") != "*" {
+		t.Errorf("expected Access-Control-Allow-Origin: *, got %s", w.Header().Get("Access-Control-Allow-Origin"))
+	}
+	if w.Header().Get("Access-Control-Allow-Methods") == "" {
+		t.Errorf("expected Access-Control-Allow-Methods header")
+	}
+
+	// GET request carries CORS header
+	getReq := httptest.NewRequest(http.MethodGet, "/v1/health", nil)
+	gw := httptest.NewRecorder()
+	handler.ServeHTTP(gw, getReq)
+	if gw.Header().Get("Access-Control-Allow-Origin") != "*" {
+		t.Errorf("expected Access-Control-Allow-Origin on GET, got %s", gw.Header().Get("Access-Control-Allow-Origin"))
+	}
+}
+
+func TestListAllRuns(t *testing.T) {
+	handler, store, _ := newTestServer(t)
+
+	orgID := "org_cloud_test"
+	repo, _ := store.GetOrCreateRepo(orgID, "bregaldahq/core-banking", "main")
+	sc, _ := store.GetOrCreateScenario(repo.ID, "p4_lost_update_test", "postgres")
+
+	_ = store.SaveRun(&RunRecord{
+		ID:          "run_all_01",
+		RepoID:      repo.ID,
+		ScenarioID:  sc.ID,
+		CommitSHA:   "sha_01",
+		Branch:      "main",
+		Status:      "passed",
+		AnomalyType: "NONE",
+		Seed:        42,
+		DurationMS:  120,
+		CreatedAt:   time.Now().UTC(),
+	}, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/v1/runs", nil)
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for GET /v1/runs, got %d", w.Code)
+	}
+
+	var res map[string]interface{}
+	if err := json.Unmarshal(w.Body.Bytes(), &res); err != nil {
+		t.Fatalf("invalid json: %v", err)
+	}
+	runs, ok := res["runs"].([]interface{})
+	if !ok || len(runs) == 0 {
+		t.Errorf("expected at least 1 run, got %v", res["runs"])
+	}
+}
