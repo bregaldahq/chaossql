@@ -53,6 +53,14 @@ inputs:
     description: 'Fail step if publishing to ChaosSQL Cloud fails (true|false)'
     required: false
     default: 'false'
+  github-token:
+    description: 'GitHub token for posting automated concurrency reports to Pull Requests (defaults to github.token)'
+    required: false
+    default: '${{ github.token }}'
+  post-pr-comment:
+    description: 'Automatically post concurrency report comment on Pull Request (true|false)'
+    required: false
+    default: 'true'
 
 
 runs:
@@ -108,6 +116,12 @@ runs:
         fi
         if [ "${{ inputs.cloud-fail-fast }}" = "true" ]; then
           ARGS+=("--cloud-fail-fast")
+        fi
+        if [ -n "${{ inputs.github-token }}" ]; then
+          ARGS+=("--github-token" "${{ inputs.github-token }}")
+        fi
+        if [ "${{ inputs.post-pr-comment }}" = "false" ]; then
+          ARGS+=("--pr-comment=false")
         fi
 
         /tmp/chaossql "${ARGS[@]}"
