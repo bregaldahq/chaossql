@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"strings"
 	"testing"
 
 	"github.com/bregaldahq/chaossql/internal/cloud"
@@ -56,5 +58,49 @@ func TestCloudPublishingIntegration(t *testing.T) {
 	}
 	if len(receivedReq.Reproduction.SanitizedMinimalTrace) == 0 {
 		t.Errorf("expected sanitized minimal trace, got 0 events")
+	}
+}
+
+
+func TestCloudPRReporterStepSummaryIntegration(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(cloud.RunIngestResponse{
+			Success:      true,
+			RunID:        "run_summary_test",
+			URL:          "https://chaossql.bregalda.com/runs/run_summary_test",
+			IsRegression: false,
+		})
+	}))
+	defer ts.Close()
+
+	tmpDir := t.TempDir()
+	summaryFile := tmpDir + "/step_summary.md"
+	t.Setenv("GITHUB_STEP_SUMMARY", summaryFile)
+
+	cloudTokenFlag = "mock_secret_token"
+	cloudURLFlag = ts.URL
+	cloudFailFastFlag = false
+	defer func() {
+		cloudTokenFlag = ""
+		cloudURLFlag = defaultCloudURL()
+	}()
+
+	err := executeChaos("../../examples/banking_lost_update/chaos.yaml")
+	if err != nil {
+		t.Fatalf("unexpected execution error: %v", err)
+	}
+
+	data, err := os.ReadFile(summaryFile)
+	if err != nil {
+		t.Fatalf("expected step summary file to be written, err: %v", err)
+	}
+
+	summaryContent := string(data)
+	if !strings.Contains(summaryContent, "ChaosSQL") {
+		t.Errorf("expected summary to contain ChaosSQL, got: %s", summaryContent)
+	}
+	if !strings.Contains(summaryContent, "banking_lost_update") {
+		t.Errorf("expected summary to contain scenario name banking_lost_update")
 	}
 }

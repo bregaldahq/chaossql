@@ -38,6 +38,8 @@ var (
 	cloudTokenFlag    string
 	cloudURLFlag      string
 	cloudFailFastFlag bool
+	githubTokenFlag   string
+	prCommentFlag     bool
 )
 
 
@@ -71,6 +73,8 @@ func newRunCmd() *cobra.Command {
 	runCmd.Flags().StringVar(&cloudTokenFlag, "cloud-token", os.Getenv("CHAOSSQL_CLOUD_TOKEN"), "ChaosSQL Cloud API authentication token (or set CHAOSSQL_CLOUD_TOKEN)")
 	runCmd.Flags().StringVar(&cloudURLFlag, "cloud-url", defaultCloudURL(), "ChaosSQL Cloud API base URL (or set CHAOSSQL_CLOUD_URL)")
 	runCmd.Flags().BoolVar(&cloudFailFastFlag, "cloud-fail-fast", false, "Abort execution with error if Cloud publishing fails")
+	runCmd.Flags().StringVar(&githubTokenFlag, "github-token", os.Getenv("GITHUB_TOKEN"), "GitHub Token for publishing PR comments (or set GITHUB_TOKEN)")
+	runCmd.Flags().BoolVar(&prCommentFlag, "pr-comment", true, "Post automated concurrency report comment on Pull Request (if in CI)")
 
 
 	return runCmd
@@ -95,6 +99,8 @@ func newDemoCmd() *cobra.Command {
 	demoCmd.Flags().StringVar(&cloudTokenFlag, "cloud-token", os.Getenv("CHAOSSQL_CLOUD_TOKEN"), "ChaosSQL Cloud API authentication token (or set CHAOSSQL_CLOUD_TOKEN)")
 	demoCmd.Flags().StringVar(&cloudURLFlag, "cloud-url", defaultCloudURL(), "ChaosSQL Cloud API base URL (or set CHAOSSQL_CLOUD_URL)")
 	demoCmd.Flags().BoolVar(&cloudFailFastFlag, "cloud-fail-fast", false, "Abort execution with error if Cloud publishing fails")
+	demoCmd.Flags().StringVar(&githubTokenFlag, "github-token", os.Getenv("GITHUB_TOKEN"), "GitHub Token for publishing PR comments (or set GITHUB_TOKEN)")
+	demoCmd.Flags().BoolVar(&prCommentFlag, "pr-comment", true, "Post automated concurrency report comment on Pull Request (if in CI)")
 
 
 	return demoCmd
@@ -529,6 +535,24 @@ func publishToCloud(
 		fmt.Printf("  [✓] Run recorded: %s\n", resp.URL)
 		if resp.IsRegression {
 			fmt.Printf("  🚨 CONCURRENCY REGRESSION DETECTED against baseline (Branch: %s)\n", resp.Baseline.Branch)
+		}
+	}
+
+	// Generate and dispatch Pull Request Markdown report
+	prMarkdown := cloud.FormatPRMarkdown(req, resp)
+
+	// 1. Write to GitHub Step Summary if running in GitHub Actions
+	if err := cloud.WriteStepSummary("", prMarkdown); err == nil && os.Getenv("GITHUB_STEP_SUMMARY") != "" && !jsonFlag {
+		fmt.Println("  [✓] Generated GitHub Actions Step Summary")
+	}
+
+	// 2. Post comment to GitHub Pull Request if in CI and token is present
+	if prCommentFlag && githubTokenFlag != "" && req.CI != nil && req.CI.PullRequestNumber > 0 && req.CI.Repository != "" {
+		commentURL, commentErr := cloud.PostPRComment(ctx, nil, githubTokenFlag, req.CI.Repository, req.CI.PullRequestNumber, prMarkdown)
+		if commentErr == nil && commentURL != "" && !jsonFlag {
+			fmt.Printf("  [✓] Pull Request comment posted: %s\n", commentURL)
+		} else if commentErr != nil && !jsonFlag {
+			fmt.Fprintf(os.Stderr, "  [!] Warning: failed to post PR comment: %v\n", commentErr)
 		}
 	}
 
