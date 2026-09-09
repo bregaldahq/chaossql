@@ -1,6 +1,8 @@
 package server
 
 import (
+	"strings"
+	"context"
 	"crypto/sha256"
 	"database/sql"
 	"encoding/hex"
@@ -62,6 +64,17 @@ type FindingRecord struct {
 	ReproCode   string    `json:"repro_code"`
 	TraceJSON   string    `json:"trace_json"`
 	CreatedAt   time.Time `json:"created_at"`
+}
+
+
+type WebhookRecord struct {
+	ID         string    `json:"id"`
+	OrgID      string    `json:"org_id"`
+	TargetType string    `json:"target_type"` // "discord", "slack", "generic"
+	URL        string    `json:"url"`
+	Events     string    `json:"events"`      // "regression", "failure", "all"
+	Active     bool      `json:"active"`
+	CreatedAt  time.Time `json:"created_at"`
 }
 
 type Store struct {
@@ -136,7 +149,17 @@ func (s *Store) AutoMigrate() error {
 			created_at DATETIME NOT NULL,
 			FOREIGN KEY (run_id) REFERENCES runs(id)
 		);`,
-		`CREATE TABLE IF NOT EXISTS baselines (
+				`CREATE TABLE IF NOT EXISTS webhooks (
+			id TEXT PRIMARY KEY,
+			org_id TEXT NOT NULL,
+			target_type TEXT NOT NULL,
+			url TEXT NOT NULL,
+			events TEXT NOT NULL,
+			active INTEGER NOT NULL DEFAULT 1,
+			created_at DATETIME NOT NULL,
+			FOREIGN KEY (org_id) REFERENCES organizations(id)
+		);`,
+`CREATE TABLE IF NOT EXISTS baselines (
 			id TEXT PRIMARY KEY,
 			repo_id TEXT NOT NULL,
 			scenario_id TEXT NOT NULL,
@@ -354,4 +377,68 @@ func (s *Store) ListRecentRuns(limit, offset int) ([]*RunRecord, error) {
 		results = append(results, &r)
 	}
 	return results, rows.Err()
+}
+
+func (s *Store) CreateWebhook(ctx context.Context, w *WebhookRecord) error {
+	if w.CreatedAt.IsZero() {
+		w.CreatedAt = time.Now().UTC()
+	}
+	activeInt := 1
+	if !w.Active {
+		activeInt = 0
+	}
+	query := `INSERT INTO webhooks (id, org_id, target_type, url, events, active, created_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?)`
+	_, err := s.db.ExecContext(ctx, query, w.ID, w.OrgID, w.TargetType, w.URL, w.Events, activeInt, w.CreatedAt)
+	return err
+}
+
+func (s *Store) ListWebhooks(ctx context.Context, orgID string) ([]WebhookRecord, error) {
+	query := `SELECT id, org_id, target_type, url, events, active, created_at
+		FROM webhooks WHERE org_id = ? ORDER BY created_at DESC`
+	rows, err := s.db.QueryContext(ctx, query, orgID)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+
+	var list []WebhookRecord
+	for rows.Next() {
+		var w WebhookRecord
+		var activeInt int
+		if err := rows.Scan(&w.ID, &w.OrgID, &w.TargetType, &w.URL, &w.Events, &activeInt, &w.CreatedAt); err != nil {
+			return nil, err
+		}
+		w.Active = activeInt == 1
+		list = append(list, w)
+	}
+	return list, rows.Err()
+}
+
+func (s *Store) DeleteWebhook(ctx context.Context, orgID, webhookID string) error {
+	query := `DELETE FROM webhooks WHERE id = ? AND org_id = ?`
+	_, err := s.db.ExecContext(ctx, query, webhookID, orgID)
+	return err
+}
+
+func (s *Store) GetActiveWebhooksForEvent(ctx context.Context, orgID, eventType string) ([]WebhookRecord, error) {
+	all, err := s.ListWebhooks(ctx, orgID)
+	if err != nil {
+		return nil, err
+	}
+	var matched []WebhookRecord
+	for _, w := range all {
+		if !w.Active {
+			continue
+		}
+		eventsList := strings.Split(w.Events, ",")
+		for _, e := range eventsList {
+			clean := strings.TrimSpace(e)
+			if clean == "all" || clean == eventType {
+				matched = append(matched, w)
+				break
+			}
+		}
+	}
+	return matched, nil
 }

@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -18,7 +19,8 @@ type RouterConfig struct {
 }
 
 type Server struct {
-	cfg RouterConfig
+	cfg        RouterConfig
+	dispatcher *WebhookDispatcher
 }
 
 func corsMiddleware(next http.Handler) http.Handler {
@@ -40,7 +42,10 @@ func NewRouter(cfg RouterConfig) http.Handler {
 	}
 	cfg.PublicBaseURL = strings.TrimRight(cfg.PublicBaseURL, "/")
 
-	s := &Server{cfg: cfg}
+	s := &Server{
+		cfg:        cfg,
+		dispatcher: NewWebhookDispatcher(nil),
+	}
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /v1/health", s.handleHealth)
@@ -49,6 +54,18 @@ func NewRouter(cfg RouterConfig) http.Handler {
 	mux.HandleFunc("GET /v1/runs/{id}", s.handleGetRun)
 	mux.HandleFunc("GET /v1/repositories/{owner}/{name}/runs", s.handleListRuns)
 	mux.HandleFunc("GET /v1/organizations/{id}/subscription", s.requireAuth(s.handleGetSubscription))
+
+	// Webhooks management API
+	mux.HandleFunc("GET /v1/organizations/{id}/webhooks", s.requireAuth(s.handleListWebhooks))
+	mux.HandleFunc("POST /v1/organizations/{id}/webhooks", s.requireAuth(s.handleCreateWebhook))
+	mux.HandleFunc("DELETE /v1/organizations/{id}/webhooks/{wh_id}", s.requireAuth(s.handleDeleteWebhook))
+	mux.HandleFunc("POST /v1/organizations/{id}/webhooks/test", s.requireAuth(s.handleTestWebhook))
+
+	// Convenience unauthenticated routes for local dashboard
+	mux.HandleFunc("GET /v1/webhooks", s.handleListWebhooks)
+	mux.HandleFunc("POST /v1/webhooks", s.handleCreateWebhook)
+	mux.HandleFunc("DELETE /v1/webhooks/{wh_id}", s.handleDeleteWebhook)
+	mux.HandleFunc("POST /v1/webhooks/test", s.handleTestWebhook)
 
 	return corsMiddleware(mux)
 }
@@ -202,6 +219,55 @@ func (s *Server) handleIngestRun(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if isReg || run.Status != "passed" {
+		go func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+
+			eventType := "regression"
+			if !isReg {
+				eventType = "failure"
+			}
+
+			webhooks, err := s.cfg.Store.GetActiveWebhooksForEvent(ctx, repo.OrgID, eventType)
+			if err != nil || len(webhooks) == 0 {
+				return
+			}
+
+			baseStatus := "PASS"
+			if comp != nil && comp.Status != "" {
+				baseStatus = comp.Status
+			}
+
+			anomalyName := run.AnomalyType
+			if req.Result.ViolationDetected && req.Result.AnomalyType != "" {
+				anomalyName = req.Result.AnomalyType
+			}
+
+			alert := &RegressionAlert{
+				RepoFullName:   repo.FullName,
+				Branch:         run.Branch,
+				PRNumber:       run.PRNumber,
+				CommitSHA:      run.CommitSHA,
+				AnomalyType:    run.AnomalyType,
+				AnomalyName:    anomalyName,
+				Driver:         sc.Driver,
+				Isolation:      "READ COMMITTED",
+				Scenario:       sc.Name,
+				Seed:           run.Seed,
+				DurationMS:     run.DurationMS,
+				BaselineStatus: baseStatus,
+				RunURL:         fmt.Sprintf("%s/#/visualizer?scenario=%s&seed=%d", s.cfg.PublicBaseURL, sc.Name, run.Seed),
+				IsRegression:   isReg,
+			}
+
+			for _, wh := range webhooks {
+				_ = s.dispatcher.DispatchAlert(ctx, wh, alert)
+			}
+		}()
+	}
+
+
 	msg := "Execution passed successfully."
 	if isReg {
 		baseBranch := defaultBranch
@@ -314,5 +380,162 @@ func (s *Server) handleListAllRuns(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(map[string]interface{}{
 		"runs":  runs,
 		"count": len(runs),
+	})
+}
+
+type CreateWebhookRequest struct {
+	TargetType string `json:"target_type"` // "discord", "slack", "generic"
+	URL        string `json:"url"`
+	Events     string `json:"events"`      // "regression", "failure", "all"
+	Active     *bool  `json:"active,omitempty"`
+}
+
+type TestWebhookRequest struct {
+	TargetType string `json:"target_type"`
+	URL        string `json:"url"`
+}
+
+func (s *Server) handleListWebhooks(w http.ResponseWriter, r *http.Request) {
+	orgID := r.PathValue("id")
+	if orgID == "" {
+		orgID = r.Header.Get("X-Org-ID")
+	}
+	if orgID == "" {
+		orgID = "org_default"
+	}
+
+	webhooks, err := s.cfg.Store.ListWebhooks(r.Context(), orgID)
+	if err != nil {
+		http.Error(w, fmt.Sprintf(`{"error":"failed to list webhooks: %s"}`, err.Error()), http.StatusInternalServerError)
+		return
+	}
+	if webhooks == nil {
+		webhooks = []WebhookRecord{}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(webhooks)
+}
+
+func (s *Server) handleCreateWebhook(w http.ResponseWriter, r *http.Request) {
+	orgID := r.PathValue("id")
+	if orgID == "" {
+		orgID = r.Header.Get("X-Org-ID")
+	}
+	if orgID == "" {
+		orgID = "org_default"
+	}
+
+	var req CreateWebhookRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, `{"error":"invalid request body"}`, http.StatusBadRequest)
+		return
+	}
+
+	if req.URL == "" || !strings.HasPrefix(req.URL, "http") {
+		http.Error(w, `{"error":"a valid http/https URL is required"}`, http.StatusBadRequest)
+		return
+	}
+
+	targetType := strings.ToLower(req.TargetType)
+	if targetType == "" {
+		targetType = "generic"
+	}
+	events := req.Events
+	if events == "" {
+		events = "regression,all"
+	}
+
+	active := true
+	if req.Active != nil {
+		active = *req.Active
+	}
+
+	wh := &WebhookRecord{
+		ID:         fmt.Sprintf("wh_%d", time.Now().UnixNano()),
+		OrgID:      orgID,
+		TargetType: targetType,
+		URL:        req.URL,
+		Events:     events,
+		Active:     active,
+		CreatedAt:  time.Now().UTC(),
+	}
+
+	if err := s.cfg.Store.CreateWebhook(r.Context(), wh); err != nil {
+		http.Error(w, fmt.Sprintf(`{"error":"failed to create webhook: %s"}`, err.Error()), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	_ = json.NewEncoder(w).Encode(wh)
+}
+
+func (s *Server) handleDeleteWebhook(w http.ResponseWriter, r *http.Request) {
+	orgID := r.PathValue("id")
+	if orgID == "" {
+		orgID = r.Header.Get("X-Org-ID")
+	}
+	if orgID == "" {
+		orgID = "org_default"
+	}
+
+	whID := r.PathValue("wh_id")
+	if whID == "" {
+		whID = r.PathValue("id")
+	}
+
+	if err := s.cfg.Store.DeleteWebhook(r.Context(), orgID, whID); err != nil {
+		http.Error(w, fmt.Sprintf(`{"error":"failed to delete webhook: %s"}`, err.Error()), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (s *Server) handleTestWebhook(w http.ResponseWriter, r *http.Request) {
+	var req TestWebhookRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, `{"error":"invalid request body"}`, http.StatusBadRequest)
+		return
+	}
+
+	if req.URL == "" || !strings.HasPrefix(req.URL, "http") {
+		http.Error(w, `{"error":"valid webhook URL required"}`, http.StatusBadRequest)
+		return
+	}
+
+	testAlert := &RegressionAlert{
+		RepoFullName:   "acme/payments",
+		Branch:         "feat/instant-settlement",
+		PRNumber:       42,
+		CommitSHA:      "a1b2c3d",
+		AnomalyType:    "P4",
+		AnomalyName:    "Lost Update (Simulação de Teste)",
+		Driver:         "PostgreSQL 16",
+		Isolation:      "READ COMMITTED",
+		Scenario:       "wallet_transfer",
+		Seed:           99999,
+		DurationMS:     280,
+		BaselineStatus: "PASS",
+		RunURL:         s.cfg.PublicBaseURL,
+		IsRegression:   true,
+	}
+
+	wh := WebhookRecord{
+		ID:         "test",
+		TargetType: req.TargetType,
+		URL:        req.URL,
+	}
+
+	if err := s.dispatcher.DispatchAlert(r.Context(), wh, testAlert); err != nil {
+		http.Error(w, fmt.Sprintf(`{"error":"webhook dispatch failed: %s"}`, err.Error()), http.StatusBadRequest)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"message": "Webhook test alert dispatched successfully!",
 	})
 }
