@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { Check, Copy, Cpu, GitBranch, Terminal } from 'lucide-react';
+import { Check, Copy, Cpu, GitBranch, Terminal, Play, Sparkles } from 'lucide-react';
 import { ProjectCycle } from '../components/ui/ProjectCycle';
 import { ChaosSqlArtifact } from '../components/artifacts/ChaosSqlArtifact';
-import { ContactSection } from '../components/ui/ContactSection';
+import { DemoShowcase } from '../components/ui/DemoShowcase';
+import { CloudWaitlistSection } from '../components/ui/CloudWaitlistSection';
 import styles from './LandingPage.module.css';
 
 export interface LandingPageProps {
@@ -105,6 +106,41 @@ export function LandingPage({ lang = 'pt' }: LandingPageProps) {
     },
   ];
 
+  const workflowSteps = [
+    {
+      step: '01',
+      title: { pt: 'Defina o Invariante', en: 'Define SQL Invariant' },
+      desc: {
+        pt: 'Declare a regra de negócio sagrada em SQL (ex: total_balance == 2000 ou seats_available >= 0).',
+        en: 'Declare your business rule in plain SQL (e.g. total_balance == 2000 or seats_available >= 0).',
+      },
+    },
+    {
+      step: '02',
+      title: { pt: 'Exploração de Escalas', en: 'Explore Interleavings' },
+      desc: {
+        pt: 'ChaosSQL permuta a ordem de execução concorrente com jitter e escalonamento determinístico.',
+        en: 'ChaosSQL schedules concurrent worker transactions with microsecond jitter and seed control.',
+      },
+    },
+    {
+      step: '03',
+      title: { pt: 'Síntese Causal (ddmin)', en: 'Synthesize Minimal Repro' },
+      desc: {
+        pt: 'Encolhe centenas de queries para a reprodução exata de 2 a 4 operações no repro_test.go.',
+        en: 'Shrinks noisy execution schedules into a 1-minimal Go test reproduction in milliseconds.',
+      },
+    },
+    {
+      step: '04',
+      title: { pt: 'CI Bloqueia Regressão', en: 'CI Blocks Regressions' },
+      desc: {
+        pt: 'A GitHub Action avalia o PR contra a branch main e bloqueia o merge caso haja anomalia.',
+        en: 'GitHub Action compares against main baseline and blocks regressions with PR trace comments.',
+      },
+    },
+  ];
+
   return (
     <div data-surface="light">
       {/* 1. Hero Section */}
@@ -122,20 +158,36 @@ export function LandingPage({ lang = 'pt' }: LandingPageProps) {
           <span className="technical-label">Studio Bregalda</span>
           <span style={{ color: 'var(--purple)' }}>·</span>
           <span className="technical-label" style={{ color: 'var(--purple)' }}>
-            Database Systems Tooling
+            Database Concurrency Systems
           </span>
         </div>
 
         <h1 className={styles.heroTitle}>
-          {lang === 'pt' ? 'Transforme o caos em teste.' : 'Turn chaos into a test.'}
+          {lang === 'pt'
+            ? 'Encontre bugs de concorrência antes que cheguem à produção.'
+            : 'Catch database concurrency bugs before production does.'}
         </h1>
 
         <p className={styles.heroLead}>
           {lang === 'pt'
-            ? 'Testes de estresse em cargas concorrentes SQL, verificação matemática de invariantes e encolhimento de falhas em reproduções focadas.'
-            : 'Stress SQL workloads, check invariants, and shrink failing execution traces into focused reproductions. Concurrency bugs become evidence you can inspect.'}
+            ? 'Testes determinísticos de concorrência e anomalias de transação para PostgreSQL, MySQL e SQLite. Encontre race conditions silenciosas, gere reproduções mínimas e bloqueie regressões no CI/CD.'
+            : 'Deterministic concurrency and isolation anomaly testing for PostgreSQL, MySQL, and SQLite. Discover silent race conditions, synthesize minimal reproductions, and block regressions in CI/CD.'}
         </p>
 
+        {/* Dual Actions */}
+        <div className={styles.heroActions}>
+          <a href="#/playground" className={styles.ctaPlayground}>
+            <Play size={16} fill="currentColor" />
+            {lang === 'pt' ? 'Testar no Playground WASM' : 'Launch WASM Playground'}
+          </a>
+
+          <a href="#waitlist" className={styles.ctaWaitlist}>
+            <Sparkles size={16} />
+            {lang === 'pt' ? 'Participar do Cloud Early Access' : 'Join Cloud Early Access'}
+          </a>
+        </div>
+
+        {/* CLI Quick Copy */}
         <div>
           <div className={styles.installBox}>
             <code>{installCmd}</code>
@@ -157,9 +209,62 @@ export function LandingPage({ lang = 'pt' }: LandingPageProps) {
             </button>
           </div>
         </div>
+
+        {/* Hero Visual Anomaly Card Preview */}
+        <div className={styles.heroCardContainer}>
+          <div className={styles.heroAnomalyCard}>
+            <div className={styles.anomalyHeader}>
+              <span className={styles.anomalyBadgeRed}>🚨 LOST UPDATE DETECTED (P4)</span>
+              <span className={styles.anomalySeed}>Seed: 184729</span>
+            </div>
+            <div className={styles.anomalyRow}>
+              <span className={styles.anomalyLabel}>{lang === 'pt' ? 'Saldo Esperado:' : 'Expected Balance:'}</span>
+              <span className={styles.anomalyValGreen}>$2,000.00</span>
+            </div>
+            <div className={styles.anomalyRow}>
+              <span className={styles.anomalyLabel}>{lang === 'pt' ? 'Saldo Real (Corrompido):' : 'Actual Balance (Corrupted):'}</span>
+              <span className={styles.anomalyValRed}>$1,950.00</span>
+            </div>
+            <div className={styles.anomalyRow}>
+              <span className={styles.anomalyLabel}>{lang === 'pt' ? 'Reprodução Sintetizada:' : 'Synthesized Reproduction:'}</span>
+              <span style={{ color: 'var(--cream)' }}>4 ops in repro_test.go (&lt; 200ms)</span>
+            </div>
+          </div>
+        </div>
       </section>
 
-      {/* 2. Signature Chapter Grid */}
+      {/* 2. Interactive Flagship Demo Showcase */}
+      <DemoShowcase lang={lang} />
+
+      {/* 3. Workflow Section */}
+      <section className={styles.workflowSection}>
+        <div style={{ textAlign: 'center', marginBottom: 'var(--space-2)' }}>
+          <p className="technical-label">{lang === 'pt' ? 'Fluxo do Desenvolvedor' : 'Developer Workflow'}</p>
+          <h2
+            style={{
+              fontSize: 'var(--type-h3)',
+              fontWeight: 600,
+              letterSpacing: '-0.04em',
+              marginBlock: 'var(--space-1) var(--space-2)',
+              color: 'var(--ink)',
+            }}
+          >
+            {lang === 'pt' ? 'Como o ChaosSQL protege seu repositório' : 'How ChaosSQL protects your repository'}
+          </h2>
+        </div>
+
+        <div className={styles.workflowGrid}>
+          {workflowSteps.map((step) => (
+            <div key={step.step} className={styles.workflowCard}>
+              <span className={styles.workflowStepNumber}>{step.step} /</span>
+              <h3 className={styles.workflowStepTitle}>{step.title[lang]}</h3>
+              <p className={styles.workflowStepDesc}>{step.desc[lang]}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* 4. Signature Chapter Grid */}
       <ProjectCycle
         id={cycleData.id}
         sequence={cycleData.sequence}
@@ -173,7 +278,7 @@ export function LandingPage({ lang = 'pt' }: LandingPageProps) {
         artifact={<ChaosSqlArtifact />}
       />
 
-      {/* 3. Three Pillars Section */}
+      {/* 5. Three Pillars Section */}
       <section className={styles.pillarsSection}>
         <div style={{ textAlign: 'center', marginBottom: 'var(--space-3)' }}>
           <p className="technical-label">Fundamentos de Engenharia</p>
@@ -203,7 +308,7 @@ export function LandingPage({ lang = 'pt' }: LandingPageProps) {
         </div>
       </section>
 
-      {/* 4. Brand Divider */}
+      {/* 6. Brand Divider */}
       <div className={styles.brandDivider}>
         <img
           src="/brand/bregalda_primary_lockup.svg"
@@ -212,8 +317,8 @@ export function LandingPage({ lang = 'pt' }: LandingPageProps) {
         />
       </div>
 
-      {/* 5. Contact Section */}
-      <ContactSection lang={lang} />
+      {/* 7. Native Cloud Waitlist & Concurrency Audit Section */}
+      <CloudWaitlistSection lang={lang} />
     </div>
   );
 }

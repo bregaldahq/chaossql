@@ -1,0 +1,329 @@
+/* DemoShowcase.module.css */
+.section {
+  padding: var(--space-5) var(--space-2);
+  max-width: var(--max-width-site);
+  margin: 0 auto;
+}
+
+.header {
+  text-align: center;
+  margin-bottom: var(--space-4);
+}
+
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0.75rem;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--yellow);
+  background: color-mix(in srgb, var(--yellow) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--yellow) 25%, transparent);
+  border-radius: 9999px;
+  margin-bottom: var(--space-2);
+}
+
+.title {
+  font-family: var(--font-display);
+  font-size: clamp(1.75rem, 3vw, 2.5rem);
+  font-weight: 700;
+  color: var(--cream);
+  letter-spacing: -0.02em;
+  margin-bottom: var(--space-1);
+}
+
+.subtitle {
+  color: color-mix(in srgb, var(--cream) 70%, transparent);
+  font-size: 1rem;
+  max-width: 42rem;
+  margin: 0 auto;
+  line-height: 1.6;
+}
+
+.tabsContainer {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-bottom: var(--space-3);
+}
+
+.tabButton {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.25rem;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: color-mix(in srgb, var(--cream) 70%, transparent);
+  background: color-mix(in srgb, var(--ink) 40%, #05030c);
+  border: 1px solid color-mix(in srgb, var(--cream) 12%, transparent);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.tabButton:hover {
+  color: var(--cream);
+  border-color: color-mix(in srgb, var(--cream) 25%, transparent);
+  background: color-mix(in srgb, var(--ink) 65%, #05030c);
+}
+
+.tabButtonActive {
+  color: var(--yellow);
+  background: color-mix(in srgb, var(--purple) 35%, #05030c);
+  border-color: var(--yellow);
+  box-shadow: 0 0 15px color-mix(in srgb, var(--yellow) 20%, transparent);
+}
+
+.card {
+  background: color-mix(in srgb, var(--cosmos-center) 85%, #000);
+  border: 1px solid color-mix(in srgb, var(--cream) 15%, transparent);
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+}
+
+@media (min-width: 768px) {
+  .card {
+    padding: var(--space-4);
+  }
+}
+
+.cardTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 1rem;
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid color-mix(in srgb, var(--cream) 10%, transparent);
+  margin-bottom: var(--space-3);
+}
+
+.scenarioInfo {
+  max-width: 48rem;
+}
+
+.scenarioTitleRow {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.scenarioName {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--cream);
+}
+
+.anomalyBadge {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.2rem 0.6rem;
+  border-radius: 4px;
+  color: #ff6b6b;
+  background: color-mix(in srgb, #ff6b6b 15%, transparent);
+  border: 1px solid color-mix(in srgb, #ff6b6b 35%, transparent);
+}
+
+.scenarioDescription {
+  color: color-mix(in srgb, var(--cream) 75%, transparent);
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.gridComparison {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+  margin-bottom: var(--space-3);
+}
+
+@media (min-width: 900px) {
+  .gridComparison {
+    grid-template-columns: 1.2fr 0.8fr;
+  }
+}
+
+.traceBlock {
+  background: #0d091a;
+  border: 1px solid color-mix(in srgb, var(--purple) 35%, transparent);
+  border-radius: var(--radius-sm);
+  padding: 1.25rem;
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+}
+
+.traceTitle {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: color-mix(in srgb, var(--cream) 60%, transparent);
+  margin-bottom: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.traceSteps {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.traceStep {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.4rem 0.6rem;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--ink) 40%, transparent);
+}
+
+.workerTag {
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 0.15rem 0.45rem;
+  border-radius: 3px;
+  color: var(--cream);
+}
+
+.worker1 {
+  background: color-mix(in srgb, var(--purple) 80%, #000);
+  border: 1px solid var(--purple);
+}
+
+.worker2 {
+  background: color-mix(in srgb, var(--yellow) 50%, #000);
+  color: var(--yellow);
+  border: 1px solid var(--yellow);
+}
+
+.stepSql {
+  color: var(--cream);
+  overflow-x: auto;
+  white-space: nowrap;
+}
+
+.metricsPanel {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.metricBox {
+  padding: 1rem;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--ink) 30%, transparent);
+  border: 1px solid color-mix(in srgb, var(--cream) 10%, transparent);
+}
+
+.metricExpected {
+  border-left: 3px solid var(--green);
+}
+
+.metricActual {
+  border-left: 3px solid #ef4444;
+}
+
+.metricLabel {
+  font-size: 0.75rem;
+  font-family: var(--font-mono);
+  color: color-mix(in srgb, var(--cream) 60%, transparent);
+  text-transform: uppercase;
+  margin-bottom: 0.25rem;
+}
+
+.metricValue {
+  font-family: var(--font-mono);
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.metricValueGreen {
+  color: var(--green);
+}
+
+.metricValueRed {
+  color: #ef4444;
+}
+
+.metricSubtext {
+  font-size: 0.78rem;
+  color: color-mix(in srgb, var(--cream) 65%, transparent);
+  margin-top: 0.25rem;
+}
+
+.cardFooter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-top: var(--space-3);
+  border-top: 1px solid color-mix(in srgb, var(--cream) 10%, transparent);
+}
+
+.cliSnippet {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: #090514;
+  border: 1px solid color-mix(in srgb, var(--cream) 12%, transparent);
+  border-radius: var(--radius-sm);
+  padding: 0.5rem 0.85rem;
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  color: var(--cream);
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.cliText {
+  white-space: nowrap;
+}
+
+.copyBtn {
+  background: transparent;
+  border: none;
+  color: color-mix(in srgb, var(--cream) 60%, transparent);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  padding: 0.2rem;
+  transition: color 0.15s ease;
+}
+
+.copyBtn:hover {
+  color: var(--yellow);
+}
+
+.actionBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: linear-gradient(135deg, var(--purple), color-mix(in srgb, var(--purple) 70%, #000));
+  color: var(--cream);
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 0.6rem 1.25rem;
+  border-radius: var(--radius-sm);
+  text-decoration: none;
+  border: 1px solid color-mix(in srgb, var(--yellow) 40%, transparent);
+  transition: all 0.2s ease;
+}
+
+.actionBtn:hover {
+  background: linear-gradient(135deg, color-mix(in srgb, var(--purple) 85%, #fff), var(--purple));
+  box-shadow: 0 4px 15px color-mix(in srgb, var(--purple) 40%, transparent);
+  transform: translateY(-1px);
+}
