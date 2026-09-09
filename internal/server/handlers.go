@@ -21,6 +21,19 @@ type Server struct {
 	cfg RouterConfig
 }
 
+func corsMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Org-ID")
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
 func NewRouter(cfg RouterConfig) http.Handler {
 	if cfg.PublicBaseURL == "" {
 		cfg.PublicBaseURL = "https://app.chaossql.bregalda.com"
@@ -31,12 +44,13 @@ func NewRouter(cfg RouterConfig) http.Handler {
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /v1/health", s.handleHealth)
+	mux.HandleFunc("GET /v1/runs", s.handleListAllRuns)
 	mux.HandleFunc("POST /v1/runs", s.requireAuth(s.handleIngestRun))
 	mux.HandleFunc("GET /v1/runs/{id}", s.handleGetRun)
 	mux.HandleFunc("GET /v1/repositories/{owner}/{name}/runs", s.handleListRuns)
 	mux.HandleFunc("GET /v1/organizations/{id}/subscription", s.requireAuth(s.handleGetSubscription))
 
-	return mux
+	return corsMiddleware(mux)
 }
 
 func (s *Server) requireAuth(next http.HandlerFunc) http.HandlerFunc {
@@ -286,4 +300,19 @@ func (s *Server) handleGetSubscription(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	_ = json.NewEncoder(w).Encode(sub)
+}
+
+func (s *Server) handleListAllRuns(w http.ResponseWriter, r *http.Request) {
+	runs, err := s.cfg.Store.ListRecentRuns(50, 0)
+	if err != nil {
+		http.Error(w, fmt.Sprintf(`{"error":"failed to list runs: %s"}`, err.Error()), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{
+		"runs":  runs,
+		"count": len(runs),
+	})
 }

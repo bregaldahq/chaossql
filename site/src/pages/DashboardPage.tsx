@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import {
   ShieldAlert,
   GitPullRequest,
@@ -10,7 +10,12 @@ import {
   Search,
   RefreshCw,
   X,
-  Play
+  Play,
+  ExternalLink,
+  Server,
+  Wifi,
+  WifiOff,
+  AlertTriangle
 } from 'lucide-react';
 import styles from './DashboardPage.module.css';
 
@@ -141,7 +146,7 @@ func TestReproduce_P4_LostUpdate(t *testing.T) {
     timestamp: '3h atrás',
     failingInvariant: {
       name: 'no_deadlock_aborts',
-      query: 'SELECT count(*) FROM pg_stat_activity WHERE state = \'active\';',
+      query: "SELECT count(*) FROM pg_stat_activity WHERE state = 'active';",
       assertion: 'aborted_tx == 0',
       actual: '2',
     },
@@ -244,6 +249,13 @@ export function DashboardPage({ lang }: DashboardPageProps) {
   const [copiedWorkflow, setCopiedWorkflow] = useState(false);
   const [copiedToken, setCopiedToken] = useState(false);
 
+  // Live Cloud Connection State
+  const [isLiveMode, setIsLiveMode] = useState(false);
+  const [apiUrl, setApiUrl] = useState('http://localhost:8080');
+  const [apiStatus, setApiStatus] = useState<'idle' | 'checking' | 'online' | 'offline'>('idle');
+  const [liveLoading, setLiveLoading] = useState(false);
+  const [liveError, setLiveError] = useState<string | null>(null);
+
   const t = {
     title: lang === 'pt' ? 'Dashboard de Concorrência' : 'Concurrency Health Dashboard',
     subtitle: lang === 'pt' 
@@ -274,8 +286,112 @@ export function DashboardPage({ lang }: DashboardPageProps) {
     traceBoxTitle: lang === 'pt' ? 'Rastro Causal Mínimo (Delta-Debugging)' : 'Minimal Causal Trace (Delta-Debugging)',
     reproCodeTitle: lang === 'pt' ? 'Reprodutor Autônomo em Go' : 'Standalone Go Reproducer',
     openPlayground: lang === 'pt' ? 'Abrir no Playground WASM ↗' : 'Open in WASM Playground ↗',
+    openVisualizer: lang === 'pt' ? 'Abrir no Visualizador de Intercalamento ➔' : 'Open in Interleaving Visualizer ➔',
     downloadRepro: lang === 'pt' ? 'Baixar repro_test.go' : 'Download repro_test.go',
     copyCmd: lang === 'pt' ? 'Copiar Comando CLI' : 'Copy CLI Command',
+    liveMode: lang === 'pt' ? 'Live Cloud' : 'Live Cloud',
+    demoMode: lang === 'pt' ? 'Modo Demo' : 'Demo Mode',
+    connected: lang === 'pt' ? 'Conectado à API' : 'Connected to API',
+    disconnected: lang === 'pt' ? 'API Offline' : 'API Offline',
+    checking: lang === 'pt' ? 'Verificando conexão...' : 'Checking connection...',
+    refresh: lang === 'pt' ? 'Atualizar' : 'Refresh',
+  };
+
+  // Fetch live runs from API
+  const fetchLiveCloudData = useCallback(async (baseUrl: string) => {
+    setLiveLoading(true);
+    setLiveError(null);
+    setApiStatus('checking');
+
+    try {
+      const cleanUrl = baseUrl.replace(/\/+$/, '');
+      const healthRes = await fetch(`${cleanUrl}/v1/health`, { method: 'GET' });
+      if (!healthRes.ok) {
+        throw new Error(`Health check returned status ${healthRes.status}`);
+      }
+
+      const runsRes = await fetch(`${cleanUrl}/v1/runs`, { method: 'GET' });
+      if (!runsRes.ok) {
+        throw new Error(`Runs endpoint returned status ${runsRes.status}`);
+      }
+
+      const data = await runsRes.json();
+      const rawRuns = data.runs || [];
+
+      if (rawRuns.length === 0) {
+        setRuns([]);
+      } else {
+        // Map backend RunRecord to frontend RunItem
+        const mapped: RunItem[] = rawRuns.map((r: any) => ({
+          id: r.ID || r.id,
+          repo: r.RepoID ? `repo/${r.RepoID.slice(0, 8)}` : 'local/project',
+          branch: r.Branch || r.branch || 'main',
+          prNumber: r.PRNumber || r.pr_number || undefined,
+          commitSHA: r.CommitSHA || r.commit_sha || 'HEAD',
+          status: (r.Status || r.status) === 'passed' ? 'passed' : 'failed',
+          anomalyType: r.AnomalyType || r.anomaly_type || 'NONE',
+          anomalyName: (r.AnomalyType && r.AnomalyType !== 'NONE') ? r.AnomalyType : 'Execução Verificada',
+          isRegression: (r.AnomalyType && r.AnomalyType !== 'NONE'),
+          driver: 'SQL Database',
+          isolation: 'READ COMMITTED',
+          scenario: r.ScenarioID || 'concurrency_suite',
+          schedulesCount: 100,
+          failedSchedules: (r.Status === 'passed') ? 0 : 1,
+          seed: r.Seed || 42,
+          durationMS: r.DurationMS || 250,
+          timestamp: r.CreatedAt ? new Date(r.CreatedAt).toLocaleTimeString() : 'agora',
+        }));
+        setRuns(mapped);
+      }
+      setApiStatus('online');
+    } catch (err: any) {
+      setApiStatus('offline');
+      setLiveError(err.message || 'Erro ao conectar ao servidor');
+    } finally {
+      setLiveLoading(false);
+    }
+  }, []);
+
+  const handleToggleMode = (mode: boolean) => {
+    setIsLiveMode(mode);
+    if (mode) {
+      fetchLiveCloudData(apiUrl);
+    } else {
+      setRuns(INITIAL_RUNS);
+      setApiStatus('idle');
+      setLiveError(null);
+    }
+  };
+
+  // Inspect run details: if in live mode, fetch /v1/runs/{id}
+  const handleInspectRun = async (r: RunItem) => {
+    setSelectedRun(r);
+    if (isLiveMode && apiStatus === 'online') {
+      try {
+        const cleanUrl = apiUrl.replace(/\/+$/, '');
+        const res = await fetch(`${cleanUrl}/v1/runs/${r.id}`);
+        if (res.ok) {
+          const detail = await res.json();
+          if (detail.finding) {
+            setSelectedRun((prev) => {
+              if (!prev || prev.id !== r.id) return prev;
+              return {
+                ...prev,
+                reproGoCode: detail.finding.ReproCode || prev.reproGoCode,
+                failingInvariant: detail.finding.Assertion ? {
+                  name: 'assertion_check',
+                  query: 'SELECT invariant_check();',
+                  assertion: detail.finding.Assertion,
+                  actual: 'violated',
+                } : prev.failingInvariant,
+              };
+            });
+          }
+        }
+      } catch {
+        // Fallback to local item
+      }
+    }
   };
 
   const filteredRuns = runs.filter((r) => {
@@ -293,6 +409,12 @@ export function DashboardPage({ lang }: DashboardPageProps) {
     return true;
   });
 
+  const totalRunsCount = runs.length;
+  const passedRunsCount = runs.filter((r) => r.status === 'passed').length;
+  const healthScore = totalRunsCount > 0 ? ((passedRunsCount / totalRunsCount) * 100).toFixed(1) : '100.0';
+  const totalSchedulesSum = runs.reduce((acc, r) => acc + r.schedulesCount, 0);
+  const regressionsCount = runs.filter((r) => r.isRegression).length;
+
   const handleCopyCode = () => {
     if (!selectedRun?.reproGoCode) return;
     navigator.clipboard.writeText(selectedRun.reproGoCode);
@@ -302,10 +424,24 @@ export function DashboardPage({ lang }: DashboardPageProps) {
 
   const handleCopyCmd = () => {
     if (!selectedRun) return;
-    const cmd = `chaossql run --seed ${selectedRun.seed} examples/banking_lost_update/chaos.yaml`;
+    const cmd = `chaossql run --scenario=${selectedRun.scenario} --seed=${selectedRun.seed} --driver=${selectedRun.driver.toLowerCase().includes('postgres') ? 'postgres' : 'sqlite'}`;
     navigator.clipboard.writeText(cmd);
     setCopiedCmd(true);
     setTimeout(() => setCopiedCmd(false), 2000);
+  };
+
+  const handleDownloadRepro = () => {
+    if (!selectedRun) return;
+    const code = selectedRun.reproGoCode || `package repro_test\n\n// Reproduction test for scenario: ${selectedRun.scenario}\n// Deterministic seed: ${selectedRun.seed}\n`;
+    const blob = new Blob([code], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `repro_${selectedRun.scenario}_seed${selectedRun.seed}_test.go`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
 
   const handleCopyWorkflow = () => {
@@ -323,251 +459,354 @@ permissions:
 
 jobs:
   concurrency-gate:
-    name: Concurrency Invariant & Isolation Fuzzing
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Run ChaosSQL
-        uses: bregaldahq/chaossql@v1.5.0
+      - uses: actions/checkout@v4
+      - uses: bregaldahq/chaossql@v1.5.0
         with:
           spec-path: 'chaos.yaml'
           cloud-token: \${{ secrets.CHAOSSQL_CLOUD_TOKEN }}
           github-token: \${{ secrets.GITHUB_TOKEN }}
-          post-pr-comment: 'true'
-`;
+          post-pr-comment: 'true'`;
     navigator.clipboard.writeText(yaml);
     setCopiedWorkflow(true);
     setTimeout(() => setCopiedWorkflow(false), 2000);
   };
 
   const handleCopyToken = () => {
-    navigator.clipboard.writeText("csql_live_demo_acme_8912b7fa");
+    navigator.clipboard.writeText('csql_live_demo_acme_8912b7fa');
     setCopiedToken(true);
     setTimeout(() => setCopiedToken(false), 2000);
   };
 
-  const handleDownloadCode = () => {
-    if (!selectedRun?.reproGoCode) return;
-    const blob = new Blob([selectedRun.reproGoCode], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `repro_${selectedRun.anomalyType.toLowerCase()}_test.go`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
   return (
-    <div className={styles.dashboardContainer} data-surface="light">
-      <div className={styles.headerArea}>
-        <div className={styles.headerLeft}>
-          <div className={styles.orgBadge}>
-            <span className={styles.orgDot}></span>
-            <span>Organization: <strong>Acme Fintech</strong> (Team Pro)</span>
+    <div className={styles.container}>
+      {/* Top Header */}
+      <div className={styles.headerRow}>
+        <div>
+          <div className={styles.tagline}>
+            <span className={styles.pulseDot}></span>
+            <span>CHAOSSQL CLOUD CONTROL PLANE v1.5</span>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
-            <h1 className={styles.mainTitle}>{t.title}</h1>
+          <h1 className={styles.title}>{t.title}</h1>
+          <p className={styles.subtitle}>{t.subtitle}</p>
+        </div>
+
+        <div className={styles.headerActions}>
+          {/* Live vs Demo Toggle */}
+          <div className={styles.modeToggleGroup}>
             <button
-              className={styles.connectRepoBtn}
-              onClick={() => setOnboardingOpen(true)}
+              type="button"
+              className={`${styles.modeToggleBtn} ${!isLiveMode ? styles.modeToggleActive : ''}`}
+              onClick={() => handleToggleMode(false)}
             >
-              + Conectar Novo Repositório
+              {t.demoMode}
+            </button>
+            <button
+              type="button"
+              className={`${styles.modeToggleBtn} ${isLiveMode ? styles.modeToggleActive : ''}`}
+              onClick={() => handleToggleMode(true)}
+            >
+              <Server size={13} style={{ marginRight: 5 }} />
+              {t.liveMode}
             </button>
           </div>
-          <p className={styles.mainSubtitle}>{t.subtitle}</p>
-        </div>
 
-        <div className={styles.healthHeroBox}>
-          <div className={styles.healthTop}>
-            <span className={styles.healthIcon}>🛡️</span>
-            <span className={styles.healthLabel}>{t.healthLabel}</span>
-          </div>
-          <div className={styles.healthScore}>98.7%</div>
-          <div className={styles.healthSub}>{t.healthStatus}</div>
+          <button
+            className={styles.connectRepoBtn}
+            onClick={() => setOnboardingOpen(true)}
+          >
+            + {lang === 'pt' ? 'Conectar Repositório' : 'Connect Repository'}
+          </button>
         </div>
       </div>
 
-      {/* Metrics Row */}
+      {/* Live Mode Connection Banner (if Live Mode active) */}
+      {isLiveMode && (
+        <div className={styles.liveConnectionCard}>
+          <div className={styles.liveConnectionHeader}>
+            <div className={styles.liveStatusIndicator}>
+              {apiStatus === 'online' && (
+                <span className={styles.statusOnlinePill}>
+                  <Wifi size={14} /> {t.connected}
+                </span>
+              )}
+              {apiStatus === 'offline' && (
+                <span className={styles.statusOfflinePill}>
+                  <WifiOff size={14} /> {t.disconnected}
+                </span>
+              )}
+              {apiStatus === 'checking' && (
+                <span className={styles.statusCheckingPill}>
+                  <RefreshCw size={14} className={styles.spin} /> {t.checking}
+                </span>
+              )}
+            </div>
+
+            <div className={styles.apiUrlForm}>
+              <span className={styles.apiUrlLabel}>Endpoint:</span>
+              <input
+                type="text"
+                value={apiUrl}
+                onChange={(e) => setApiUrl(e.target.value)}
+                className={styles.apiUrlInput}
+                placeholder="http://localhost:8080"
+              />
+              <button
+                type="button"
+                className={styles.refreshBtn}
+                onClick={() => fetchLiveCloudData(apiUrl)}
+                disabled={liveLoading}
+              >
+                <RefreshCw size={13} className={liveLoading ? styles.spin : ''} />
+                {t.refresh}
+              </button>
+            </div>
+          </div>
+
+          {liveError && (
+            <div className={styles.liveErrorBanner}>
+              <AlertTriangle size={15} />
+              <span>
+                {lang === 'pt'
+                  ? `Inicie o servidor local com 'go run ./cmd/chaossql-server' para conectar à porta 8080: ${liveError}`
+                  : `Start local server with 'go run ./cmd/chaossql-server' to connect on port 8080: ${liveError}`}
+              </span>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Metric Cards Row */}
       <div className={styles.metricsGrid}>
         <div className={styles.metricCard}>
-          <div className={styles.metricLabel}>{t.totalRuns}</div>
-          <div className={styles.metricValue}>184</div>
-          <div className={styles.metricChange}>+24% vs mês anterior</div>
+          <div className={styles.metricHeader}>
+            <span className={styles.metricTitle}>{t.healthLabel}</span>
+            <Activity className={styles.metricIconHealthy} size={18} />
+          </div>
+          <div className={styles.metricValue}>{healthScore}%</div>
+          <div className={styles.metricSub}>
+            <span className={styles.greenText}>●</span> {t.healthStatus}
+          </div>
         </div>
+
         <div className={styles.metricCard}>
-          <div className={styles.metricLabel}>{t.totalSchedules}</div>
-          <div className={styles.metricValue}>284,128</div>
-          <div className={styles.metricChange}>Escalonamentos determinísticos</div>
+          <div className={styles.metricHeader}>
+            <span className={styles.metricTitle}>{t.totalRuns}</span>
+            <Layers className={styles.metricIconNeutral} size={18} />
+          </div>
+          <div className={styles.metricValue}>{totalRunsCount}</div>
+          <div className={styles.metricSub}>
+            <span>{passedRunsCount} passados • {runs.length - passedRunsCount} com anomalias</span>
+          </div>
         </div>
+
         <div className={styles.metricCard}>
-          <div className={styles.metricLabel}>{t.regressionsCaught}</div>
-          <div className={styles.metricValue}>3</div>
-          <div className={styles.metricChange}>2 resolvidas antes de produção</div>
+          <div className={styles.metricHeader}>
+            <span className={styles.metricTitle}>{t.totalSchedules}</span>
+            <Activity className={styles.metricIconPurple} size={18} />
+          </div>
+          <div className={styles.metricValue}>{totalSchedulesSum.toLocaleString()}</div>
+          <div className={styles.metricSub}>
+            <span>Espaço combinatório explorado</span>
+          </div>
         </div>
-        <div className={`${styles.metricCard} ${styles.alertCard}`}>
-          <div className={styles.metricLabel}>{t.openRegressions}</div>
-          <div className={styles.metricValueAlert}>1</div>
-          <div className={styles.metricChangeAlert}>🚨 PR #382 acme/payments</div>
+
+        <div className={styles.metricCard}>
+          <div className={styles.metricHeader}>
+            <span className={styles.metricTitle}>{t.regressionsCaught}</span>
+            <ShieldAlert className={styles.metricIconAlert} size={18} />
+          </div>
+          <div className={styles.metricValueAlert}>{regressionsCount}</div>
+          <div className={styles.metricSub}>
+            <span className={styles.alertText}>{regressionsCount} {t.openRegressions}</span>
+          </div>
         </div>
       </div>
 
-      {/* Filter and Search Toolbar */}
-      <div className={styles.toolbarArea}>
-        <div className={styles.filterTabs}>
+      {/* Filter and Search Controls */}
+      <div className={styles.tableControls}>
+        <div className={styles.tabsGroup}>
           <button
-            className={`${styles.filterBtn} ${filterType === 'all' ? styles.filterBtnActive : ''}`}
+            className={`${styles.tabBtn} ${filterType === 'all' ? styles.tabBtnActive : ''}`}
             onClick={() => setFilterType('all')}
           >
-            {t.allRuns} (6)
+            {t.allRuns}
           </button>
           <button
-            className={`${styles.filterBtn} ${styles.filterRegression} ${filterType === 'regressions' ? styles.filterBtnActive : ''}`}
+            className={`${styles.tabBtn} ${filterType === 'regressions' ? styles.tabBtnActiveAlert : ''}`}
             onClick={() => setFilterType('regressions')}
           >
-            {t.regressionsOnly} (3)
+            {t.regressionsOnly}
           </button>
           <button
-            className={`${styles.filterBtn} ${filterType === 'prs' ? styles.filterBtnActive : ''}`}
+            className={`${styles.tabBtn} ${filterType === 'prs' ? styles.tabBtnActive : ''}`}
             onClick={() => setFilterType('prs')}
           >
-            {t.prsOnly} (4)
+            {t.prsOnly}
           </button>
           <button
-            className={`${styles.filterBtn} ${filterType === 'passed' ? styles.filterBtnActive : ''}`}
+            className={`${styles.tabBtn} ${filterType === 'passed' ? styles.tabBtnActive : ''}`}
             onClick={() => setFilterType('passed')}
           >
-            {t.passedOnly} (3)
+            {t.passedOnly}
           </button>
         </div>
 
-        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-          <div className={styles.searchBox}>
-            <Search size={16} className={styles.searchIcon} />
-            <input
-              type="text"
-              className={styles.searchInput}
-              placeholder={t.searchPlaceholder}
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-          </div>
-          <button
-            className={styles.refreshBtn}
-            onClick={() => setRuns([...INITIAL_RUNS])}
-            title={lang === 'pt' ? 'Atualizar execuções' : 'Refresh runs'}
-          >
-            <RefreshCw size={15} />
-          </button>
+        <div className={styles.searchBox}>
+          <Search size={15} className={styles.searchIcon} />
+          <input
+            type="text"
+            className={styles.searchInput}
+            placeholder={t.searchPlaceholder}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
         </div>
       </div>
 
       {/* Runs Table */}
       <div className={styles.tableCard}>
-        <table className={styles.runsTable}>
-          <thead>
-            <tr>
-              <th>{t.colRepo}</th>
-              <th>{t.colPR}</th>
-              <th>{t.colStatus}</th>
-              <th>{t.colFinding}</th>
-              <th>{t.colEngine}</th>
-              <th>{t.colDuration}</th>
-              <th>{t.colTime}</th>
-              <th style={{ textAlign: 'right' }}>{t.colAction}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredRuns.map((r) => (
-              <tr key={r.id} className={r.isRegression ? styles.regressionRow : undefined}>
-                <td>
-                  <div className={styles.repoName}>
-                    <strong>{r.repo}</strong>
-                    <span className={styles.scenarioTag}>{r.scenario}</span>
-                  </div>
-                </td>
-                <td>
-                  <div className={styles.branchInfo}>
-                    {r.prNumber ? (
-                      <span className={styles.prBadge}>
-                        <GitPullRequest size={12} />
-                        #{r.prNumber}
-                      </span>
-                    ) : (
-                      <span className={styles.mainBadge}>main</span>
-                    )}
-                    <span className={styles.branchName}>{r.branch}</span>
-                  </div>
-                </td>
-                <td>
-                  {r.status === 'passed' ? (
-                    <span className={styles.badgePassed}>
-                      <Check size={12} /> PASS
-                    </span>
-                  ) : (
-                    <span className={styles.badgeFailed}>
-                      <ShieldAlert size={12} /> FAIL
-                    </span>
-                  )}
-                </td>
-                <td>
-                  <div className={styles.findingCell}>
-                    {r.isRegression ? (
-                      <span className={styles.regressionAlertBadge}>🚨 REGRESSÃO</span>
-                    ) : null}
-                    <span className={styles.anomalyName}>{r.anomalyName}</span>
-                    {r.anomalyType !== 'NONE' && (
-                      <code className={styles.anomalyCode}>{r.anomalyType}</code>
-                    )}
-                  </div>
-                </td>
-                <td>
-                  <div className={styles.driverCell}>
-                    <span>{r.driver}</span>
-                    <span className={styles.isolationText}>{r.isolation}</span>
-                  </div>
-                </td>
-                <td>
-                  <span className={styles.monoText}>{r.durationMS}ms</span>
-                </td>
-                <td>
-                  <span className={styles.timeText}>{r.timestamp}</span>
-                </td>
-                <td style={{ textAlign: 'right' }}>
-                  <button
-                    className={styles.inspectBtn}
-                    onClick={() => setSelectedRun(r)}
-                  >
-                    {t.inspectBtn} →
-                  </button>
-                </td>
+        {filteredRuns.length === 0 ? (
+          <div className={styles.emptyState}>
+            <Layers size={36} className={styles.emptyIcon} />
+            <h3>{lang === 'pt' ? 'Nenhuma execução encontrada' : 'No executions found'}</h3>
+            <p>
+              {isLiveMode
+                ? (lang === 'pt'
+                    ? 'Seu servidor de nuvem ainda não recebeu execuções. Execute no terminal: chaossql run --scenario=banking_lost_update --cloud-token=csql_... --cloud-url=' + apiUrl
+                    : 'Your cloud server has not received runs yet. Run in terminal: chaossql run --scenario=banking_lost_update --cloud-token=csql_... --cloud-url=' + apiUrl)
+                : (lang === 'pt' ? 'Nenhum resultado para o filtro informado.' : 'No results matching your filters.')}
+            </p>
+          </div>
+        ) : (
+          <table className={styles.table}>
+            <thead>
+              <tr>
+                <th>{t.colRepo}</th>
+                <th>{t.colPR}</th>
+                <th>{t.colStatus}</th>
+                <th>{t.colFinding}</th>
+                <th>{t.colEngine}</th>
+                <th>{t.colDuration}</th>
+                <th>{t.colTime}</th>
+                <th style={{ textAlign: 'right' }}>{t.colAction}</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {filteredRuns.map((r) => (
+                <tr key={r.id} className={r.isRegression ? styles.rowRegression : ''}>
+                  <td>
+                    <span className={styles.repoName}>{r.repo}</span>
+                    <span className={styles.scenarioName}>{r.scenario}</span>
+                  </td>
+                  <td>
+                    <div className={styles.branchLine}>
+                      <code>{r.branch}</code>
+                      {r.commitSHA && (
+                        <a
+                          href={`https://github.com/${r.repo}/commit/${r.commitSHA}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className={styles.commitLink}
+                          title={lang === 'pt' ? 'Ver commit no GitHub' : 'View commit on GitHub'}
+                        >
+                          <code>{r.commitSHA.slice(0, 7)}</code>
+                        </a>
+                      )}
+                    </div>
+                    {r.prNumber && r.prNumber > 0 && (
+                      <div className={styles.prLine}>
+                        <a
+                          href={`https://github.com/${r.repo}/pull/${r.prNumber}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className={styles.prGithubBadge}
+                          title={lang === 'pt' ? 'Abrir Pull Request no GitHub' : 'Open Pull Request on GitHub'}
+                        >
+                          <GitPullRequest size={12} /> #{r.prNumber}
+                          <ExternalLink size={10} style={{ marginLeft: 3 }} />
+                        </a>
+                      </div>
+                    )}
+                  </td>
+                  <td>
+                    {r.status === 'passed' ? (
+                      <span className={styles.badgePassed}>PASS</span>
+                    ) : (
+                      <span className={styles.badgeFailed}>FAIL</span>
+                    )}
+                  </td>
+                  <td>
+                    <div className={styles.anomalyBadgeWrapper}>
+                      <span className={r.anomalyType === 'NONE' ? styles.anomalyNone : styles.anomalyBadge}>
+                        {r.anomalyType}
+                      </span>
+                      <span className={styles.anomalyDescription}>{r.anomalyName}</span>
+                    </div>
+                    {r.isRegression && (
+                      <span className={styles.regressionBadge}>
+                        REGRESSION (Base: {r.baselineStatus || 'PASS'})
+                      </span>
+                    )}
+                  </td>
+                  <td>
+                    <span className={styles.driverBadge}>{r.driver}</span>
+                    <span className={styles.isolationBadge}>{r.isolation}</span>
+                  </td>
+                  <td>
+                    <span className={styles.durationMono}>{r.durationMS}ms</span>
+                    <span className={styles.schedulesMono}>{r.schedulesCount} sched</span>
+                  </td>
+                  <td>
+                    <span className={styles.timestamp}>{r.timestamp}</span>
+                  </td>
+                  <td style={{ textAlign: 'right' }}>
+                    <button
+                      className={styles.inspectBtn}
+                      onClick={() => handleInspectRun(r)}
+                    >
+                      {t.inspectBtn}
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
 
       {/* Finding Detail Modal */}
       {selectedRun && (
         <div className={styles.modalBackdrop} onClick={() => setSelectedRun(null)}>
-          <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+          <div className={styles.modalCard} onClick={(e) => e.stopPropagation()}>
             <div className={styles.modalHeader}>
-              <div className={styles.modalHeaderLeft}>
-                <div className={styles.modalPre}>
-                  <span>{selectedRun.repo}</span> • <span>{selectedRun.scenario}</span>
-                </div>
+              <div>
+                <span className={styles.modalTag}>RUN FINDING EXPLORER // {selectedRun.id}</span>
                 <h2 className={styles.modalTitle}>
-                  {selectedRun.status === 'failed' ? (
-                    <span style={{ color: '#ef4444' }}>
-                      {selectedRun.anomalyType} — {selectedRun.anomalyName}
-                    </span>
-                  ) : (
-                    <span style={{ color: '#22c55e' }}>
-                      ✅ Execução Aprovada (Sem Anomalias)
-                    </span>
-                  )}
+                  {selectedRun.anomalyName} ({selectedRun.anomalyType})
                 </h2>
+                <div className={styles.modalMetaRow}>
+                  <span>{selectedRun.repo}</span>
+                  <span>•</span>
+                  <span>{selectedRun.branch}</span>
+                  {selectedRun.prNumber && selectedRun.prNumber > 0 && (
+                    <>
+                      <span>•</span>
+                      <a
+                        href={`https://github.com/${selectedRun.repo}/pull/${selectedRun.prNumber}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={styles.modalGithubLink}
+                      >
+                        <GitPullRequest size={13} /> PR #{selectedRun.prNumber}
+                        <ExternalLink size={11} style={{ marginLeft: 3 }} />
+                      </a>
+                    </>
+                  )}
+                  <span>•</span>
+                  <span>Seed: <code>{selectedRun.seed}</code></span>
+                </div>
               </div>
               <button className={styles.closeBtn} onClick={() => setSelectedRun(null)}>
                 <X size={20} />
@@ -575,114 +814,60 @@ jobs:
             </div>
 
             <div className={styles.modalBody}>
-              {/* Finding Metadata Grid */}
-              <div className={styles.findingMetaGrid}>
-                <div className={styles.findingMetaItem}>
-                  <label>Repositório</label>
-                  <div>{selectedRun.repo}</div>
-                </div>
-                <div className={styles.findingMetaItem}>
-                  <label>Pull Request / Branch</label>
-                  <div>
-                    {selectedRun.prNumber ? `#${selectedRun.prNumber} (${selectedRun.branch})` : selectedRun.branch}
-                  </div>
-                </div>
-                <div className={styles.findingMetaItem}>
-                  <label>Commit SHA</label>
-                  <code className={styles.monoText}>{selectedRun.commitSHA}</code>
-                </div>
-                <div className={styles.findingMetaItem}>
-                  <label>Baseline (Branch Principal)</label>
-                  <div className={styles.baselineCompare}>
-                    <span className={styles.baselinePass}>PASS (main)</span> ➔{' '}
-                    <span className={styles.prFail}>FAIL (PR)</span>
-                  </div>
-                </div>
-                <div className={styles.findingMetaItem}>
-                  <label>Banco de Dados & Driver</label>
-                  <div>{selectedRun.driver}</div>
-                </div>
-                <div className={styles.findingMetaItem}>
-                  <label>Nível de Isolamento</label>
-                  <div>{selectedRun.isolation}</div>
-                </div>
-                <div className={styles.findingMetaItem}>
-                  <label>Taxa de Falha</label>
-                  <div>{selectedRun.failedSchedules} / {selectedRun.schedulesCount} escalonamentos</div>
-                </div>
-                <div className={styles.findingMetaItem}>
-                  <label>PRNG Seed Determinístico</label>
-                  <code className={styles.monoText}>{selectedRun.seed}</code>
-                </div>
-              </div>
-
-              {/* Invariant Violation */}
+              {/* Invariant Failure */}
               {selectedRun.failingInvariant && (
-                <div className={styles.invariantBox}>
-                  <div className={styles.sectionHeading}>
-                    <ShieldAlert size={16} color="#ef4444" />
-                    <span>{t.invariantBoxTitle}</span>
-                  </div>
-                  <div className={styles.invariantContent}>
-                    <div className={styles.invariantQuery}>
-                      <span className={styles.invLabel}>Query:</span>
+                <div className={styles.sectionBox}>
+                  <h4 className={styles.sectionTitle}>{t.invariantBoxTitle}</h4>
+                  <div className={styles.invariantGrid}>
+                    <div>
+                      <span className={styles.labelMuted}>Invariante:</span>
+                      <code>{selectedRun.failingInvariant.name}</code>
+                    </div>
+                    <div>
+                      <span className={styles.labelMuted}>Query de Verificação:</span>
                       <code>{selectedRun.failingInvariant.query}</code>
                     </div>
-                    <div className={styles.invariantRow}>
-                      <div>
-                        <span className={styles.invLabel}>Esperado (Assertion):</span>
-                        <code className={styles.passValue}>{selectedRun.failingInvariant.assertion}</code>
-                      </div>
-                      <div>
-                        <span className={styles.invLabel}>Obtido no Banco (Actual):</span>
-                        <code className={styles.failValue}>{selectedRun.failingInvariant.actual}</code>
-                      </div>
+                    <div>
+                      <span className={styles.labelMuted}>Condição Esperada:</span>
+                      <span className={styles.greenText}>{selectedRun.failingInvariant.assertion}</span>
+                    </div>
+                    <div>
+                      <span className={styles.labelMuted}>Valor Real Violado:</span>
+                      <span className={styles.alertText}>{selectedRun.failingInvariant.actual}</span>
                     </div>
                   </div>
                 </div>
               )}
 
-              {/* Minimal Trace */}
+              {/* Minimal Causal Trace Steps */}
               {selectedRun.traceSteps && selectedRun.traceSteps.length > 0 && (
-                <div className={styles.traceBox}>
-                  <div className={styles.sectionHeading}>
-                    <Activity size={16} color="#f5c400" />
-                    <span>{t.traceBoxTitle}</span>
-                  </div>
+                <div className={styles.sectionBox}>
+                  <h4 className={styles.sectionTitle}>{t.traceBoxTitle}</h4>
                   <div className={styles.traceTimeline}>
-                    {selectedRun.traceSteps.map((step, idx) => (
-                      <div key={idx} className={styles.traceStepItem}>
-                        <span className={styles.stepBadge}>{idx + 1}</span>
-                        <span className={`${styles.workerBadge} ${step.worker === 'T1' ? styles.workerT1 : styles.workerT2}`}>
-                          {step.worker}
+                    {selectedRun.traceSteps.map((s, idx) => (
+                      <div key={idx} className={styles.traceRow}>
+                        <span className={styles.workerPill}>{s.worker}</span>
+                        <span className={s.opType === 'write' ? styles.opWrite : styles.opRead}>
+                          {s.opType.toUpperCase()}
                         </span>
-                        <code className={styles.stepSql}>{step.sql}</code>
+                        <code className={styles.sqlSnippet}>{s.sql}</code>
                       </div>
                     ))}
                   </div>
                 </div>
               )}
 
-              {/* Reproducer Code */}
+              {/* Reproducer Code in Go */}
               {selectedRun.reproGoCode && (
-                <div className={styles.reproBox}>
-                  <div className={styles.reproHeader}>
-                    <div className={styles.sectionHeading}>
-                      <Layers size={16} />
-                      <span>{t.reproCodeTitle}</span>
-                    </div>
-                    <div className={styles.reproActions}>
-                      <button className={styles.actionBtnSmall} onClick={handleCopyCode}>
-                        {copiedCode ? <Check size={14} /> : <Copy size={14} />}
-                        {copiedCode ? 'Copiado!' : 'Copiar Go'}
-                      </button>
-                      <button className={styles.actionBtnSmall} onClick={handleDownloadCode}>
-                        <Download size={14} />
-                        {t.downloadRepro}
-                      </button>
-                    </div>
+                <div className={styles.sectionBox}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <h4 className={styles.sectionTitle}>{t.reproCodeTitle}</h4>
+                    <button className={styles.copyBtn} onClick={handleCopyCode}>
+                      {copiedCode ? <Check size={14} /> : <Copy size={14} />}
+                      {copiedCode ? 'Copiado!' : 'Copiar Go Code'}
+                    </button>
                   </div>
-                  <pre className={styles.reproCodePre}>
+                  <pre className={styles.codePre}>
                     <code>{selectedRun.reproGoCode}</code>
                   </pre>
                 </div>
@@ -690,6 +875,23 @@ jobs:
             </div>
 
             <div className={styles.modalFooter}>
+              {/* Deep-link direct to VisualizerPage */}
+              <a
+                href={`#/visualizer?scenario=${encodeURIComponent(selectedRun.scenario)}&seed=${selectedRun.seed}&mode=shrunk`}
+                className={styles.openVisualizerBtn}
+                onClick={() => setSelectedRun(null)}
+              >
+                <Layers size={14} style={{ marginRight: 6 }} />
+                {t.openVisualizer}
+              </a>
+
+              {/* Download standalone repro_test.go */}
+              <button className={styles.downloadBtn} onClick={handleDownloadRepro}>
+                <Download size={14} style={{ marginRight: 6 }} />
+                {t.downloadRepro}
+              </button>
+
+              {/* Copy CLI command */}
               <button className={styles.copyCmdBtn} onClick={handleCopyCmd}>
                 {copiedCmd ? <Check size={14} /> : <Copy size={14} />}
                 {copiedCmd ? 'Comando Copiado!' : t.copyCmd}
@@ -700,7 +902,7 @@ jobs:
                 className={styles.playgroundBtn}
                 onClick={() => setSelectedRun(null)}
               >
-                <Play size={14} fill="currentColor" />
+                <Play size={14} fill="currentColor" style={{ marginRight: 5 }} />
                 {t.openPlayground}
               </a>
             </div>

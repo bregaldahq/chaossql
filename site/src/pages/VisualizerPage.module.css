@@ -483,3 +483,69 @@
 .sqlBox {
   margin-top: 8px;
 }
+
+/* Deep-Link Banner from Concurrency Dashboard */
+.deepLinkBanner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  background: rgba(245, 196, 0, 0.08);
+  border: 1px solid rgba(245, 196, 0, 0.3);
+  padding: 12px 20px;
+  border-radius: var(--radius-md, 8px);
+  margin-bottom: 24px;
+}
+
+.deepLinkInfo {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 0.88rem;
+  color: var(--cream);
+}
+
+.deepLinkBadge {
+  background: rgba(245, 196, 0, 0.2);
+  color: #F5C400;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  font-weight: 700;
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.deepLinkScenario strong {
+  color: #F5C400;
+}
+
+.deepLinkSeed code {
+  font-family: var(--font-jetbrains-mono);
+  background: rgba(0, 0, 0, 0.3);
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: #60A5FA;
+}
+
+.deepLinkBackBtn {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #F5C400;
+  text-decoration: none;
+  background: rgba(245, 196, 0, 0.12);
+  border: 1px solid rgba(245, 196, 0, 0.3);
+  padding: 6px 14px;
+  border-radius: var(--radius-sm, 6px);
+  transition: all 0.2s ease;
+}
+
+.deepLinkBackBtn:hover {
+  background: rgba(245, 196, 0, 0.25);
+  border-color: #F5C400;
+  transform: translateX(-2px);
+}
