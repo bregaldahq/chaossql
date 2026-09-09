@@ -34,6 +34,7 @@ func NewRouter(cfg RouterConfig) http.Handler {
 	mux.HandleFunc("POST /v1/runs", s.requireAuth(s.handleIngestRun))
 	mux.HandleFunc("GET /v1/runs/{id}", s.handleGetRun)
 	mux.HandleFunc("GET /v1/repositories/{owner}/{name}/runs", s.handleListRuns)
+	mux.HandleFunc("GET /v1/organizations/{id}/subscription", s.requireAuth(s.handleGetSubscription))
 
 	return mux
 }
@@ -262,4 +263,27 @@ func (s *Server) handleListRuns(w http.ResponseWriter, r *http.Request) {
 		"repository": fullName,
 		"runs":       runs,
 	})
+}
+
+
+func (s *Server) handleGetSubscription(w http.ResponseWriter, r *http.Request) {
+	orgID := r.PathValue("id")
+	callerOrgID := r.Header.Get("X-Org-ID")
+	if orgID == "me" || orgID == "" {
+		orgID = callerOrgID
+	}
+
+	sub, err := s.cfg.Store.GetOrgSubscription(orgID)
+	if errors.Is(err, ErrNotFound) {
+		http.Error(w, `{"error":"organization not found"}`, http.StatusNotFound)
+		return
+	}
+	if err != nil {
+		http.Error(w, `{"error":"internal error"}`, http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(w).Encode(sub)
 }
