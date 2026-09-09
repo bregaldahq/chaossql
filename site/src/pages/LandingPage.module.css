@@ -140,3 +140,167 @@
   line-height: 1.65;
   color: var(--text-secondary);
 }
+
+
+/* Hero Actions & Anomaly Preview */
+.heroActions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-top: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+
+.ctaPlayground {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.8rem 1.6rem;
+  background: var(--purple);
+  color: var(--cream);
+  border-radius: var(--radius-control);
+  font-family: var(--font-jetbrains-mono), monospace;
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 20px color-mix(in srgb, var(--purple) 35%, transparent);
+}
+
+.ctaPlayground:hover {
+  background: color-mix(in srgb, var(--purple) 85%, #000);
+  transform: translateY(-1px);
+}
+
+.ctaWaitlist {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.8rem 1.6rem;
+  background: color-mix(in srgb, var(--yellow) 12%, transparent);
+  color: var(--ink);
+  border: 1px solid color-mix(in srgb, var(--yellow) 40%, transparent);
+  border-radius: var(--radius-control);
+  font-family: var(--font-jetbrains-mono), monospace;
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.ctaWaitlist:hover {
+  background: color-mix(in srgb, var(--yellow) 22%, transparent);
+  border-color: var(--yellow);
+  transform: translateY(-1px);
+}
+
+.heroCardContainer {
+  margin-top: var(--space-4);
+  max-width: 36rem;
+  margin-inline: auto;
+}
+
+.heroAnomalyCard {
+  background: #0d091a;
+  border: 1px solid color-mix(in srgb, var(--purple) 40%, transparent);
+  border-radius: var(--radius-card);
+  padding: 1.25rem 1.5rem;
+  text-align: left;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.35);
+}
+
+.anomalyHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--cream) 10%, transparent);
+}
+
+.anomalyBadgeRed {
+  font-family: var(--font-jetbrains-mono), monospace;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #ff6b6b;
+  background: color-mix(in srgb, #ff6b6b 15%, transparent);
+  padding: 0.2rem 0.6rem;
+  border-radius: 4px;
+  border: 1px solid color-mix(in srgb, #ff6b6b 35%, transparent);
+}
+
+.anomalySeed {
+  font-family: var(--font-jetbrains-mono), monospace;
+  font-size: 0.75rem;
+  color: color-mix(in srgb, var(--cream) 60%, transparent);
+}
+
+.anomalyRow {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--font-jetbrains-mono), monospace;
+  font-size: 0.85rem;
+  margin-block: 0.35rem;
+}
+
+.anomalyLabel {
+  color: color-mix(in srgb, var(--cream) 70%, transparent);
+}
+
+.anomalyValGreen {
+  color: var(--green);
+  font-weight: 600;
+}
+
+.anomalyValRed {
+  color: #ff6b6b;
+  font-weight: 600;
+}
+
+/* Workflow Section */
+.workflowSection {
+  padding: var(--space-5) var(--page-gutter);
+  max-width: var(--stage-max);
+  margin-inline: auto;
+  text-align: center;
+}
+
+.workflowGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: 1.25rem;
+  margin-top: var(--space-4);
+  text-align: left;
+}
+
+.workflowCard {
+  background: color-mix(in srgb, var(--purple) 3%, var(--cream));
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-card);
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  position: relative;
+}
+
+.workflowStepNumber {
+  font-family: var(--font-jetbrains-mono), monospace;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--purple);
+}
+
+.workflowStepTitle {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.workflowStepDesc {
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
