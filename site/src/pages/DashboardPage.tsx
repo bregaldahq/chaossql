@@ -480,93 +480,95 @@ jobs:
   };
 
   return (
-    <div className={styles.container}>
-      {/* Top Header */}
-      <div className={styles.headerRow}>
-        <div>
-          <div className={styles.tagline}>
-            <span className={styles.pulseDot}></span>
-            <span>CHAOSSQL CLOUD CONTROL PLANE v1.5</span>
-          </div>
-          <h1 className={styles.title}>{t.title}</h1>
-          <p className={styles.subtitle}>{t.subtitle}</p>
-        </div>
-
-        <div className={styles.headerActions}>
-          {/* Live vs Demo Toggle */}
-          <div className={styles.modeToggleGroup}>
-            <button
-              type="button"
-              className={`${styles.modeToggleBtn} ${!isLiveMode ? styles.modeToggleActive : ''}`}
-              onClick={() => handleToggleMode(false)}
-            >
-              {t.demoMode}
-            </button>
-            <button
-              type="button"
-              className={`${styles.modeToggleBtn} ${isLiveMode ? styles.modeToggleActive : ''}`}
-              onClick={() => handleToggleMode(true)}
-            >
-              <Server size={13} style={{ marginRight: 5 }} />
-              {t.liveMode}
-            </button>
+    <div className={styles.pageContainer} data-surface="light">
+      {/* Header matching MatrixPage standard */}
+      <div className={styles.header}>
+        <p className="technical-label" style={{ color: 'var(--purple)' }}>
+          {lang === 'pt' ? 'Observabilidade de Isolamento Concorrente // Control Plane' : 'Concurrency Isolation Observability // Control Plane'}
+        </p>
+        <div className={styles.headerTitleRow}>
+          <div>
+            <h1 className={styles.title}>{t.title}</h1>
+            <p className={styles.subtitle}>{t.subtitle}</p>
           </div>
 
-          <button
-            className={styles.connectRepoBtn}
-            onClick={() => setOnboardingOpen(true)}
-          >
-            + {lang === 'pt' ? 'Conectar Repositório' : 'Connect Repository'}
-          </button>
+          <div className={styles.headerActions}>
+            {/* Live vs Demo Segmented Control */}
+            <div className={styles.modeSegmentedGroup}>
+              <button
+                type="button"
+                className={`${styles.modeBtn} ${!isLiveMode ? styles.modeBtnActive : ''}`}
+                onClick={() => handleToggleMode(false)}
+              >
+                {t.demoMode}
+              </button>
+              <button
+                type="button"
+                className={`${styles.modeBtn} ${isLiveMode ? styles.modeBtnActive : ''}`}
+                onClick={() => handleToggleMode(true)}
+              >
+                <Server size={13} style={{ marginRight: 5 }} />
+                {t.liveMode}
+              </button>
+            </div>
+
+            <button
+              type="button"
+              className={styles.connectRepoBtn}
+              onClick={() => setOnboardingOpen(true)}
+            >
+              + {lang === 'pt' ? 'Conectar Repositório' : 'Connect Repository'}
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* Live Mode Connection Banner (if Live Mode active) */}
+      {/* Live Mode Configuration & Connection Banner */}
       {isLiveMode && (
-        <div className={styles.liveConnectionCard}>
-          <div className={styles.liveConnectionHeader}>
-            <div className={styles.liveStatusIndicator}>
-              {apiStatus === 'online' && (
-                <span className={styles.statusOnlinePill}>
-                  <Wifi size={14} /> {t.connected}
-                </span>
-              )}
-              {apiStatus === 'offline' && (
-                <span className={styles.statusOfflinePill}>
-                  <WifiOff size={14} /> {t.disconnected}
-                </span>
-              )}
-              {apiStatus === 'checking' && (
-                <span className={styles.statusCheckingPill}>
-                  <RefreshCw size={14} className={styles.spin} /> {t.checking}
-                </span>
-              )}
-            </div>
+        <div className={styles.liveConfigStrip}>
+          <div className={styles.liveEndpointBox}>
+            <span style={{ fontSize: 'var(--type-meta)', fontFamily: 'var(--font-jetbrains-mono)', color: 'var(--text-secondary)' }}>
+              {lang === 'pt' ? 'Servidor ChaosSQL:' : 'ChaosSQL Server:'}
+            </span>
+            {apiStatus === 'online' && (
+              <span className={styles.badgePrevented}>
+                <Wifi size={12} style={{ marginRight: 4, verticalAlign: 'middle' }} /> {t.connected}
+              </span>
+            )}
+            {apiStatus === 'offline' && (
+              <span className={styles.badgeRegression}>
+                <WifiOff size={12} style={{ marginRight: 4, verticalAlign: 'middle' }} /> {t.disconnected}
+              </span>
+            )}
+            {apiStatus === 'checking' && (
+              <span className={styles.badgePermitted}>
+                <RefreshCw size={12} className={styles.spin} style={{ marginRight: 4, verticalAlign: 'middle' }} /> {t.checking}
+              </span>
+            )}
+          </div>
 
-            <div className={styles.apiUrlForm}>
-              <span className={styles.apiUrlLabel}>Endpoint:</span>
-              <input
-                type="text"
-                value={apiUrl}
-                onChange={(e) => setApiUrl(e.target.value)}
-                className={styles.apiUrlInput}
-                placeholder="http://localhost:8080"
-              />
-              <button
-                type="button"
-                className={styles.refreshBtn}
-                onClick={() => fetchLiveCloudData(apiUrl)}
-                disabled={liveLoading}
-              >
-                <RefreshCw size={13} className={liveLoading ? styles.spin : ''} />
-                {t.refresh}
-              </button>
-            </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <input
+              type="text"
+              value={apiUrl}
+              onChange={(e) => setApiUrl(e.target.value)}
+              className={styles.apiUrlInput}
+              placeholder="http://localhost:8080"
+            />
+            <button
+              type="button"
+              className={styles.refreshBtn}
+              onClick={() => fetchLiveCloudData(apiUrl)}
+              disabled={liveLoading}
+            >
+              <RefreshCw size={13} className={liveLoading ? styles.spin : ''} />
+              {t.refresh}
+            </button>
           </div>
 
           {liveError && (
-            <div className={styles.liveErrorBanner}>
-              <AlertTriangle size={15} />
+            <div style={{ width: '100%', fontSize: '0.82rem', color: '#DC2626', display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
+              <AlertTriangle size={14} />
               <span>
                 {lang === 'pt'
                   ? `Inicie o servidor local com 'go run ./cmd/chaossql-server' para conectar à porta 8080: ${liveError}`
@@ -577,23 +579,23 @@ jobs:
         </div>
       )}
 
-      {/* Metric Cards Row */}
+      {/* 4 Metric Cards Grid */}
       <div className={styles.metricsGrid}>
         <div className={styles.metricCard}>
           <div className={styles.metricHeader}>
             <span className={styles.metricTitle}>{t.healthLabel}</span>
-            <Activity className={styles.metricIconHealthy} size={18} />
+            <Activity size={16} color="var(--green)" />
           </div>
-          <div className={styles.metricValue}>{healthScore}%</div>
+          <div className={styles.metricValue} style={{ color: 'var(--green)' }}>{healthScore}%</div>
           <div className={styles.metricSub}>
-            <span className={styles.greenText}>●</span> {t.healthStatus}
+            <span style={{ color: 'var(--green)' }}>●</span> {t.healthStatus}
           </div>
         </div>
 
         <div className={styles.metricCard}>
           <div className={styles.metricHeader}>
             <span className={styles.metricTitle}>{t.totalRuns}</span>
-            <Layers className={styles.metricIconNeutral} size={18} />
+            <Layers size={16} color="var(--purple)" />
           </div>
           <div className={styles.metricValue}>{totalRunsCount}</div>
           <div className={styles.metricSub}>
@@ -604,7 +606,7 @@ jobs:
         <div className={styles.metricCard}>
           <div className={styles.metricHeader}>
             <span className={styles.metricTitle}>{t.totalSchedules}</span>
-            <Activity className={styles.metricIconPurple} size={18} />
+            <Activity size={16} color="var(--purple)" />
           </div>
           <div className={styles.metricValue}>{totalSchedulesSum.toLocaleString()}</div>
           <div className={styles.metricSub}>
@@ -615,11 +617,35 @@ jobs:
         <div className={styles.metricCard}>
           <div className={styles.metricHeader}>
             <span className={styles.metricTitle}>{t.regressionsCaught}</span>
-            <ShieldAlert className={styles.metricIconAlert} size={18} />
+            <ShieldAlert size={16} color={regressionsCount > 0 ? '#EF4444' : 'var(--text-secondary)'} />
           </div>
-          <div className={styles.metricValueAlert}>{regressionsCount}</div>
+          <div className={regressionsCount > 0 ? styles.metricValueAlert : styles.metricValue}>{regressionsCount}</div>
           <div className={styles.metricSub}>
-            <span className={styles.alertText}>{regressionsCount} {t.openRegressions}</span>
+            <span style={{ color: regressionsCount > 0 ? '#DC2626' : 'inherit' }}>
+              {regressionsCount} {t.openRegressions}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Legend Bar (Mirrors MatrixPage) */}
+      <div className={styles.legendBar}>
+        <div className={styles.legendItemsGroup}>
+          <div className={styles.legendItem}>
+            <span style={{ width: 10, height: 10, borderRadius: '50%', background: 'var(--green)' }} />
+            <span>PASS: Sem anomalias</span>
+          </div>
+          <div className={styles.legendItem}>
+            <span style={{ width: 10, height: 10, borderRadius: '50%', background: 'var(--yellow)' }} />
+            <span>ANOMALY: Risco transacional detectado</span>
+          </div>
+          <div className={styles.legendItem}>
+            <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#EF4444' }} />
+            <span>REGRESSION: Quebra vs Branch Base</span>
+          </div>
+          <div className={styles.legendItem}>
+            <span style={{ width: 10, height: 10, borderRadius: '50%', background: 'var(--purple)' }} />
+            <span>CICLO: Deadlock / Serializability Cycle</span>
           </div>
         </div>
       </div>
@@ -628,24 +654,28 @@ jobs:
       <div className={styles.tableControls}>
         <div className={styles.tabsGroup}>
           <button
+            type="button"
             className={`${styles.tabBtn} ${filterType === 'all' ? styles.tabBtnActive : ''}`}
             onClick={() => setFilterType('all')}
           >
             {t.allRuns}
           </button>
           <button
+            type="button"
             className={`${styles.tabBtn} ${filterType === 'regressions' ? styles.tabBtnActiveAlert : ''}`}
             onClick={() => setFilterType('regressions')}
           >
-            {t.regressionsOnly}
+            {t.regressionsOnly} {regressionsCount > 0 ? `(${regressionsCount})` : ''}
           </button>
           <button
+            type="button"
             className={`${styles.tabBtn} ${filterType === 'prs' ? styles.tabBtnActive : ''}`}
             onClick={() => setFilterType('prs')}
           >
             {t.prsOnly}
           </button>
           <button
+            type="button"
             className={`${styles.tabBtn} ${filterType === 'passed' ? styles.tabBtnActive : ''}`}
             onClick={() => setFilterType('passed')}
           >
@@ -665,11 +695,11 @@ jobs:
         </div>
       </div>
 
-      {/* Runs Table */}
+      {/* Runs Table Card (Matching MatrixTable pattern) */}
       <div className={styles.tableCard}>
         {filteredRuns.length === 0 ? (
           <div className={styles.emptyState}>
-            <Layers size={36} className={styles.emptyIcon} />
+            <Layers size={36} color="var(--purple)" style={{ opacity: 0.5, marginBottom: 8 }} />
             <h3>{lang === 'pt' ? 'Nenhuma execução encontrada' : 'No executions found'}</h3>
             <p>
               {isLiveMode
@@ -695,76 +725,104 @@ jobs:
             </thead>
             <tbody>
               {filteredRuns.map((r) => (
-                <tr key={r.id} className={r.isRegression ? styles.rowRegression : ''}>
+                <tr
+                  key={r.id}
+                  className={r.isRegression ? styles.rowRegression : styles.row}
+                  onClick={() => handleInspectRun(r)}
+                >
                   <td>
-                    <span className={styles.repoName}>{r.repo}</span>
-                    <span className={styles.scenarioName}>{r.scenario}</span>
+                    <div className={styles.repoCell}>
+                      <span className={styles.repoName}>{r.repo}</span>
+                      <span className={styles.scenarioName}>{r.scenario}</span>
+                    </div>
                   </td>
                   <td>
-                    <div className={styles.branchLine}>
-                      <code>{r.branch}</code>
-                      {r.commitSHA && (
-                        <a
-                          href={`https://github.com/${r.repo}/commit/${r.commitSHA}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className={styles.commitLink}
-                          title={lang === 'pt' ? 'Ver commit no GitHub' : 'View commit on GitHub'}
-                        >
-                          <code>{r.commitSHA.slice(0, 7)}</code>
-                        </a>
-                      )}
-                    </div>
-                    {r.prNumber && r.prNumber > 0 && (
-                      <div className={styles.prLine}>
+                    <div className={styles.branchCell}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <code className={styles.branchCode}>{r.branch}</code>
+                        {r.commitSHA && (
+                          <a
+                            href={`https://github.com/${r.repo}/commit/${r.commitSHA}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className={styles.prGithubBadge}
+                            onClick={(e) => e.stopPropagation()}
+                            title={lang === 'pt' ? 'Ver commit no GitHub' : 'View commit on GitHub'}
+                          >
+                            <code>{r.commitSHA.slice(0, 7)}</code>
+                          </a>
+                        )}
+                      </div>
+                      {r.prNumber && r.prNumber > 0 ? (
                         <a
                           href={`https://github.com/${r.repo}/pull/${r.prNumber}`}
                           target="_blank"
                           rel="noopener noreferrer"
                           className={styles.prGithubBadge}
+                          onClick={(e) => e.stopPropagation()}
                           title={lang === 'pt' ? 'Abrir Pull Request no GitHub' : 'Open Pull Request on GitHub'}
                         >
-                          <GitPullRequest size={12} /> #{r.prNumber}
-                          <ExternalLink size={10} style={{ marginLeft: 3 }} />
+                          <GitPullRequest size={11} /> #{r.prNumber}
+                          <ExternalLink size={9} style={{ marginLeft: 3 }} />
                         </a>
+                      ) : null}
+                    </div>
+                  </td>
+                  <td>
+                    {r.status === 'passed' ? (
+                      <span className={styles.badgePrevented}>PASS</span>
+                    ) : (
+                      <span className={styles.badgeRegression}>FAIL</span>
+                    )}
+                  </td>
+                  <td>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                      <span
+                        className={
+                          r.anomalyType === 'NONE'
+                            ? styles.badgePrevented
+                            : r.anomalyType === 'DEADLOCK'
+                            ? styles.badgeCycle
+                            : styles.badgePermitted
+                        }
+                      >
+                        {r.anomalyType}
+                      </span>
+                      <span style={{ fontWeight: 600, fontSize: '0.85rem' }}>{r.anomalyName}</span>
+                    </div>
+                    {r.isRegression && (
+                      <div>
+                        <span className={styles.badgeRegression}>
+                          REGRESSION (Base: {r.baselineStatus || 'PASS'})
+                        </span>
                       </div>
                     )}
                   </td>
                   <td>
-                    {r.status === 'passed' ? (
-                      <span className={styles.badgePassed}>PASS</span>
-                    ) : (
-                      <span className={styles.badgeFailed}>FAIL</span>
-                    )}
-                  </td>
-                  <td>
-                    <div className={styles.anomalyBadgeWrapper}>
-                      <span className={r.anomalyType === 'NONE' ? styles.anomalyNone : styles.anomalyBadge}>
-                        {r.anomalyType}
-                      </span>
-                      <span className={styles.anomalyDescription}>{r.anomalyName}</span>
+                    <div className={styles.engineCell}>
+                      <span className={styles.driverText}>{r.driver}</span>
+                      <span className={styles.isolationText}>{r.isolation}</span>
                     </div>
-                    {r.isRegression && (
-                      <span className={styles.regressionBadge}>
-                        REGRESSION (Base: {r.baselineStatus || 'PASS'})
-                      </span>
-                    )}
                   </td>
                   <td>
-                    <span className={styles.driverBadge}>{r.driver}</span>
-                    <span className={styles.isolationBadge}>{r.isolation}</span>
+                    <div className={styles.durationCell}>
+                      <span className={styles.durationMono}>{r.durationMS}ms</span>
+                      <span className={styles.schedulesMono}>{r.schedulesCount} sched</span>
+                    </div>
                   </td>
                   <td>
-                    <span className={styles.durationMono}>{r.durationMS}ms</span>
-                    <span className={styles.schedulesMono}>{r.schedulesCount} sched</span>
-                  </td>
-                  <td>
-                    <span className={styles.timestamp}>{r.timestamp}</span>
+                    <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', fontFamily: 'var(--font-jetbrains-mono)' }}>
+                      {r.timestamp}
+                    </span>
                   </td>
                   <td style={{ textAlign: 'right' }}>
                     <button
+                      type="button"
                       className={styles.inspectBtn}
-                      onClick={() => handleInspectRun(r)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleInspectRun(r);
+                      }}
                     >
                       {t.inspectBtn}
                     </button>
@@ -797,10 +855,10 @@ jobs:
                         href={`https://github.com/${selectedRun.repo}/pull/${selectedRun.prNumber}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className={styles.modalGithubLink}
+                        className={styles.prGithubBadge}
                       >
-                        <GitPullRequest size={13} /> PR #{selectedRun.prNumber}
-                        <ExternalLink size={11} style={{ marginLeft: 3 }} />
+                        <GitPullRequest size={11} /> PR #{selectedRun.prNumber}
+                        <ExternalLink size={9} style={{ marginLeft: 3 }} />
                       </a>
                     </>
                   )}
@@ -808,7 +866,7 @@ jobs:
                   <span>Seed: <code>{selectedRun.seed}</code></span>
                 </div>
               </div>
-              <button className={styles.closeBtn} onClick={() => setSelectedRun(null)}>
+              <button type="button" className={styles.closeBtn} onClick={() => setSelectedRun(null)}>
                 <X size={20} />
               </button>
             </div>
@@ -829,11 +887,11 @@ jobs:
                     </div>
                     <div>
                       <span className={styles.labelMuted}>Condição Esperada:</span>
-                      <span className={styles.greenText}>{selectedRun.failingInvariant.assertion}</span>
+                      <span style={{ color: 'var(--green)', fontWeight: 600 }}>{selectedRun.failingInvariant.assertion}</span>
                     </div>
                     <div>
                       <span className={styles.labelMuted}>Valor Real Violado:</span>
-                      <span className={styles.alertText}>{selectedRun.failingInvariant.actual}</span>
+                      <span style={{ color: '#DC2626', fontWeight: 600 }}>{selectedRun.failingInvariant.actual}</span>
                     </div>
                   </div>
                 </div>
@@ -860,9 +918,9 @@ jobs:
               {/* Reproducer Code in Go */}
               {selectedRun.reproGoCode && (
                 <div className={styles.sectionBox}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                     <h4 className={styles.sectionTitle}>{t.reproCodeTitle}</h4>
-                    <button className={styles.copyBtn} onClick={handleCopyCode}>
+                    <button type="button" className={styles.copyBtn} onClick={handleCopyCode}>
                       {copiedCode ? <Check size={14} /> : <Copy size={14} />}
                       {copiedCode ? 'Copiado!' : 'Copiar Go Code'}
                     </button>
@@ -881,18 +939,18 @@ jobs:
                 className={styles.openVisualizerBtn}
                 onClick={() => setSelectedRun(null)}
               >
-                <Layers size={14} style={{ marginRight: 6 }} />
+                <Layers size={14} />
                 {t.openVisualizer}
               </a>
 
               {/* Download standalone repro_test.go */}
-              <button className={styles.downloadBtn} onClick={handleDownloadRepro}>
-                <Download size={14} style={{ marginRight: 6 }} />
+              <button type="button" className={styles.downloadBtn} onClick={handleDownloadRepro}>
+                <Download size={14} />
                 {t.downloadRepro}
               </button>
 
               {/* Copy CLI command */}
-              <button className={styles.copyCmdBtn} onClick={handleCopyCmd}>
+              <button type="button" className={styles.copyCmdBtn} onClick={handleCopyCmd}>
                 {copiedCmd ? <Check size={14} /> : <Copy size={14} />}
                 {copiedCmd ? 'Comando Copiado!' : t.copyCmd}
               </button>
@@ -902,7 +960,7 @@ jobs:
                 className={styles.playgroundBtn}
                 onClick={() => setSelectedRun(null)}
               >
-                <Play size={14} fill="currentColor" style={{ marginRight: 5 }} />
+                <Play size={14} fill="currentColor" />
                 {t.openPlayground}
               </a>
             </div>
@@ -916,10 +974,10 @@ jobs:
           <div className={styles.onboardingCard} onClick={(e) => e.stopPropagation()}>
             <div className={styles.modalHeader}>
               <div>
-                <span className={styles.modalSelectedPlan}>Setup em 60 Segundos</span>
+                <span className={styles.modalTag}>SETUP EM 60 SEGUNDOS</span>
                 <h3 className={styles.modalTitle}>Conectar Repositório ao ChaosSQL Cloud</h3>
               </div>
-              <button className={styles.closeBtn} onClick={() => setOnboardingOpen(false)}>
+              <button type="button" className={styles.closeBtn} onClick={() => setOnboardingOpen(false)}>
                 <X size={20} />
               </button>
             </div>
@@ -932,7 +990,7 @@ jobs:
                   <p>Adicione este token seguro como Secret no seu repositório GitHub para autenticar runners.</p>
                   <div className={styles.tokenBox}>
                     <code>csql_live_demo_acme_8912b7fa</code>
-                    <button className={styles.actionBtnSmall} onClick={handleCopyToken}>
+                    <button type="button" className={styles.actionBtnSmall} onClick={handleCopyToken}>
                       {copiedToken ? <Check size={14} /> : <Copy size={14} />}
                       {copiedToken ? 'Copiado!' : 'Copiar Token'}
                     </button>
@@ -946,7 +1004,7 @@ jobs:
                   <h4>Configure o Secret no GitHub</h4>
                   <p>
                     No seu repositório no GitHub, acesse <strong>Settings → Secrets and variables → Actions → New repository secret</strong>.
-                    Defina o nome como <code className={styles.secretName}>CHAOSSQL_CLOUD_TOKEN</code>.
+                    Defina o nome como <code style={{ color: 'var(--purple)', background: 'color-mix(in srgb, var(--purple) 8%, var(--cream))', padding: '2px 6px', borderRadius: 3 }}>CHAOSSQL_CLOUD_TOKEN</code>.
                   </p>
                 </div>
               </div>
@@ -954,9 +1012,9 @@ jobs:
               <div className={styles.onboardingStep}>
                 <div className={styles.stepNum}>3</div>
                 <div className={styles.stepContent}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
                     <h4>Adicione o Workflow no Repositório</h4>
-                    <button className={styles.actionBtnSmall} onClick={handleCopyWorkflow}>
+                    <button type="button" className={styles.actionBtnSmall} onClick={handleCopyWorkflow}>
                       {copiedWorkflow ? <Check size={14} /> : <Copy size={14} />}
                       {copiedWorkflow ? 'YAML Copiado!' : 'Copiar Workflow YAML'}
                     </button>
@@ -1002,7 +1060,7 @@ jobs:
             </div>
 
             <div className={styles.modalFooter}>
-              <button className={styles.copyCmdBtn} onClick={() => setOnboardingOpen(false)}>
+              <button type="button" className={styles.copyCmdBtn} onClick={() => setOnboardingOpen(false)}>
                 Concluir & Voltar ao Dashboard
               </button>
             </div>
