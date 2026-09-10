@@ -37,7 +37,7 @@
 - Produces: `ExecutionStatus`, `OperationError`, `ExecutionResult.Status`, `ExecutionResult.OperationErrors`, `ExecutionResult.Isolation`
 - Produces: `TraceEvent.Phase`
 
-- [ ] **Step 1: Write failing validation and serialization tests**
+- [x] **Step 1: Write failing validation and serialization tests**
 
 Add table tests proving each supported isolation value passes, an unknown value returns `ErrSpecValidationFailed`, and an omitted value remains valid. Add JSON assertions for the five exact status strings and the new structured fields.
 
@@ -57,23 +57,23 @@ func TestSpecValidateIsolation(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run the domain tests and confirm RED**
+- [x] **Step 2: Run the domain tests and confirm RED**
 
 Run: `go test ./internal/domain -run 'TestSpecValidateIsolation|TestExecutionStatusJSON' -count=1`
 
 Expected: compile failure because the new fields and statuses do not exist.
 
-- [ ] **Step 3: Add the domain types and validation**
+- [x] **Step 3: Add the domain types and validation**
 
 Add the five status constants, `OperationError`, `DatabaseConfig.Isolation`, `TraceEvent.Phase`, and result fields. Validate a non-empty isolation through a `switch` over the four constants.
 
-- [ ] **Step 4: Run domain tests and the parser suite**
+- [x] **Step 4: Run domain tests and the parser suite**
 
 Run: `go test ./internal/domain -count=1`
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add internal/domain/types.go internal/domain/types_test.go internal/domain/parser_test.go

@@ -14,6 +14,7 @@ version: "1.0"
 name: "in_memory_lost_update"
 database:
   driver: "sqlite"
+  isolation: "SERIALIZABLE"
   schema: "CREATE TABLE accounts (id INT PRIMARY KEY, balance INT);"
   seed: "INSERT INTO accounts VALUES (1, 1000);"
 invariants:
@@ -36,6 +37,9 @@ operations:
 	}
 	if spec.Database.Schema == "" || spec.Database.Seed == "" {
 		t.Errorf("expected inline schema and seed to be preserved")
+	}
+	if spec.Database.Isolation != domain.LevelSerializable {
+		t.Errorf("expected SERIALIZABLE isolation, got %q", spec.Database.Isolation)
 	}
 }
 
@@ -78,6 +82,26 @@ func TestParseSpecBytes_Errors(t *testing.T) {
 			name:          "Malformed YAML",
 			yamlData:      "version: '1.0'\n  invalid: \n- unindented",
 			errorContains: "failed to parse yaml",
+		},
+		{
+			name: "Unsupported Isolation",
+			yamlData: `
+version: "1.0"
+name: "test"
+database:
+  driver: "sqlite"
+  isolation: "SNAPSHOT"
+invariants:
+  - name: "inv"
+    query: "SELECT 1"
+    assert: "1 == 1"
+operations:
+  - name: "op"
+    steps:
+      - sql: "SELECT 1"
+`,
+			expectedErr:   domain.ErrSpecValidationFailed,
+			errorContains: "unsupported database isolation",
 		},
 		{
 			name: "Missing Version",
@@ -183,4 +207,3 @@ invariants:
 		})
 	}
 }
-
