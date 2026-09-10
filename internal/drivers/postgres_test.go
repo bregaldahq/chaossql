@@ -44,7 +44,7 @@ func TestPostgresDriver_ResetAndConcurrency(t *testing.T) {
 			strings.Contains(errStr, "failed to connect") ||
 			strings.Contains(errStr, "authentication failed") ||
 			strings.Contains(errStr, "SASL auth") {
-			t.Skipf("postgres not available or auth failed: %v", err)
+			skipUnavailableDatabase(t, "postgres", err)
 		}
 		t.Fatalf("failed to reset database: %v", err)
 	}

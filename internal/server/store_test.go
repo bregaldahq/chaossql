@@ -13,6 +13,7 @@ func newTestStore(t *testing.T) *Store {
 	if err != nil {
 		t.Fatalf("failed to open in-memory sqlite: %v", err)
 	}
+	db.SetMaxOpenConns(1)
 	s := NewStore(db)
 	if err := s.AutoMigrate(); err != nil {
 		t.Fatalf("failed to run automigrate: %v", err)

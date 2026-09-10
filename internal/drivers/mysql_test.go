@@ -199,7 +199,7 @@ func TestMySQLDriver_ResetAndConcurrency(t *testing.T) {
 			strings.Contains(errStr, "i/o timeout") ||
 			strings.Contains(errStr, "Unknown database") ||
 			strings.Contains(errStr, "getsockopt") {
-			t.Skipf("mysql not available or auth failed: %v", err)
+			skipUnavailableDatabase(t, "mysql", err)
 		}
 		t.Fatalf("failed to reset database: %v", err)
 	}
