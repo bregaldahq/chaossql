@@ -27,20 +27,16 @@ jobs:
       with:
         node-version: '20'
 
-    - name: Validate Harness Artifacts
-      run: make check-harness
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
 
-    - name: Verify English Purity Gate
-      run: node tools/test_english_purity.js
+    - name: Install Python SDK test dependencies
+      run: python -m pip install -e './sdks/python[test]'
 
-    - name: Run Linter & Vet
-      run: make lint
-
-    - name: Run Unit & Concurrency Tests (-race)
-      run: make test
-
-    - name: Build Binary (Zero CGO)
-      run: make build
+    - name: Run Unified Quality Gate
+      run: make verify
 
     - name: Run Interactive Demo Battery
       run: make demo

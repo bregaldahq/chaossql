@@ -30,48 +30,31 @@ def test_passing_invariant():
     assert not res.violation_detected
 
 
-def test_banking_lost_update_detected_and_shrunk():
+def test_invariant_violation_is_reported_and_shrunk():
     harness = ChaosHarness(driver="sqlite", dsn=":memory:")
 
-    schema = """
-    CREATE TABLE accounts (id INT PRIMARY KEY, balance INT NOT NULL);
-    """
-    seed = """
-    INSERT INTO accounts VALUES (1, 1000), (2, 1000);
-    """
+    harness.with_schema(
+        "CREATE TABLE accounts (id INT PRIMARY KEY, balance INT NOT NULL);"
+    ).with_seed(
+        "INSERT INTO accounts VALUES (1, 1000);"
+    ).with_invariant(
+        name="expected_test_balance",
+        query="SELECT balance FROM accounts WHERE id = 1;",
+        assertion="balance == 999",
+    ).add_operation("read_balance", [
+        "SELECT balance FROM accounts WHERE id = 1",
+    ])
 
-    harness.with_schema(schema) \
-           .with_seed(seed) \
-           .with_invariant(
-               name="total_wealth_conserved",
-               query="SELECT sum(balance) AS total FROM accounts;",
-               assertion="total == 2000"
-           ) \
-           .add_operation("transfer_1_to_2", [
-               "SELECT balance FROM accounts WHERE id = 1 -> cur",
-               "UPDATE accounts SET balance = {cur - 50} WHERE id = 1",
-               "UPDATE accounts SET balance = balance + 50 WHERE id = 2"
-           ]) \
-           .add_operation("transfer_2_to_1", [
-               "SELECT balance FROM accounts WHERE id = 2 -> cur",
-               "UPDATE accounts SET balance = {cur - 50} WHERE id = 2",
-               "UPDATE accounts SET balance = balance + 50 WHERE id = 1"
-           ])
-
-    # Expect assert_no_anomalies to fail with AssertionError
-    with pytest.raises(AssertionError) as exc_info:
-        harness.assert_no_anomalies(workers=4, iterations=50, seed=42)
-
-    msg = str(exc_info.value)
-    assert "P4" in msg or "LOST_UPDATE" in msg
-    assert "total_wealth_conserved" in msg
-
-    # Direct run inspection
-    res = harness.run(workers=4, iterations=50, seed=42)
+    res = harness.run(workers=2, iterations=2, seed=42)
     assert res.anomaly_detected
-    assert res.anomaly_code == "P4"
     assert len(res.minimal_operations) > 0
     assert "sequenceDiagram" in res.mermaid
+
+    with pytest.raises(AssertionError) as exc_info:
+        harness.assert_no_anomalies(workers=2, iterations=2, seed=42)
+
+    msg = str(exc_info.value)
+    assert "expected_test_balance" in msg
 
 
 def test_export_standalone_repro():

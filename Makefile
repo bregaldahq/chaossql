@@ -90,7 +90,7 @@ test-python: build
 	@CHAOSSQL_BIN_PATH=$(PWD)/bin/chaossql python3 -m pytest sdks/python/tests -v
 
 test-typescript: build
-	@cd sdks/typescript && npm run build && npm test
+	@cd sdks/typescript && npm ci && npm run build && npm test
 
 test-sdks: test-python test-typescript
 

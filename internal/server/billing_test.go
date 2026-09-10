@@ -30,6 +30,7 @@ func TestOrgSubscriptionAndLimits(t *testing.T) {
 		t.Fatalf("failed to open sqlite: %v", err)
 	}
 	defer db.Close()
+	db.SetMaxOpenConns(1)
 
 	store := NewStore(db)
 	if err := store.AutoMigrate(); err != nil {

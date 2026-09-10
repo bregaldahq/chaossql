@@ -18,6 +18,7 @@ func newTestServer(t *testing.T) (http.Handler, *Store, string) {
 	if err != nil {
 		t.Fatalf("failed to open sqlite: %v", err)
 	}
+	db.SetMaxOpenConns(1)
 	store := NewStore(db)
 	if err := store.AutoMigrate(); err != nil {
 		t.Fatalf("failed to automigrate: %v", err)
