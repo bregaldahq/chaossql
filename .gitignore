@@ -16,6 +16,10 @@ bin/
 *.out
 coverage.html
 
+# Local secrets (wrangler dev reads .dev.vars)
+.dev.vars
+.dev.vars.*
+
 # IDEs, OS & Env
 .DS_Store
 .ds_store

@@ -253,19 +253,21 @@ const STORAGE_KEY_WEBHOOKS = 'chaossql_dashboard_webhooks';
 
 const DEFAULT_WEBHOOKS: WebhookItem[] = [
   {
-    id: 'wh-discord-prod',
-    name: 'Discord Incident Room (#eng-alerts)',
+    id: 'wh-discord-example',
+    name: 'Discord Incident Room (exemplo)',
     target: 'discord',
-    url: 'https://discord.com/api/webhooks/1547260093618327612/nQo6Orm496uN4AW0i0vCui2UyllzWibNzT2sH6R_mqgUCmDLNUG2XunB98D-RGwGNKeX',
+    // Placeholder only. Never commit a real webhook URL here: this seed is
+    // bundled into the public client JS and would leak the token to visitors.
+    url: 'https://discord.com/api/webhooks/000000000000000000/SUBSTITUA_PELO_SEU_WEBHOOK',
     events: ['concurrency_regression', 'isolation_failure'],
     active: true,
     createdAt: new Date().toISOString(),
   },
   {
-    id: 'wh-slack-security',
-    name: 'Slack SecOps (#db-anomalies)',
+    id: 'wh-slack-example',
+    name: 'Slack SecOps (exemplo)',
     target: 'slack',
-    url: 'https://hooks.slack.bregalda.internal/services/alert-channel',
+    url: 'https://hooks.slack.com/services/T00000000/B00000000/SUBSTITUA_PELO_SEU_WEBHOOK',
     events: ['concurrency_regression'],
     active: true,
     createdAt: new Date().toISOString(),
