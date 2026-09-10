@@ -40,8 +40,7 @@ require (
 	golang.org/x/crypto v0.27.0 // indirect
 	golang.org/x/sync v0.21.0 // indirect
 	golang.org/x/sys v0.47.0 // indirect
-	golang.org/x/text v0.29.0 // indirect
-	golang.org/x/tools v0.47.0 // indirect
+	golang.org/x/text v0.39.0 // indirect
 	modernc.org/fileutil v1.4.0 // indirect
 	modernc.org/gc/v3 v3.1.4 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
