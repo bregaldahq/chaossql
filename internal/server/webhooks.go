@@ -53,13 +53,13 @@ func (d *WebhookDispatcher) DispatchAlert(ctx context.Context, wh WebhookRecord,
 
 func (d *WebhookDispatcher) sendDiscord(ctx context.Context, url string, alert *RegressionAlert) error {
 	color := 0xDC2626 // Alert Red
-	title := "🚨 REGRESSÃO DE CONCORRÊNCIA DETECTADA!"
+	title := "🚨 CONCURRENCY REGRESSION DETECTED!"
 	if !alert.IsRegression {
 		color = 0xF5C400 // Signal Yellow
-		title = "⚠️ ANOMALIA DE ISOLAMENTO DETECTADA"
+		title = "⚠️ ISOLATION ANOMALY DETECTED"
 	}
 
-	prText := "Direto na branch"
+	prText := "Directly on branch"
 	if alert.PRNumber > 0 {
 		prText = fmt.Sprintf("#%d", alert.PRNumber)
 	}
@@ -80,17 +80,17 @@ func (d *WebhookDispatcher) sendDiscord(ctx context.Context, url string, alert *
 		"embeds": []map[string]interface{}{
 			{
 				"title":       title,
-				"description": fmt.Sprintf("Uma nova anomalia concorrente foi identificada no repositório **%s**.", alert.RepoFullName),
+				"description": fmt.Sprintf("A new concurrency anomaly was identified in repository **%s**.", alert.RepoFullName),
 				"color":       color,
 				"fields": []map[string]interface{}{
-					{"name": "📦 Repositório", "value": fmt.Sprintf("`%s`", alert.RepoFullName), "inline": true},
+					{"name": "📦 Repository", "value": fmt.Sprintf("`%s`", alert.RepoFullName), "inline": true},
 					{"name": "🌿 Branch / PR", "value": fmt.Sprintf("`%s` (%s)", alert.Branch, prText), "inline": true},
 					{"name": "🔗 Commit", "value": fmt.Sprintf("`%s`", commitShort), "inline": true},
-					{"name": "💥 Anomalia Detectada", "value": fmt.Sprintf("**%s** (%s)", alert.AnomalyName, alert.AnomalyType), "inline": true},
-					{"name": "🗄️ Motor & Isolamento", "value": fmt.Sprintf("%s • %s", alert.Driver, alert.Isolation), "inline": true},
-					{"name": "📊 Comparação de Baseline", "value": fmt.Sprintf("**%s**", baselineText), "inline": true},
-					{"name": "🔍 Cenário & Seed", "value": fmt.Sprintf("`%s` (seed: `%d`)", alert.Scenario, alert.Seed), "inline": true},
-					{"name": "⏱️ Duração", "value": fmt.Sprintf("%dms", alert.DurationMS), "inline": true},
+					{"name": "💥 Anomaly Detected", "value": fmt.Sprintf("**%s** (%s)", alert.AnomalyName, alert.AnomalyType), "inline": true},
+					{"name": "🗄️ Engine & Isolation", "value": fmt.Sprintf("%s • %s", alert.Driver, alert.Isolation), "inline": true},
+					{"name": "📊 Baseline Comparison", "value": fmt.Sprintf("**%s**", baselineText), "inline": true},
+					{"name": "🔍 Scenario & Seed", "value": fmt.Sprintf("`%s` (seed: `%d`)", alert.Scenario, alert.Seed), "inline": true},
+					{"name": "⏱️ Duration", "value": fmt.Sprintf("%dms", alert.DurationMS), "inline": true},
 				},
 				"footer": map[string]interface{}{
 					"text":     "ChaosSQL Concurrency Observability • Studio Bregalda",

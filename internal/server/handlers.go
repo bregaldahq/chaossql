@@ -554,7 +554,7 @@ func (s *Server) handleTestWebhook(w http.ResponseWriter, r *http.Request) {
 		PRNumber:       42,
 		CommitSHA:      "a1b2c3d",
 		AnomalyType:    "P4",
-		AnomalyName:    "Lost Update (Simulação de Teste)",
+		AnomalyName:    "Lost Update (Test Simulation)",
 		Driver:         "PostgreSQL 16",
 		Isolation:      "READ COMMITTED",
 		Scenario:       "wallet_transfer",

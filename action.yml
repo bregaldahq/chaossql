@@ -42,7 +42,7 @@ inputs:
     required: false
     default: 'false'
   cloud-token:
-    description: 'ChaosSQL Cloud API authentication token (or secret ${{ secrets.CHAOSSQL_CLOUD_TOKEN }})'
+    description: 'ChaosSQL Cloud API authentication token. Pass it from a repository secret, e.g. secrets.CHAOSSQL_CLOUD_TOKEN'
     required: false
     default: ''
   cloud-url:
