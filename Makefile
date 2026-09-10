@@ -86,12 +86,12 @@ build-wasm-test:
 	@CGO_ENABLED=0 GOOS=js GOARCH=wasm $(GO) build -trimpath -o bin/chaossql-test.wasm ./cmd/chaossql-wasm
 
 stress-wasm: build-wasm-test ## Run headless WebAssembly & worker stress harness
-	@CHAOSSQL_WASM_PATH=$(PWD)/bin/chaossql-test.wasm node tools/headless_worker_stress.js
+	@CHAOSSQL_WASM_PATH=$(CURDIR)/bin/chaossql-test.wasm node tools/headless_worker_stress.js
 
 test-wasm-stress: stress-wasm
 
 test-python: build
-	@CHAOSSQL_BIN_PATH=$(PWD)/bin/chaossql python3 -m pytest sdks/python/tests -v
+	@CHAOSSQL_BIN_PATH=$(CURDIR)/bin/chaossql python3 -m pytest sdks/python/tests -v
 
 test-typescript: build
 	@cd sdks/typescript && npm ci && npm run build && npm test
