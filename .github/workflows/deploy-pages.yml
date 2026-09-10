@@ -21,19 +21,43 @@ jobs:
   deploy:
     name: Deploy to Cloudflare Pages
     runs-on: ubuntu-latest
+    # Forked pull requests do not receive repository secrets, so the deploy
+    # would fail; skip it rather than reporting a misleading failure.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
+
+      # A pull request must never publish to the production branch. Anything
+      # that is not a merged/pushed commit on main goes to an isolated preview
+      # deployment instead. The PR number is used because it is a plain
+      # integer, unlike head_ref which is attacker-controlled text.
+      - name: Resolve deployment target
+        id: target
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "branch=pr-${PR_NUMBER}" >> "$GITHUB_OUTPUT"
+            echo "environment=preview" >> "$GITHUB_OUTPUT"
+          else
+            echo "branch=main" >> "$GITHUB_OUTPUT"
+            echo "environment=production" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Deploy to Cloudflare Pages
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy site --project-name=chaossql --branch=main --commit-dirty=true
-        continue-on-error: true
+          command: pages deploy site --project-name=chaossql --branch=${{ steps.target.outputs.branch }} --commit-dirty=true
 
       - name: Deploy Summary
         run: |
           echo "### 🌐 Documentation Portal Deployment" >> $GITHUB_STEP_SUMMARY
-          echo "Site published to Cloudflare Pages: [https://chaossql.bregalda.com](https://chaossql.bregalda.com)" >> $GITHUB_STEP_SUMMARY
+          echo "Target: **${{ steps.target.outputs.environment }}** (branch \`${{ steps.target.outputs.branch }}\`)" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.target.outputs.environment }}" = "production" ]; then
+            echo "Published to [https://chaossql.bregalda.com](https://chaossql.bregalda.com)" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "Preview deployment only — production was not touched." >> $GITHUB_STEP_SUMMARY
+          fi

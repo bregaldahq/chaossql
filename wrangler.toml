@@ -10,5 +10,7 @@ routes = [
 directory = "./site"
 not_found_handling = "single-page-application"
 
-[vars]
-DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1547260093618327612/nQo6Orm496uN4AW0i0vCui2UyllzWibNzT2sH6R_mqgUCmDLNUG2XunB98D-RGwGNKeX"
+# DISCORD_WEBHOOK_URL is intentionally NOT declared here.
+# [vars] values are stored in plaintext and are visible in the Cloudflare
+# dashboard and in this repository. Set it as an encrypted secret instead:
+#   npx wrangler secret put DISCORD_WEBHOOK_URL

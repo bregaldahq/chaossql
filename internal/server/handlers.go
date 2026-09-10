@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -61,11 +63,12 @@ func NewRouter(cfg RouterConfig) http.Handler {
 	mux.HandleFunc("DELETE /v1/organizations/{id}/webhooks/{wh_id}", s.requireAuth(s.handleDeleteWebhook))
 	mux.HandleFunc("POST /v1/organizations/{id}/webhooks/test", s.requireAuth(s.handleTestWebhook))
 
-	// Convenience unauthenticated routes for local dashboard
-	mux.HandleFunc("GET /v1/webhooks", s.handleListWebhooks)
-	mux.HandleFunc("POST /v1/webhooks", s.handleCreateWebhook)
-	mux.HandleFunc("DELETE /v1/webhooks/{wh_id}", s.handleDeleteWebhook)
-	mux.HandleFunc("POST /v1/webhooks/test", s.handleTestWebhook)
+	// Short-form webhook routes for the local dashboard. These are NOT
+	// unauthenticated by default: see requireLocalDashboard.
+	mux.HandleFunc("GET /v1/webhooks", s.requireLocalDashboard(s.handleListWebhooks))
+	mux.HandleFunc("POST /v1/webhooks", s.requireLocalDashboard(s.handleCreateWebhook))
+	mux.HandleFunc("DELETE /v1/webhooks/{wh_id}", s.requireLocalDashboard(s.handleDeleteWebhook))
+	mux.HandleFunc("POST /v1/webhooks/test", s.requireLocalDashboard(s.handleTestWebhook))
 
 	return corsMiddleware(mux)
 }
@@ -94,6 +97,46 @@ func (s *Server) requireAuth(next http.HandlerFunc) http.HandlerFunc {
 		r.Header.Set("X-Org-ID", orgID)
 		next(w, r)
 	}
+}
+
+// localDashboardEnvVar opts in to unauthenticated webhook management. It is
+// off by default: handleListWebhooks returns full WebhookRecords, and a
+// webhook URL embeds the provider secret, so an unauthenticated GET on a
+// reachable host hands out every stored Discord/Slack token.
+const localDashboardEnvVar = "CHAOSSQL_LOCAL_DASHBOARD"
+
+// requireLocalDashboard permits the short-form webhook routes without a token
+// only when the operator explicitly opted in AND the caller is on the loopback
+// interface. Anything else falls back to normal bearer-token auth.
+//
+// Note: if this server ever sits behind a same-host reverse proxy, every
+// request arrives from loopback. Do not enable the opt-in in that topology.
+func (s *Server) requireLocalDashboard(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if localDashboardEnabled() && isLoopbackRequest(r) {
+			next(w, r)
+			return
+		}
+		s.requireAuth(next)(w, r)
+	}
+}
+
+func localDashboardEnabled() bool {
+	switch strings.ToLower(strings.TrimSpace(os.Getenv(localDashboardEnvVar))) {
+	case "1", "true", "yes", "on":
+		return true
+	default:
+		return false
+	}
+}
+
+func isLoopbackRequest(r *http.Request) bool {
+	host, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		host = r.RemoteAddr
+	}
+	ip := net.ParseIP(strings.TrimSpace(host))
+	return ip != nil && ip.IsLoopback()
 }
 
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
@@ -432,8 +475,8 @@ func (s *Server) handleCreateWebhook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if req.URL == "" || !strings.HasPrefix(req.URL, "http") {
-		http.Error(w, `{"error":"a valid http/https URL is required"}`, http.StatusBadRequest)
+	if err := ValidateWebhookTarget(req.URL); err != nil {
+		http.Error(w, fmt.Sprintf(`{"error":%q}`, err.Error()), http.StatusBadRequest)
 		return
 	}
 
@@ -500,8 +543,8 @@ func (s *Server) handleTestWebhook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if req.URL == "" || !strings.HasPrefix(req.URL, "http") {
-		http.Error(w, `{"error":"valid webhook URL required"}`, http.StatusBadRequest)
+	if err := ValidateWebhookTarget(req.URL); err != nil {
+		http.Error(w, fmt.Sprintf(`{"error":%q}`, err.Error()), http.StatusBadRequest)
 		return
 	}
 

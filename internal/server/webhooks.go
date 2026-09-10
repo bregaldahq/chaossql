@@ -5,7 +5,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
+	neturl "net/url"
 	"strings"
 	"time"
 )
@@ -170,4 +172,79 @@ func (d *WebhookDispatcher) postJSON(ctx context.Context, url string, payload in
 		return fmt.Errorf("webhook endpoint returned status: %d", resp.StatusCode)
 	}
 	return nil
+}
+
+// ValidateWebhookTarget rejects caller-supplied webhook destinations that would
+// turn the dispatcher into an SSRF relay. Callers register arbitrary URLs, and
+// the server fetches them with its own network position, so a URL pointing at
+// loopback, link-local or RFC1918 space could reach cloud metadata services and
+// internal admin endpoints that are otherwise unreachable from the internet.
+//
+// Public HTTPS endpoints of any provider stay allowed, so custom "generic"
+// webhooks keep working.
+//
+// Note: the hostname is resolved here, at registration time. A hostname that
+// resolves to a public address now but to an internal one at dispatch time
+// (DNS rebinding) is not caught by this check alone; closing that gap requires
+// a guarded dialer on the dispatcher's transport.
+func ValidateWebhookTarget(rawURL string) error {
+	trimmed := strings.TrimSpace(rawURL)
+	if trimmed == "" {
+		return fmt.Errorf("webhook URL is required")
+	}
+
+	parsed, err := neturl.Parse(trimmed)
+	if err != nil {
+		return fmt.Errorf("malformed webhook URL")
+	}
+	if parsed.Scheme != "https" {
+		return fmt.Errorf("webhook URL must use https")
+	}
+	if parsed.User != nil {
+		return fmt.Errorf("webhook URL must not contain credentials")
+	}
+
+	host := parsed.Hostname()
+	if host == "" {
+		return fmt.Errorf("webhook URL must contain a host")
+	}
+
+	// A literal IP is checked directly; a name is resolved so that a hostname
+	// pointing at internal space is rejected too.
+	var addrs []net.IP
+	if ip := net.ParseIP(host); ip != nil {
+		addrs = []net.IP{ip}
+	} else {
+		resolved, err := lookupIP(host)
+		if err != nil || len(resolved) == 0 {
+			return fmt.Errorf("webhook host could not be resolved")
+		}
+		addrs = resolved
+	}
+
+	for _, ip := range addrs {
+		if isInternalIP(ip) {
+			return fmt.Errorf("webhook URL must not target an internal address")
+		}
+	}
+
+	return nil
+}
+
+// lookupIP is a package-level indirection so tests can resolve hosts without
+// depending on live DNS.
+var lookupIP = net.LookupIP
+
+func isInternalIP(ip net.IP) bool {
+	if ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast() ||
+		ip.IsLinkLocalMulticast() || ip.IsInterfaceLocalMulticast() ||
+		ip.IsUnspecified() || ip.IsMulticast() {
+		return true
+	}
+	// 100.64.0.0/10 (CGNAT) is not covered by IsPrivate but is routinely used
+	// for internal service meshes.
+	if v4 := ip.To4(); v4 != nil && v4[0] == 100 && v4[1] >= 64 && v4[1] <= 127 {
+		return true
+	}
+	return false
 }
