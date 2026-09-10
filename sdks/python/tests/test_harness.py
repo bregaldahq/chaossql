@@ -40,18 +40,18 @@ def test_invariant_violation_is_reported_and_shrunk():
     ).with_invariant(
         name="expected_test_balance",
         query="SELECT balance FROM accounts WHERE id = 1;",
-        assertion="balance == 999",
-    ).add_operation("read_balance", [
-        "SELECT balance FROM accounts WHERE id = 1",
+        assertion="balance == 1000",
+    ).add_operation("change_balance", [
+        "UPDATE accounts SET balance = 999 WHERE id = 1",
     ])
 
-    res = harness.run(workers=2, iterations=2, seed=42)
+    res = harness.run(workers=1, iterations=1, seed=42)
     assert res.anomaly_detected
-    assert len(res.minimal_operations) > 0
+    assert len(res.minimal_operations) == 1
     assert "sequenceDiagram" in res.mermaid
 
     with pytest.raises(AssertionError) as exc_info:
-        harness.assert_no_anomalies(workers=2, iterations=2, seed=42)
+        harness.assert_no_anomalies(workers=1, iterations=1, seed=42)
 
     msg = str(exc_info.value)
     assert "expected_test_balance" in msg

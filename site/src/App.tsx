@@ -11,9 +11,7 @@ import { VisualizerPage } from './pages/VisualizerPage';
 import { PlaygroundPage } from './pages/PlaygroundPage';
 import { useI18n } from './lib/i18n';
 
-function parseRoute(): string {
-  if (typeof window === 'undefined') return 'landing';
-  const hash = window.location.hash || '';
+export function routeFromHash(hash: string): string {
   if (hash.startsWith('#/dashboard')) return 'dashboard';
   if (hash.startsWith('#/docs')) return 'docs';
   if (hash.startsWith('#/scenarios')) return 'scenarios';
@@ -22,6 +20,11 @@ function parseRoute(): string {
   if (hash.startsWith('#/playground')) return 'playground';
   if (hash.startsWith('#/pricing')) return 'pricing';
   return 'landing';
+}
+
+function parseRoute(): string {
+  if (typeof window === 'undefined') return 'landing';
+  return routeFromHash(window.location.hash || '');
 }
 
 export default function App() {

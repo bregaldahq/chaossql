@@ -1,6 +1,6 @@
 GO ?= $(shell which /usr/local/go/bin/go go 2>/dev/null | head -n 1)
 
-.PHONY: help bootstrap test lint verify check-harness build wasm demo bench matrix diff replay serve-site stress-wasm test-wasm-stress
+.PHONY: help bootstrap test lint verify check-harness build wasm demo bench matrix diff replay serve-site stress-wasm test-wasm-stress test-python test-typescript test-frontend test-sdks
 
 help:
 	@echo "ChaosSQL (Go 1.23+) Harness Commands:"
@@ -15,7 +15,7 @@ help:
 	@echo "  make matrix        - Run Hermitage empirical isolation matrix"
 	@echo "  make stress-wasm   - Run headless WebAssembly and Web Worker stress harness"
 	@echo "  make serve-site    - Start local HTTP server for documentation portal (port 8080)"
-	@echo "  make verify        - Unified quality gate (check-harness + lint + test)"
+	@echo "  make verify        - Unified quality gate (harness, Go, SDKs, frontend, and WASM)"
 
 wasm:
 	@echo "Compiling ChaosSQL Core to WebAssembly (Zero CGO)..."
@@ -92,9 +92,12 @@ test-python: build
 test-typescript: build
 	@cd sdks/typescript && npm ci && npm run build && npm test
 
+test-frontend:
+	@cd site && npm ci && npm run verify
+
 test-sdks: test-python test-typescript
 
-verify: check-harness lint test test-sdks
+verify: check-harness lint test test-sdks test-frontend
 	@node tools/test_english_purity.js && node tools/test_wasm_worker.js && node tools/test_playground_ui.js && node tools/test_wasm_bench.js && node tools/headless_worker_stress.js
 	@echo ""
 	@echo "✔ Verification gate completed successfully!"
