@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"net"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -305,5 +307,114 @@ func TestIngestTriggersWebhookOnRegression(t *testing.T) {
 		// success!
 	case <-time.After(2 * time.Second):
 		t.Fatal("webhook was not triggered on regression")
+	}
+}
+
+func TestValidateWebhookTargetRejectsSSRF(t *testing.T) {
+	rejected := []struct {
+		name string
+		url  string
+	}{
+		{"empty", ""},
+		{"plain http", "http://discord.com/api/webhooks/1/abc"},
+		{"loopback", "https://127.0.0.1/webhook"},
+		{"loopback by name", "https://localhost/webhook"},
+		{"ipv6 loopback", "https://[::1]/webhook"},
+		{"aws metadata", "https://169.254.169.254/latest/meta-data"},
+		{"rfc1918 ten", "https://10.0.0.5/internal"},
+		{"rfc1918 192", "https://192.168.1.1/admin"},
+		{"rfc1918 172", "https://172.16.0.1/admin"},
+		{"cgnat", "https://100.64.0.1/internal"},
+		{"unspecified", "https://0.0.0.0/x"},
+		{"credentials in url", "https://user:pass@discord.com/api/webhooks/1/abc"},
+		{"no host", "https:///api/webhooks"},
+		{"non-http scheme", "file:///etc/passwd"},
+	}
+
+	for _, tc := range rejected {
+		t.Run(tc.name, func(t *testing.T) {
+			if err := ValidateWebhookTarget(tc.url); err == nil {
+				t.Fatalf("expected %q to be rejected, but it was allowed", tc.url)
+			}
+		})
+	}
+}
+
+func TestValidateWebhookTargetAllowsPublicHTTPS(t *testing.T) {
+	// Stub DNS so the test does not depend on network access.
+	original := lookupIP
+	lookupIP = func(host string) ([]net.IP, error) {
+		return []net.IP{net.ParseIP("203.0.113.10")}, nil
+	}
+	defer func() { lookupIP = original }()
+
+	allowed := []string{
+		"https://discord.com/api/webhooks/123456789/AbC-dEf_123",
+		"https://hooks.slack.com/services/T00000000/B00000000/xxxxxxxx",
+		"https://alerts.example.com/custom/generic-endpoint",
+	}
+
+	for _, url := range allowed {
+		if err := ValidateWebhookTarget(url); err != nil {
+			t.Errorf("expected %q to be allowed, got: %v", url, err)
+		}
+	}
+}
+
+func TestShortWebhookRoutesRequireAuthByDefault(t *testing.T) {
+	s := newTestStore(t)
+	router := NewRouter(RouterConfig{Store: s, Engine: NewRegressionEngine(s)})
+
+	// A stored webhook whose URL embeds a provider secret.
+	_ = s.CreateWebhook(context.Background(), &WebhookRecord{
+		ID: "wh_secret", OrgID: "org_default", TargetType: "discord",
+		URL:    "https://discord.com/api/webhooks/123/SUPERSECRETTOKEN",
+		Events: "all", Active: true, CreatedAt: time.Now().UTC(),
+	})
+
+	t.Setenv(localDashboardEnvVar, "")
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/v1/webhooks", nil)
+	req.RemoteAddr = "203.0.113.7:44444"
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("expected 401 for unauthenticated remote caller, got %d", rec.Code)
+	}
+	if strings.Contains(rec.Body.String(), "SUPERSECRETTOKEN") {
+		t.Fatal("webhook secret leaked in an unauthenticated response")
+	}
+}
+
+func TestShortWebhookRoutesRejectRemoteEvenWhenOptedIn(t *testing.T) {
+	s := newTestStore(t)
+	router := NewRouter(RouterConfig{Store: s, Engine: NewRegressionEngine(s)})
+
+	t.Setenv(localDashboardEnvVar, "1")
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/v1/webhooks", nil)
+	req.RemoteAddr = "203.0.113.7:44444"
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("opt-in must still require loopback; got %d for a remote caller", rec.Code)
+	}
+}
+
+func TestShortWebhookRoutesAllowLoopbackWhenOptedIn(t *testing.T) {
+	s := newTestStore(t)
+	router := NewRouter(RouterConfig{Store: s, Engine: NewRegressionEngine(s)})
+
+	t.Setenv(localDashboardEnvVar, "1")
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/v1/webhooks", nil)
+	req.RemoteAddr = "127.0.0.1:55555"
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected loopback dashboard access to work when opted in, got %d", rec.Code)
 	}
 }

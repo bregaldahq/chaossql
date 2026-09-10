@@ -1,7 +1,27 @@
+# Everything listed here is excluded from the deployed static assets.
+# Anything NOT listed is publicly readable at https://chaossql.bregalda.com/<path>.
+
+# Build inputs and tooling
 node_modules
 src
 functions
 package*.json
+pnpm-lock.yaml
 tsconfig*.json
 vite.config.ts
 template.html
+
+# Deploy configuration — must never be served
+wrangler.toml
+.gitignore
+.assetsignore
+.dev.vars
+
+# Worker entrypoint: this is server-side logic, not a static asset.
+# It previously leaked a Discord webhook token at https://<domain>/_worker.js
+_worker.js
+_routes.json
+
+# Legacy files no longer referenced by index.html
+app.js
+docs-data.js
