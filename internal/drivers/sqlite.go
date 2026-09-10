@@ -10,6 +10,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/bregaldahq/chaossql/internal/domain"
 	_ "modernc.org/sqlite"
 )
 
@@ -110,13 +111,25 @@ func (d *SQLiteDriver) Reset(ctx context.Context, schemaSQL, seedSQL string) err
 	return nil
 }
 
-func (d *SQLiteDriver) BeginTx(ctx context.Context) (Tx, error) {
+func (d *SQLiteDriver) EffectiveIsolation(requested domain.IsolationLevel) (domain.IsolationLevel, error) {
+	return resolveIsolation("sqlite", requested, domain.LevelSerializable, domain.LevelSerializable, domain.LevelReadUncommitted)
+}
+
+func (d *SQLiteDriver) BeginTx(ctx context.Context, opts TransactionOptions) (Tx, error) {
 	if d.db == nil {
 		if err := d.Open(ctx); err != nil {
 			return nil, err
 		}
 	}
-	return d.db.BeginTx(ctx, nil)
+	effective, err := d.EffectiveIsolation(opts.Isolation)
+	if err != nil {
+		return nil, err
+	}
+	level, err := toSQLIsolation(effective)
+	if err != nil {
+		return nil, err
+	}
+	return d.db.BeginTx(ctx, &sql.TxOptions{Isolation: level})
 }
 
 func (d *SQLiteDriver) QueryRow(ctx context.Context, query string, args ...any) *sql.Row {

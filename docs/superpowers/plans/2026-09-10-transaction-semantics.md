@@ -98,7 +98,7 @@ git commit -m "feat: define transaction execution outcomes"
 - Produces: `DatabaseDriver.BeginTx(context.Context, TransactionOptions)`
 - Produces: `DatabaseDriver.EffectiveIsolation(domain.IsolationLevel)`
 
-- [ ] **Step 1: Write failing adapter isolation tests**
+- [x] **Step 1: Write failing adapter isolation tests**
 
 Cover empty defaults and supported/unsupported levels per adapter. Assert PostgreSQL rejects Read Uncommitted, MySQL accepts all four, SQLite accepts Serializable and Read Uncommitted, and mock accepts all four.
 
@@ -114,21 +114,21 @@ func TestPostgresEffectiveIsolation(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run adapter tests and confirm RED**
+- [x] **Step 2: Run adapter tests and confirm RED**
 
 Run: `go test ./internal/drivers -run 'EffectiveIsolation|BeginTxIsolation' -count=1`
 
 Expected: compile failure for missing transaction options and methods.
 
-- [ ] **Step 3: Implement shared translation and adapter validation**
+- [x] **Step 3: Implement shared translation and adapter validation**
 
 Create an unexported `toSQLIsolation(domain.IsolationLevel) (sql.IsolationLevel, error)`. Update all `BeginTx` implementations to resolve the effective value, translate it, and pass `sql.TxOptions{Isolation: level}`. Preserve constructor defaults for an empty request.
 
-- [ ] **Step 4: Update every interface consumer and test double**
+- [x] **Step 4: Update every interface consumer and test double**
 
 Change direct calls from `BeginTx(ctx)` to `BeginTx(ctx, drivers.TransactionOptions{})`. Ensure the mock and WASM build satisfy the interface.
 
-- [ ] **Step 5: Run native and WASM adapter checks**
+- [x] **Step 5: Run native and WASM adapter checks**
 
 Run: `go test ./internal/drivers -count=1`
 
@@ -136,7 +136,7 @@ Run: `CGO_ENABLED=0 GOOS=js GOARCH=wasm go build -o bin/eng01.wasm ./cmd/chaossq
 
 Expected: both PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add internal/drivers

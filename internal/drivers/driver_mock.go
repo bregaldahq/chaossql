@@ -9,6 +9,8 @@ import (
 	"strings"
 	"sync"
 	"unicode"
+
+	"github.com/bregaldahq/chaossql/internal/domain"
 )
 
 var (
@@ -245,12 +247,20 @@ func (m *MockDriver) Reset(ctx context.Context, schemaSQL, seedSQL string) error
 	return nil
 }
 
-func (m *MockDriver) BeginTx(ctx context.Context) (Tx, error) {
+func (m *MockDriver) EffectiveIsolation(requested domain.IsolationLevel) (domain.IsolationLevel, error) {
+	return resolveIsolation("mock", requested, domain.LevelSerializable, domain.LevelReadUncommitted, domain.LevelReadCommitted, domain.LevelRepeatableRead, domain.LevelSerializable)
+}
+
+func (m *MockDriver) BeginTx(ctx context.Context, opts TransactionOptions) (Tx, error) {
 	m.mu.Lock()
 	db := m.db
 	m.mu.Unlock()
 	if db == nil {
 		return nil, sql.ErrConnDone
+	}
+	_, err := m.EffectiveIsolation(opts.Isolation)
+	if err != nil {
+		return nil, err
 	}
 	return db.BeginTx(ctx, nil)
 }
@@ -286,4 +296,3 @@ func (m *MockDriver) Exec(ctx context.Context, query string, args ...any) (sql.R
 	}
 	return db.ExecContext(ctx, query, args...)
 }
-

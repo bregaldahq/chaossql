@@ -30,7 +30,8 @@ type DatabaseDriver interface {
 	Open(ctx context.Context) error
 	Close() error
 	Reset(ctx context.Context, schemaSQL, seedSQL string) error
-	BeginTx(ctx context.Context) (Tx, error)
+	BeginTx(ctx context.Context, opts TransactionOptions) (Tx, error)
+	EffectiveIsolation(requested domain.IsolationLevel) (domain.IsolationLevel, error)
 	QueryRow(ctx context.Context, query string, args ...any) *sql.Row
 	Query(ctx context.Context, query string, args ...any) (*sql.Rows, error)
 	Exec(ctx context.Context, query string, args ...any) (sql.Result, error)

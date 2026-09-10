@@ -20,7 +20,7 @@ func TestMockDriver_Lifecycle(t *testing.T) {
 		t.Fatalf("expected nil error on Reset, got: %v", err)
 	}
 
-	tx, err := driver.BeginTx(ctx)
+	tx, err := driver.BeginTx(ctx, drivers.TransactionOptions{})
 	if err != nil {
 		t.Fatalf("expected nil error on BeginTx, got: %v", err)
 	}
@@ -105,7 +105,7 @@ func TestMockDriver_TxRollback(t *testing.T) {
 	driver := drivers.NewMockDriver()
 	defer driver.Close()
 
-	tx, err := driver.BeginTx(ctx)
+	tx, err := driver.BeginTx(ctx, drivers.TransactionOptions{})
 	if err != nil {
 		t.Fatalf("expected nil error on BeginTx, got: %v", err)
 	}

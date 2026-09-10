@@ -62,7 +62,7 @@ func TestPostgresDriver_ResetAndConcurrency(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			tx, err := driver.BeginTx(ctx)
+			tx, err := driver.BeginTx(ctx, drivers.TransactionOptions{})
 			if err != nil {
 				mu.Lock()
 				errs = append(errs, err)
