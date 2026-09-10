@@ -14,25 +14,54 @@ jobs:
     name: Verification & Tests
     runs-on: ubuntu-latest
     env:
+      CHAOSSQL_REQUIRE_DATABASES: '1'
+      DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/chaossql_test?sslmode=disable
+      MYSQL_DSN: root:root@tcp(127.0.0.1:3306)/chaossql_test?parseTime=true
       PIP_CONSTRAINT: ${{ github.workspace }}/sdks/python/test-constraints.txt
+    services:
+      postgres:
+        image: postgres:16.4
+        env:
+          POSTGRES_DB: chaossql_test
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d chaossql_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      mysql:
+        image: mysql:8.4.2
+        env:
+          MYSQL_DATABASE: chaossql_test
+          MYSQL_ROOT_PASSWORD: root
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd "mysqladmin ping --host=127.0.0.1 --user=root --password=root"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
     steps:
     - uses: actions/checkout@v4
 
     - name: Set up Go
       uses: actions/setup-go@v5
       with:
-        go-version: 'stable'
+        go-version: '1.25.0'
         cache: true
 
     - name: Set up Node.js
       uses: actions/setup-node@v4
       with:
-        node-version: '20'
+        node-version: '20.19.5'
 
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
-        python-version: '3.12'
+        python-version: '3.12.11'
 
     - name: Install Python SDK test dependencies
       run: |

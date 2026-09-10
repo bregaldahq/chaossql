@@ -1,6 +1,6 @@
 GO ?= $(shell which /usr/local/go/bin/go go 2>/dev/null | head -n 1)
 
-.PHONY: help bootstrap test lint verify check-harness build wasm demo bench matrix diff replay serve-site stress-wasm test-wasm-stress test-python test-typescript test-frontend test-sdks
+.PHONY: help bootstrap test lint verify check-harness build wasm build-wasm-test demo bench matrix diff replay serve-site stress-wasm test-wasm-stress test-python test-typescript test-frontend test-sdks
 
 help:
 	@echo "ChaosSQL (Go 1.23+) Harness Commands:"
@@ -81,8 +81,12 @@ demo: build
 	@echo "=== 10. Demonstrating Foreign Key Cascade Deadlock & Referential Integrity ==="
 	@./bin/chaossql demo fk || true
 
-stress-wasm: ## Run headless WebAssembly & worker stress harness
-	@node tools/headless_worker_stress.js
+build-wasm-test:
+	@mkdir -p bin
+	@CGO_ENABLED=0 GOOS=js GOARCH=wasm $(GO) build -trimpath -o bin/chaossql-test.wasm ./cmd/chaossql-wasm
+
+stress-wasm: build-wasm-test ## Run headless WebAssembly & worker stress harness
+	@CHAOSSQL_WASM_PATH=$(PWD)/bin/chaossql-test.wasm node tools/headless_worker_stress.js
 
 test-wasm-stress: stress-wasm
 
@@ -97,7 +101,7 @@ test-frontend:
 
 test-sdks: test-python test-typescript
 
-verify: check-harness lint test test-sdks test-frontend
-	@node tools/test_english_purity.js && node tools/test_wasm_worker.js && node tools/test_playground_ui.js && node tools/test_wasm_bench.js && node tools/headless_worker_stress.js
+verify: check-harness lint test test-sdks test-frontend stress-wasm
+	@node tools/test_english_purity.js && node tools/test_wasm_worker.js && node tools/test_playground_ui.js && node tools/test_wasm_bench.js
 	@echo ""
 	@echo "✔ Verification gate completed successfully!"

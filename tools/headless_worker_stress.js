@@ -15,7 +15,7 @@ const assert = require("assert");
 const ROOT_DIR = path.resolve(__dirname, "..");
 const ASSETS_DIR = path.join(ROOT_DIR, "site/assets");
 const APP_JS_PATH = path.join(ROOT_DIR, "site/app.js");
-const WASM_PATH = path.join(ASSETS_DIR, "chaossql.wasm");
+const WASM_PATH = process.env.CHAOSSQL_WASM_PATH || path.join(ASSETS_DIR, "chaossql.wasm");
 const WASM_EXEC_PATH = path.join(ASSETS_DIR, "wasm_exec.js");
 const WASM_WORKER_PATH = path.join(ASSETS_DIR, "wasm-worker.js");
 
