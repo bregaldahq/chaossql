@@ -91,7 +91,7 @@ stress-wasm: build-wasm-test ## Run headless WebAssembly & worker stress harness
 test-wasm-stress: stress-wasm
 
 test-python: build
-	@CHAOSSQL_BIN_PATH=$(CURDIR)/bin/chaossql python3 -m pytest sdks/python/tests -v
+	@CHAOSSQL_BIN_PATH=$(CURDIR)/bin/chaossql PYTHONPATH=$(CURDIR)/sdks/python PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest -p chaossql.pytest_plugin sdks/python/tests -v
 
 test-typescript: build
 	@cd sdks/typescript && npm ci && npm run build && npm test
