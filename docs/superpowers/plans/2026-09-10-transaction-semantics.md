@@ -157,7 +157,7 @@ git commit -m "feat: validate transaction isolation by adapter"
 - Produces: `Runner.ExecuteSchedule(...) (ScheduleOutcome, error)`
 - Produces: unexported `executeOperation(...) operationOutcome`
 
-- [ ] **Step 1: Write the rollback regression test**
+- [x] **Step 1: Write the rollback regression test**
 
 Use one SQLite worker and one scheduled operation containing a valid update followed by invalid SQL. Assert status data reports a step error, the trace contains a successful real rollback, and the original value remains unchanged.
 
@@ -172,31 +172,31 @@ if len(outcome.OperationErrors) != 1 || outcome.OperationErrors[0].Phase != "ste
 assertBalance(t, driver, 10)
 ```
 
-- [ ] **Step 2: Run the regression test and confirm RED**
+- [x] **Step 2: Run the regression test and confirm RED**
 
 Run: `go test ./internal/engine -run TestRunner_RollsBackFailedOperation -count=1`
 
 Expected: balance is 9 under the current autocommit runner.
 
-- [ ] **Step 3: Implement `ScheduleOutcome` and `executeOperation`**
+- [x] **Step 3: Implement `ScheduleOutcome` and `executeOperation`**
 
 Open one transaction per operation, execute captures and statements through that transaction, commit successful operations, and roll back step failures. Record begin only after success and commit only after success. Collect structured errors and sort them before returning.
 
-- [ ] **Step 4: Add successful commit and lifecycle tests**
+- [x] **Step 4: Add successful commit and lifecycle tests**
 
 Assert a successful update persists; each successful operation has one begin and one commit; failed operations have one begin and one rollback; begin failures have an error without synthetic transaction events.
 
-- [ ] **Step 5: Adapt savepoint and trace tests to `ScheduleOutcome.Trace`**
+- [x] **Step 5: Adapt savepoint and trace tests to `ScheduleOutcome.Trace`**
 
 Keep their database assertions. They must now prove savepoint SQL executes through the real transaction rather than autocommit.
 
-- [ ] **Step 6: Run engine transaction tests**
+- [x] **Step 6: Run engine transaction tests**
 
 Run: `go test -race ./internal/engine -run 'Runner_(RollsBack|Commits|Savepoint|Trace)' -count=1`
 
 Expected: PASS.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add internal/engine/runner.go internal/engine/runner_transaction_test.go internal/engine/runner_savepoint_test.go internal/engine/runner_trace_test.go

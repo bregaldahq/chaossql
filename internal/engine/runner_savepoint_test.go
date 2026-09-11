@@ -128,14 +128,14 @@ func TestRunner_SavepointRollback(t *testing.T) {
 		},
 	}
 
-	trace, err := runner.ExecuteSchedule(ctx, spec, ops)
+	outcome, err := runner.ExecuteSchedule(ctx, spec, ops)
 	if err != nil {
 		t.Fatalf("unexpected ExecuteSchedule error: %v", err)
 	}
 
 	// 1. Assert TraceEvents
 	var foundSavepoint, foundRollbackTo, foundBegin, foundCommit bool
-	for _, ev := range trace {
+	for _, ev := range outcome.Trace {
 		switch ev.Type {
 		case domain.EventBegin:
 			foundBegin = true
@@ -227,13 +227,13 @@ func TestRunner_SavepointRelease(t *testing.T) {
 		},
 	}
 
-	trace, err := runner.ExecuteSchedule(ctx, spec, ops)
+	outcome, err := runner.ExecuteSchedule(ctx, spec, ops)
 	if err != nil {
 		t.Fatalf("unexpected ExecuteSchedule error: %v", err)
 	}
 
 	var foundSavepoint, foundRelease bool
-	for _, ev := range trace {
+	for _, ev := range outcome.Trace {
 		if ev.Type == domain.EventSavepoint {
 			foundSavepoint = true
 		}
