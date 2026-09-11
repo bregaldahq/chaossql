@@ -208,13 +208,13 @@ git commit -m "feat: execute operations in real transactions"
 **Files:**
 - Create: `internal/engine/runner_status_test.go`
 - Modify: `internal/engine/runner.go`
-- Test: `cmd/`, `internal/reporters/`, and `pkg/` packages for compatibility with the additive result fields
+- Test: `cmd/`, `internal/reporter/`, and `pkg/` packages for compatibility with the additive result fields
 
 **Interfaces:**
 - Consumes: `ScheduleOutcome`
 - Produces: one shared result finalizer used by `Run` and `RunSchedule`
 
-- [ ] **Step 1: Write failing status precedence tests**
+- [x] **Step 1: Write failing status precedence tests**
 
 Add cases for passed, invariant false, invariant query error, operation error, and cancellation. Assert exact status and compatibility booleans. Assert invariants are not evaluated after operation errors or cancellation.
 
@@ -224,27 +224,27 @@ if result.Status != domain.StatusExecutionError || result.Success || result.Viol
 }
 ```
 
-- [ ] **Step 2: Run status tests and confirm RED**
+- [x] **Step 2: Run status tests and confirm RED**
 
 Run: `go test ./internal/engine -run 'TestRunner_Status|TestRunner_Inconclusive' -count=1`
 
 Expected: current runner reports invariant errors as violations and operation failures can report success.
 
-- [ ] **Step 3: Implement the shared finalizer**
+- [x] **Step 3: Implement the shared finalizer**
 
 Apply precedence `canceled > execution_error > inconclusive > violation > passed`. Join operation errors for `ExecutionResult.Error`, copy the effective isolation, and derive compatibility booleans solely from status.
 
-- [ ] **Step 4: Use finalization from both run entry points**
+- [x] **Step 4: Use finalization from both run entry points**
 
 Remove duplicated invariant loops from `Run` and `RunSchedule`. Preserve scheduled operations and duration.
 
-- [ ] **Step 5: Run engine, CLI, reporter, and SDK-facing tests**
+- [x] **Step 5: Run engine, CLI, reporter, and SDK-facing tests**
 
 Run: `go test -race ./internal/engine ./cmd/... ./internal/reporters ./pkg/... -count=1`
 
 Expected: PASS after updating explicit expected values for the safer boolean behavior.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add internal/engine/runner.go internal/engine/runner_status_test.go

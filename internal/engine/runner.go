@@ -2,6 +2,7 @@ package engine
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math/rand/v2"
 	"sort"
@@ -89,34 +90,13 @@ func (r *Runner) Run(ctx context.Context, spec domain.Spec) (*RunResult, error) 
 	// 3. Execute Scheduled Operations with Workers
 	outcome, err := r.ExecuteSchedule(ctx, spec, scheduledOps)
 	if err != nil {
+		if outcome.Canceled {
+			return r.finalizeResult(ctx, spec, scheduledOps, outcome, startTime), err
+		}
 		return nil, err
 	}
 
-	// 4. Evaluate Invariants
-	var failingInv *domain.InvariantResult
-	violationFound := false
-
-	for _, inv := range spec.Invariants {
-		invRes, err := r.evaluator.Evaluate(ctx, r.driver, inv)
-		if err != nil || !invRes.Passed {
-			violationFound = true
-			failingInv = &invRes
-			break
-		}
-	}
-
-	duration := time.Since(startTime)
-
-	return &RunResult{
-		Success:           !violationFound,
-		ViolationDetected: violationFound,
-		FailingInvariant:  failingInv,
-		Trace:             outcome.Trace,
-		OperationErrors:   outcome.OperationErrors,
-		Isolation:         outcome.Isolation,
-		ScheduledOps:      scheduledOps,
-		Duration:          duration,
-	}, nil
+	return r.finalizeResult(ctx, spec, scheduledOps, outcome, startTime), nil
 }
 
 // ExecuteSchedule dispatches the given operations across workers and captures the trace.
@@ -367,31 +347,69 @@ func (r *Runner) RunSchedule(ctx context.Context, spec domain.Spec, ops []domain
 
 	outcome, err := r.ExecuteSchedule(ctx, spec, ops)
 	if err != nil {
+		if outcome.Canceled {
+			return r.finalizeResult(ctx, spec, ops, outcome, startTime), err
+		}
 		return nil, err
 	}
 
-	var failingInv *domain.InvariantResult
-	violationFound := false
+	return r.finalizeResult(ctx, spec, ops, outcome, startTime), nil
+}
+
+func (r *Runner) finalizeResult(
+	ctx context.Context,
+	spec domain.Spec,
+	ops []domain.ScheduledOp,
+	outcome ScheduleOutcome,
+	started time.Time,
+) *RunResult {
+	result := &RunResult{
+		Trace:           outcome.Trace,
+		OperationErrors: outcome.OperationErrors,
+		Isolation:       outcome.Isolation,
+		ScheduledOps:    ops,
+		Duration:        time.Since(started),
+	}
+
+	setStatus := func(status domain.ExecutionStatus) {
+		result.Status = status
+		result.Success = status == domain.StatusPassed
+		result.ViolationDetected = status == domain.StatusViolation
+	}
+
+	if outcome.Canceled || ctx.Err() != nil {
+		setStatus(domain.StatusCanceled)
+		result.Error = ctx.Err()
+		return result
+	}
+
+	if len(outcome.OperationErrors) > 0 {
+		setStatus(domain.StatusExecutionError)
+		errs := make([]error, 0, len(outcome.OperationErrors))
+		for _, opErr := range outcome.OperationErrors {
+			errs = append(errs, fmt.Errorf("operation %d (%s), %s: %s", opErr.OperationID, opErr.Operation, opErr.Phase, opErr.Message))
+		}
+		result.Error = errors.Join(errs...)
+		return result
+	}
 
 	for _, inv := range spec.Invariants {
-		invRes, err := r.evaluator.Evaluate(ctx, r.driver, inv)
-		if err != nil || !invRes.Passed {
-			violationFound = true
-			failingInv = &invRes
-			break
+		invResult, err := r.evaluator.Evaluate(ctx, r.driver, inv)
+		if err != nil {
+			setStatus(domain.StatusInconclusive)
+			result.FailingInvariant = &invResult
+			result.Error = err
+			return result
+		}
+		if !invResult.Passed {
+			setStatus(domain.StatusViolation)
+			result.FailingInvariant = &invResult
+			return result
 		}
 	}
 
-	return &RunResult{
-		Success:           !violationFound,
-		ViolationDetected: violationFound,
-		FailingInvariant:  failingInv,
-		Trace:             outcome.Trace,
-		OperationErrors:   outcome.OperationErrors,
-		Isolation:         outcome.Isolation,
-		ScheduledOps:      ops,
-		Duration:          time.Since(startTime),
-	}, nil
+	setStatus(domain.StatusPassed)
+	return result
 }
 
 // DetectEventType inspects a SQL statement and returns the corresponding TraceEventType.

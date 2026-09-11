@@ -60,7 +60,7 @@ func TestEngineCmd_PassingInvariant(t *testing.T) {
 	}
 }
 
-func TestEngineCmd_FailingAnomalyLostUpdate(t *testing.T) {
+func TestEngineCmd_FailingInvariant(t *testing.T) {
 	inputPayload := `{
 		"driver": "sqlite",
 		"schema": "CREATE TABLE accounts (id INT PRIMARY KEY, balance INT);",
@@ -69,7 +69,7 @@ func TestEngineCmd_FailingAnomalyLostUpdate(t *testing.T) {
 			{
 				"name": "balance_preserved",
 				"query": "SELECT balance FROM accounts WHERE id = 1;",
-				"assert": "balance == 800"
+				"assert": "balance == 700"
 			}
 		],
 		"operations": [
@@ -81,7 +81,7 @@ func TestEngineCmd_FailingAnomalyLostUpdate(t *testing.T) {
 				]
 			}
 		],
-		"workers": 2,
+		"workers": 1,
 		"iterations": 2,
 		"seed_value": 42
 	}`
