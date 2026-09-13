@@ -18,10 +18,12 @@ class ChaosHarness:
         driver: str = "sqlite",
         dsn: str = ":memory:",
         bin_path: Optional[str] = None,
+        isolation: str = "",
     ):
         self.driver = driver
         self.dsn = dsn
         self.bin_path = bin_path
+        self.isolation = isolation
         self._schema_sql = ""
         self._seed_sql = ""
         self._invariants: List[Dict[str, str]] = []
@@ -80,6 +82,7 @@ class ChaosHarness:
         return {
             "driver": self.driver,
             "dsn": self.dsn,
+            "isolation": self.isolation,
             "schema": self._schema_sql,
             "seed": self._seed_sql,
             "invariants": self._invariants,

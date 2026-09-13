@@ -301,7 +301,9 @@ git commit -m "feat: cancel transactional operations promptly"
 **Files:**
 - Modify: `internal/drivers/postgres_test.go`
 - Modify: `internal/drivers/mysql_test.go`
-- Create: `internal/engine/runner_integration_test.go`
+- Modify: `cmd/chaossql/engine.go`
+- Modify: `cmd/chaossql/main.go`
+- Modify: Python and TypeScript SDK result adapters and compatibility fixtures
 - Modify: `specs/02_concurrency_interleaving.md`
 - Modify: `specs/06_mysql_savepoints_and_otel.md`
 - Modify: `specs/08_fault_injection_and_dirty_reads.md`
@@ -310,27 +312,27 @@ git commit -m "feat: cancel transactional operations promptly"
 - Consumes: `Runner.RunSchedule`, result statuses, and transaction options
 - Produces: required live rollback/commit/isolation fixtures
 
-- [ ] **Step 1: Add reusable live database test cases**
+- [x] **Step 1: Add reusable live database test cases**
 
 For PostgreSQL and MySQL, run one successful commit and one update-plus-invalid-SQL rollback. Query the final state through the driver and assert the effective isolation. Use `skipUnavailableDatabase` locally and the existing `CHAOSSQL_REQUIRE_DATABASES=1` behavior in CI.
 
-- [ ] **Step 2: Run live tests against configured services**
+- [x] **Step 2: Run live tests against configured services**
 
 Run: `CHAOSSQL_REQUIRE_DATABASES=1 DATABASE_URL="$DATABASE_URL" MYSQL_DSN="$MYSQL_DSN" go test -race ./internal/drivers ./internal/engine -run 'TransactionIntegration|EffectiveIsolation' -count=1`
 
 Expected: PASS when both services are available; unavailable required services must fail, never skip.
 
-- [ ] **Step 3: Update the three formal specifications**
+- [x] **Step 3: Update the three formal specifications**
 
 State that each operation uses a real transaction, transaction events correspond to completed driver actions, savepoints share that transaction, intentional aborts must roll back, waits are cancellable, and unsupported isolation is an error.
 
-- [ ] **Step 4: Run the complete quality gate**
+- [x] **Step 4: Run the complete quality gate**
 
 Run: `make verify`
 
 Expected: `✔ Verification gate completed successfully!`
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add internal/drivers/postgres_test.go internal/drivers/mysql_test.go internal/engine/runner_integration_test.go specs/02_concurrency_interleaving.md specs/06_mysql_savepoints_and_otel.md specs/08_fault_injection_and_dirty_reads.md

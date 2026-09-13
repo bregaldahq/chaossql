@@ -42,7 +42,6 @@ var (
 	prCommentFlag     bool
 )
 
-
 func defaultCloudURL() string {
 	if u := os.Getenv("CHAOSSQL_CLOUD_URL"); u != "" {
 		return u
@@ -76,7 +75,6 @@ func newRunCmd() *cobra.Command {
 	runCmd.Flags().StringVar(&githubTokenFlag, "github-token", os.Getenv("GITHUB_TOKEN"), "GitHub Token for publishing PR comments (or set GITHUB_TOKEN)")
 	runCmd.Flags().BoolVar(&prCommentFlag, "pr-comment", true, "Post automated concurrency report comment on Pull Request (if in CI)")
 
-
 	return runCmd
 }
 
@@ -101,7 +99,6 @@ func newDemoCmd() *cobra.Command {
 	demoCmd.Flags().BoolVar(&cloudFailFastFlag, "cloud-fail-fast", false, "Abort execution with error if Cloud publishing fails")
 	demoCmd.Flags().StringVar(&githubTokenFlag, "github-token", os.Getenv("GITHUB_TOKEN"), "GitHub Token for publishing PR comments (or set GITHUB_TOKEN)")
 	demoCmd.Flags().BoolVar(&prCommentFlag, "pr-comment", true, "Post automated concurrency report comment on Pull Request (if in CI)")
-
 
 	return demoCmd
 }
@@ -406,6 +403,9 @@ func executeChaos(specPath string) error {
 				"iterations": spec.Engine.Iterations,
 				"seed":       spec.Engine.Seed,
 			},
+			"status":             runResult.Status,
+			"isolation":          runResult.Isolation,
+			"operation_errors":   runResult.OperationErrors,
 			"success":            runResult.Success,
 			"violation_detected": runResult.ViolationDetected,
 			"anomaly_type":       anomaly,
@@ -417,6 +417,9 @@ func executeChaos(specPath string) error {
 			"repro_go":           reproCode,
 			"html_report":        htmlReport,
 			"otel_trace":         otelTrace,
+		}
+		if runResult.Error != nil {
+			output["error"] = runResult.Error.Error()
 		}
 		if cloudTokenFlag != "" {
 			cloudResp, _ := publishToCloud(ctx, *spec, runResult, shrinkResult, minimalTrace, anomaly, reproCode, mermaidCode)
@@ -445,7 +448,6 @@ func executeChaos(specPath string) error {
 
 	return nil
 }
-
 
 func publishToCloud(
 	ctx context.Context,

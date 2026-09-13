@@ -67,6 +67,9 @@ class ChaosSQLRunner:
         return ChaosResult(
             success=raw_resp.get("success", False),
             violation_detected=raw_resp.get("violation_detected", False),
+            status=raw_resp.get("status", ""),
+            isolation=raw_resp.get("isolation", ""),
+            operation_errors=raw_resp.get("operation_errors", []),
             anomaly_type=raw_resp.get("anomaly_type", "UNKNOWN"),
             failing_invariant=raw_resp.get("failing_invariant"),
             duration_ms=raw_resp.get("duration_ms", 0),

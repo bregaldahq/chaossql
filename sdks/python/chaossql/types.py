@@ -26,6 +26,9 @@ class ChaosResult:
     """
     success: bool
     violation_detected: bool
+    status: str = ""
+    isolation: str = ""
+    operation_errors: List[Dict[str, Any]] = field(default_factory=list)
     anomaly_type: str = "UNKNOWN"
     failing_invariant: Optional[Dict[str, Any]] = None
     duration_ms: int = 0

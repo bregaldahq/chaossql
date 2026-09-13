@@ -32,6 +32,15 @@ export interface ShrinkResult {
 }
 
 export interface ChaosResult {
+  status: 'passed' | 'violation' | 'execution_error' | 'inconclusive' | 'canceled' | string;
+  isolation?: string;
+  operationErrors: Array<{
+    operation_id: number;
+    operation: string;
+    step_index?: number;
+    phase: string;
+    message: string;
+  }>;
   success: boolean;
   violationDetected: boolean;
   anomalyDetected: boolean;
@@ -53,6 +62,7 @@ export interface ChaosResult {
 export interface ChaosHarnessOptions {
   driver?: 'sqlite' | 'postgres' | 'mysql' | string;
   dsn?: string;
+  isolation?: 'READ_UNCOMMITTED' | 'READ_COMMITTED' | 'REPEATABLE_READ' | 'SERIALIZABLE' | string;
   binPath?: string;
 }
 

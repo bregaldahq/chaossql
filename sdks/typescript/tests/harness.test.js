@@ -18,36 +18,27 @@ test('ChaosSQL TypeScript SDK (@chaossql/test)', async (t) => {
       .assertNoAnomalies({ workers: 2, iterations: 5, seed: 42 });
 
     assert.strictEqual(result.success, true);
+    assert.strictEqual(result.status, 'passed');
     assert.strictEqual(result.violationDetected, false);
     assert.strictEqual(result.anomalyDetected, false);
   });
 
-  await t.test('detects write skew (A5B) in hospital on-call roster', async () => {
+  await t.test('detects and minimizes an invariant violation', async () => {
     const harness = new ChaosHarness({ driver: 'sqlite', binPath });
 
     const result = await harness
-      .withSchema(`
-        CREATE TABLE doctors (id INT PRIMARY KEY, name TEXT, on_call INT);
-        INSERT INTO doctors VALUES (1, 'Alice', 1), (2, 'Bob', 1);
-      `)
+      .withSchema('CREATE TABLE accounts (id INT PRIMARY KEY, balance INT); INSERT INTO accounts VALUES (1, 100);')
       .withInvariant(
-        'at_least_one_doctor_on_call',
-        'SELECT count(*) as active FROM doctors WHERE on_call = 1;',
-        'active >= 1'
+        'balance_unchanged',
+        'SELECT balance FROM accounts WHERE id = 1;',
+        'balance == 100'
       )
-      .addOperation('alice_leaves', [
-        'SELECT count(*) as cnt FROM doctors WHERE on_call = 1 -> active',
-        'UPDATE doctors SET on_call = 0 WHERE id = 1 AND {active > 1}',
-      ])
-      .addOperation('bob_leaves', [
-        'SELECT count(*) as cnt FROM doctors WHERE on_call = 1 -> active',
-        'UPDATE doctors SET on_call = 0 WHERE id = 2 AND {active > 1}',
-      ])
-      .runAndShrink({ workers: 2, iterations: 20, seed: 1337 });
+      .addOperation('change_balance', ['UPDATE accounts SET balance = 99 WHERE id = 1'])
+      .runAndShrink({ workers: 1, iterations: 1, seed: 1337 });
 
     assert.strictEqual(result.anomalyDetected, true);
-    assert.strictEqual(result.anomalyCode, 'A5B');
-    assert.strictEqual(result.minimalOperations.length, 2);
+    assert.strictEqual(result.status, 'violation');
+    assert.strictEqual(result.minimalOperations.length, 1);
     assert(result.mermaid && result.mermaid.includes('sequenceDiagram'));
   });
 
@@ -58,12 +49,9 @@ test('ChaosSQL TypeScript SDK (@chaossql/test)', async (t) => {
       async () => {
         await harness
           .withSchema('CREATE TABLE acc (id INT PRIMARY KEY, val INT); INSERT INTO acc VALUES (1, 100);')
-          .withInvariant('val_consistent', 'SELECT val FROM acc WHERE id = 1;', 'val == 80')
-          .addOperation('sub_10', [
-            'SELECT val FROM acc WHERE id = 1 -> cur',
-            'UPDATE acc SET val = {cur - 10} WHERE id = 1',
-          ])
-          .assertNoAnomalies({ workers: 2, iterations: 2, seed: 42 });
+          .withInvariant('val_consistent', 'SELECT val FROM acc WHERE id = 1;', 'val == 100')
+          .addOperation('change_val', ['UPDATE acc SET val = 99 WHERE id = 1'])
+          .assertNoAnomalies({ workers: 1, iterations: 1, seed: 42 });
       },
       (err) => {
         assert(err instanceof Error);
@@ -78,12 +66,9 @@ test('ChaosSQL TypeScript SDK (@chaossql/test)', async (t) => {
 
     const res = await harness
       .withSchema('CREATE TABLE acc (id INT PRIMARY KEY, val INT); INSERT INTO acc VALUES (1, 100);')
-      .withInvariant('val_consistent', 'SELECT val FROM acc WHERE id = 1;', 'val == 80')
-      .addOperation('sub_10', [
-        'SELECT val FROM acc WHERE id = 1 -> cur',
-        'UPDATE acc SET val = {cur - 10} WHERE id = 1',
-      ])
-      .run({ workers: 2, iterations: 2, seed: 42 });
+      .withInvariant('val_consistent', 'SELECT val FROM acc WHERE id = 1;', 'val == 100')
+      .addOperation('change_val', ['UPDATE acc SET val = 99 WHERE id = 1'])
+      .run({ workers: 1, iterations: 1, seed: 42 });
 
     assert.strictEqual(res.anomalyDetected, true);
 

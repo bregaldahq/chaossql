@@ -2,8 +2,8 @@
 
 ## 1. Fault Injection Architecture (`internal/faults/`)
 - Inject stochastic system faults during transaction execution:
-  - `FaultAbort`: Force transaction rollback at random step $k$ ($0 < k < |\text{steps}|$).
-  - `FaultLatencySpike`: Inject sudden $10\text{ms}$ to $50\text{ms}$ delay before commit to widen race windows.
+  - `FaultAbort`: Force a real driver rollback at random step $k$ ($0 < k < |\text{steps}|$). No write from the aborted operation may remain committed.
+  - `FaultLatencySpike`: Inject sudden $10\text{ms}$ to $50\text{ms}$ delay to widen race windows. The delay must stop when the execution context is canceled.
   - `FaultDisconnect`: Simulate abrupt client connection loss.
 - Configurable in YAML spec under `engine.faults`:
   ```yaml
@@ -13,6 +13,8 @@
       latency_spike_ms: [10, 50]
       latency_probability: 0.1
   ```
+
+- Fault handling uses the same transaction opened for the operation. A cancellation or intentional abort cannot switch to an autocommit connection for cleanup.
 
 ## 2. G1a Dirty Read / Aborted Read Anomaly
 - Formal Definition (Adya 1999 / Berenson 1995):
