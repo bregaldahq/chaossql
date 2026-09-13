@@ -1,7 +1,7 @@
 # Transaction Semantics Design
 
-**Date:** September 10, 2026  
-**Backlog item:** ENG-01  
+**Date:** September 10, 2026
+**Backlog item:** ENG-01
 **Status:** Approved for implementation planning
 
 ## Purpose
