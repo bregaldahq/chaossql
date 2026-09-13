@@ -2,6 +2,7 @@ package engine
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"math/rand/v2"
@@ -211,12 +212,19 @@ func (r *Runner) executeOperation(
 	}
 	addEvent(workerID, op.ID, 0, op.Name, domain.EventBegin, "begin", "BEGIN", nil)
 
-	rollback := func(stepIndex int, cause error) []domain.OperationError {
+	rollback := func(stepIndex int, causePhase string, cause error) []domain.OperationError {
 		rollbackErr := tx.Rollback()
-		addEvent(workerID, op.ID, stepIndex, op.Name, domain.EventRollback, "rollback", "ROLLBACK", rollbackErr)
+		if ctx.Err() != nil && errors.Is(rollbackErr, sql.ErrTxDone) {
+			rollbackErr = nil
+		}
+		rollbackEvent := domain.EventRollback
+		if rollbackErr != nil {
+			rollbackEvent = domain.EventError
+		}
+		addEvent(workerID, op.ID, stepIndex, op.Name, rollbackEvent, "rollback", "ROLLBACK", rollbackErr)
 		errs := make([]domain.OperationError, 0, 2)
 		if cause != nil {
-			errs = append(errs, newOperationError(op, stepIndex, "step", cause))
+			errs = append(errs, newOperationError(op, stepIndex, causePhase, cause))
 		}
 		if rollbackErr != nil {
 			errs = append(errs, newOperationError(op, stepIndex, "rollback", rollbackErr))
@@ -232,17 +240,17 @@ func (r *Runner) executeOperation(
 	for stepIdx, step := range op.Steps {
 		stepNumber := stepIdx + 1
 		if ctx.Err() != nil {
-			return rollback(stepNumber, nil)
+			return rollback(stepNumber, "", nil)
 		}
 
 		if !waitForContext(ctx, r.prng.Jitter(spec.Engine.JitterMs, workerRng)) {
-			return rollback(stepNumber, nil)
+			return rollback(stepNumber, "", nil)
 		}
 		if !waitForContext(ctx, faultInj.GetLatencySpike()) {
-			return rollback(stepNumber, nil)
+			return rollback(stepNumber, "", nil)
 		}
 		if faultInj.ShouldAbort() {
-			return rollback(stepNumber, nil)
+			return rollback(stepNumber, "", nil)
 		}
 
 		sqlStmt := SubstituteParams(step.SQL, localState)
@@ -250,7 +258,7 @@ func (r *Runner) executeOperation(
 			var capturedVal interface{}
 			if scanErr := tx.QueryRowContext(ctx, sqlStmt).Scan(&capturedVal); scanErr != nil {
 				addEvent(workerID, op.ID, stepNumber, op.Name, domain.EventError, "step", sqlStmt, scanErr)
-				return rollback(stepNumber, scanErr)
+				return rollback(stepNumber, "step", scanErr)
 			}
 			localState[step.Capture] = fmt.Sprintf("%v", capturedVal)
 			addEvent(workerID, op.ID, stepNumber, op.Name, DetectEventType(sqlStmt), "step", sqlStmt, nil)
@@ -259,14 +267,14 @@ func (r *Runner) executeOperation(
 
 		if _, execErr := tx.ExecContext(ctx, sqlStmt); execErr != nil {
 			addEvent(workerID, op.ID, stepNumber, op.Name, domain.EventError, "step", sqlStmt, execErr)
-			return rollback(stepNumber, execErr)
+			return rollback(stepNumber, "step", execErr)
 		}
 		addEvent(workerID, op.ID, stepNumber, op.Name, DetectEventType(sqlStmt), "step", sqlStmt, nil)
 	}
 
 	if commitErr := tx.Commit(); commitErr != nil {
 		addEvent(workerID, op.ID, len(op.Steps)+1, op.Name, domain.EventError, "commit", "COMMIT", commitErr)
-		return []domain.OperationError{newOperationError(op, len(op.Steps)+1, "commit", commitErr)}
+		return rollback(len(op.Steps)+1, "commit", commitErr)
 	}
 	addEvent(workerID, op.ID, len(op.Steps)+1, op.Name, domain.EventCommit, "commit", "COMMIT", nil)
 	return nil

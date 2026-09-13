@@ -13,6 +13,8 @@ import (
 )
 
 var errBeginTransaction = errors.New("begin transaction failed")
+var errCommitTransaction = errors.New("commit transaction failed")
+var errRollbackTransaction = errors.New("rollback transaction failed")
 
 func TestRunner_RollsBackFailedOperation(t *testing.T) {
 	driver := newTransactionTestDriver(t)
@@ -115,8 +117,85 @@ func TestRunner_CancellationRollsBackPromptly(t *testing.T) {
 	assertBalance(t, driver, 10)
 }
 
+func TestRunner_CommitFailureAttemptsRollback(t *testing.T) {
+	driver := newTransactionTestDriver(t)
+	runner := engine.NewRunner(commitFailDriver{DatabaseDriver: driver}, 1)
+
+	outcome, err := runner.ExecuteSchedule(context.Background(), transactionTestSpec(), []domain.ScheduledOp{{
+		ID: 5, Name: "commit_failure", Steps: []domain.StepConfig{{SQL: "UPDATE accounts SET balance = 9 WHERE id = 1"}},
+	}})
+	if err != nil {
+		t.Fatalf("execute schedule: %v", err)
+	}
+	if len(outcome.OperationErrors) != 1 || outcome.OperationErrors[0].Phase != "commit" {
+		t.Fatalf("unexpected operation errors: %+v", outcome.OperationErrors)
+	}
+	assertTransactionEvents(t, outcome.Trace, domain.EventBegin, domain.EventExec, domain.EventError, domain.EventRollback)
+	assertBalance(t, driver, 10)
+}
+
+func TestRunner_RollbackFailureIsRecordedAsError(t *testing.T) {
+	driver := newTransactionTestDriver(t)
+	runner := engine.NewRunner(rollbackFailDriver{DatabaseDriver: driver}, 1)
+
+	outcome, err := runner.ExecuteSchedule(context.Background(), transactionTestSpec(), []domain.ScheduledOp{{
+		ID: 6, Name: "rollback_failure", Steps: []domain.StepConfig{{SQL: "NOT VALID SQL"}},
+	}})
+	if err != nil {
+		t.Fatalf("execute schedule: %v", err)
+	}
+	if len(outcome.OperationErrors) != 2 || outcome.OperationErrors[0].Phase != "rollback" || outcome.OperationErrors[1].Phase != "step" {
+		t.Fatalf("unexpected operation errors: %+v", outcome.OperationErrors)
+	}
+	assertTransactionEvents(t, outcome.Trace, domain.EventBegin, domain.EventError, domain.EventError)
+	if outcome.Trace[2].Phase != "rollback" || outcome.Trace[2].Error != errRollbackTransaction.Error() {
+		t.Fatalf("unexpected rollback trace: %+v", outcome.Trace[2])
+	}
+}
+
 type beginFailDriver struct {
 	drivers.DatabaseDriver
+}
+
+type commitFailDriver struct {
+	drivers.DatabaseDriver
+}
+
+func (d commitFailDriver) BeginTx(ctx context.Context, opts drivers.TransactionOptions) (drivers.Tx, error) {
+	tx, err := d.DatabaseDriver.BeginTx(ctx, opts)
+	if err != nil {
+		return nil, err
+	}
+	return commitFailTx{Tx: tx}, nil
+}
+
+type commitFailTx struct {
+	drivers.Tx
+}
+
+func (commitFailTx) Commit() error {
+	return errCommitTransaction
+}
+
+type rollbackFailDriver struct {
+	drivers.DatabaseDriver
+}
+
+func (d rollbackFailDriver) BeginTx(ctx context.Context, opts drivers.TransactionOptions) (drivers.Tx, error) {
+	tx, err := d.DatabaseDriver.BeginTx(ctx, opts)
+	if err != nil {
+		return nil, err
+	}
+	return rollbackFailTx{Tx: tx}, nil
+}
+
+type rollbackFailTx struct {
+	drivers.Tx
+}
+
+func (tx rollbackFailTx) Rollback() error {
+	_ = tx.Tx.Rollback()
+	return errRollbackTransaction
 }
 
 func (beginFailDriver) BeginTx(context.Context, drivers.TransactionOptions) (drivers.Tx, error) {
