@@ -3,7 +3,9 @@ package engine_test
 import (
 	"context"
 	"errors"
+	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/bregaldahq/chaossql/internal/domain"
 	"github.com/bregaldahq/chaossql/internal/drivers"
@@ -79,6 +81,38 @@ func TestRunner_RecordsBeginFailureWithoutSyntheticLifecycle(t *testing.T) {
 	if outcome.Trace[0].Phase != "begin" || outcome.Trace[0].Error != errBeginTransaction.Error() {
 		t.Fatalf("unexpected begin trace: %+v", outcome.Trace[0])
 	}
+}
+
+func TestRunner_CancellationRollsBackPromptly(t *testing.T) {
+	driver := drivers.NewSQLiteDriver(filepath.Join(t.TempDir(), "cancellation.db"))
+	t.Cleanup(func() { _ = driver.Close() })
+	if err := driver.Reset(
+		context.Background(),
+		"CREATE TABLE accounts (id INT PRIMARY KEY, balance INT NOT NULL);",
+		"INSERT INTO accounts VALUES (1, 10);",
+	); err != nil {
+		t.Fatalf("reset driver: %v", err)
+	}
+	runner := engine.NewRunner(driver, 1)
+	spec := transactionTestSpec()
+	spec.Engine.JitterMs = [2]int{500, 500}
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
+	defer cancel()
+
+	started := time.Now()
+	outcome, err := runner.ExecuteSchedule(ctx, spec, []domain.ScheduledOp{{
+		ID: 4, Name: "cancel_during_jitter", Steps: []domain.StepConfig{{SQL: "UPDATE accounts SET balance = 9 WHERE id = 1"}},
+	}})
+	elapsed := time.Since(started)
+
+	if !errors.Is(err, context.DeadlineExceeded) || !outcome.Canceled {
+		t.Fatalf("outcome=%+v error=%v, want canceled deadline", outcome, err)
+	}
+	if elapsed > 200*time.Millisecond {
+		t.Fatalf("cancellation took %s, want at most 200ms", elapsed)
+	}
+	assertTransactionEvents(t, outcome.Trace, domain.EventBegin, domain.EventRollback)
+	assertBalance(t, driver, 10)
 }
 
 type beginFailDriver struct {

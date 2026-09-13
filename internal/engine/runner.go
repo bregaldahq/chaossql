@@ -235,11 +235,11 @@ func (r *Runner) executeOperation(
 			return rollback(stepNumber, nil)
 		}
 
-		if jitter := r.prng.Jitter(spec.Engine.JitterMs, workerRng); jitter > 0 {
-			time.Sleep(jitter)
+		if !waitForContext(ctx, r.prng.Jitter(spec.Engine.JitterMs, workerRng)) {
+			return rollback(stepNumber, nil)
 		}
-		if spike := faultInj.GetLatencySpike(); spike > 0 {
-			time.Sleep(spike)
+		if !waitForContext(ctx, faultInj.GetLatencySpike()) {
+			return rollback(stepNumber, nil)
 		}
 		if faultInj.ShouldAbort() {
 			return rollback(stepNumber, nil)
@@ -270,6 +270,20 @@ func (r *Runner) executeOperation(
 	}
 	addEvent(workerID, op.ID, len(op.Steps)+1, op.Name, domain.EventCommit, "commit", "COMMIT", nil)
 	return nil
+}
+
+func waitForContext(ctx context.Context, duration time.Duration) bool {
+	if duration <= 0 {
+		return ctx.Err() == nil
+	}
+	timer := time.NewTimer(duration)
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return false
+	case <-timer.C:
+		return true
+	}
 }
 
 func newOperationError(op domain.ScheduledOp, stepIndex int, phase string, err error) domain.OperationError {

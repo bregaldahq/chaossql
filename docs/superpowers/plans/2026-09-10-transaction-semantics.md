@@ -260,7 +260,7 @@ git commit -m "feat: report trustworthy execution statuses"
 **Interfaces:**
 - Produces: unexported `waitForContext(context.Context, time.Duration) bool`
 
-- [ ] **Step 1: Write a failing cancellation test**
+- [x] **Step 1: Write a failing cancellation test**
 
 Start one operation with fixed jitter longer than the context timeout. Assert return occurs well before the jitter duration, status data is canceled, and the active transaction is rolled back.
 
@@ -273,23 +273,23 @@ if !errors.Is(err, context.DeadlineExceeded) || !outcome.Canceled { t.Fatalf("%+
 if time.Since(started) > 200*time.Millisecond { t.Fatal("cancellation was not prompt") }
 ```
 
-- [ ] **Step 2: Run cancellation test and confirm RED**
+- [x] **Step 2: Run cancellation test and confirm RED**
 
 Run: `go test ./internal/engine -run TestRunner_CancellationRollsBackPromptly -count=1`
 
 Expected: current `time.Sleep` delays return or no real rollback occurs.
 
-- [ ] **Step 3: Replace both sleeps with context-aware timers**
+- [x] **Step 3: Replace both sleeps with context-aware timers**
 
 Use one timer helper for jitter and injected latency. On cancellation, stop operation execution, roll back any open transaction, and return `context.Cause(ctx)` or `ctx.Err()`.
 
-- [ ] **Step 4: Run cancellation repeatedly under the race detector**
+- [x] **Step 4: Run cancellation repeatedly under the race detector**
 
 Run: `go test -race ./internal/engine -run TestRunner_CancellationRollsBackPromptly -count=20`
 
 Expected: PASS with no race report.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add internal/engine/runner.go internal/engine/runner_transaction_test.go
