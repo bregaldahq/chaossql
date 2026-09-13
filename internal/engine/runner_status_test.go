@@ -82,9 +82,36 @@ func TestRunner_StatusCanceledPrecedesInvariantEvaluation(t *testing.T) {
 	}
 }
 
+func TestRunner_RejectsUnsupportedIsolationBeforeReset(t *testing.T) {
+	driver := &resetSpyDriver{DatabaseDriver: drivers.NewMockDriver()}
+	t.Cleanup(func() { _ = driver.Close() })
+	spec := domain.Spec{
+		Database: domain.DatabaseConfig{Isolation: domain.IsolationLevel("INVALID")},
+		Engine:   domain.EngineConfig{Workers: 1},
+	}
+
+	result, err := engine.NewRunner(driver, 1).RunSchedule(context.Background(), spec, nil)
+	if err == nil || result != nil {
+		t.Fatalf("result=%+v error=%v, want unsupported isolation failure", result, err)
+	}
+	if driver.resetCalled {
+		t.Fatal("database reset occurred before isolation validation")
+	}
+}
+
 type cancelAfterResetDriver struct {
 	drivers.DatabaseDriver
 	cancel context.CancelFunc
+}
+
+type resetSpyDriver struct {
+	drivers.DatabaseDriver
+	resetCalled bool
+}
+
+func (d *resetSpyDriver) Reset(context.Context, string, string) error {
+	d.resetCalled = true
+	return nil
 }
 
 func (d *cancelAfterResetDriver) Reset(_ context.Context, schemaSQL, seedSQL string) error {

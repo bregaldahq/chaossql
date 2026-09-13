@@ -96,6 +96,18 @@ func TestEngineCmd_ExecutionErrorStatus(t *testing.T) {
 	}
 }
 
+func TestUnreliableRunError(t *testing.T) {
+	if err := unreliableRunError(&domain.ExecutionResult{Status: domain.StatusPassed}); err != nil {
+		t.Fatalf("passed result returned error: %v", err)
+	}
+	if err := unreliableRunError(&domain.ExecutionResult{Status: domain.StatusViolation}); err != nil {
+		t.Fatalf("violation result returned execution error: %v", err)
+	}
+	if err := unreliableRunError(&domain.ExecutionResult{Status: domain.StatusInconclusive}); err == nil {
+		t.Fatal("inconclusive result returned nil error")
+	}
+}
+
 func TestEngineCmd_FailingInvariant(t *testing.T) {
 	inputPayload := `{
 		"driver": "sqlite",

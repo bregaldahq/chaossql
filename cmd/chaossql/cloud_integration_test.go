@@ -12,6 +12,7 @@ import (
 )
 
 func TestCloudPublishingIntegration(t *testing.T) {
+	workersFlag, iterationsFlag, seedFlag = 1, 2, 42
 	var receivedReq *cloud.RunIngestRequest
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/v1/runs" {
@@ -39,6 +40,7 @@ func TestCloudPublishingIntegration(t *testing.T) {
 		cloudTokenFlag = ""
 		cloudURLFlag = defaultCloudURL()
 		cloudFailFastFlag = false
+		workersFlag, iterationsFlag, seedFlag = 0, 0, 0
 	}()
 
 	err := executeChaos("../../examples/banking_lost_update/chaos.yaml")
@@ -61,8 +63,8 @@ func TestCloudPublishingIntegration(t *testing.T) {
 	}
 }
 
-
 func TestCloudPRReporterStepSummaryIntegration(t *testing.T) {
+	workersFlag, iterationsFlag, seedFlag = 1, 2, 42
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(cloud.RunIngestResponse{
@@ -84,6 +86,7 @@ func TestCloudPRReporterStepSummaryIntegration(t *testing.T) {
 	defer func() {
 		cloudTokenFlag = ""
 		cloudURLFlag = defaultCloudURL()
+		workersFlag, iterationsFlag, seedFlag = 0, 0, 0
 	}()
 
 	err := executeChaos("../../examples/banking_lost_update/chaos.yaml")

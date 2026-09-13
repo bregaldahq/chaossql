@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/bregaldahq/chaossql/internal/domain"
 	"github.com/bregaldahq/chaossql/internal/drivers"
 	"github.com/bregaldahq/chaossql/pkg/chaostest"
 )
@@ -146,5 +147,21 @@ func TestChaostest_DefaultDriver(t *testing.T) {
 	}
 	if execRes == nil || execRes.ViolationDetected {
 		t.Fatalf("expected valid successful run without violations")
+	}
+}
+
+func TestChaostest_RunReturnsExecutionError(t *testing.T) {
+	driver := drivers.NewSQLiteDriver("")
+	defer driver.Close()
+	tester := chaostest.New(t).
+		WithDriver(driver).
+		WithSchema("CREATE TABLE items (id INT PRIMARY KEY);").
+		WithSeed("INSERT INTO items VALUES (1);").
+		WithInvariant("must_not_run", "SELECT value FROM missing_table", "value == 1").
+		AddOperation("invalid", "NOT VALID SQL")
+
+	result, shrink, err := tester.Run(context.Background(), 1, 1, 42)
+	if err == nil || result == nil || result.Status != domain.StatusExecutionError || shrink != nil {
+		t.Fatalf("result=%+v shrink=%+v error=%v", result, shrink, err)
 	}
 }

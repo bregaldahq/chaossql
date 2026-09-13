@@ -179,7 +179,13 @@ func (tr *Tester) Run(ctx context.Context, workers, iterations int, seed uint64)
 	runner := engine.NewRunner(driver, seed)
 	execRes, err := runner.Run(ctx, spec)
 	if err != nil {
-		return nil, nil, fmt.Errorf("chaos execution failed: %w", err)
+		return execRes, nil, fmt.Errorf("chaos execution failed: %w", err)
+	}
+	if execRes.Status != domain.StatusPassed && execRes.Status != domain.StatusViolation {
+		if execRes.Error != nil {
+			return execRes, nil, fmt.Errorf("chaos execution ended with status %s: %w", execRes.Status, execRes.Error)
+		}
+		return execRes, nil, fmt.Errorf("chaos execution ended with status %s", execRes.Status)
 	}
 
 	if !execRes.ViolationDetected {

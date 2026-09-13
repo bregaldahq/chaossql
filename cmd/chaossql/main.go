@@ -430,7 +430,10 @@ func executeChaos(specPath string) error {
 
 		enc := json.NewEncoder(os.Stdout)
 		enc.SetIndent("", "  ")
-		return enc.Encode(output)
+		if err := enc.Encode(output); err != nil {
+			return err
+		}
+		return unreliableRunError(runResult)
 	}
 
 	reporter.PrintTerminalReport(*spec, runResult, shrinkResult, anomaly)
@@ -446,7 +449,17 @@ func executeChaos(specPath string) error {
 		return serveTraceViewer("127.0.0.1:8090", htmlContent, false)
 	}
 
-	return nil
+	return unreliableRunError(runResult)
+}
+
+func unreliableRunError(result *engine.RunResult) error {
+	if result == nil || result.Status == "" || result.Status == domain.StatusPassed || result.Status == domain.StatusViolation {
+		return nil
+	}
+	if result.Error != nil {
+		return fmt.Errorf("chaos execution ended with status %s: %w", result.Status, result.Error)
+	}
+	return fmt.Errorf("chaos execution ended with status %s", result.Status)
 }
 
 func publishToCloud(
@@ -459,7 +472,7 @@ func publishToCloud(
 	reproCode, mermaidCode string,
 ) (*cloud.RunIngestResponse, error) {
 	status := "passed"
-	if runResult.ViolationDetected {
+	if !runResult.Success {
 		status = "failed"
 	}
 
@@ -502,6 +515,7 @@ func publishToCloud(
 		},
 		Result: cloud.ExecutionSummary{
 			Status:            status,
+			ExecutionStatus:   string(runResult.Status),
 			Success:           runResult.Success,
 			ViolationDetected: runResult.ViolationDetected,
 			AnomalyType:       string(anomaly),

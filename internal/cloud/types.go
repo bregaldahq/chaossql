@@ -36,6 +36,7 @@ type InvariantSummary struct {
 // ExecutionSummary describes the outcome of the chaos execution
 type ExecutionSummary struct {
 	Status            string            `json:"status"` // "passed" or "failed"
+	ExecutionStatus   string            `json:"execution_status,omitempty"`
 	Success           bool              `json:"success"`
 	ViolationDetected bool              `json:"violation_detected"`
 	AnomalyType       string            `json:"anomaly_type"`

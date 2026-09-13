@@ -3,6 +3,7 @@ package reporter
 import (
 	"encoding/xml"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/bregaldahq/chaossql/internal/domain"
@@ -27,6 +28,7 @@ type JUnitTestCase struct {
 	Classname string        `xml:"classname,attr"`
 	Time      float64       `xml:"time,attr"`
 	Failure   *JUnitFailure `xml:"failure,omitempty"`
+	Error     *JUnitFailure `xml:"error,omitempty"`
 }
 
 type JUnitFailure struct {
@@ -60,6 +62,17 @@ func GenerateJUnitXML(spec domain.Spec, res domain.ExecutionResult, anomaly doma
 			Type:    string(anomaly),
 			Content: fmt.Sprintf("Scenario: %s\nDriver: %s\nAnomaly: %s\nDetails: %s", spec.Name, spec.Database.Driver, anomaly, msg),
 		}
+	} else if res.Status != "" && res.Status != domain.StatusPassed {
+		ts.Errors = 1
+		msg := string(res.Status)
+		if res.Error != nil {
+			msg = res.Error.Error()
+		}
+		tc.Error = &JUnitFailure{
+			Message: msg,
+			Type:    string(res.Status),
+			Content: fmt.Sprintf("Scenario: %s\nDriver: %s\nStatus: %s\nDetails: %s", spec.Name, spec.Database.Driver, res.Status, msg),
+		}
 	}
 
 	ts.TestCases = append(ts.TestCases, tc)
@@ -82,6 +95,9 @@ func GenerateGitHubSummaryMarkdown(spec domain.Spec, res domain.ExecutionResult,
 	if res.ViolationDetected {
 		statusEmoji = "❌"
 		statusBadge = fmt.Sprintf("ISOLATION ANOMALY DETECTED [%s]", anomaly)
+	} else if res.Status != "" && res.Status != domain.StatusPassed {
+		statusEmoji = "❌"
+		statusBadge = strings.ToUpper(string(res.Status))
 	}
 
 	md := fmt.Sprintf("# %s ChaosSQL Execution Summary: `%s`\n\n", statusEmoji, spec.Name)

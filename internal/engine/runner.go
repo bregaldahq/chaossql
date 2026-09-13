@@ -80,6 +80,10 @@ func GenerateSchedule(spec domain.Spec, prng *PRNG) []domain.ScheduledOp {
 func (r *Runner) Run(ctx context.Context, spec domain.Spec) (*RunResult, error) {
 	startTime := time.Now()
 
+	if _, err := r.driver.EffectiveIsolation(spec.Database.Isolation); err != nil {
+		return nil, err
+	}
+
 	// 1. Reset database
 	if err := r.driver.Reset(ctx, spec.Database.Schema, spec.Database.Seed); err != nil {
 		return nil, fmt.Errorf("database reset failed: %w", err)
@@ -217,11 +221,7 @@ func (r *Runner) executeOperation(
 		if ctx.Err() != nil && errors.Is(rollbackErr, sql.ErrTxDone) {
 			rollbackErr = nil
 		}
-		rollbackEvent := domain.EventRollback
-		if rollbackErr != nil {
-			rollbackEvent = domain.EventError
-		}
-		addEvent(workerID, op.ID, stepIndex, op.Name, rollbackEvent, "rollback", "ROLLBACK", rollbackErr)
+		addEvent(workerID, op.ID, stepIndex, op.Name, domain.EventRollback, "rollback", "ROLLBACK", rollbackErr)
 		errs := make([]domain.OperationError, 0, 2)
 		if cause != nil {
 			errs = append(errs, newOperationError(op, stepIndex, causePhase, cause))
@@ -362,6 +362,10 @@ func evalSimpleArithmetic(expr string) string {
 // RunSchedule executes a specific schedule, bypassing random generation.
 func (r *Runner) RunSchedule(ctx context.Context, spec domain.Spec, ops []domain.ScheduledOp) (*RunResult, error) {
 	startTime := time.Now()
+
+	if _, err := r.driver.EffectiveIsolation(spec.Database.Isolation); err != nil {
+		return nil, err
+	}
 
 	if err := r.driver.Reset(ctx, spec.Database.Schema, spec.Database.Seed); err != nil {
 		return nil, fmt.Errorf("database reset failed: %w", err)

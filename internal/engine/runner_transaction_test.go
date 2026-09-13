@@ -10,6 +10,7 @@ import (
 	"github.com/bregaldahq/chaossql/internal/domain"
 	"github.com/bregaldahq/chaossql/internal/drivers"
 	"github.com/bregaldahq/chaossql/internal/engine"
+	"github.com/bregaldahq/chaossql/internal/faults"
 )
 
 var errBeginTransaction = errors.New("begin transaction failed")
@@ -147,10 +148,70 @@ func TestRunner_RollbackFailureIsRecordedAsError(t *testing.T) {
 	if len(outcome.OperationErrors) != 2 || outcome.OperationErrors[0].Phase != "rollback" || outcome.OperationErrors[1].Phase != "step" {
 		t.Fatalf("unexpected operation errors: %+v", outcome.OperationErrors)
 	}
-	assertTransactionEvents(t, outcome.Trace, domain.EventBegin, domain.EventError, domain.EventError)
+	assertTransactionEvents(t, outcome.Trace, domain.EventBegin, domain.EventError, domain.EventRollback)
 	if outcome.Trace[2].Phase != "rollback" || outcome.Trace[2].Error != errRollbackTransaction.Error() {
 		t.Fatalf("unexpected rollback trace: %+v", outcome.Trace[2])
 	}
+}
+
+func TestRunner_IntentionalAbortRollsBackWithoutExecutionError(t *testing.T) {
+	seed := seedThatAbortsOnSecondCheck(t)
+	driver := newTransactionTestDriver(t)
+	runner := engine.NewRunner(driver, seed)
+	spec := transactionTestSpec()
+	spec.Engine.Faults.AbortProbability = 0.5
+
+	outcome, err := runner.ExecuteSchedule(context.Background(), spec, []domain.ScheduledOp{{
+		ID: 7, Name: "abort_after_write", Steps: []domain.StepConfig{
+			{SQL: "UPDATE accounts SET balance = 9 WHERE id = 1"},
+			{SQL: "UPDATE accounts SET balance = 8 WHERE id = 1"},
+		},
+	}})
+	if err != nil || len(outcome.OperationErrors) != 0 {
+		t.Fatalf("intentional abort outcome=%+v error=%v", outcome, err)
+	}
+	assertTransactionEvents(t, outcome.Trace, domain.EventBegin, domain.EventExec, domain.EventRollback)
+	assertBalance(t, driver, 10)
+}
+
+func TestRunner_MockTracksOneTerminalActionPerTransaction(t *testing.T) {
+	driver := drivers.NewMockDriver()
+	t.Cleanup(func() { _ = driver.Close() })
+	spec := transactionTestSpec()
+
+	outcome, err := engine.NewRunner(driver, 1).ExecuteSchedule(context.Background(), spec, []domain.ScheduledOp{{
+		ID: 8, Name: "commit", Steps: []domain.StepConfig{{SQL: "SELECT 1"}},
+	}})
+	if err != nil || len(outcome.OperationErrors) != 0 {
+		t.Fatalf("commit outcome=%+v error=%v", outcome, err)
+	}
+	if stats := driver.TransactionStats(); stats.Opened != 1 || stats.Committed != 1 || stats.RolledBack != 0 {
+		t.Fatalf("unexpected commit stats: %+v", stats)
+	}
+
+	driver.ResetTransactionStats()
+	spec.Engine.Faults.AbortProbability = 1
+	outcome, err = engine.NewRunner(driver, 1).ExecuteSchedule(context.Background(), spec, []domain.ScheduledOp{{
+		ID: 9, Name: "rollback", Steps: []domain.StepConfig{{SQL: "SELECT 1"}},
+	}})
+	if err != nil || len(outcome.OperationErrors) != 0 {
+		t.Fatalf("rollback outcome=%+v error=%v", outcome, err)
+	}
+	if stats := driver.TransactionStats(); stats.Opened != 1 || stats.Committed != 0 || stats.RolledBack != 1 {
+		t.Fatalf("unexpected rollback stats: %+v", stats)
+	}
+}
+
+func seedThatAbortsOnSecondCheck(t *testing.T) uint64 {
+	t.Helper()
+	for seed := uint64(0); seed < 1000; seed++ {
+		injector := faults.NewFaultInjector(domain.FaultConfig{AbortProbability: 0.5}, seed)
+		if !injector.ShouldAbort() && injector.ShouldAbort() {
+			return seed
+		}
+	}
+	t.Fatal("could not find deterministic abort seed")
+	return 0
 }
 
 type beginFailDriver struct {
