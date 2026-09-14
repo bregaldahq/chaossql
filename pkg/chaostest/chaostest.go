@@ -193,12 +193,13 @@ func (tr *Tester) Run(ctx context.Context, workers, iterations int, seed uint64)
 	}
 
 	// Invariant violation detected: perform Causal Delta-Debugging (ddmin)
+	target, _ := shrinker.FailureSignatureFor(execRes)
 	testFn := func(subset []domain.ScheduledOp) bool {
 		res, err := runner.RunSchedule(ctx, spec, subset)
 		if err != nil {
 			return true
 		}
-		return !res.ViolationDetected
+		return !shrinker.ReproducesFailure(res, target)
 	}
 
 	shrinkRes, shrinkErr := shrinker.Shrink(ctx, testFn, execRes.ScheduledOps)

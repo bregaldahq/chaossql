@@ -7,6 +7,53 @@ import (
 	"github.com/bregaldahq/chaossql/internal/domain"
 )
 
+func TestFailureSignatureMatchesOnlyOriginalInvariant(t *testing.T) {
+	original := &domain.ExecutionResult{
+		Status:            domain.StatusViolation,
+		ViolationDetected: true,
+		FailingInvariant:  &domain.InvariantResult{Name: "balance_preserved"},
+	}
+	signature, err := FailureSignatureFor(original)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tests := []struct {
+		name   string
+		result *domain.ExecutionResult
+		want   bool
+	}{
+		{
+			name: "same invariant",
+			result: &domain.ExecutionResult{Status: domain.StatusViolation, ViolationDetected: true,
+				FailingInvariant: &domain.InvariantResult{Name: "balance_preserved"}},
+			want: true,
+		},
+		{
+			name: "different invariant",
+			result: &domain.ExecutionResult{Status: domain.StatusViolation, ViolationDetected: true,
+				FailingInvariant: &domain.InvariantResult{Name: "inventory_nonnegative"}},
+		},
+		{name: "execution error", result: &domain.ExecutionResult{Status: domain.StatusExecutionError}},
+		{name: "nil result", result: nil},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := ReproducesFailure(tt.result, signature); got != tt.want {
+				t.Fatalf("ReproducesFailure() = %t, want %t", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestFailureSignatureRejectsUnidentifiedViolation(t *testing.T) {
+	_, err := FailureSignatureFor(&domain.ExecutionResult{Status: domain.StatusViolation, ViolationDetected: true})
+	if err == nil {
+		t.Fatal("expected unidentified violation to be rejected")
+	}
+}
+
 func TestShrink_SyntheticOracle(t *testing.T) {
 	ctx := context.Background()
 
@@ -59,7 +106,7 @@ func TestShrink_SyntheticOracle(t *testing.T) {
 				complement = append(complement, op)
 			}
 		}
-		
+
 		if !testFn(complement) {
 			t.Errorf("not 1-minimal! Removing element at index %d still reproduces the bug", i)
 		}
@@ -72,7 +119,7 @@ func TestShrink_NoBug(t *testing.T) {
 	testFn := func(ops []domain.ScheduledOp) bool {
 		return true // ALWAYS PASSES
 	}
-	
+
 	_, err := Shrink(ctx, testFn, initialOps)
 	if err == nil {
 		t.Errorf("expected error when initial ops don't fail")

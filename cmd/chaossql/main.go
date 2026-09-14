@@ -247,12 +247,13 @@ func executeChaos(specPath string, seedOverride ...bool) error {
 	minimalOps := runResult.ScheduledOps
 
 	if runResult.ViolationDetected {
+		target, _ := shrinker.FailureSignatureFor(runResult)
 		testFn := func(subset []domain.ScheduledOp) bool {
 			res, err := runner.RunSchedule(ctx, *spec, subset)
 			if err != nil {
 				return true
 			}
-			return !res.ViolationDetected
+			return !shrinker.ReproducesFailure(res, target)
 		}
 
 		shrunk, err := shrinker.Shrink(ctx, testFn, runResult.ScheduledOps)

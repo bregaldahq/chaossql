@@ -8,11 +8,11 @@
 
 **Files:** `internal/domain/types.go`, `internal/shrinker/ddmin.go`, tests
 
-- [ ] Add failing tests for same-invariant matching and different-failure rejection.
-- [ ] Define the stable failure signature and shared reproduction predicate.
-- [ ] Update every shrink call site to use the original failure signature.
-- [ ] Run focused domain, shrinker, CLI, IPC, and WASM tests.
-- [ ] Commit the failure identity change.
+- [x] Add failing tests for same-invariant matching and different-failure rejection.
+- [x] Define the stable failure signature and shared reproduction predicate.
+- [x] Update every shrink call site to use the original failure signature.
+- [x] Run focused domain, shrinker, CLI, IPC, and WASM tests.
+- [x] Commit the failure identity change.
 
 ### Task 2: Auditable 1-minimal shrinking
 

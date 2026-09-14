@@ -230,6 +230,12 @@ type ScheduleDecision struct {
 	Abort       bool `json:"abort"`
 }
 
+// FailureSignature identifies the stable outcome that a replay or shrink candidate must reproduce.
+type FailureSignature struct {
+	Status           ExecutionStatus `json:"status"`
+	FailingInvariant string          `json:"failing_invariant,omitempty"`
+}
+
 // ShrinkResult summarizes the output of the Delta-Debugging algorithm.
 type ShrinkResult struct {
 	OriginalSize   int           `json:"original_size"`

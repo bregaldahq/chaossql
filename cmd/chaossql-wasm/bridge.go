@@ -160,12 +160,13 @@ func ExecuteWasmScenario(ctx context.Context, configJSON string, onProgress func
 	var reducedOps []domain.ScheduledOp
 	var reducedTrace domain.ExecutionTrace
 	if runRes.ViolationDetected {
+		target, _ := shrinker.FailureSignatureFor(runRes)
 		testFn := func(subset []domain.ScheduledOp) bool {
 			subRes, subErr := runner.RunSchedule(ctx, *spec, subset)
 			if subErr != nil {
 				return true
 			}
-			return !subRes.ViolationDetected
+			return !shrinker.ReproducesFailure(subRes, target)
 		}
 		shrinkRes, shrinkErr := shrinker.Shrink(ctx, testFn, runRes.ScheduledOps)
 		if shrinkErr != nil && (errors.Is(shrinkErr, context.Canceled) || ctx.Err() != nil) {

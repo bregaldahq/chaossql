@@ -52,6 +52,33 @@ func computeScheduleKey(ops []domain.ScheduledOp) string {
 	return sb.String()
 }
 
+// FailureSignatureFor derives the stable identity used to compare replay and shrink outcomes.
+func FailureSignatureFor(result *domain.ExecutionResult) (domain.FailureSignature, error) {
+	if result == nil {
+		return domain.FailureSignature{}, fmt.Errorf("cannot identify failure from a nil result")
+	}
+	signature := domain.FailureSignature{Status: result.Status}
+	if result.Status == domain.StatusViolation {
+		if result.FailingInvariant == nil || result.FailingInvariant.Name == "" {
+			return domain.FailureSignature{}, fmt.Errorf("violation result has no failing invariant")
+		}
+		signature.FailingInvariant = result.FailingInvariant.Name
+	}
+	return signature, nil
+}
+
+// ReproducesFailure reports whether result has the same stable failure identity.
+func ReproducesFailure(result *domain.ExecutionResult, target domain.FailureSignature) bool {
+	if result == nil || result.Status != target.Status {
+		return false
+	}
+	if target.Status != domain.StatusViolation {
+		return true
+	}
+	return result.ViolationDetected && result.FailingInvariant != nil &&
+		result.FailingInvariant.Name == target.FailingInvariant
+}
+
 // Shrink applies the Zeller Delta-Debugging algorithm with memoization to find a minimal failing subset
 func Shrink(ctx context.Context, testFn func([]domain.ScheduledOp) bool, initialOps []domain.ScheduledOp) (*domain.ShrinkResult, error) {
 	start := time.Now()
@@ -138,12 +165,20 @@ func Shrink(ctx context.Context, testFn func([]domain.ScheduledOp) bool, initial
 
 // ShrinkExecution executes Shrink using the engine's Runner
 func ShrinkExecution(ctx context.Context, runner *engine.Runner, spec domain.Spec, initialOps []domain.ScheduledOp) (*domain.ShrinkResult, error) {
+	initialResult, err := runner.RunSchedule(ctx, spec, initialOps)
+	if err != nil {
+		return nil, err
+	}
+	target, err := FailureSignatureFor(initialResult)
+	if err != nil {
+		return nil, err
+	}
 	testFn := func(ops []domain.ScheduledOp) bool {
 		res, err := runner.RunSchedule(ctx, spec, ops)
 		if err != nil {
 			return true
 		}
-		return res.Success
+		return !ReproducesFailure(res, target)
 	}
 	return Shrink(ctx, testFn, initialOps)
 }
