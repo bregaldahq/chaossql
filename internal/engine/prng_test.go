@@ -72,8 +72,9 @@ func TestGenerateSchedule_MonotonicCounterIsScopedToRun(t *testing.T) {
 		}},
 	}
 
-	first := engine.GenerateSchedule(spec, engine.NewPRNG(9))
-	second := engine.GenerateSchedule(spec, engine.NewPRNG(9))
+	sharedPRNG := engine.NewPRNG(9)
+	first := engine.GenerateSchedule(spec, sharedPRNG)
+	second := engine.GenerateSchedule(spec, sharedPRNG)
 	if !reflect.DeepEqual(first, second) {
 		t.Fatalf("independent runs leaked counter state\nfirst: %#v\nsecond: %#v", first, second)
 	}

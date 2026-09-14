@@ -54,7 +54,8 @@ func GenerateSchedule(spec domain.Spec, prng *PRNG) []domain.ScheduledOp {
 		return nil
 	}
 
-	masterRng := rand.New(rand.NewPCG(prng.MasterSeed(), 0))
+	runPRNG := NewPRNG(prng.MasterSeed())
+	masterRng := rand.New(rand.NewPCG(runPRNG.MasterSeed(), 0))
 	scheduledOps := make([]domain.ScheduledOp, numOps)
 
 	for i := 0; i < numOps; i++ {
@@ -66,7 +67,7 @@ func GenerateSchedule(spec domain.Spec, prng *PRNG) []domain.ScheduledOp {
 		}
 		sort.Strings(paramNames)
 		for _, name := range paramNames {
-			params[name] = prng.EvaluateParam(opTemplate.Params[name], masterRng)
+			params[name] = runPRNG.EvaluateParam(opTemplate.Params[name], masterRng)
 		}
 		scheduledOps[i] = domain.ScheduledOp{
 			ID:     i + 1,
