@@ -60,12 +60,13 @@ func GenerateSchedule(spec domain.Spec, prng *PRNG) []domain.ScheduledOp {
 	for i := 0; i < numOps; i++ {
 		opTemplate := spec.Operations[masterRng.IntN(len(spec.Operations))]
 		params := make(map[string]string)
-		for k, v := range opTemplate.Params {
-			val, err := EvaluateGenerator(v, masterRng)
-			if err != nil {
-				val = prng.EvaluateParam(v, masterRng)
-			}
-			params[k] = val
+		paramNames := make([]string, 0, len(opTemplate.Params))
+		for name := range opTemplate.Params {
+			paramNames = append(paramNames, name)
+		}
+		sort.Strings(paramNames)
+		for _, name := range paramNames {
+			params[name] = prng.EvaluateParam(opTemplate.Params[name], masterRng)
 		}
 		scheduledOps[i] = domain.ScheduledOp{
 			ID:     i + 1,

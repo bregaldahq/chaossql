@@ -8,11 +8,11 @@
 
 **Files:** `internal/engine/prng.go`, `internal/engine/prng_test.go`, `internal/engine/runner.go`
 
-- [ ] Add failing tests proving seed zero remains zero, randomized map parameters are stable over 100 generations, and independent runs reset monotonic counters.
-- [ ] Move scheduler monotonic counters into each `PRNG` instance.
-- [ ] Sort parameter names before generator evaluation.
-- [ ] Run `go test -race ./internal/engine -run 'PRNG|GenerateSchedule' -count=1`.
-- [ ] Commit the deterministic generation change.
+- [x] Add failing tests proving seed zero remains zero, randomized map parameters are stable over 100 generations, and independent runs reset monotonic counters.
+- [x] Move scheduler monotonic counters into each `PRNG` instance.
+- [x] Sort parameter names before generator evaluation.
+- [x] Run `go test -race ./internal/engine -run 'PRNG|GenerateSchedule' -count=1`.
+- [x] Commit the deterministic generation change.
 
 ### Task 2: Versioned logical schedule
 

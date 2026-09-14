@@ -3,6 +3,7 @@ package engine_test
 import (
 	"context"
 	"math/rand/v2"
+	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
@@ -31,6 +32,57 @@ func TestPRNG_DeterministicWorkerSeed(t *testing.T) {
 	prngDiff := engine.NewPRNG(54321)
 	if prng.WorkerSeed(1) == prngDiff.WorkerSeed(1) {
 		t.Errorf("expected different seeds for different master seeds")
+	}
+}
+
+func TestPRNG_ZeroIsLiteralDeterministicSeed(t *testing.T) {
+	if got := engine.NewPRNG(0).MasterSeed(); got != 0 {
+		t.Fatalf("expected literal seed 0, got %d", got)
+	}
+}
+
+func TestGenerateSchedule_StableParameterOrder(t *testing.T) {
+	spec := domain.Spec{
+		Engine: domain.EngineConfig{Iterations: 25},
+		Operations: []domain.OperationConfig{{
+			Name: "generated",
+			Params: map[string]string{
+				"alpha":   "$random_int(1, 1000000)",
+				"bravo":   "$random_int(1, 1000000)",
+				"charlie": "$random_int(1, 1000000)",
+			},
+		}},
+	}
+
+	want := engine.GenerateSchedule(spec, engine.NewPRNG(42))
+	for i := 0; i < 100; i++ {
+		got := engine.GenerateSchedule(spec, engine.NewPRNG(42))
+		if !reflect.DeepEqual(got, want) {
+			t.Fatalf("generation %d differs for the same seed\nwant: %#v\n got: %#v", i, want, got)
+		}
+	}
+}
+
+func TestGenerateSchedule_MonotonicCounterIsScopedToRun(t *testing.T) {
+	spec := domain.Spec{
+		Engine: domain.EngineConfig{Iterations: 3},
+		Operations: []domain.OperationConfig{{
+			Name:   "generated",
+			Params: map[string]string{"sequence": "$monotonic_counter(100, 5)"},
+		}},
+	}
+
+	first := engine.GenerateSchedule(spec, engine.NewPRNG(9))
+	second := engine.GenerateSchedule(spec, engine.NewPRNG(9))
+	if !reflect.DeepEqual(first, second) {
+		t.Fatalf("independent runs leaked counter state\nfirst: %#v\nsecond: %#v", first, second)
+	}
+
+	want := []string{"100", "105", "110"}
+	for i, op := range first {
+		if got := op.Params["sequence"]; got != want[i] {
+			t.Fatalf("operation %d: expected %s, got %s", i+1, want[i], got)
+		}
 	}
 }
 

@@ -13,15 +13,17 @@ import (
 
 // PRNG provides deterministic pseudo-random generation.
 type PRNG struct {
-	masterSeed uint64
+	masterSeed        uint64
+	counterMu         sync.Mutex
+	monotonicCounters map[string]int64
 }
 
 // NewPRNG initializes a new PRNG with a master seed.
 func NewPRNG(seed uint64) *PRNG {
-	if seed == 0 {
-		seed = uint64(time.Now().UnixNano())
+	return &PRNG{
+		masterSeed:        seed,
+		monotonicCounters: make(map[string]int64),
 	}
-	return &PRNG{masterSeed: seed}
 }
 
 // MasterSeed returns the seed used.
@@ -39,6 +41,15 @@ func (p *PRNG) WorkerSeed(workerID int) uint64 {
 
 // EvaluateParam parses declarative parameter generators or dynamic expressions.
 func (p *PRNG) EvaluateParam(expr string, rng *rand.Rand) string {
+	trimmed := strings.TrimSpace(expr)
+	if strings.HasPrefix(trimmed, "$monotonic_counter(") && strings.HasSuffix(trimmed, ")") {
+		args := trimmed[len("$monotonic_counter(") : len(trimmed)-1]
+		val, err := p.evalMonotonicCounter(args)
+		if err == nil {
+			return val
+		}
+		return expr
+	}
 	val, err := EvaluateGenerator(expr, rng)
 	if err == nil {
 		return val
@@ -313,9 +324,41 @@ func evalFakerPhone(args string, r *rand.Rand) (string, error) {
 }
 
 func evalMonotonicCounter(args string) (string, error) {
+	start, step, key, err := parseMonotonicCounter(args)
+	if err != nil {
+		return "", err
+	}
+
+	c := &counterState{}
+	c.val.Store(start)
+
+	actual, _ := monotonicCounters.LoadOrStore(key, c)
+	state := actual.(*counterState)
+	currentVal := state.val.Add(step) - step
+
+	return strconv.FormatInt(currentVal, 10), nil
+}
+
+func (p *PRNG) evalMonotonicCounter(args string) (string, error) {
+	start, step, key, err := parseMonotonicCounter(args)
+	if err != nil {
+		return "", err
+	}
+
+	p.counterMu.Lock()
+	defer p.counterMu.Unlock()
+	current, ok := p.monotonicCounters[key]
+	if !ok {
+		current = start
+	}
+	p.monotonicCounters[key] = current + step
+	return strconv.FormatInt(current, 10), nil
+}
+
+func parseMonotonicCounter(args string) (int64, int64, string, error) {
 	trimmed := strings.TrimSpace(args)
 	if trimmed == "" {
-		return "", fmt.Errorf("$monotonic_counter requires at least a start argument, got empty args")
+		return 0, 0, "", fmt.Errorf("$monotonic_counter requires at least a start argument, got empty args")
 	}
 
 	parts := strings.Split(trimmed, ",")
@@ -325,29 +368,22 @@ func evalMonotonicCounter(args string) (string, error) {
 	if len(parts) == 1 {
 		start, err = strconv.ParseInt(strings.TrimSpace(parts[0]), 10, 64)
 		if err != nil {
-			return "", fmt.Errorf("invalid start argument for $monotonic_counter: %s", args)
+			return 0, 0, "", fmt.Errorf("invalid start argument for $monotonic_counter: %s", args)
 		}
 		step = 1
 	} else if len(parts) == 2 {
 		start, err = strconv.ParseInt(strings.TrimSpace(parts[0]), 10, 64)
 		if err != nil {
-			return "", fmt.Errorf("invalid start argument for $monotonic_counter: %s", args)
+			return 0, 0, "", fmt.Errorf("invalid start argument for $monotonic_counter: %s", args)
 		}
 		step, err = strconv.ParseInt(strings.TrimSpace(parts[1]), 10, 64)
 		if err != nil {
-			return "", fmt.Errorf("invalid step argument for $monotonic_counter: %s", args)
+			return 0, 0, "", fmt.Errorf("invalid step argument for $monotonic_counter: %s", args)
 		}
 	} else {
-		return "", fmt.Errorf("invalid arguments for $monotonic_counter, expected (start, step): %s", args)
+		return 0, 0, "", fmt.Errorf("invalid arguments for $monotonic_counter, expected (start, step): %s", args)
 	}
 
 	key := fmt.Sprintf("%d:%d", start, step)
-	c := &counterState{}
-	c.val.Store(start)
-
-	actual, _ := monotonicCounters.LoadOrStore(key, c)
-	state := actual.(*counterState)
-	currentVal := state.val.Add(step) - step
-
-	return strconv.FormatInt(currentVal, 10), nil
+	return start, step, key, nil
 }
