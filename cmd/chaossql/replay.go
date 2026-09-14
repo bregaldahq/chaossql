@@ -4,14 +4,18 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/bregaldahq/chaossql/internal/domain"
+	"github.com/bregaldahq/chaossql/internal/engine"
 	"github.com/bregaldahq/chaossql/internal/reporter"
+	"github.com/bregaldahq/chaossql/internal/shrinker"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/spf13/cobra"
 )
 
 type ReplayPayload struct {
+	Version           int                     `json:"version,omitempty"`
 	Spec              *domain.Spec            `json:"spec,omitempty"`
 	Seed              uint64                  `json:"seed"`
 	Schedule          domain.SchedulePlan     `json:"schedule"`
@@ -20,6 +24,75 @@ type ReplayPayload struct {
 	AnomalyType       domain.AnomalyType      `json:"anomaly_type,omitempty"`
 	ViolationDetected bool                    `json:"violation_detected"`
 	FailingInvariant  *domain.InvariantResult `json:"failing_invariant,omitempty"`
+	Status            domain.ExecutionStatus  `json:"status,omitempty"`
+	FailureSignature  domain.FailureSignature `json:"failure_signature,omitempty"`
+}
+
+const replayArtifactVersion = 1
+
+func buildReplayArtifact(
+	spec domain.Spec,
+	result *engine.RunResult,
+	ops []domain.ScheduledOp,
+	trace domain.ExecutionTrace,
+	anomaly domain.AnomalyType,
+) (ReplayPayload, error) {
+	if result == nil {
+		return ReplayPayload{}, fmt.Errorf("cannot build replay artifact from a nil result")
+	}
+	signature, err := shrinker.FailureSignatureFor(result)
+	if err != nil {
+		return ReplayPayload{}, err
+	}
+	spec.Engine.Seed = result.Seed
+	storedOps := append([]domain.ScheduledOp(nil), ops...)
+	storedTrace := append(domain.ExecutionTrace(nil), trace...)
+	return ReplayPayload{
+		Version:           replayArtifactVersion,
+		Spec:              &spec,
+		Seed:              result.Seed,
+		Schedule:          engine.BuildSchedulePlan(spec, storedOps, engine.NewPRNG(result.Seed)),
+		Trace:             storedTrace,
+		ScheduledOps:      storedOps,
+		AnomalyType:       anomaly,
+		ViolationDetected: result.ViolationDetected,
+		FailingInvariant:  result.FailingInvariant,
+		Status:            result.Status,
+		FailureSignature:  signature,
+	}, nil
+}
+
+func writeReplayArtifact(path string, payload ReplayPayload) error {
+	data, err := json.MarshalIndent(payload, "", "  ")
+	if err != nil {
+		return fmt.Errorf("encode replay artifact: %w", err)
+	}
+	data = append(data, '\n')
+	dir := filepath.Dir(path)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return fmt.Errorf("create replay artifact directory: %w", err)
+	}
+	temp, err := os.CreateTemp(dir, "."+filepath.Base(path)+".tmp-*")
+	if err != nil {
+		return fmt.Errorf("create replay artifact: %w", err)
+	}
+	tempPath := temp.Name()
+	defer func() { _ = os.Remove(tempPath) }()
+	if err := temp.Chmod(0o600); err != nil {
+		_ = temp.Close()
+		return fmt.Errorf("secure replay artifact: %w", err)
+	}
+	if _, err := temp.Write(data); err != nil {
+		_ = temp.Close()
+		return fmt.Errorf("write replay artifact: %w", err)
+	}
+	if err := temp.Close(); err != nil {
+		return fmt.Errorf("close replay artifact: %w", err)
+	}
+	if err := os.Rename(tempPath, path); err != nil {
+		return fmt.Errorf("publish replay artifact: %w", err)
+	}
+	return nil
 }
 
 func newReplayCmd() *cobra.Command {

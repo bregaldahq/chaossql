@@ -28,11 +28,11 @@
 
 **Files:** `cmd/chaossql/replay.go`, `cmd/chaossql/main.go`, tests
 
-- [ ] Add failing round-trip tests for a complete version 1 artifact.
-- [ ] Add `run --export-result <path>` and write the minimal reproducible artifact atomically.
-- [ ] Rebuild and persist the logical schedule for the exported operation subset.
-- [ ] Preserve legacy trace-only replay compatibility.
-- [ ] Commit replay artifact export.
+- [x] Add failing round-trip tests for a complete version 1 artifact.
+- [x] Add `run --export-result <path>` and write the minimal reproducible artifact atomically.
+- [x] Rebuild and persist the logical schedule for the exported operation subset.
+- [x] Preserve legacy trace-only replay compatibility.
+- [x] Commit replay artifact export.
 
 ### Task 4: Executable replay verification
 

@@ -35,6 +35,7 @@ var (
 	exportJUnitFlag   string
 	exportSummaryFlag string
 	exportSARIFFlag   string
+	exportResultFlag  string
 	uiFlag            bool
 	cloudTokenFlag    string
 	cloudURLFlag      string
@@ -69,6 +70,7 @@ func newRunCmd() *cobra.Command {
 	runCmd.Flags().StringVar(&exportJUnitFlag, "export-junit", "", "Export execution test results as JUnit XML to file path")
 	runCmd.Flags().StringVar(&exportSummaryFlag, "export-summary", "", "Export execution report as GitHub Step Summary markdown to file path")
 	runCmd.Flags().StringVar(&exportSARIFFlag, "export-sarif", "", "Export execution security findings as OASIS SARIF 2.1.0 to file path")
+	runCmd.Flags().StringVar(&exportResultFlag, "export-result", "", "Export a versioned JSON artifact for executable replay")
 	runCmd.Flags().BoolVar(&uiFlag, "ui", false, "Launch interactive trace viewer UI web server after execution")
 	runCmd.Flags().StringVar(&cloudTokenFlag, "cloud-token", os.Getenv("CHAOSSQL_CLOUD_TOKEN"), "ChaosSQL Cloud API authentication token (or set CHAOSSQL_CLOUD_TOKEN)")
 	runCmd.Flags().StringVar(&cloudURLFlag, "cloud-url", defaultCloudURL(), "ChaosSQL Cloud API base URL (or set CHAOSSQL_CLOUD_URL)")
@@ -94,6 +96,7 @@ func newDemoCmd() *cobra.Command {
 	demoCmd.Flags().StringVar(&exportJUnitFlag, "export-junit", "", "Export execution test results as JUnit XML to file path")
 	demoCmd.Flags().StringVar(&exportSummaryFlag, "export-summary", "", "Export execution report as GitHub Step Summary markdown to file path")
 	demoCmd.Flags().StringVar(&exportSARIFFlag, "export-sarif", "", "Export execution security findings as OASIS SARIF 2.1.0 to file path")
+	demoCmd.Flags().StringVar(&exportResultFlag, "export-result", "", "Export a versioned JSON artifact for executable replay")
 	demoCmd.Flags().BoolVar(&uiFlag, "ui", false, "Launch interactive trace viewer UI web server after execution")
 	demoCmd.Flags().StringVar(&cloudTokenFlag, "cloud-token", os.Getenv("CHAOSSQL_CLOUD_TOKEN"), "ChaosSQL Cloud API authentication token (or set CHAOSSQL_CLOUD_TOKEN)")
 	demoCmd.Flags().StringVar(&cloudURLFlag, "cloud-url", defaultCloudURL(), "ChaosSQL Cloud API base URL (or set CHAOSSQL_CLOUD_URL)")
@@ -300,6 +303,19 @@ func executeChaos(specPath string, seedOverride ...bool) error {
 					anomaly = analyzer.ClassifyCycle(minCycles[0])
 				}
 			}
+		}
+	}
+
+	if exportResultFlag != "" {
+		artifact, err := buildReplayArtifact(*spec, runResult, minimalOps, minimalTrace, anomaly)
+		if err != nil {
+			return fmt.Errorf("failed to build replay artifact: %w", err)
+		}
+		if err := writeReplayArtifact(exportResultFlag, artifact); err != nil {
+			return fmt.Errorf("failed to export replay artifact: %w", err)
+		}
+		if !jsonFlag {
+			fmt.Printf("  [✓] Generated executable replay artifact: %s\n", exportResultFlag)
 		}
 	}
 
