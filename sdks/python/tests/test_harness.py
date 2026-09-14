@@ -28,6 +28,9 @@ def test_passing_invariant():
     assert res.all_invariants_satisfied
     assert res.is_clean
     assert not res.violation_detected
+    assert res.seed == 42
+    assert res.schedule["version"] == 1
+    assert len(res.schedule["decisions"]) == 5
 
 
 def test_invariant_violation_is_reported_and_shrunk():

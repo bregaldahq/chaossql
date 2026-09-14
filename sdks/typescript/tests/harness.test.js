@@ -3,7 +3,7 @@ const assert = require('node:assert');
 const path = require('node:path');
 const fs = require('node:fs');
 const os = require('node:os');
-const { ChaosHarness } = require('../dist/index');
+const { ChaosHarness, executeIPC } = require('../dist/index');
 
 test('ChaosSQL TypeScript SDK (@chaossql/test)', async (t) => {
   const binPath = path.resolve(__dirname, '../../../bin/chaossql');
@@ -21,6 +21,24 @@ test('ChaosSQL TypeScript SDK (@chaossql/test)', async (t) => {
     assert.strictEqual(result.status, 'passed');
     assert.strictEqual(result.violationDetected, false);
     assert.strictEqual(result.anomalyDetected, false);
+    assert.strictEqual(result.seed, 42);
+    assert.strictEqual(result.schedule.version, 1);
+    assert.strictEqual(result.schedule.decisions.length, 5);
+  });
+
+  await t.test('rejects seeds that cannot be represented exactly by JavaScript', async () => {
+    const harness = new ChaosHarness({ driver: 'sqlite', binPath });
+    await assert.rejects(
+      () => harness.run({ seed: Number.MAX_SAFE_INTEGER + 1 }),
+      (err) => err instanceof RangeError && err.message.includes('safe integer')
+    );
+  });
+
+  await t.test('executeIPC rejects unsafe seeds before spawning the engine', async () => {
+    await assert.rejects(
+      () => executeIPC({ seed_value: Number.MAX_SAFE_INTEGER + 1 }, '/missing/chaossql'),
+      (err) => err instanceof RangeError && err.message.includes('seed_value')
+    );
   });
 
   await t.test('detects and minimizes an invariant violation', async () => {

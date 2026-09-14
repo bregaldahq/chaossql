@@ -211,6 +211,25 @@ type ScheduledOp struct {
 	Steps  []StepConfig      `json:"steps"`
 }
 
+// SchedulePlan records the deterministic decisions controlled by the harness.
+type SchedulePlan struct {
+	Version   int                `json:"version"`
+	Seed      uint64             `json:"seed"`
+	Workers   int                `json:"workers"`
+	Decisions []ScheduleDecision `json:"decisions"`
+}
+
+// ScheduleDecision records the worker and injected behavior for one SQL step.
+type ScheduleDecision struct {
+	Sequence    int  `json:"sequence"`
+	OperationID int  `json:"operation_id"`
+	WorkerID    int  `json:"worker_id"`
+	StepIndex   int  `json:"step_index"`
+	JitterMs    int  `json:"jitter_ms"`
+	LatencyMs   int  `json:"latency_ms"`
+	Abort       bool `json:"abort"`
+}
+
 // ShrinkResult summarizes the output of the Delta-Debugging algorithm.
 type ShrinkResult struct {
 	OriginalSize   int           `json:"original_size"`
@@ -225,6 +244,8 @@ type ShrinkResult struct {
 type ExecutionResult struct {
 	Status            ExecutionStatus  `json:"status"`
 	Isolation         IsolationLevel   `json:"isolation,omitempty"`
+	Seed              uint64           `json:"seed"`
+	Schedule          SchedulePlan     `json:"schedule"`
 	OperationErrors   []OperationError `json:"operation_errors,omitempty"`
 	Success           bool             `json:"success"`
 	ViolationDetected bool             `json:"violation_detected"`

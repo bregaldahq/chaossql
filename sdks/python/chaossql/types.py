@@ -28,6 +28,8 @@ class ChaosResult:
     violation_detected: bool
     status: str = ""
     isolation: str = ""
+    seed: int = 0
+    schedule: Dict[str, Any] = field(default_factory=dict)
     operation_errors: List[Dict[str, Any]] = field(default_factory=list)
     anomaly_type: str = "UNKNOWN"
     failing_invariant: Optional[Dict[str, Any]] = None

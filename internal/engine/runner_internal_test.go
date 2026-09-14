@@ -46,3 +46,12 @@ func TestSubstituteParams(t *testing.T) {
 		})
 	}
 }
+
+func TestSubstituteParams_OverlappingNamesAreDeterministic(t *testing.T) {
+	state := map[string]string{"a": "1", "aa": "2"}
+	for i := 0; i < 100; i++ {
+		if got := substituteParams("SELECT {aa - a}", state); got != "SELECT 1" {
+			t.Fatalf("iteration %d produced %q", i, got)
+		}
+	}
+}

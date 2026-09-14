@@ -97,6 +97,8 @@ def execute_ipc(
         violation_detected=raw_resp.get("violation_detected", False),
         status=raw_resp.get("status", ""),
         isolation=raw_resp.get("isolation", ""),
+        seed=raw_resp.get("seed", 0),
+        schedule=raw_resp.get("schedule", {}),
         operation_errors=raw_resp.get("operation_errors", []),
         anomaly_type=raw_resp.get("anomaly_type", "UNKNOWN"),
         failing_invariant=raw_resp.get("failing_invariant"),

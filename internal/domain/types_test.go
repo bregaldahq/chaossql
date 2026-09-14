@@ -76,6 +76,12 @@ func TestExecutionStatusJSON(t *testing.T) {
 	result := domain.ExecutionResult{
 		Status:    domain.StatusExecutionError,
 		Isolation: domain.LevelSerializable,
+		Seed:      42,
+		Schedule: domain.SchedulePlan{
+			Version: 1,
+			Seed:    42,
+			Workers: 2,
+		},
 		OperationErrors: []domain.OperationError{{
 			OperationID: 7,
 			Operation:   "withdraw",
@@ -95,6 +101,40 @@ func TestExecutionStatusJSON(t *testing.T) {
 		`"operation_errors":[`,
 		`"operation_id":7`,
 		`"phase":"step"`,
+		`"seed":42`,
+		`"schedule":{"version":1`,
+	} {
+		if !strings.Contains(jsonText, fragment) {
+			t.Fatalf("expected %s in %s", fragment, jsonText)
+		}
+	}
+}
+
+func TestSchedulePlanJSON(t *testing.T) {
+	plan := domain.SchedulePlan{
+		Version: 1,
+		Seed:    42,
+		Workers: 2,
+		Decisions: []domain.ScheduleDecision{{
+			Sequence:    1,
+			OperationID: 3,
+			WorkerID:    1,
+			StepIndex:   2,
+			JitterMs:    7,
+			LatencyMs:   11,
+			Abort:       true,
+		}},
+	}
+
+	encoded, err := json.Marshal(plan)
+	if err != nil {
+		t.Fatal(err)
+	}
+	jsonText := string(encoded)
+	for _, fragment := range []string{
+		`"version":1`, `"seed":42`, `"workers":2`, `"sequence":1`,
+		`"operation_id":3`, `"worker_id":1`, `"step_index":2`,
+		`"jitter_ms":7`, `"latency_ms":11`, `"abort":true`,
 	} {
 		if !strings.Contains(jsonText, fragment) {
 			t.Fatalf("expected %s in %s", fragment, jsonText)

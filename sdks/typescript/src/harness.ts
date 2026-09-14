@@ -97,6 +97,9 @@ export class ChaosHarness {
   }
 
   private buildPayload(opts: RunOptions = {}): any {
+    if (opts.seed !== undefined && (!Number.isSafeInteger(opts.seed) || opts.seed < 0)) {
+      throw new RangeError('seed must be a non-negative JavaScript safe integer');
+    }
     return {
       driver: this.driver,
       dsn: this.dsn,

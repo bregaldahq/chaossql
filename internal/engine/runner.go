@@ -15,7 +15,6 @@ import (
 	"github.com/bregaldahq/chaossql/internal/domain"
 	"github.com/bregaldahq/chaossql/internal/drivers"
 	"github.com/bregaldahq/chaossql/internal/evaluator"
-	"github.com/bregaldahq/chaossql/internal/faults"
 )
 
 type RunResult = domain.ExecutionResult
@@ -26,6 +25,7 @@ type ScheduleOutcome struct {
 	OperationErrors []domain.OperationError
 	Canceled        bool
 	Isolation       domain.IsolationLevel
+	Schedule        domain.SchedulePlan
 }
 
 // Runner executes chaos schedules across database connections.
@@ -54,18 +54,20 @@ func GenerateSchedule(spec domain.Spec, prng *PRNG) []domain.ScheduledOp {
 		return nil
 	}
 
-	masterRng := rand.New(rand.NewPCG(prng.MasterSeed(), 0))
+	runPRNG := NewPRNG(prng.MasterSeed())
+	masterRng := rand.New(rand.NewPCG(runPRNG.MasterSeed(), 0))
 	scheduledOps := make([]domain.ScheduledOp, numOps)
 
 	for i := 0; i < numOps; i++ {
 		opTemplate := spec.Operations[masterRng.IntN(len(spec.Operations))]
 		params := make(map[string]string)
-		for k, v := range opTemplate.Params {
-			val, err := EvaluateGenerator(v, masterRng)
-			if err != nil {
-				val = prng.EvaluateParam(v, masterRng)
-			}
-			params[k] = val
+		paramNames := make([]string, 0, len(opTemplate.Params))
+		for name := range opTemplate.Params {
+			paramNames = append(paramNames, name)
+		}
+		sort.Strings(paramNames)
+		for _, name := range paramNames {
+			params[name] = runPRNG.EvaluateParam(opTemplate.Params[name], masterRng)
 		}
 		scheduledOps[i] = domain.ScheduledOp{
 			ID:     i + 1,
@@ -106,12 +108,20 @@ func (r *Runner) Run(ctx context.Context, spec domain.Spec) (*RunResult, error) 
 
 // ExecuteSchedule dispatches the given operations across workers and captures the trace.
 func (r *Runner) ExecuteSchedule(ctx context.Context, spec domain.Spec, ops []domain.ScheduledOp) (ScheduleOutcome, error) {
+	if err := validateScheduledOps(ops); err != nil {
+		return ScheduleOutcome{}, err
+	}
 	nWorkers := spec.Engine.Workers
 	if nWorkers <= 0 {
 		nWorkers = 4
 	}
-
-	faultInj := faults.NewFaultInjector(spec.Engine.Faults, r.prng.MasterSeed())
+	plannedSpec := spec
+	plannedSpec.Engine.Workers = nWorkers
+	plan := BuildSchedulePlan(plannedSpec, ops, r.prng)
+	decisions := make(map[scheduleDecisionKey]domain.ScheduleDecision, len(plan.Decisions))
+	for _, decision := range plan.Decisions {
+		decisions[scheduleDecisionKey{operationID: decision.OperationID, stepIndex: decision.StepIndex}] = decision
+	}
 
 	effectiveIsolation, err := r.driver.EffectiveIsolation(spec.Database.Isolation)
 	if err != nil {
@@ -152,28 +162,22 @@ func (r *Runner) ExecuteSchedule(ctx context.Context, spec domain.Spec, ops []do
 		errorsMu.Unlock()
 	}
 
-	opChan := make(chan domain.ScheduledOp, len(ops))
-	for _, op := range ops {
-		opChan <- op
-	}
-	close(opChan)
+	workerQueues := partitionScheduledOps(ops, nWorkers)
 
 	var wg sync.WaitGroup
 	for w := 1; w <= nWorkers; w++ {
 		wg.Add(1)
-		go func(workerID int) {
+		go func(workerID int, queue []domain.ScheduledOp) {
 			defer wg.Done()
 
-			workerRng := rand.New(rand.NewPCG(r.prng.WorkerSeed(workerID), uint64(workerID)))
-
-			for op := range opChan {
+			for _, op := range queue {
 				if ctx.Err() != nil {
 					break
 				}
-				errs := r.executeOperation(ctx, spec, op, workerID, workerRng, faultInj, addEvent)
+				errs := r.executeOperation(ctx, spec, op, workerID, decisions, addEvent)
 				addErrors(errs)
 			}
-		}(w)
+		}(w, workerQueues[w-1])
 	}
 
 	wg.Wait()
@@ -191,6 +195,7 @@ func (r *Runner) ExecuteSchedule(ctx context.Context, spec domain.Spec, ops []do
 		OperationErrors: operationErrors,
 		Canceled:        ctx.Err() != nil,
 		Isolation:       effectiveIsolation,
+		Schedule:        plan,
 	}
 	if ctx.Err() != nil {
 		return outcome, ctx.Err()
@@ -200,13 +205,17 @@ func (r *Runner) ExecuteSchedule(ctx context.Context, spec domain.Spec, ops []do
 
 type eventRecorder func(workerID, opIdx, stepIdx int, opName string, evType domain.TraceEventType, phase, sql string, err error)
 
+type scheduleDecisionKey struct {
+	operationID int
+	stepIndex   int
+}
+
 func (r *Runner) executeOperation(
 	ctx context.Context,
 	spec domain.Spec,
 	op domain.ScheduledOp,
 	workerID int,
-	workerRng *rand.Rand,
-	faultInj *faults.FaultInjector,
+	decisions map[scheduleDecisionKey]domain.ScheduleDecision,
 	addEvent eventRecorder,
 ) []domain.OperationError {
 	tx, err := r.driver.BeginTx(ctx, drivers.TransactionOptions{Isolation: spec.Database.Isolation})
@@ -239,17 +248,18 @@ func (r *Runner) executeOperation(
 
 	for stepIdx, step := range op.Steps {
 		stepNumber := stepIdx + 1
+		decision := decisions[scheduleDecisionKey{operationID: op.ID, stepIndex: stepNumber}]
 		if ctx.Err() != nil {
 			return rollback(stepNumber, "", nil)
 		}
 
-		if !waitForContext(ctx, r.prng.Jitter(spec.Engine.JitterMs, workerRng)) {
+		if !waitForContext(ctx, time.Duration(decision.JitterMs)*time.Millisecond) {
 			return rollback(stepNumber, "", nil)
 		}
-		if !waitForContext(ctx, faultInj.GetLatencySpike()) {
+		if !waitForContext(ctx, time.Duration(decision.LatencyMs)*time.Millisecond) {
 			return rollback(stepNumber, "", nil)
 		}
-		if faultInj.ShouldAbort() {
+		if decision.Abort {
 			return rollback(stepNumber, "", nil)
 		}
 
@@ -311,7 +321,18 @@ func SubstituteParams(sql string, state map[string]string) string {
 
 func substituteParams(sql string, state map[string]string) string {
 	result := sql
-	for k, v := range state {
+	stateKeys := make([]string, 0, len(state))
+	for key := range state {
+		stateKeys = append(stateKeys, key)
+	}
+	sort.Slice(stateKeys, func(i, j int) bool {
+		if len(stateKeys[i]) != len(stateKeys[j]) {
+			return len(stateKeys[i]) > len(stateKeys[j])
+		}
+		return stateKeys[i] < stateKeys[j]
+	})
+	for _, k := range stateKeys {
+		v := state[k]
 		placeholder := "{" + k + "}"
 		result = strings.ReplaceAll(result, placeholder, v)
 	}
@@ -324,8 +345,8 @@ func substituteParams(sql string, state map[string]string) string {
 		}
 		expr := result[start+1 : end]
 
-		for k, v := range state {
-			expr = strings.ReplaceAll(expr, k, v)
+		for _, k := range stateKeys {
+			expr = strings.ReplaceAll(expr, k, state[k])
 		}
 
 		valStr := evalSimpleArithmetic(expr)
@@ -393,6 +414,8 @@ func (r *Runner) finalizeResult(
 		Trace:           outcome.Trace,
 		OperationErrors: outcome.OperationErrors,
 		Isolation:       outcome.Isolation,
+		Seed:            r.prng.MasterSeed(),
+		Schedule:        outcome.Schedule,
 		ScheduledOps:    ops,
 		Duration:        time.Since(started),
 	}

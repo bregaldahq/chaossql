@@ -1,0 +1,159 @@
+{
+  "operations": [
+    {
+      "id": 1,
+      "name": "corpus_write",
+      "params": {
+        "amount": "70",
+        "category": "beta",
+        "sequence": "100"
+      },
+      "steps": [
+        {
+          "SQL": "SELECT value FROM records WHERE id = {sequence}",
+          "Capture": "current"
+        },
+        {
+          "SQL": "UPDATE records SET value = {amount} WHERE id = {sequence}",
+          "Capture": ""
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "corpus_write",
+      "params": {
+        "amount": "45",
+        "category": "alpha",
+        "sequence": "105"
+      },
+      "steps": [
+        {
+          "SQL": "SELECT value FROM records WHERE id = {sequence}",
+          "Capture": "current"
+        },
+        {
+          "SQL": "UPDATE records SET value = {amount} WHERE id = {sequence}",
+          "Capture": ""
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "name": "corpus_write",
+      "params": {
+        "amount": "53",
+        "category": "gamma",
+        "sequence": "110"
+      },
+      "steps": [
+        {
+          "SQL": "SELECT value FROM records WHERE id = {sequence}",
+          "Capture": "current"
+        },
+        {
+          "SQL": "UPDATE records SET value = {amount} WHERE id = {sequence}",
+          "Capture": ""
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "name": "corpus_write",
+      "params": {
+        "amount": "43",
+        "category": "alpha",
+        "sequence": "115"
+      },
+      "steps": [
+        {
+          "SQL": "SELECT value FROM records WHERE id = {sequence}",
+          "Capture": "current"
+        },
+        {
+          "SQL": "UPDATE records SET value = {amount} WHERE id = {sequence}",
+          "Capture": ""
+        }
+      ]
+    }
+  ],
+  "schedule": {
+    "version": 1,
+    "seed": 0,
+    "workers": 2,
+    "decisions": [
+      {
+        "sequence": 1,
+        "operation_id": 1,
+        "worker_id": 1,
+        "step_index": 1,
+        "jitter_ms": 8,
+        "latency_ms": 10,
+        "abort": true
+      },
+      {
+        "sequence": 2,
+        "operation_id": 1,
+        "worker_id": 1,
+        "step_index": 2,
+        "jitter_ms": 8,
+        "latency_ms": 0,
+        "abort": false
+      },
+      {
+        "sequence": 3,
+        "operation_id": 2,
+        "worker_id": 2,
+        "step_index": 1,
+        "jitter_ms": 8,
+        "latency_ms": 11,
+        "abort": false
+      },
+      {
+        "sequence": 4,
+        "operation_id": 2,
+        "worker_id": 2,
+        "step_index": 2,
+        "jitter_ms": 3,
+        "latency_ms": 11,
+        "abort": false
+      },
+      {
+        "sequence": 5,
+        "operation_id": 3,
+        "worker_id": 1,
+        "step_index": 1,
+        "jitter_ms": 8,
+        "latency_ms": 9,
+        "abort": false
+      },
+      {
+        "sequence": 6,
+        "operation_id": 3,
+        "worker_id": 1,
+        "step_index": 2,
+        "jitter_ms": 2,
+        "latency_ms": 4,
+        "abort": true
+      },
+      {
+        "sequence": 7,
+        "operation_id": 4,
+        "worker_id": 2,
+        "step_index": 1,
+        "jitter_ms": 2,
+        "latency_ms": 4,
+        "abort": true
+      },
+      {
+        "sequence": 8,
+        "operation_id": 4,
+        "worker_id": 2,
+        "step_index": 2,
+        "jitter_ms": 9,
+        "latency_ms": 7,
+        "abort": true
+      }
+    ]
+  }
+}

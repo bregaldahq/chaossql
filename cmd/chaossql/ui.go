@@ -22,6 +22,8 @@ import (
 
 type uiTraceFilePayload struct {
 	Spec              *domain.Spec             `json:"spec,omitempty"`
+	Seed              uint64                   `json:"seed"`
+	Schedule          domain.SchedulePlan      `json:"schedule"`
 	Trace             domain.ExecutionTrace    `json:"trace,omitempty"`
 	ScheduledOps      []domain.ScheduledOp     `json:"scheduled_ops,omitempty"`
 	Shrink            *domain.ShrinkResult     `json:"shrink,omitempty"`

@@ -31,9 +31,28 @@ export interface ShrinkResult {
   minimalOps: ScheduledOp[];
 }
 
+export interface ScheduleDecision {
+  sequence: number;
+  operation_id: number;
+  worker_id: number;
+  step_index: number;
+  jitter_ms: number;
+  latency_ms: number;
+  abort: boolean;
+}
+
+export interface SchedulePlan {
+  version: number;
+  seed: number;
+  workers: number;
+  decisions: ScheduleDecision[];
+}
+
 export interface ChaosResult {
   status: 'passed' | 'violation' | 'execution_error' | 'inconclusive' | 'canceled' | string;
   isolation?: string;
+  seed: number;
+  schedule: SchedulePlan;
   operationErrors: Array<{
     operation_id: number;
     operation: string;
@@ -69,5 +88,6 @@ export interface ChaosHarnessOptions {
 export interface RunOptions {
   workers?: number;
   iterations?: number;
+  /** Non-negative JavaScript safe integer (0 through Number.MAX_SAFE_INTEGER). */
   seed?: number;
 }

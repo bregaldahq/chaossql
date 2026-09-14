@@ -67,6 +67,15 @@ function deriveAnomalyCode(anomalyType: string): string {
 }
 
 export function executeIPC(payload: any, binaryPath?: string, timeoutMs: number = 60000): Promise<ChaosResult> {
+  const seedCandidates: Array<[string, unknown]> = [
+    ['seed_value', payload?.seed_value],
+    ['engine.seed', payload?.engine?.seed],
+  ];
+  for (const [field, value] of seedCandidates) {
+    if (value !== undefined && (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 0)) {
+      return Promise.reject(new RangeError(`${field} must be a non-negative JavaScript safe integer`));
+    }
+  }
   return new Promise((resolve, reject) => {
     let bin: string;
     try {
@@ -157,6 +166,8 @@ export function executeIPC(payload: any, binaryPath?: string, timeoutMs: number 
         const result: ChaosResult = {
           status: raw.status || '',
           isolation: raw.isolation,
+          seed: raw.seed || 0,
+          schedule: raw.schedule || { version: 0, seed: raw.seed || 0, workers: 0, decisions: [] },
           operationErrors: raw.operation_errors || [],
           success: Boolean(raw.success),
           violationDetected: Boolean(raw.violation_detected),

@@ -34,9 +34,7 @@ func newDiffCmd() *cobra.Command {
 				return fmt.Errorf("failed to load spec: %w", err)
 			}
 
-			if seedFlag > 0 {
-				spec.Engine.Seed = seedFlag
-			}
+			spec.Engine.Seed = resolveEffectiveSeed(spec.Engine.Seed, seedFlag, cmd.Flags().Changed("seed"))
 
 			driverA, err := drivers.GetDriver(driverAName, dsnA)
 			if err != nil {
