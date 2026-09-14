@@ -15,7 +15,6 @@ import (
 	"github.com/bregaldahq/chaossql/internal/domain"
 	"github.com/bregaldahq/chaossql/internal/drivers"
 	"github.com/bregaldahq/chaossql/internal/evaluator"
-	"github.com/bregaldahq/chaossql/internal/faults"
 )
 
 type RunResult = domain.ExecutionResult
@@ -26,6 +25,7 @@ type ScheduleOutcome struct {
 	OperationErrors []domain.OperationError
 	Canceled        bool
 	Isolation       domain.IsolationLevel
+	Schedule        domain.SchedulePlan
 }
 
 // Runner executes chaos schedules across database connections.
@@ -112,7 +112,11 @@ func (r *Runner) ExecuteSchedule(ctx context.Context, spec domain.Spec, ops []do
 		nWorkers = 4
 	}
 
-	faultInj := faults.NewFaultInjector(spec.Engine.Faults, r.prng.MasterSeed())
+	plan := BuildSchedulePlan(spec, ops, r.prng)
+	decisions := make(map[scheduleDecisionKey]domain.ScheduleDecision, len(plan.Decisions))
+	for _, decision := range plan.Decisions {
+		decisions[scheduleDecisionKey{operationID: decision.OperationID, stepIndex: decision.StepIndex}] = decision
+	}
 
 	effectiveIsolation, err := r.driver.EffectiveIsolation(spec.Database.Isolation)
 	if err != nil {
@@ -153,28 +157,30 @@ func (r *Runner) ExecuteSchedule(ctx context.Context, spec domain.Spec, ops []do
 		errorsMu.Unlock()
 	}
 
-	opChan := make(chan domain.ScheduledOp, len(ops))
-	for _, op := range ops {
-		opChan <- op
+	orderedOps := append([]domain.ScheduledOp(nil), ops...)
+	sort.SliceStable(orderedOps, func(i, j int) bool {
+		return orderedOps[i].ID < orderedOps[j].ID
+	})
+	workerQueues := make([][]domain.ScheduledOp, nWorkers)
+	for _, op := range orderedOps {
+		workerID := (op.ID-1)%nWorkers + 1
+		workerQueues[workerID-1] = append(workerQueues[workerID-1], op)
 	}
-	close(opChan)
 
 	var wg sync.WaitGroup
 	for w := 1; w <= nWorkers; w++ {
 		wg.Add(1)
-		go func(workerID int) {
+		go func(workerID int, queue []domain.ScheduledOp) {
 			defer wg.Done()
 
-			workerRng := rand.New(rand.NewPCG(r.prng.WorkerSeed(workerID), uint64(workerID)))
-
-			for op := range opChan {
+			for _, op := range queue {
 				if ctx.Err() != nil {
 					break
 				}
-				errs := r.executeOperation(ctx, spec, op, workerID, workerRng, faultInj, addEvent)
+				errs := r.executeOperation(ctx, spec, op, workerID, decisions, addEvent)
 				addErrors(errs)
 			}
-		}(w)
+		}(w, workerQueues[w-1])
 	}
 
 	wg.Wait()
@@ -192,6 +198,7 @@ func (r *Runner) ExecuteSchedule(ctx context.Context, spec domain.Spec, ops []do
 		OperationErrors: operationErrors,
 		Canceled:        ctx.Err() != nil,
 		Isolation:       effectiveIsolation,
+		Schedule:        plan,
 	}
 	if ctx.Err() != nil {
 		return outcome, ctx.Err()
@@ -201,13 +208,17 @@ func (r *Runner) ExecuteSchedule(ctx context.Context, spec domain.Spec, ops []do
 
 type eventRecorder func(workerID, opIdx, stepIdx int, opName string, evType domain.TraceEventType, phase, sql string, err error)
 
+type scheduleDecisionKey struct {
+	operationID int
+	stepIndex   int
+}
+
 func (r *Runner) executeOperation(
 	ctx context.Context,
 	spec domain.Spec,
 	op domain.ScheduledOp,
 	workerID int,
-	workerRng *rand.Rand,
-	faultInj *faults.FaultInjector,
+	decisions map[scheduleDecisionKey]domain.ScheduleDecision,
 	addEvent eventRecorder,
 ) []domain.OperationError {
 	tx, err := r.driver.BeginTx(ctx, drivers.TransactionOptions{Isolation: spec.Database.Isolation})
@@ -240,17 +251,18 @@ func (r *Runner) executeOperation(
 
 	for stepIdx, step := range op.Steps {
 		stepNumber := stepIdx + 1
+		decision := decisions[scheduleDecisionKey{operationID: op.ID, stepIndex: stepNumber}]
 		if ctx.Err() != nil {
 			return rollback(stepNumber, "", nil)
 		}
 
-		if !waitForContext(ctx, r.prng.Jitter(spec.Engine.JitterMs, workerRng)) {
+		if !waitForContext(ctx, time.Duration(decision.JitterMs)*time.Millisecond) {
 			return rollback(stepNumber, "", nil)
 		}
-		if !waitForContext(ctx, faultInj.GetLatencySpike()) {
+		if !waitForContext(ctx, time.Duration(decision.LatencyMs)*time.Millisecond) {
 			return rollback(stepNumber, "", nil)
 		}
-		if faultInj.ShouldAbort() {
+		if decision.Abort {
 			return rollback(stepNumber, "", nil)
 		}
 

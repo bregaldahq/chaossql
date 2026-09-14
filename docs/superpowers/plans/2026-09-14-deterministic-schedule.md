@@ -28,12 +28,12 @@
 
 **Files:** `internal/engine/runner.go`, `internal/engine/runner_schedule_test.go`
 
-- [ ] Add failing tests that expose contested channel assignment and shared fault decision order.
-- [ ] Replace the shared operation channel with deterministic per-worker queues.
-- [ ] Execute each step using its precomputed schedule decision.
-- [ ] Preserve prompt cancellation and structured transaction errors.
-- [ ] Run transaction, schedule, status, and cancellation tests repeatedly under `-race`.
-- [ ] Commit deterministic execution.
+- [x] Add failing tests that expose contested channel assignment and shared fault decision order.
+- [x] Replace the shared operation channel with deterministic per-worker queues.
+- [x] Execute each step using its precomputed schedule decision.
+- [x] Preserve prompt cancellation and structured transaction errors.
+- [x] Run transaction, schedule, status, and cancellation tests repeatedly under `-race`.
+- [x] Commit deterministic execution.
 
 ### Task 4: Persist schedule and effective seed
 
