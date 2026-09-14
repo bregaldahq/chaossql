@@ -368,10 +368,10 @@ Expected: PASS with no new skip in required CI mode.
 
 Review `origin/main...HEAD` against `docs/superpowers/specs/2026-09-10-transaction-semantics-design.md`. Resolve every Critical and Important finding and rerun affected tests.
 
-- [ ] **Step 4: Push, open the ENG-01 PR, and wait for all checks**
+- [x] **Step 4: Push, open the ENG-01 PR, and wait for all checks**
 
 Push `codex/eng-01-transaction-semantics`, create a PR targeting `main`, and require every GitHub check to pass.
 
-- [ ] **Step 5: Merge and record completion**
+- [x] **Step 5: Merge and record completion**
 
 Merge the approved PR with a merge commit, then update the ignored commercialization plan so the ENG-01 row links to the merged PR and is marked complete.
