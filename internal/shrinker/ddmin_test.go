@@ -7,6 +7,8 @@ import (
 	"testing"
 
 	"github.com/bregaldahq/chaossql/internal/domain"
+	"github.com/bregaldahq/chaossql/internal/drivers"
+	"github.com/bregaldahq/chaossql/internal/engine"
 )
 
 func TestFailureSignatureMatchesOnlyOriginalInvariant(t *testing.T) {
@@ -189,6 +191,41 @@ func TestShrink_DeterministicTieBreaking(t *testing.T) {
 		}
 		if !reflect.DeepEqual(result.MinimalOps, want) {
 			t.Fatalf("run %d result = %#v, want %#v", run, result.MinimalOps, want)
+		}
+	}
+}
+
+func TestShrinkExecution_PreservesOriginalInvariantAcrossRuns(t *testing.T) {
+	ctx := context.Background()
+	driver := drivers.NewSQLiteDriver("")
+	if err := driver.Open(ctx); err != nil {
+		t.Fatal(err)
+	}
+	defer driver.Close()
+	spec := domain.Spec{
+		Database: domain.DatabaseConfig{
+			Driver: "sqlite",
+			Schema: "CREATE TABLE state (id INT PRIMARY KEY, value INT);",
+			Seed:   "INSERT INTO state VALUES (1, 100), (2, 100);",
+		},
+		Engine: domain.EngineConfig{Workers: 1, Seed: 33},
+		Invariants: []domain.InvariantConfig{
+			{Name: "first_unchanged", Query: "SELECT value FROM state WHERE id = 1", Assert: "value == 100"},
+			{Name: "second_unchanged", Query: "SELECT value FROM state WHERE id = 2", Assert: "value == 100"},
+		},
+	}
+	ops := []domain.ScheduledOp{
+		{ID: 1, Name: "break_first", Steps: []domain.StepConfig{{SQL: "UPDATE state SET value = 0 WHERE id = 1"}}},
+		{ID: 2, Name: "break_second", Steps: []domain.StepConfig{{SQL: "UPDATE state SET value = 0 WHERE id = 2"}}},
+	}
+	runner := engine.NewRunner(driver, spec.Engine.Seed)
+	for run := 0; run < 20; run++ {
+		result, err := ShrinkExecution(ctx, runner, spec, ops)
+		if err != nil {
+			t.Fatalf("run %d: %v", run, err)
+		}
+		if len(result.MinimalOps) != 1 || result.MinimalOps[0].ID != 1 {
+			t.Fatalf("run %d minimized to %#v, want only original failure operation 1", run, result.MinimalOps)
 		}
 	}
 }

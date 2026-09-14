@@ -48,10 +48,10 @@
 
 **Files:** `specs/03_delta_debugging_shrinker.md`, `specs/04_evidence_synthesis.md`, `evals/01_shrinking_ratio.md`, `evals/03_deterministic_replay.md`
 
-- [ ] Document failure identity, trial metrics, artifact schema, and physical timing boundary.
-- [ ] Add deterministic fixtures proving repeated replay and minimization preserve the same failure.
-- [ ] Run documentation and compatibility checks.
-- [ ] Commit specifications and fixtures.
+- [x] Document failure identity, trial metrics, artifact schema, and physical timing boundary.
+- [x] Add deterministic fixtures proving repeated replay and minimization preserve the same failure.
+- [x] Run documentation and compatibility checks.
+- [x] Commit specifications and fixtures.
 
 ### Task 6: Final audit, review, PR, and merge
 

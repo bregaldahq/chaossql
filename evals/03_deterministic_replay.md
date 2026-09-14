@@ -12,5 +12,8 @@ Guarantee that identical specifications, engine versions, and `seed` values prod
 6. **Cancellation:** A context canceled during a planned jitter or latency wait must return promptly and roll back an open transaction.
 7. **Shrinker Determinism:** The synthesized minimal failure trace must contain identical operation IDs across all independent runs given the same seed and logical schedule.
 8. **Input Safety:** Duplicate or non-positive operation IDs and JavaScript seeds above `Number.MAX_SAFE_INTEGER` must fail with explicit validation errors rather than panic or round silently.
+9. **Executable Artifact:** A version 1 replay artifact must preserve the complete specification, exact bound operation subset, effective seed, logical schedule, and stable failure signature.
+10. **Repeated Failure Identity:** Twenty fresh SQLite replays of the canonical artifact must regenerate the same logical schedule and fail the same named invariant.
+11. **Tamper Detection:** Verification must reject changed artifact versions, seeds, schedules, or failure signatures before claiming reproduction.
 
 Physical database completion order is measured rather than promised. A schedule mismatch is a harness determinism failure; a trace mismatch with an identical schedule is evidence of external runtime or database timing and must be reported as such.

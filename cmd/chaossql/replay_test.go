@@ -154,12 +154,14 @@ operations:
 
 func TestVerifyReplayArtifact_ReexecutesSameFailure(t *testing.T) {
 	artifact := replayViolationFixture(t)
-	result, err := verifyReplayArtifact(context.Background(), artifact)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if result.FailingInvariant == nil || result.FailingInvariant.Name != "balance_preserved" {
-		t.Fatalf("wrong replay failure: %#v", result.FailingInvariant)
+	for run := 0; run < 20; run++ {
+		result, err := verifyReplayArtifact(context.Background(), artifact)
+		if err != nil {
+			t.Fatalf("run %d: %v", run, err)
+		}
+		if result.FailingInvariant == nil || result.FailingInvariant.Name != "balance_preserved" {
+			t.Fatalf("run %d wrong replay failure: %#v", run, result.FailingInvariant)
+		}
 	}
 }
 
