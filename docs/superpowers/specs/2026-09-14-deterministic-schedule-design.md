@@ -37,9 +37,9 @@ type ScheduleDecision struct {
     OperationID int           `json:"operation_id"`
     WorkerID    int           `json:"worker_id"`
     StepIndex   int           `json:"step_index"`
-    Jitter      time.Duration `json:"jitter_us"`
-    Latency     time.Duration `json:"latency_us"`
-    Abort       bool          `json:"abort"`
+    JitterMs    int  `json:"jitter_ms"`
+    LatencyMs   int  `json:"latency_ms"`
+    Abort       bool `json:"abort"`
 }
 ```
 

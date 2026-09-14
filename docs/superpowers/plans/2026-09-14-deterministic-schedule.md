@@ -18,11 +18,11 @@
 
 **Files:** `internal/domain/types.go`, `internal/domain/types_test.go`, `internal/engine/schedule.go`, `internal/engine/schedule_test.go`
 
-- [ ] Add failing JSON and deterministic derivation tests for `SchedulePlan` and `ScheduleDecision`.
-- [ ] Derive worker, jitter, latency, and abort decisions from seed plus operation/step identity.
-- [ ] Assert byte-identical plans across repeated construction and changed completion timing.
-- [ ] Run domain and schedule tests under the race detector.
-- [ ] Commit the schedule artifact.
+- [x] Add failing JSON and deterministic derivation tests for `SchedulePlan` and `ScheduleDecision`.
+- [x] Derive worker, jitter, latency, and abort decisions from seed plus operation/step identity.
+- [x] Assert byte-identical plans across repeated construction and changed completion timing.
+- [x] Run domain and schedule tests under the race detector.
+- [x] Commit the schedule artifact.
 
 ### Task 3: Deterministic execution queues
 

@@ -102,6 +102,38 @@ func TestExecutionStatusJSON(t *testing.T) {
 	}
 }
 
+func TestSchedulePlanJSON(t *testing.T) {
+	plan := domain.SchedulePlan{
+		Version: 1,
+		Seed:    42,
+		Workers: 2,
+		Decisions: []domain.ScheduleDecision{{
+			Sequence:    1,
+			OperationID: 3,
+			WorkerID:    1,
+			StepIndex:   2,
+			JitterMs:    7,
+			LatencyMs:   11,
+			Abort:       true,
+		}},
+	}
+
+	encoded, err := json.Marshal(plan)
+	if err != nil {
+		t.Fatal(err)
+	}
+	jsonText := string(encoded)
+	for _, fragment := range []string{
+		`"version":1`, `"seed":42`, `"workers":2`, `"sequence":1`,
+		`"operation_id":3`, `"worker_id":1`, `"step_index":2`,
+		`"jitter_ms":7`, `"latency_ms":11`, `"abort":true`,
+	} {
+		if !strings.Contains(jsonText, fragment) {
+			t.Fatalf("expected %s in %s", fragment, jsonText)
+		}
+	}
+}
+
 func validDomainSpec() domain.Spec {
 	return domain.Spec{
 		Version:  "1.0",
