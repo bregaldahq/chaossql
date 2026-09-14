@@ -59,5 +59,5 @@
 - [x] Run `gofmt`, `git diff --check`, `go test -race ./... -count=1`, and `make verify`.
 - [x] Run zero-CGO native and WASM builds.
 - [x] Request independent review and resolve every Critical and Important finding.
-- [ ] Push `codex/eng-02-deterministic-schedule`, open a PR to `main`, and wait for all checks.
-- [ ] Mark this plan complete, merge with a merge commit, and mark ENG-02 complete in the ignored commercialization plan.
+- [x] Push `codex/eng-02-deterministic-schedule`, open a PR to `main`, and wait for all checks.
+- [x] Mark this plan complete, merge with a merge commit, and mark ENG-02 complete in the ignored commercialization plan.
