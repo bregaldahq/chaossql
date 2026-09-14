@@ -38,11 +38,11 @@
 
 **Files:** `cmd/chaossql/replay.go`, `cmd/chaossql/replay_test.go`
 
-- [ ] Add failing tests for successful SQLite reexecution and tampered artifacts.
-- [ ] Add `replay --verify` with artifact validation, database reset, schedule comparison, and failure-signature comparison.
-- [ ] Return actionable errors for unsupported versions and missing execution inputs.
-- [ ] Run replay and CLI integration tests under the race detector.
-- [ ] Commit executable replay.
+- [x] Add failing tests for successful SQLite reexecution and tampered artifacts.
+- [x] Add `replay --verify` with artifact validation, database reset, schedule comparison, and failure-signature comparison.
+- [x] Return actionable errors for unsupported versions and missing execution inputs.
+- [x] Run replay and CLI integration tests under the race detector.
+- [x] Commit executable replay.
 
 ### Task 5: Specifications and regression evidence
 

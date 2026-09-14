@@ -2,10 +2,12 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/bregaldahq/chaossql/internal/domain"
@@ -148,4 +150,86 @@ operations:
 	if artifact.Version != 1 || len(artifact.ScheduledOps) != 1 || artifact.FailureSignature.FailingInvariant != "balance_preserved" {
 		t.Fatalf("unexpected exported artifact: %#v", artifact)
 	}
+}
+
+func TestVerifyReplayArtifact_ReexecutesSameFailure(t *testing.T) {
+	artifact := replayViolationFixture(t)
+	result, err := verifyReplayArtifact(context.Background(), artifact)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.FailingInvariant == nil || result.FailingInvariant.Name != "balance_preserved" {
+		t.Fatalf("wrong replay failure: %#v", result.FailingInvariant)
+	}
+}
+
+func TestVerifyReplayArtifact_RejectsTampering(t *testing.T) {
+	tests := []struct {
+		name   string
+		mutate func(*ReplayPayload)
+		want   string
+	}{
+		{name: "seed", mutate: func(p *ReplayPayload) { p.Seed++ }, want: "seed"},
+		{name: "schedule", mutate: func(p *ReplayPayload) { p.Schedule.Decisions[0].WorkerID++ }, want: "schedule"},
+		{name: "failure", mutate: func(p *ReplayPayload) { p.FailureSignature.FailingInvariant = "other" }, want: "failure"},
+		{name: "version", mutate: func(p *ReplayPayload) { p.Version = 99 }, want: "version"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			artifact := replayViolationFixture(t)
+			tt.mutate(&artifact)
+			_, err := verifyReplayArtifact(context.Background(), artifact)
+			if err == nil || !strings.Contains(strings.ToLower(err.Error()), tt.want) {
+				t.Fatalf("error = %v, want text %q", err, tt.want)
+			}
+		})
+	}
+}
+
+func TestReplayCmd_Verify(t *testing.T) {
+	artifact := replayViolationFixture(t)
+	path := filepath.Join(t.TempDir(), "finding.json")
+	if err := writeReplayArtifact(path, artifact); err != nil {
+		t.Fatal(err)
+	}
+	cmd := newReplayCmd()
+	output := new(bytes.Buffer)
+	cmd.SetOut(output)
+	cmd.SetErr(output)
+	cmd.SetArgs([]string{path, "--verify"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(output.String(), "REPLAY VERIFIED") {
+		t.Fatalf("missing verification output: %s", output.String())
+	}
+}
+
+func replayViolationFixture(t *testing.T) ReplayPayload {
+	t.Helper()
+	spec := domain.Spec{
+		Version: "1.0",
+		Name:    "replay_violation",
+		Database: domain.DatabaseConfig{
+			Driver: "sqlite",
+			DSN:    ":memory:",
+			Schema: "CREATE TABLE accounts (id INT PRIMARY KEY, balance INT);",
+			Seed:   "INSERT INTO accounts VALUES (1, 100);",
+		},
+		Engine: domain.EngineConfig{Workers: 1, Iterations: 1, Seed: 77},
+		Invariants: []domain.InvariantConfig{{
+			Name: "balance_preserved", Query: "SELECT balance FROM accounts WHERE id = 1", Assert: "balance == 100",
+		}},
+		Operations: []domain.OperationConfig{{Name: "break_balance", Steps: []domain.StepConfig{{SQL: "UPDATE accounts SET balance = 0 WHERE id = 1"}}}},
+	}
+	ops := []domain.ScheduledOp{{ID: 1, Name: "break_balance", Steps: spec.Operations[0].Steps}}
+	result := &domain.ExecutionResult{
+		Status: domain.StatusViolation, Seed: 77, ViolationDetected: true,
+		FailingInvariant: &domain.InvariantResult{Name: "balance_preserved"},
+	}
+	artifact, err := buildReplayArtifact(spec, result, ops, nil, domain.AnomalyLostUpdate)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return artifact
 }

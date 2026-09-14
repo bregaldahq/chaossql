@@ -1,12 +1,15 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 
 	"github.com/bregaldahq/chaossql/internal/domain"
+	"github.com/bregaldahq/chaossql/internal/drivers"
 	"github.com/bregaldahq/chaossql/internal/engine"
 	"github.com/bregaldahq/chaossql/internal/reporter"
 	"github.com/bregaldahq/chaossql/internal/shrinker"
@@ -95,8 +98,73 @@ func writeReplayArtifact(path string, payload ReplayPayload) error {
 	return nil
 }
 
+func validateReplayArtifact(payload ReplayPayload) error {
+	if payload.Version != replayArtifactVersion {
+		return fmt.Errorf("unsupported replay artifact version %d", payload.Version)
+	}
+	if payload.Spec == nil {
+		return fmt.Errorf("replay artifact is missing the complete specification")
+	}
+	if err := payload.Spec.Validate(); err != nil {
+		return fmt.Errorf("invalid replay specification: %w", err)
+	}
+	if len(payload.ScheduledOps) == 0 {
+		return fmt.Errorf("replay artifact has no scheduled operations")
+	}
+	if payload.Schedule.Version != scheduleVersionForReplay {
+		return fmt.Errorf("unsupported logical schedule version %d", payload.Schedule.Version)
+	}
+	if payload.Seed != payload.Schedule.Seed || payload.Seed != payload.Spec.Engine.Seed {
+		return fmt.Errorf("replay seed does not match specification and schedule metadata")
+	}
+	if payload.FailureSignature.Status != payload.Status {
+		return fmt.Errorf("failure signature status does not match replay status")
+	}
+	if payload.Status == domain.StatusViolation {
+		if payload.FailingInvariant == nil ||
+			payload.FailureSignature.FailingInvariant != payload.FailingInvariant.Name {
+			return fmt.Errorf("failure signature does not match the stored failing invariant")
+		}
+	}
+	expected := engine.BuildSchedulePlan(*payload.Spec, payload.ScheduledOps, engine.NewPRNG(payload.Seed))
+	if !reflect.DeepEqual(expected, payload.Schedule) {
+		return fmt.Errorf("stored logical schedule does not match replay inputs")
+	}
+	return nil
+}
+
+const scheduleVersionForReplay = 1
+
+func verifyReplayArtifact(ctx context.Context, payload ReplayPayload) (*engine.RunResult, error) {
+	if err := validateReplayArtifact(payload); err != nil {
+		return nil, err
+	}
+	driver, err := drivers.GetDriver(payload.Spec.Database.Driver, payload.Spec.Database.DSN)
+	if err != nil {
+		return nil, fmt.Errorf("initialize replay database driver: %w", err)
+	}
+	if err := driver.Open(ctx); err != nil {
+		return nil, fmt.Errorf("open replay database driver: %w", err)
+	}
+	defer func() { _ = driver.Close() }()
+
+	runner := engine.NewRunner(driver, payload.Seed)
+	result, runErr := runner.RunSchedule(ctx, *payload.Spec, payload.ScheduledOps)
+	if runErr != nil {
+		return result, fmt.Errorf("execute replay schedule: %w", runErr)
+	}
+	if !reflect.DeepEqual(result.Schedule, payload.Schedule) {
+		return result, fmt.Errorf("replayed logical schedule differs from stored schedule")
+	}
+	if !shrinker.ReproducesFailure(result, payload.FailureSignature) {
+		return result, fmt.Errorf("stored failure signature was not reproduced")
+	}
+	return result, nil
+}
+
 func newReplayCmd() *cobra.Command {
 	var maxEvents int
+	var verify bool
 
 	cmd := &cobra.Command{
 		Use:   "replay <result.json>",
@@ -122,11 +190,19 @@ func newReplayCmd() *cobra.Command {
 
 			cmd.Println(reporter.RenderBanner())
 			renderReplayTerminal(cmd, payload, maxEvents)
+			if verify {
+				result, err := verifyReplayArtifact(cmd.Context(), payload)
+				if err != nil {
+					return fmt.Errorf("replay verification failed: %w", err)
+				}
+				cmd.Printf("REPLAY VERIFIED: status=%s seed=%d operations=%d\n", result.Status, result.Seed, len(payload.ScheduledOps))
+			}
 			return nil
 		},
 	}
 
 	cmd.Flags().IntVar(&maxEvents, "max-events", 50, "Maximum number of trace events to display")
+	cmd.Flags().BoolVar(&verify, "verify", false, "Reset the database and verify the stored schedule and failure")
 	return cmd
 }
 
