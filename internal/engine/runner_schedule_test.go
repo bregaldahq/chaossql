@@ -83,3 +83,31 @@ func TestExecuteSchedule_UsesPrecomputedAbortDecisions(t *testing.T) {
 		}
 	}
 }
+
+func TestRunner_PersistsEffectiveSeedAndSchedule(t *testing.T) {
+	driver := drivers.NewMockDriver()
+	defer driver.Close()
+	spec := domain.Spec{
+		Engine: domain.EngineConfig{Workers: 2, Iterations: 2, Seed: 0},
+		Invariants: []domain.InvariantConfig{{
+			Name:   "ok",
+			Query:  "SELECT 1 AS value",
+			Assert: "value == 1",
+		}},
+		Operations: []domain.OperationConfig{{
+			Name:  "read",
+			Steps: []domain.StepConfig{{SQL: "SELECT 1"}},
+		}},
+	}
+
+	result, err := engine.NewRunner(driver, 0).Run(context.Background(), spec)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Seed != 0 || result.Schedule.Seed != 0 {
+		t.Fatalf("expected effective seed 0 in result and schedule: %#v", result)
+	}
+	if result.Schedule.Version != 1 || result.Schedule.Workers != 2 || len(result.Schedule.Decisions) != 2 {
+		t.Fatalf("unexpected persisted schedule: %#v", result.Schedule)
+	}
+}

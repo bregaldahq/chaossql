@@ -76,6 +76,12 @@ func TestExecutionStatusJSON(t *testing.T) {
 	result := domain.ExecutionResult{
 		Status:    domain.StatusExecutionError,
 		Isolation: domain.LevelSerializable,
+		Seed:      42,
+		Schedule: domain.SchedulePlan{
+			Version: 1,
+			Seed:    42,
+			Workers: 2,
+		},
 		OperationErrors: []domain.OperationError{{
 			OperationID: 7,
 			Operation:   "withdraw",
@@ -95,6 +101,8 @@ func TestExecutionStatusJSON(t *testing.T) {
 		`"operation_errors":[`,
 		`"operation_id":7`,
 		`"phase":"step"`,
+		`"seed":42`,
+		`"schedule":{"version":1`,
 	} {
 		if !strings.Contains(jsonText, fragment) {
 			t.Fatalf("expected %s in %s", fragment, jsonText)

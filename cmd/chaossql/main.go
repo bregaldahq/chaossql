@@ -113,7 +113,7 @@ func main() {
 
 func runChaosTest(cmd *cobra.Command, args []string) error {
 	specPath := args[0]
-	return executeChaos(specPath)
+	return executeChaos(specPath, cmd.Flags().Changed("seed"))
 }
 
 func resolveDemoPath(scenario string) (string, error) {
@@ -163,10 +163,10 @@ func runDemo(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	return executeChaos(specPath)
+	return executeChaos(specPath, false)
 }
 
-func executeChaos(specPath string) error {
+func executeChaos(specPath string, seedOverride ...bool) error {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
@@ -175,9 +175,11 @@ func executeChaos(specPath string) error {
 		return fmt.Errorf("failed to load chaos spec: %w", err)
 	}
 
-	if seedFlag > 0 {
-		spec.Engine.Seed = seedFlag
+	seedWasSet := seedFlag > 0
+	if len(seedOverride) > 0 {
+		seedWasSet = seedOverride[0]
 	}
+	spec.Engine.Seed = resolveEffectiveSeed(spec.Engine.Seed, seedFlag, seedWasSet)
 	if workersFlag > 0 {
 		spec.Engine.Workers = workersFlag
 	}
@@ -405,6 +407,8 @@ func executeChaos(specPath string) error {
 			},
 			"status":             runResult.Status,
 			"isolation":          runResult.Isolation,
+			"seed":               runResult.Seed,
+			"schedule":           runResult.Schedule,
 			"operation_errors":   runResult.OperationErrors,
 			"success":            runResult.Success,
 			"violation_detected": runResult.ViolationDetected,
@@ -450,6 +454,13 @@ func executeChaos(specPath string) error {
 	}
 
 	return unreliableRunError(runResult)
+}
+
+func resolveEffectiveSeed(specSeed, overrideSeed uint64, overrideSet bool) uint64 {
+	if overrideSet {
+		return overrideSeed
+	}
+	return specSeed
 }
 
 func unreliableRunError(result *engine.RunResult) error {
@@ -511,8 +522,9 @@ func publishToCloud(
 			Driver:     spec.Database.Driver,
 			Workers:    spec.Engine.Workers,
 			Iterations: spec.Engine.Iterations,
-			Seed:       spec.Engine.Seed,
+			Seed:       runResult.Seed,
 		},
+		Schedule: runResult.Schedule,
 		Result: cloud.ExecutionSummary{
 			Status:            status,
 			ExecutionStatus:   string(runResult.Status),

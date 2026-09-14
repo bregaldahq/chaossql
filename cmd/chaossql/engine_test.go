@@ -57,6 +57,9 @@ func TestEngineCmd_PassingInvariant(t *testing.T) {
 	if resp.ViolationDetected {
 		t.Fatalf("expected no violation detected")
 	}
+	if resp.Seed != 42 || resp.Schedule.Seed != 42 || len(resp.Schedule.Decisions) != 5 {
+		t.Fatalf("expected effective seed and logical schedule in response: %+v", resp)
+	}
 	if resp.ReproPython == "" || resp.ReproTypeScript == "" || resp.ReproGo == "" {
 		t.Errorf("expected repro code templates in response")
 	}
@@ -105,6 +108,15 @@ func TestUnreliableRunError(t *testing.T) {
 	}
 	if err := unreliableRunError(&domain.ExecutionResult{Status: domain.StatusInconclusive}); err == nil {
 		t.Fatal("inconclusive result returned nil error")
+	}
+}
+
+func TestResolveEffectiveSeed_ExplicitZeroOverridesSpec(t *testing.T) {
+	if got := resolveEffectiveSeed(99, 0, true); got != 0 {
+		t.Fatalf("explicit seed zero resolved to %d", got)
+	}
+	if got := resolveEffectiveSeed(99, 0, false); got != 99 {
+		t.Fatalf("omitted seed changed spec seed to %d", got)
 	}
 }
 

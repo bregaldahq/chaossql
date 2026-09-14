@@ -406,6 +406,8 @@ func (r *Runner) finalizeResult(
 		Trace:           outcome.Trace,
 		OperationErrors: outcome.OperationErrors,
 		Isolation:       outcome.Isolation,
+		Seed:            r.prng.MasterSeed(),
+		Schedule:        outcome.Schedule,
 		ScheduledOps:    ops,
 		Duration:        time.Since(started),
 	}

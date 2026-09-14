@@ -13,6 +13,8 @@ import (
 
 type ReplayPayload struct {
 	Spec              *domain.Spec            `json:"spec,omitempty"`
+	Seed              uint64                  `json:"seed"`
+	Schedule          domain.SchedulePlan     `json:"schedule"`
 	Trace             domain.ExecutionTrace   `json:"trace,omitempty"`
 	ScheduledOps      []domain.ScheduledOp    `json:"scheduled_ops,omitempty"`
 	AnomalyType       domain.AnomalyType      `json:"anomaly_type,omitempty"`

@@ -39,11 +39,11 @@
 
 **Files:** `internal/domain/types.go`, `internal/engine/runner.go`, CLI IPC/JSON, cloud, reporters, Go/Python/TypeScript SDK adapters and tests
 
-- [ ] Add failing compatibility tests for `seed` and `schedule` fields.
-- [ ] Carry the effective seed and plan through `ScheduleOutcome` and `ExecutionResult`.
-- [ ] Preserve the additive fields across public adapters and full-result reports.
-- [ ] Run CLI, cloud, reporter, and SDK tests.
-- [ ] Commit public result persistence.
+- [x] Add failing compatibility tests for `seed` and `schedule` fields.
+- [x] Carry the effective seed and plan through `ScheduleOutcome` and `ExecutionResult`.
+- [x] Preserve the additive fields across public adapters and full-result reports.
+- [x] Run CLI, cloud, reporter, and SDK tests.
+- [x] Commit public result persistence.
 
 ### Task 5: Specification and evaluation corpus
 

@@ -81,6 +81,8 @@ type IPCPayload struct {
 type IPCResponse struct {
 	Status            domain.ExecutionStatus  `json:"status"`
 	Isolation         domain.IsolationLevel   `json:"isolation,omitempty"`
+	Seed              uint64                  `json:"seed"`
+	Schedule          domain.SchedulePlan     `json:"schedule"`
 	OperationErrors   []domain.OperationError `json:"operation_errors,omitempty"`
 	Success           bool                    `json:"success"`
 	ViolationDetected bool                    `json:"violation_detected"`
@@ -185,10 +187,8 @@ func executeIPCPayload(ctx context.Context, p IPCPayload) IPCResponse {
 	jitter := [2]int{1, 5}
 
 	var seed uint64
-	seedProvided := false
 	if p.SeedValue != nil {
 		seed = *p.SeedValue
-		seedProvided = true
 	}
 
 	if p.Engine != nil {
@@ -200,7 +200,6 @@ func executeIPCPayload(ctx context.Context, p IPCPayload) IPCResponse {
 		}
 		if p.Engine.Seed != nil {
 			seed = *p.Engine.Seed
-			seedProvided = true
 		}
 		if p.Engine.JitterMs[1] > 0 {
 			jitter = p.Engine.JitterMs
@@ -213,10 +212,6 @@ func executeIPCPayload(ctx context.Context, p IPCPayload) IPCResponse {
 	if iterations <= 0 {
 		iterations = 10
 	}
-	if !seedProvided {
-		seed = uint64(time.Now().UnixNano())
-	}
-
 	specName := p.Name
 	if specName == "" {
 		specName = "chaossql_ipc_scenario"
@@ -311,6 +306,8 @@ func executeIPCPayload(ctx context.Context, p IPCPayload) IPCResponse {
 			return IPCResponse{
 				Status:            runResult.Status,
 				Isolation:         runResult.Isolation,
+				Seed:              runResult.Seed,
+				Schedule:          runResult.Schedule,
 				OperationErrors:   runResult.OperationErrors,
 				Success:           runResult.Success,
 				ViolationDetected: runResult.ViolationDetected,
@@ -383,6 +380,8 @@ func executeIPCPayload(ctx context.Context, p IPCPayload) IPCResponse {
 	return IPCResponse{
 		Status:            runResult.Status,
 		Isolation:         runResult.Isolation,
+		Seed:              runResult.Seed,
+		Schedule:          runResult.Schedule,
 		OperationErrors:   runResult.OperationErrors,
 		Success:           runResult.Success,
 		ViolationDetected: runResult.ViolationDetected,

@@ -244,6 +244,8 @@ type ShrinkResult struct {
 type ExecutionResult struct {
 	Status            ExecutionStatus  `json:"status"`
 	Isolation         IsolationLevel   `json:"isolation,omitempty"`
+	Seed              uint64           `json:"seed"`
+	Schedule          SchedulePlan     `json:"schedule"`
 	OperationErrors   []OperationError `json:"operation_errors,omitempty"`
 	Success           bool             `json:"success"`
 	ViolationDetected bool             `json:"violation_detected"`

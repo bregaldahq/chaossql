@@ -21,6 +21,9 @@ test('ChaosSQL TypeScript SDK (@chaossql/test)', async (t) => {
     assert.strictEqual(result.status, 'passed');
     assert.strictEqual(result.violationDetected, false);
     assert.strictEqual(result.anomalyDetected, false);
+    assert.strictEqual(result.seed, 42);
+    assert.strictEqual(result.schedule.version, 1);
+    assert.strictEqual(result.schedule.decisions.length, 5);
   });
 
   await t.test('detects and minimizes an invariant violation', async () => {

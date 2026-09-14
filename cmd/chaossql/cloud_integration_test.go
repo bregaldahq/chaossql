@@ -58,6 +58,9 @@ func TestCloudPublishingIntegration(t *testing.T) {
 	if receivedReq.Result.AnomalyType == "" {
 		t.Errorf("expected P4 anomaly in received request, got %q", receivedReq.Result.AnomalyType)
 	}
+	if receivedReq.Scenario.Seed != 42 || receivedReq.Schedule.Seed != 42 || receivedReq.Schedule.Version != 1 {
+		t.Errorf("expected effective seed and schedule in cloud request, got scenario=%+v schedule=%+v", receivedReq.Scenario, receivedReq.Schedule)
+	}
 	if len(receivedReq.Reproduction.SanitizedMinimalTrace) == 0 {
 		t.Errorf("expected sanitized minimal trace, got 0 events")
 	}

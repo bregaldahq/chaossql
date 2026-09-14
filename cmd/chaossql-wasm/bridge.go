@@ -43,6 +43,8 @@ type AdyaEdgeReport struct {
 type ExecutionReport struct {
 	Success          bool                  `json:"success"`
 	ViolationFound   bool                  `json:"violationFound"`
+	Seed             uint64                `json:"seed"`
+	Schedule         domain.SchedulePlan   `json:"schedule"`
 	FailingInvariant string                `json:"failingInvariant,omitempty"`
 	AnomalyType      string                `json:"anomalyType,omitempty"`
 	TotalOps         int                   `json:"totalOps"`
@@ -72,11 +74,11 @@ func ExecuteWasmScenario(ctx context.Context, configJSON string, onProgress func
 	}
 
 	var req struct {
-		YAMLContent string `json:"yamlContent"`
-		Workers     int    `json:"workers"`
-		Iterations  int    `json:"iterations"`
-		JitterMs    *int   `json:"jitterMs"`
-		Seed        uint64 `json:"seed"`
+		YAMLContent string  `json:"yamlContent"`
+		Workers     int     `json:"workers"`
+		Iterations  int     `json:"iterations"`
+		JitterMs    *int    `json:"jitterMs"`
+		Seed        *uint64 `json:"seed"`
 	}
 	if err := json.Unmarshal([]byte(configJSON), &req); err != nil {
 		return nil, fmt.Errorf("invalid config JSON: %w", err)
@@ -96,13 +98,15 @@ func ExecuteWasmScenario(ctx context.Context, configJSON string, onProgress func
 	if req.JitterMs != nil {
 		spec.Engine.JitterMs = [2]int{0, *req.JitterMs}
 	}
-	if req.Seed == 0 {
-		req.Seed = uint64(time.Now().UnixNano())
+	effectiveSeed := spec.Engine.Seed
+	if req.Seed != nil {
+		effectiveSeed = *req.Seed
 	}
+	spec.Engine.Seed = effectiveSeed
 
 	startTime := time.Now()
 	driver := drivers.NewMockDriver()
-	runner := engine.NewRunner(driver, req.Seed)
+	runner := engine.NewRunner(driver, effectiveSeed)
 
 	runRes, err := runner.Run(ctx, *spec)
 	if err != nil {
@@ -185,6 +189,8 @@ func ExecuteWasmScenario(ctx context.Context, configJSON string, onProgress func
 	return &ExecutionReport{
 		Success:          runRes.Success,
 		ViolationFound:   runRes.ViolationDetected,
+		Seed:             runRes.Seed,
+		Schedule:         runRes.Schedule,
 		FailingInvariant: failingInvName,
 		AnomalyType:      anomalyType,
 		TotalOps:         len(runRes.ScheduledOps),
