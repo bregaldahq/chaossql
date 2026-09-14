@@ -348,7 +348,7 @@ git commit -m "test: verify transactional semantics on live databases"
 **Interfaces:**
 - Verifies all contracts from the design specification
 
-- [ ] **Step 1: Check formatting, generated diff integrity, and zero-CGO builds**
+- [x] **Step 1: Check formatting, generated diff integrity, and zero-CGO builds**
 
 Run: `gofmt -w internal/domain/types.go internal/domain/types_test.go internal/domain/parser_test.go internal/drivers/driver.go internal/drivers/isolation.go internal/drivers/isolation_test.go internal/drivers/sqlite.go internal/drivers/postgres.go internal/drivers/mysql.go internal/drivers/driver_mock.go internal/drivers/postgres_test.go internal/drivers/mysql_test.go internal/engine/runner.go internal/engine/runner_transaction_test.go internal/engine/runner_status_test.go internal/engine/runner_savepoint_test.go internal/engine/runner_trace_test.go internal/engine/runner_integration_test.go`
 
@@ -358,13 +358,13 @@ Run: `CGO_ENABLED=0 go build ./cmd/chaossql ./cmd/chaossql-server`
 
 Run: `CGO_ENABLED=0 GOOS=js GOARCH=wasm go build -o bin/eng01-final.wasm ./cmd/chaossql-wasm`
 
-- [ ] **Step 2: Run the fresh final gate**
+- [x] **Step 2: Run the fresh final gate**
 
 Run: `make verify`
 
 Expected: PASS with no new skip in required CI mode.
 
-- [ ] **Step 3: Request independent code review**
+- [x] **Step 3: Request independent code review**
 
 Review `origin/main...HEAD` against `docs/superpowers/specs/2026-09-10-transaction-semantics-design.md`. Resolve every Critical and Important finding and rerun affected tests.
 
