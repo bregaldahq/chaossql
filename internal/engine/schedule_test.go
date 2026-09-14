@@ -1,6 +1,10 @@
 package engine_test
 
 import (
+	"bytes"
+	"encoding/json"
+	"os"
+	"path/filepath"
 	"reflect"
 	"testing"
 
@@ -75,5 +79,64 @@ func TestBuildSchedulePlan_DecisionsDependOnIdentityNotInputOrder(t *testing.T) 
 	c := engine.BuildSchedulePlan(spec, []domain.ScheduledOp{first, second}, engine.NewPRNG(92))
 	if reflect.DeepEqual(a.Decisions, c.Decisions) {
 		t.Fatal("different seeds produced identical decisions")
+	}
+}
+
+func TestDeterministicScheduleV1GoldenCorpus(t *testing.T) {
+	spec := domain.Spec{
+		Engine: domain.EngineConfig{
+			Workers:    2,
+			Iterations: 4,
+			Seed:       0,
+			JitterMs:   [2]int{2, 9},
+			Faults: domain.FaultConfig{
+				AbortProbability:   0.35,
+				LatencyProbability: 0.75,
+				LatencySpikeMs:     [2]int{4, 12},
+			},
+		},
+		Operations: []domain.OperationConfig{{
+			Name: "corpus_write",
+			Params: map[string]string{
+				"amount":   "$random_int(10, 99)",
+				"category": "$random_choice('alpha', 'beta', 'gamma')",
+				"sequence": "$monotonic_counter(100, 5)",
+			},
+			Steps: []domain.StepConfig{
+				{SQL: "SELECT value FROM records WHERE id = {sequence}", Capture: "current"},
+				{SQL: "UPDATE records SET value = {amount} WHERE id = {sequence}"},
+			},
+		}},
+	}
+	prng := engine.NewPRNG(spec.Engine.Seed)
+	ops := engine.GenerateSchedule(spec, prng)
+	artifact := struct {
+		Operations []domain.ScheduledOp `json:"operations"`
+		Schedule   domain.SchedulePlan  `json:"schedule"`
+	}{
+		Operations: ops,
+		Schedule:   engine.BuildSchedulePlan(spec, ops, prng),
+	}
+	got, err := json.MarshalIndent(artifact, "", "  ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	got = append(got, '\n')
+
+	goldenPath := filepath.Join("testdata", "deterministic_schedule_v1.json")
+	if os.Getenv("UPDATE_GOLDEN") == "1" {
+		if err := os.MkdirAll(filepath.Dir(goldenPath), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(goldenPath, got, 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	want, err := os.ReadFile(goldenPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(got, want) {
+		t.Fatalf("deterministic schedule corpus changed; bump the schedule version or run an intentional golden update\nwant:\n%s\ngot:\n%s", want, got)
 	}
 }

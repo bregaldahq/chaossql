@@ -49,10 +49,10 @@
 
 **Files:** `specs/02_concurrency_interleaving.md`, `evals/03_deterministic_replay.md`, deterministic corpus fixtures
 
-- [ ] Document the logical-schedule guarantee and external database timing boundary.
-- [ ] Add a versioned golden corpus covering map parameters, counters, jitter, latency, aborts, and zero seed.
-- [ ] Prove the corpus is identical across independent process executions.
-- [ ] Commit specifications and corpus.
+- [x] Document the logical-schedule guarantee and external database timing boundary.
+- [x] Add a versioned golden corpus covering map parameters, counters, jitter, latency, aborts, and zero seed.
+- [x] Prove the corpus is identical across independent process executions.
+- [x] Commit specifications and corpus.
 
 ### Task 6: Final audit, review, PR, and merge
 
