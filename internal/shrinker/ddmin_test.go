@@ -58,6 +58,13 @@ func TestFailureSignatureRejectsUnidentifiedViolation(t *testing.T) {
 	}
 }
 
+func TestFailureSignatureRejectsUnstableExecutionStatus(t *testing.T) {
+	_, err := FailureSignatureFor(&domain.ExecutionResult{Status: domain.StatusExecutionError})
+	if err == nil {
+		t.Fatal("expected execution error without a stable identity to be rejected")
+	}
+}
+
 func TestShrink_SyntheticOracle(t *testing.T) {
 	ctx := context.Background()
 

@@ -58,13 +58,21 @@ func FailureSignatureFor(result *domain.ExecutionResult) (domain.FailureSignatur
 		return domain.FailureSignature{}, fmt.Errorf("cannot identify failure from a nil result")
 	}
 	signature := domain.FailureSignature{Status: result.Status}
-	if result.Status == domain.StatusViolation {
+	switch result.Status {
+	case domain.StatusPassed:
+		return signature, nil
+	case domain.StatusViolation:
+		if !result.ViolationDetected {
+			return domain.FailureSignature{}, fmt.Errorf("violation status is missing the violation marker")
+		}
 		if result.FailingInvariant == nil || result.FailingInvariant.Name == "" {
 			return domain.FailureSignature{}, fmt.Errorf("violation result has no failing invariant")
 		}
 		signature.FailingInvariant = result.FailingInvariant.Name
+		return signature, nil
+	default:
+		return domain.FailureSignature{}, fmt.Errorf("execution status %q does not have a stable replay signature", result.Status)
 	}
-	return signature, nil
 }
 
 // ReproducesFailure reports whether result has the same stable failure identity.
@@ -72,8 +80,11 @@ func ReproducesFailure(result *domain.ExecutionResult, target domain.FailureSign
 	if result == nil || result.Status != target.Status {
 		return false
 	}
+	if target.Status == domain.StatusPassed {
+		return result.Status == domain.StatusPassed
+	}
 	if target.Status != domain.StatusViolation {
-		return true
+		return false
 	}
 	return result.ViolationDetected && result.FailingInvariant != nil &&
 		result.FailingInvariant.Name == target.FailingInvariant

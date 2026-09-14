@@ -104,6 +104,8 @@ func TestRunCmd_HasExportResultFlag(t *testing.T) {
 }
 
 func TestRunCmd_ExportsMinimalReplayArtifact(t *testing.T) {
+	previousExportResult := exportResultFlag
+	defer func() { exportResultFlag = previousExportResult }()
 	tmpDir := t.TempDir()
 	specPath := filepath.Join(tmpDir, "chaos.yaml")
 	artifactPath := filepath.Join(tmpDir, "finding.json")
