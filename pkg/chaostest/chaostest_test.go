@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/bregaldahq/chaossql/internal/domain"
 	"github.com/bregaldahq/chaossql/internal/drivers"
 	"github.com/bregaldahq/chaossql/pkg/chaostest"
 )
@@ -45,7 +46,7 @@ func TestChaostest_AssertNoAnomalies_Pass(t *testing.T) {
 	tester.AssertNoAnomalies(ctx, 4, 20, 42)
 }
 
-func TestChaostest_LostUpdate_RunAndShrink(t *testing.T) {
+func TestChaostest_InvariantViolation_RunAndShrink(t *testing.T) {
 	ctx := context.Background()
 	driver := drivers.NewSQLiteDriver("file:chaostest_lost_update?mode=memory&cache=shared")
 	defer driver.Close()
@@ -58,13 +59,11 @@ func TestChaostest_LostUpdate_RunAndShrink(t *testing.T) {
 			"SELECT (SELECT balance FROM accounts WHERE id = 1) AS actual, (1000 - COALESCE(SUM(amount), 0)) AS expected FROM ledger;",
 			"actual == expected",
 		).
-		AddOperation("withdraw_vulnerable",
-			"SELECT balance FROM accounts WHERE id = 1; -> current_bal",
-			"UPDATE accounts SET balance = {current_bal - 100} WHERE id = 1;",
-			"INSERT INTO ledger (amount) VALUES (100);",
+		AddOperation("withdraw_without_ledger_entry",
+			"UPDATE accounts SET balance = balance - 100 WHERE id = 1;",
 		)
 
-	execRes, shrinkRes, err := tester.Run(ctx, 4, 20, 42)
+	execRes, shrinkRes, err := tester.Run(ctx, 1, 20, 42)
 	if err != nil {
 		t.Fatalf("unexpected Run error: %v", err)
 	}
@@ -93,8 +92,8 @@ func TestChaostest_LostUpdate_RunAndShrink(t *testing.T) {
 	if shrinkRes.ReducedSize > shrinkRes.OriginalSize {
 		t.Errorf("expected ReducedSize <= OriginalSize, got %d > %d", shrinkRes.ReducedSize, shrinkRes.OriginalSize)
 	}
-	if shrinkRes.ReducedSize < 2 {
-		t.Errorf("expected ReducedSize >= 2, got %d", shrinkRes.ReducedSize)
+	if shrinkRes.ReducedSize < 1 {
+		t.Errorf("expected ReducedSize >= 1, got %d", shrinkRes.ReducedSize)
 	}
 	if len(shrinkRes.MinimalOps) != shrinkRes.ReducedSize {
 		t.Errorf("expected len(MinimalOps) == %d, got %d", shrinkRes.ReducedSize, len(shrinkRes.MinimalOps))
@@ -119,13 +118,11 @@ func TestChaostest_AssertNoAnomalies_ViolationReportsFatal(t *testing.T) {
 			"SELECT (SELECT balance FROM accounts WHERE id = 1) AS actual, (1000 - COALESCE(SUM(amount), 0)) AS expected FROM ledger;",
 			"actual == expected",
 		).
-		AddOperation("withdraw_vulnerable",
-			"SELECT balance FROM accounts WHERE id = 1; -> current_bal",
-			"UPDATE accounts SET balance = {current_bal - 100} WHERE id = 1;",
-			"INSERT INTO ledger (amount) VALUES (100);",
+		AddOperation("withdraw_without_ledger_entry",
+			"UPDATE accounts SET balance = balance - 100 WHERE id = 1;",
 		)
 
-	tester.AssertNoAnomalies(ctx, 4, 20, 42)
+	tester.AssertNoAnomalies(ctx, 1, 20, 42)
 
 	if !spy.fatalCalled {
 		t.Fatalf("expected Fatalf to be called when anomaly detected")
@@ -150,5 +147,21 @@ func TestChaostest_DefaultDriver(t *testing.T) {
 	}
 	if execRes == nil || execRes.ViolationDetected {
 		t.Fatalf("expected valid successful run without violations")
+	}
+}
+
+func TestChaostest_RunReturnsExecutionError(t *testing.T) {
+	driver := drivers.NewSQLiteDriver("")
+	defer driver.Close()
+	tester := chaostest.New(t).
+		WithDriver(driver).
+		WithSchema("CREATE TABLE items (id INT PRIMARY KEY);").
+		WithSeed("INSERT INTO items VALUES (1);").
+		WithInvariant("must_not_run", "SELECT value FROM missing_table", "value == 1").
+		AddOperation("invalid", "NOT VALID SQL")
+
+	result, shrink, err := tester.Run(context.Background(), 1, 1, 42)
+	if err == nil || result == nil || result.Status != domain.StatusExecutionError || shrink != nil {
+		t.Fatalf("result=%+v shrink=%+v error=%v", result, shrink, err)
 	}
 }

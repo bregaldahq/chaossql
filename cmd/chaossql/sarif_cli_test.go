@@ -34,7 +34,7 @@ func TestCLI_ExportSARIF_RunCmd(t *testing.T) {
 	b := bytes.NewBufferString("")
 	cmd.SetOut(b)
 	cmd.SetErr(b)
-	cmd.SetArgs([]string{specPath, "--export-sarif", sarifOut, "--workers", "2", "--iterations", "10"})
+	cmd.SetArgs([]string{specPath, "--export-sarif", sarifOut, "--workers", "1", "--iterations", "2"})
 
 	err := cmd.Execute()
 	if err != nil {

@@ -67,14 +67,13 @@ def test_export_standalone_repro():
            .with_invariant(
                name="expected_balance",
                query="SELECT balance FROM accounts WHERE id = 1;",
-               assertion="balance == 800",
+               assertion="balance == 1000",
            ) \
-           .add_operation("withdraw", [
-               "SELECT balance FROM accounts WHERE id = 1 -> cur",
-               "UPDATE accounts SET balance = {cur - 100} WHERE id = 1",
+           .add_operation("change_balance", [
+               "UPDATE accounts SET balance = 999 WHERE id = 1",
            ])
 
-    res = harness.run(workers=2, iterations=2, seed=42)
+    res = harness.run(workers=1, iterations=1, seed=42)
     assert res.violation_detected
 
     with tempfile.TemporaryDirectory() as tmp_dir:

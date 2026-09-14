@@ -1,6 +1,7 @@
 package reporter_test
 
 import (
+	"errors"
 	"strings"
 	"testing"
 	"time"
@@ -38,6 +39,12 @@ func TestGenerateJUnitXML(t *testing.T) {
 	xmlFailure := reporter.GenerateJUnitXML(spec, resFailure, domain.AnomalyLostUpdate)
 	if !strings.Contains(xmlFailure, `<failure`) || !strings.Contains(xmlFailure, `P4_LOST_UPDATE`) {
 		t.Errorf("expected failure element in JUnit XML, got: %s", xmlFailure)
+	}
+
+	resError := domain.ExecutionResult{Status: domain.StatusExecutionError, Error: errors.New("statement failed")}
+	xmlError := reporter.GenerateJUnitXML(spec, resError, domain.AnomalyUnknown)
+	if !strings.Contains(xmlError, `errors="1"`) || !strings.Contains(xmlError, `<error`) || strings.Contains(xmlError, `<failure`) {
+		t.Errorf("expected JUnit error element, got: %s", xmlError)
 	}
 }
 

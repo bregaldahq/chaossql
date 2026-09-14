@@ -2,8 +2,11 @@ package engine
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"fmt"
 	"math/rand/v2"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -16,6 +19,14 @@ import (
 )
 
 type RunResult = domain.ExecutionResult
+
+// ScheduleOutcome contains the trace and structured failures from worker execution.
+type ScheduleOutcome struct {
+	Trace           domain.ExecutionTrace
+	OperationErrors []domain.OperationError
+	Canceled        bool
+	Isolation       domain.IsolationLevel
+}
 
 // Runner executes chaos schedules across database connections.
 type Runner struct {
@@ -69,6 +80,10 @@ func GenerateSchedule(spec domain.Spec, prng *PRNG) []domain.ScheduledOp {
 func (r *Runner) Run(ctx context.Context, spec domain.Spec) (*RunResult, error) {
 	startTime := time.Now()
 
+	if _, err := r.driver.EffectiveIsolation(spec.Database.Isolation); err != nil {
+		return nil, err
+	}
+
 	// 1. Reset database
 	if err := r.driver.Reset(ctx, spec.Database.Schema, spec.Database.Seed); err != nil {
 		return nil, fmt.Errorf("database reset failed: %w", err)
@@ -78,38 +93,19 @@ func (r *Runner) Run(ctx context.Context, spec domain.Spec) (*RunResult, error) 
 	scheduledOps := GenerateSchedule(spec, r.prng)
 
 	// 3. Execute Scheduled Operations with Workers
-	trace, err := r.ExecuteSchedule(ctx, spec, scheduledOps)
+	outcome, err := r.ExecuteSchedule(ctx, spec, scheduledOps)
 	if err != nil {
+		if outcome.Canceled {
+			return r.finalizeResult(ctx, spec, scheduledOps, outcome, startTime), err
+		}
 		return nil, err
 	}
 
-	// 4. Evaluate Invariants
-	var failingInv *domain.InvariantResult
-	violationFound := false
-
-	for _, inv := range spec.Invariants {
-		invRes, err := r.evaluator.Evaluate(ctx, r.driver, inv)
-		if err != nil || !invRes.Passed {
-			violationFound = true
-			failingInv = &invRes
-			break
-		}
-	}
-
-	duration := time.Since(startTime)
-
-	return &RunResult{
-		Success:           !violationFound,
-		ViolationDetected: violationFound,
-		FailingInvariant:  failingInv,
-		Trace:             trace,
-		ScheduledOps:      scheduledOps,
-		Duration:          duration,
-	}, nil
+	return r.finalizeResult(ctx, spec, scheduledOps, outcome, startTime), nil
 }
 
 // ExecuteSchedule dispatches the given operations across workers and captures the trace.
-func (r *Runner) ExecuteSchedule(ctx context.Context, spec domain.Spec, ops []domain.ScheduledOp) (domain.ExecutionTrace, error) {
+func (r *Runner) ExecuteSchedule(ctx context.Context, spec domain.Spec, ops []domain.ScheduledOp) (ScheduleOutcome, error) {
 	nWorkers := spec.Engine.Workers
 	if nWorkers <= 0 {
 		nWorkers = 4
@@ -117,11 +113,18 @@ func (r *Runner) ExecuteSchedule(ctx context.Context, spec domain.Spec, ops []do
 
 	faultInj := faults.NewFaultInjector(spec.Engine.Faults, r.prng.MasterSeed())
 
+	effectiveIsolation, err := r.driver.EffectiveIsolation(spec.Database.Isolation)
+	if err != nil {
+		return ScheduleOutcome{}, err
+	}
+
 	var trace domain.ExecutionTrace
 	var traceMu sync.Mutex
+	var operationErrors []domain.OperationError
+	var errorsMu sync.Mutex
 	startTime := time.Now()
 
-	addEvent := func(workerID, opIdx, stepIdx int, opName string, evType domain.TraceEventType, sql string, err error) {
+	addEvent := func(workerID, opIdx, stepIdx int, opName string, evType domain.TraceEventType, phase, sql string, err error) {
 		traceMu.Lock()
 		defer traceMu.Unlock()
 		errStr := ""
@@ -135,9 +138,18 @@ func (r *Runner) ExecuteSchedule(ctx context.Context, spec domain.Spec, ops []do
 			OpName:    opName,
 			StepIndex: stepIdx,
 			Type:      evType,
+			Phase:     phase,
 			SQL:       sql,
 			Error:     errStr,
 		})
+	}
+	addErrors := func(errs []domain.OperationError) {
+		if len(errs) == 0 {
+			return
+		}
+		errorsMu.Lock()
+		operationErrors = append(operationErrors, errs...)
+		errorsMu.Unlock()
 	}
 
 	opChan := make(chan domain.ScheduledOp, len(ops))
@@ -158,76 +170,138 @@ func (r *Runner) ExecuteSchedule(ctx context.Context, spec domain.Spec, ops []do
 				if ctx.Err() != nil {
 					break
 				}
-				addEvent(workerID, op.ID, 0, op.Name, domain.EventBegin, "BEGIN", nil)
-
-				localState := make(map[string]string)
-				for k, v := range op.Params {
-					localState[k] = v
-				}
-
-				opFailed := false
-				for stepIdx, step := range op.Steps {
-					if ctx.Err() != nil {
-						opFailed = true
-						break
-					}
-
-					// Inject jitter between steps
-					jitter := r.prng.Jitter(spec.Engine.JitterMs, workerRng)
-					if jitter > 0 {
-						time.Sleep(jitter)
-					}
-
-					// Inject latency spike fault
-					spike := faultInj.GetLatencySpike()
-					if spike > 0 {
-						time.Sleep(spike)
-					}
-
-					// Inject forced abort fault
-					if faultInj.ShouldAbort() {
-						opFailed = true
-						addEvent(workerID, op.ID, stepIdx+1, op.Name, domain.EventRollback, "FORCED_ABORT_FAULT", nil)
-						break
-					}
-
-					sqlStmt := SubstituteParams(step.SQL, localState)
-
-					if step.Capture != "" {
-						var capturedVal interface{}
-						row := r.driver.QueryRow(ctx, sqlStmt)
-						if scanErr := row.Scan(&capturedVal); scanErr != nil {
-							addEvent(workerID, op.ID, stepIdx+1, op.Name, domain.EventError, sqlStmt, scanErr)
-							opFailed = true
-							break
-						}
-						localState[step.Capture] = fmt.Sprintf("%v", capturedVal)
-						addEvent(workerID, op.ID, stepIdx+1, op.Name, DetectEventType(sqlStmt), sqlStmt, nil)
-					} else {
-						_, execErr := r.driver.Exec(ctx, sqlStmt)
-						if execErr != nil {
-							addEvent(workerID, op.ID, stepIdx+1, op.Name, domain.EventError, sqlStmt, execErr)
-							opFailed = true
-							break
-						}
-						addEvent(workerID, op.ID, stepIdx+1, op.Name, DetectEventType(sqlStmt), sqlStmt, nil)
-					}
-				}
-
-				if opFailed {
-					addEvent(workerID, op.ID, len(op.Steps)+1, op.Name, domain.EventRollback, "ROLLBACK", nil)
-				} else {
-					addEvent(workerID, op.ID, len(op.Steps)+1, op.Name, domain.EventCommit, "COMMIT", nil)
-				}
+				errs := r.executeOperation(ctx, spec, op, workerID, workerRng, faultInj, addEvent)
+				addErrors(errs)
 			}
 		}(w)
 	}
 
 	wg.Wait()
-	if ctx.Err() != nil {
-		return trace, ctx.Err()
+	sort.SliceStable(operationErrors, func(i, j int) bool {
+		if operationErrors[i].OperationID != operationErrors[j].OperationID {
+			return operationErrors[i].OperationID < operationErrors[j].OperationID
+		}
+		if operationErrors[i].StepIndex != operationErrors[j].StepIndex {
+			return operationErrors[i].StepIndex < operationErrors[j].StepIndex
+		}
+		return operationErrors[i].Phase < operationErrors[j].Phase
+	})
+	outcome := ScheduleOutcome{
+		Trace:           trace,
+		OperationErrors: operationErrors,
+		Canceled:        ctx.Err() != nil,
+		Isolation:       effectiveIsolation,
 	}
-	return trace, nil
+	if ctx.Err() != nil {
+		return outcome, ctx.Err()
+	}
+	return outcome, nil
+}
+
+type eventRecorder func(workerID, opIdx, stepIdx int, opName string, evType domain.TraceEventType, phase, sql string, err error)
+
+func (r *Runner) executeOperation(
+	ctx context.Context,
+	spec domain.Spec,
+	op domain.ScheduledOp,
+	workerID int,
+	workerRng *rand.Rand,
+	faultInj *faults.FaultInjector,
+	addEvent eventRecorder,
+) []domain.OperationError {
+	tx, err := r.driver.BeginTx(ctx, drivers.TransactionOptions{Isolation: spec.Database.Isolation})
+	if err != nil {
+		addEvent(workerID, op.ID, 0, op.Name, domain.EventError, "begin", "BEGIN", err)
+		return []domain.OperationError{newOperationError(op, 0, "begin", err)}
+	}
+	addEvent(workerID, op.ID, 0, op.Name, domain.EventBegin, "begin", "BEGIN", nil)
+
+	rollback := func(stepIndex int, causePhase string, cause error) []domain.OperationError {
+		rollbackErr := tx.Rollback()
+		if ctx.Err() != nil && errors.Is(rollbackErr, sql.ErrTxDone) {
+			rollbackErr = nil
+		}
+		addEvent(workerID, op.ID, stepIndex, op.Name, domain.EventRollback, "rollback", "ROLLBACK", rollbackErr)
+		errs := make([]domain.OperationError, 0, 2)
+		if cause != nil {
+			errs = append(errs, newOperationError(op, stepIndex, causePhase, cause))
+		}
+		if rollbackErr != nil {
+			errs = append(errs, newOperationError(op, stepIndex, "rollback", rollbackErr))
+		}
+		return errs
+	}
+
+	localState := make(map[string]string, len(op.Params))
+	for key, value := range op.Params {
+		localState[key] = value
+	}
+
+	for stepIdx, step := range op.Steps {
+		stepNumber := stepIdx + 1
+		if ctx.Err() != nil {
+			return rollback(stepNumber, "", nil)
+		}
+
+		if !waitForContext(ctx, r.prng.Jitter(spec.Engine.JitterMs, workerRng)) {
+			return rollback(stepNumber, "", nil)
+		}
+		if !waitForContext(ctx, faultInj.GetLatencySpike()) {
+			return rollback(stepNumber, "", nil)
+		}
+		if faultInj.ShouldAbort() {
+			return rollback(stepNumber, "", nil)
+		}
+
+		sqlStmt := SubstituteParams(step.SQL, localState)
+		if step.Capture != "" {
+			var capturedVal interface{}
+			if scanErr := tx.QueryRowContext(ctx, sqlStmt).Scan(&capturedVal); scanErr != nil {
+				addEvent(workerID, op.ID, stepNumber, op.Name, domain.EventError, "step", sqlStmt, scanErr)
+				return rollback(stepNumber, "step", scanErr)
+			}
+			localState[step.Capture] = fmt.Sprintf("%v", capturedVal)
+			addEvent(workerID, op.ID, stepNumber, op.Name, DetectEventType(sqlStmt), "step", sqlStmt, nil)
+			continue
+		}
+
+		if _, execErr := tx.ExecContext(ctx, sqlStmt); execErr != nil {
+			addEvent(workerID, op.ID, stepNumber, op.Name, domain.EventError, "step", sqlStmt, execErr)
+			return rollback(stepNumber, "step", execErr)
+		}
+		addEvent(workerID, op.ID, stepNumber, op.Name, DetectEventType(sqlStmt), "step", sqlStmt, nil)
+	}
+
+	if commitErr := tx.Commit(); commitErr != nil {
+		addEvent(workerID, op.ID, len(op.Steps)+1, op.Name, domain.EventError, "commit", "COMMIT", commitErr)
+		return rollback(len(op.Steps)+1, "commit", commitErr)
+	}
+	addEvent(workerID, op.ID, len(op.Steps)+1, op.Name, domain.EventCommit, "commit", "COMMIT", nil)
+	return nil
+}
+
+func waitForContext(ctx context.Context, duration time.Duration) bool {
+	if duration <= 0 {
+		return ctx.Err() == nil
+	}
+	timer := time.NewTimer(duration)
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return false
+	case <-timer.C:
+		return true
+	}
+}
+
+func newOperationError(op domain.ScheduledOp, stepIndex int, phase string, err error) domain.OperationError {
+	return domain.OperationError{
+		OperationID: op.ID,
+		Operation:   op.Name,
+		StepIndex:   stepIndex,
+		Phase:       phase,
+		Message:     err.Error(),
+	}
 }
 
 // SubstituteParams replaces {param} or {a - b} in the SQL string.
@@ -289,35 +363,79 @@ func evalSimpleArithmetic(expr string) string {
 func (r *Runner) RunSchedule(ctx context.Context, spec domain.Spec, ops []domain.ScheduledOp) (*RunResult, error) {
 	startTime := time.Now()
 
+	if _, err := r.driver.EffectiveIsolation(spec.Database.Isolation); err != nil {
+		return nil, err
+	}
+
 	if err := r.driver.Reset(ctx, spec.Database.Schema, spec.Database.Seed); err != nil {
 		return nil, fmt.Errorf("database reset failed: %w", err)
 	}
 
-	trace, err := r.ExecuteSchedule(ctx, spec, ops)
+	outcome, err := r.ExecuteSchedule(ctx, spec, ops)
 	if err != nil {
+		if outcome.Canceled {
+			return r.finalizeResult(ctx, spec, ops, outcome, startTime), err
+		}
 		return nil, err
 	}
 
-	var failingInv *domain.InvariantResult
-	violationFound := false
+	return r.finalizeResult(ctx, spec, ops, outcome, startTime), nil
+}
+
+func (r *Runner) finalizeResult(
+	ctx context.Context,
+	spec domain.Spec,
+	ops []domain.ScheduledOp,
+	outcome ScheduleOutcome,
+	started time.Time,
+) *RunResult {
+	result := &RunResult{
+		Trace:           outcome.Trace,
+		OperationErrors: outcome.OperationErrors,
+		Isolation:       outcome.Isolation,
+		ScheduledOps:    ops,
+		Duration:        time.Since(started),
+	}
+
+	setStatus := func(status domain.ExecutionStatus) {
+		result.Status = status
+		result.Success = status == domain.StatusPassed
+		result.ViolationDetected = status == domain.StatusViolation
+	}
+
+	if outcome.Canceled || ctx.Err() != nil {
+		setStatus(domain.StatusCanceled)
+		result.Error = ctx.Err()
+		return result
+	}
+
+	if len(outcome.OperationErrors) > 0 {
+		setStatus(domain.StatusExecutionError)
+		errs := make([]error, 0, len(outcome.OperationErrors))
+		for _, opErr := range outcome.OperationErrors {
+			errs = append(errs, fmt.Errorf("operation %d (%s), %s: %s", opErr.OperationID, opErr.Operation, opErr.Phase, opErr.Message))
+		}
+		result.Error = errors.Join(errs...)
+		return result
+	}
 
 	for _, inv := range spec.Invariants {
-		invRes, err := r.evaluator.Evaluate(ctx, r.driver, inv)
-		if err != nil || !invRes.Passed {
-			violationFound = true
-			failingInv = &invRes
-			break
+		invResult, err := r.evaluator.Evaluate(ctx, r.driver, inv)
+		if err != nil {
+			setStatus(domain.StatusInconclusive)
+			result.FailingInvariant = &invResult
+			result.Error = err
+			return result
+		}
+		if !invResult.Passed {
+			setStatus(domain.StatusViolation)
+			result.FailingInvariant = &invResult
+			return result
 		}
 	}
 
-	return &RunResult{
-		Success:           !violationFound,
-		ViolationDetected: violationFound,
-		FailingInvariant:  failingInv,
-		Trace:             trace,
-		ScheduledOps:      ops,
-		Duration:          time.Since(startTime),
-	}, nil
+	setStatus(domain.StatusPassed)
+	return result
 }
 
 // DetectEventType inspects a SQL statement and returns the corresponding TraceEventType.

@@ -42,7 +42,6 @@ var (
 	prCommentFlag     bool
 )
 
-
 func defaultCloudURL() string {
 	if u := os.Getenv("CHAOSSQL_CLOUD_URL"); u != "" {
 		return u
@@ -76,7 +75,6 @@ func newRunCmd() *cobra.Command {
 	runCmd.Flags().StringVar(&githubTokenFlag, "github-token", os.Getenv("GITHUB_TOKEN"), "GitHub Token for publishing PR comments (or set GITHUB_TOKEN)")
 	runCmd.Flags().BoolVar(&prCommentFlag, "pr-comment", true, "Post automated concurrency report comment on Pull Request (if in CI)")
 
-
 	return runCmd
 }
 
@@ -101,7 +99,6 @@ func newDemoCmd() *cobra.Command {
 	demoCmd.Flags().BoolVar(&cloudFailFastFlag, "cloud-fail-fast", false, "Abort execution with error if Cloud publishing fails")
 	demoCmd.Flags().StringVar(&githubTokenFlag, "github-token", os.Getenv("GITHUB_TOKEN"), "GitHub Token for publishing PR comments (or set GITHUB_TOKEN)")
 	demoCmd.Flags().BoolVar(&prCommentFlag, "pr-comment", true, "Post automated concurrency report comment on Pull Request (if in CI)")
-
 
 	return demoCmd
 }
@@ -406,6 +403,9 @@ func executeChaos(specPath string) error {
 				"iterations": spec.Engine.Iterations,
 				"seed":       spec.Engine.Seed,
 			},
+			"status":             runResult.Status,
+			"isolation":          runResult.Isolation,
+			"operation_errors":   runResult.OperationErrors,
 			"success":            runResult.Success,
 			"violation_detected": runResult.ViolationDetected,
 			"anomaly_type":       anomaly,
@@ -418,6 +418,9 @@ func executeChaos(specPath string) error {
 			"html_report":        htmlReport,
 			"otel_trace":         otelTrace,
 		}
+		if runResult.Error != nil {
+			output["error"] = runResult.Error.Error()
+		}
 		if cloudTokenFlag != "" {
 			cloudResp, _ := publishToCloud(ctx, *spec, runResult, shrinkResult, minimalTrace, anomaly, reproCode, mermaidCode)
 			if cloudResp != nil {
@@ -427,7 +430,10 @@ func executeChaos(specPath string) error {
 
 		enc := json.NewEncoder(os.Stdout)
 		enc.SetIndent("", "  ")
-		return enc.Encode(output)
+		if err := enc.Encode(output); err != nil {
+			return err
+		}
+		return unreliableRunError(runResult)
 	}
 
 	reporter.PrintTerminalReport(*spec, runResult, shrinkResult, anomaly)
@@ -443,9 +449,18 @@ func executeChaos(specPath string) error {
 		return serveTraceViewer("127.0.0.1:8090", htmlContent, false)
 	}
 
-	return nil
+	return unreliableRunError(runResult)
 }
 
+func unreliableRunError(result *engine.RunResult) error {
+	if result == nil || result.Status == "" || result.Status == domain.StatusPassed || result.Status == domain.StatusViolation {
+		return nil
+	}
+	if result.Error != nil {
+		return fmt.Errorf("chaos execution ended with status %s: %w", result.Status, result.Error)
+	}
+	return fmt.Errorf("chaos execution ended with status %s", result.Status)
+}
 
 func publishToCloud(
 	ctx context.Context,
@@ -457,7 +472,7 @@ func publishToCloud(
 	reproCode, mermaidCode string,
 ) (*cloud.RunIngestResponse, error) {
 	status := "passed"
-	if runResult.ViolationDetected {
+	if !runResult.Success {
 		status = "failed"
 	}
 
@@ -500,6 +515,7 @@ func publishToCloud(
 		},
 		Result: cloud.ExecutionSummary{
 			Status:            status,
+			ExecutionStatus:   string(runResult.Status),
 			Success:           runResult.Success,
 			ViolationDetected: runResult.ViolationDetected,
 			AnomalyType:       string(anomaly),

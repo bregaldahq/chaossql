@@ -8,7 +8,10 @@ import (
 	"io"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"unicode"
+
+	"github.com/bregaldahq/chaossql/internal/domain"
 )
 
 var (
@@ -194,8 +197,18 @@ func (r *inmemRows) Next(dest []driver.Value) error {
 
 // MockDriver implements DatabaseDriver purely using standard library database/sql/driver.
 type MockDriver struct {
-	db *sql.DB
-	mu sync.Mutex
+	db         *sql.DB
+	mu         sync.Mutex
+	opened     atomic.Uint64
+	committed  atomic.Uint64
+	rolledBack atomic.Uint64
+}
+
+// MockTransactionStats reports transaction lifecycle calls observed by the mock adapter.
+type MockTransactionStats struct {
+	Opened     uint64
+	Committed  uint64
+	RolledBack uint64
 }
 
 // NewMockDriver returns a thread-safe in-memory mock driver.
@@ -245,14 +258,58 @@ func (m *MockDriver) Reset(ctx context.Context, schemaSQL, seedSQL string) error
 	return nil
 }
 
-func (m *MockDriver) BeginTx(ctx context.Context) (Tx, error) {
+func (m *MockDriver) EffectiveIsolation(requested domain.IsolationLevel) (domain.IsolationLevel, error) {
+	return resolveIsolation("mock", requested, domain.LevelSerializable, domain.LevelReadUncommitted, domain.LevelReadCommitted, domain.LevelRepeatableRead, domain.LevelSerializable)
+}
+
+func (m *MockDriver) BeginTx(ctx context.Context, opts TransactionOptions) (Tx, error) {
 	m.mu.Lock()
 	db := m.db
 	m.mu.Unlock()
 	if db == nil {
 		return nil, sql.ErrConnDone
 	}
-	return db.BeginTx(ctx, nil)
+	_, err := m.EffectiveIsolation(opts.Isolation)
+	if err != nil {
+		return nil, err
+	}
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	m.opened.Add(1)
+	return &mockCountingTx{Tx: tx, driver: m}, nil
+}
+
+type mockCountingTx struct {
+	Tx
+	driver *MockDriver
+}
+
+func (tx *mockCountingTx) Commit() error {
+	tx.driver.committed.Add(1)
+	return tx.Tx.Commit()
+}
+
+func (tx *mockCountingTx) Rollback() error {
+	tx.driver.rolledBack.Add(1)
+	return tx.Tx.Rollback()
+}
+
+// TransactionStats returns transaction lifecycle counters for verification fixtures.
+func (m *MockDriver) TransactionStats() MockTransactionStats {
+	return MockTransactionStats{
+		Opened:     m.opened.Load(),
+		Committed:  m.committed.Load(),
+		RolledBack: m.rolledBack.Load(),
+	}
+}
+
+// ResetTransactionStats clears transaction lifecycle counters.
+func (m *MockDriver) ResetTransactionStats() {
+	m.opened.Store(0)
+	m.committed.Store(0)
+	m.rolledBack.Store(0)
 }
 
 func (m *MockDriver) QueryRow(ctx context.Context, query string, args ...any) *sql.Row {
@@ -286,4 +343,3 @@ func (m *MockDriver) Exec(ctx context.Context, query string, args ...any) (sql.R
 	}
 	return db.ExecContext(ctx, query, args...)
 }
-

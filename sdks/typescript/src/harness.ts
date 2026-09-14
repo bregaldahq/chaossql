@@ -8,6 +8,7 @@ import { ChaosHarnessOptions, ChaosResult, RunOptions, ScheduledOpStep } from '.
 export class ChaosHarness {
   private driver: string;
   private dsn: string;
+  private isolation: string;
   private binPath?: string;
   private schemaSQL: string = '';
   private seedSQL: string = '';
@@ -23,6 +24,7 @@ export class ChaosHarness {
   constructor(options: ChaosHarnessOptions = {}) {
     this.driver = options.driver || 'sqlite';
     this.dsn = options.dsn || ':memory:';
+    this.isolation = options.isolation || '';
     this.binPath = options.binPath;
   }
 
@@ -98,6 +100,7 @@ export class ChaosHarness {
     return {
       driver: this.driver,
       dsn: this.dsn,
+      isolation: this.isolation,
       schema: this.schemaSQL,
       seed: this.seedSQL,
       invariants: this.invariants,

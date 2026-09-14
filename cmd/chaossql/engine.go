@@ -51,32 +51,37 @@ type IPCEngineConfig struct {
 
 // IPCDatabaseConfig mirrors domain.DatabaseConfig with flexible JSON tags.
 type IPCDatabaseConfig struct {
-	Driver string `json:"driver,omitempty"`
-	DSN    string `json:"dsn,omitempty"`
-	Schema string `json:"schema,omitempty"`
-	Seed   string `json:"seed,omitempty"`
+	Driver    string                `json:"driver,omitempty"`
+	DSN       string                `json:"dsn,omitempty"`
+	Isolation domain.IsolationLevel `json:"isolation,omitempty"`
+	Schema    string                `json:"schema,omitempty"`
+	Seed      string                `json:"seed,omitempty"`
 }
 
 // IPCPayload represents an incoming execution request via JSON IPC.
 type IPCPayload struct {
 	// Root or nested configuration
-	Version    string             `json:"version,omitempty"`
-	Name       string             `json:"name,omitempty"`
-	Driver     string             `json:"driver,omitempty"`
-	DSN        string             `json:"dsn,omitempty"`
-	Schema     string             `json:"schema,omitempty"`
-	Seed       string             `json:"seed,omitempty"`
-	Workers    int                `json:"workers,omitempty"`
-	Iterations int                `json:"iterations,omitempty"`
-	SeedValue  *uint64            `json:"seed_value,omitempty"`
-	Database   *IPCDatabaseConfig `json:"database,omitempty"`
-	Engine     *IPCEngineConfig   `json:"engine,omitempty"`
-	Invariants []IPCInvariant     `json:"invariants"`
-	Operations []IPCOperation     `json:"operations"`
+	Version    string                `json:"version,omitempty"`
+	Name       string                `json:"name,omitempty"`
+	Driver     string                `json:"driver,omitempty"`
+	DSN        string                `json:"dsn,omitempty"`
+	Isolation  domain.IsolationLevel `json:"isolation,omitempty"`
+	Schema     string                `json:"schema,omitempty"`
+	Seed       string                `json:"seed,omitempty"`
+	Workers    int                   `json:"workers,omitempty"`
+	Iterations int                   `json:"iterations,omitempty"`
+	SeedValue  *uint64               `json:"seed_value,omitempty"`
+	Database   *IPCDatabaseConfig    `json:"database,omitempty"`
+	Engine     *IPCEngineConfig      `json:"engine,omitempty"`
+	Invariants []IPCInvariant        `json:"invariants"`
+	Operations []IPCOperation        `json:"operations"`
 }
 
 // IPCResponse represents the structured JSON output returned over stdout.
 type IPCResponse struct {
+	Status            domain.ExecutionStatus  `json:"status"`
+	Isolation         domain.IsolationLevel   `json:"isolation,omitempty"`
+	OperationErrors   []domain.OperationError `json:"operation_errors,omitempty"`
 	Success           bool                    `json:"success"`
 	ViolationDetected bool                    `json:"violation_detected"`
 	AnomalyType       domain.AnomalyType      `json:"anomaly_type,omitempty"`
@@ -120,6 +125,7 @@ func runEngineIPC(cmd *cobra.Command, args []string) error {
 				break
 			}
 			resp := IPCResponse{
+				Status:  domain.StatusExecutionError,
 				Success: false,
 				Error:   fmt.Sprintf("JSON decoding error: %v", err),
 			}
@@ -145,6 +151,7 @@ func executeIPCPayload(ctx context.Context, p IPCPayload) IPCResponse {
 	// Normalize domain.Spec
 	driverName := p.Driver
 	dsn := p.DSN
+	isolation := p.Isolation
 	schema := p.Schema
 	seedSQL := p.Seed
 
@@ -154,6 +161,9 @@ func executeIPCPayload(ctx context.Context, p IPCPayload) IPCResponse {
 		}
 		if p.Database.DSN != "" {
 			dsn = p.Database.DSN
+		}
+		if p.Database.Isolation != "" {
+			isolation = p.Database.Isolation
 		}
 		if p.Database.Schema != "" {
 			schema = p.Database.Schema
@@ -268,10 +278,11 @@ func executeIPCPayload(ctx context.Context, p IPCPayload) IPCResponse {
 		Version: version,
 		Name:    specName,
 		Database: domain.DatabaseConfig{
-			Driver: driverName,
-			DSN:    dsn,
-			Schema: schema,
-			Seed:   seedSQL,
+			Driver:    driverName,
+			DSN:       dsn,
+			Isolation: isolation,
+			Schema:    schema,
+			Seed:      seedSQL,
 		},
 		Engine: domain.EngineConfig{
 			Workers:    workers,
@@ -285,18 +296,31 @@ func executeIPCPayload(ctx context.Context, p IPCPayload) IPCResponse {
 
 	driver, err := drivers.GetDriver(spec.Database.Driver, spec.Database.DSN)
 	if err != nil {
-		return IPCResponse{Success: false, Error: fmt.Sprintf("database driver error: %v", err)}
+		return IPCResponse{Status: domain.StatusExecutionError, Success: false, Error: fmt.Sprintf("database driver error: %v", err)}
 	}
 
 	if err := driver.Open(ctx); err != nil {
-		return IPCResponse{Success: false, Error: fmt.Sprintf("failed to open database driver: %v", err)}
+		return IPCResponse{Status: domain.StatusExecutionError, Success: false, Error: fmt.Sprintf("failed to open database driver: %v", err)}
 	}
 	defer func() { _ = driver.Close() }()
 
 	runner := engine.NewRunner(driver, spec.Engine.Seed)
 	runResult, err := runner.Run(ctx, spec)
 	if err != nil {
-		return IPCResponse{Success: false, Error: fmt.Sprintf("chaos execution failed: %v", err)}
+		if runResult != nil {
+			return IPCResponse{
+				Status:            runResult.Status,
+				Isolation:         runResult.Isolation,
+				OperationErrors:   runResult.OperationErrors,
+				Success:           runResult.Success,
+				ViolationDetected: runResult.ViolationDetected,
+				FailingInvariant:  runResult.FailingInvariant,
+				DurationMs:        runResult.Duration.Milliseconds(),
+				TraceEventsCount:  len(runResult.Trace),
+				Error:             err.Error(),
+			}
+		}
+		return IPCResponse{Status: domain.StatusExecutionError, Success: false, Error: fmt.Sprintf("chaos execution failed: %v", err)}
 	}
 
 	graph := analyzer.BuildGraph(runResult.Trace)
@@ -352,8 +376,15 @@ func executeIPCPayload(ctx context.Context, p IPCPayload) IPCResponse {
 	reproPython := reporter.GenerateStandalonePythonRepro(spec, minimalOps, runResult.FailingInvariant)
 	reproTS := reporter.GenerateStandaloneTypeScriptRepro(spec, minimalOps, runResult.FailingInvariant)
 
+	errorMessage := ""
+	if runResult.Error != nil {
+		errorMessage = runResult.Error.Error()
+	}
 	return IPCResponse{
-		Success:           !runResult.ViolationDetected,
+		Status:            runResult.Status,
+		Isolation:         runResult.Isolation,
+		OperationErrors:   runResult.OperationErrors,
+		Success:           runResult.Success,
 		ViolationDetected: runResult.ViolationDetected,
 		AnomalyType:       anomaly,
 		FailingInvariant:  runResult.FailingInvariant,
@@ -365,5 +396,6 @@ func executeIPCPayload(ctx context.Context, p IPCPayload) IPCResponse {
 		ReproGo:           reproGo,
 		ReproPython:       reproPython,
 		ReproTypeScript:   reproTS,
+		Error:             errorMessage,
 	}
 }

@@ -10,6 +10,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/bregaldahq/chaossql/internal/domain"
 	"github.com/jackc/pgx/v5/pgconn"
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
@@ -132,15 +133,31 @@ func (t *txWrapper) Rollback() error {
 	return t.d.handleError(t.tx.Rollback())
 }
 
-func (d *PostgresDriver) BeginTx(ctx context.Context) (Tx, error) {
+func (d *PostgresDriver) EffectiveIsolation(requested domain.IsolationLevel) (domain.IsolationLevel, error) {
+	fallback, err := fromSQLIsolation(d.isolationLevel, domain.LevelReadCommitted)
+	if err != nil {
+		return "", err
+	}
+	return resolveIsolation("postgres", requested, fallback, domain.LevelReadCommitted, domain.LevelRepeatableRead, domain.LevelSerializable)
+}
+
+func (d *PostgresDriver) BeginTx(ctx context.Context, txOpts TransactionOptions) (Tx, error) {
 	if d.db == nil {
 		if err := d.Open(ctx); err != nil {
 			return nil, err
 		}
 	}
 
+	effective, err := d.EffectiveIsolation(txOpts.Isolation)
+	if err != nil {
+		return nil, err
+	}
+	level, err := toSQLIsolation(effective)
+	if err != nil {
+		return nil, err
+	}
 	opts := &sql.TxOptions{
-		Isolation: d.isolationLevel,
+		Isolation: level,
 	}
 	tx, err := d.db.BeginTx(ctx, opts)
 	if err != nil {

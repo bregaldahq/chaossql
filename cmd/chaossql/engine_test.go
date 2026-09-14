@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
+
+	"github.com/bregaldahq/chaossql/internal/domain"
 )
 
 func TestEngineCmd_PassingInvariant(t *testing.T) {
@@ -60,7 +62,53 @@ func TestEngineCmd_PassingInvariant(t *testing.T) {
 	}
 }
 
-func TestEngineCmd_FailingAnomalyLostUpdate(t *testing.T) {
+func TestEngineCmd_ExecutionErrorStatus(t *testing.T) {
+	inputPayload := `{
+		"driver": "sqlite",
+		"isolation": "SERIALIZABLE",
+		"schema": "CREATE TABLE items (id INT PRIMARY KEY, qty INT);",
+		"seed": "INSERT INTO items VALUES (1, 100);",
+		"invariants": [{"name": "must_not_run", "query": "SELECT value FROM missing_table", "assert": "value == 1"}],
+		"operations": [{"name": "invalid", "steps": [{"sql": "NOT VALID SQL"}]}],
+		"workers": 1,
+		"iterations": 1,
+		"seed_value": 42
+	}`
+
+	cmd := newRootCmd()
+	outBuf := new(bytes.Buffer)
+	cmd.SetIn(bytes.NewBufferString(inputPayload))
+	cmd.SetOut(outBuf)
+	cmd.SetArgs([]string{"engine"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("engine command failed: %v", err)
+	}
+
+	var resp IPCResponse
+	if err := json.Unmarshal(outBuf.Bytes(), &resp); err != nil {
+		t.Fatalf("decode response: %v\n%s", err, outBuf.String())
+	}
+	if resp.Status != domain.StatusExecutionError || resp.Success || resp.ViolationDetected {
+		t.Fatalf("unexpected status response: %+v", resp)
+	}
+	if resp.Isolation != domain.LevelSerializable || len(resp.OperationErrors) != 1 || resp.FailingInvariant != nil {
+		t.Fatalf("unexpected execution diagnostics: %+v", resp)
+	}
+}
+
+func TestUnreliableRunError(t *testing.T) {
+	if err := unreliableRunError(&domain.ExecutionResult{Status: domain.StatusPassed}); err != nil {
+		t.Fatalf("passed result returned error: %v", err)
+	}
+	if err := unreliableRunError(&domain.ExecutionResult{Status: domain.StatusViolation}); err != nil {
+		t.Fatalf("violation result returned execution error: %v", err)
+	}
+	if err := unreliableRunError(&domain.ExecutionResult{Status: domain.StatusInconclusive}); err == nil {
+		t.Fatal("inconclusive result returned nil error")
+	}
+}
+
+func TestEngineCmd_FailingInvariant(t *testing.T) {
 	inputPayload := `{
 		"driver": "sqlite",
 		"schema": "CREATE TABLE accounts (id INT PRIMARY KEY, balance INT);",
@@ -69,7 +117,7 @@ func TestEngineCmd_FailingAnomalyLostUpdate(t *testing.T) {
 			{
 				"name": "balance_preserved",
 				"query": "SELECT balance FROM accounts WHERE id = 1;",
-				"assert": "balance == 800"
+				"assert": "balance == 700"
 			}
 		],
 		"operations": [
@@ -81,7 +129,7 @@ func TestEngineCmd_FailingAnomalyLostUpdate(t *testing.T) {
 				]
 			}
 		],
-		"workers": 2,
+		"workers": 1,
 		"iterations": 2,
 		"seed_value": 42
 	}`

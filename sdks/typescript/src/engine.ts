@@ -155,6 +155,9 @@ export function executeIPC(payload: any, binaryPath?: string, timeoutMs: number 
         }
 
         const result: ChaosResult = {
+          status: raw.status || '',
+          isolation: raw.isolation,
+          operationErrors: raw.operation_errors || [],
           success: Boolean(raw.success),
           violationDetected: Boolean(raw.violation_detected),
           anomalyDetected: Boolean(raw.violation_detected),

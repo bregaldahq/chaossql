@@ -32,6 +32,17 @@ const (
 	LevelSerializable    IsolationLevel = "SERIALIZABLE"
 )
 
+// ExecutionStatus describes whether a run produced a trustworthy conclusion.
+type ExecutionStatus string
+
+const (
+	StatusPassed         ExecutionStatus = "passed"
+	StatusViolation      ExecutionStatus = "violation"
+	StatusExecutionError ExecutionStatus = "execution_error"
+	StatusInconclusive   ExecutionStatus = "inconclusive"
+	StatusCanceled       ExecutionStatus = "canceled"
+)
+
 // TemporalInvariantConfig defines rules evaluated against chronological traces.
 type TemporalInvariantConfig struct {
 	Name   string `yaml:"name"`
@@ -63,6 +74,11 @@ func (s Spec) Validate() error {
 	if s.Database.Driver == "" {
 		return fmt.Errorf("%w: missing or empty 'database.driver'", ErrSpecValidationFailed)
 	}
+	switch s.Database.Isolation {
+	case "", LevelReadUncommitted, LevelReadCommitted, LevelRepeatableRead, LevelSerializable:
+	default:
+		return fmt.Errorf("%w: unsupported database isolation %q", ErrSpecValidationFailed, s.Database.Isolation)
+	}
 	if len(s.Invariants) == 0 {
 		return fmt.Errorf("%w: 'invariants' must have at least one entry", ErrSpecValidationFailed)
 	}
@@ -87,10 +103,11 @@ func (s Spec) Validate() error {
 
 // DatabaseConfig holds connection and initialization paths.
 type DatabaseConfig struct {
-	Driver string `yaml:"driver"` // "sqlite", "postgres", or "mysql"
-	DSN    string `yaml:"dsn,omitempty"`
-	Schema string `yaml:"schema"`
-	Seed   string `yaml:"seed"`
+	Driver    string         `yaml:"driver"` // "sqlite", "postgres", or "mysql"
+	DSN       string         `yaml:"dsn,omitempty"`
+	Isolation IsolationLevel `yaml:"isolation,omitempty"`
+	Schema    string         `yaml:"schema"`
+	Seed      string         `yaml:"seed"`
 }
 
 // FaultConfig defines stochastic fault injection parameters.
@@ -153,8 +170,18 @@ type TraceEvent struct {
 	OpName    string         `json:"op_name"`
 	StepIndex int            `json:"step_index"`
 	Type      TraceEventType `json:"type"`
+	Phase     string         `json:"phase,omitempty"`
 	SQL       string         `json:"sql"`
 	Error     string         `json:"error,omitempty"`
+}
+
+// OperationError identifies the operation lifecycle action that failed.
+type OperationError struct {
+	OperationID int    `json:"operation_id"`
+	Operation   string `json:"operation"`
+	StepIndex   int    `json:"step_index,omitempty"`
+	Phase       string `json:"phase"`
+	Message     string `json:"message"`
 }
 
 // ExecutionTrace is an ordered log of concurrency events.
@@ -196,6 +223,9 @@ type ShrinkResult struct {
 
 // ExecutionResult holds the complete outcome of a chaos execution.
 type ExecutionResult struct {
+	Status            ExecutionStatus  `json:"status"`
+	Isolation         IsolationLevel   `json:"isolation,omitempty"`
+	OperationErrors   []OperationError `json:"operation_errors,omitempty"`
 	Success           bool             `json:"success"`
 	ViolationDetected bool             `json:"violation_detected"`
 	FailingInvariant  *InvariantResult `json:"failing_invariant,omitempty"`

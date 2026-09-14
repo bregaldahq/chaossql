@@ -160,15 +160,31 @@ func (t *mysqlTxWrapper) Rollback() error {
 	return t.d.HandleError(t.tx.Rollback())
 }
 
-func (d *MySQLDriver) BeginTx(ctx context.Context) (Tx, error) {
+func (d *MySQLDriver) EffectiveIsolation(requested domain.IsolationLevel) (domain.IsolationLevel, error) {
+	fallback, err := fromSQLIsolation(d.isolationLevel, domain.LevelRepeatableRead)
+	if err != nil {
+		return "", err
+	}
+	return resolveIsolation("mysql", requested, fallback, domain.LevelReadUncommitted, domain.LevelReadCommitted, domain.LevelRepeatableRead, domain.LevelSerializable)
+}
+
+func (d *MySQLDriver) BeginTx(ctx context.Context, txOpts TransactionOptions) (Tx, error) {
 	if d.db == nil {
 		if err := d.Open(ctx); err != nil {
 			return nil, err
 		}
 	}
 
+	effective, err := d.EffectiveIsolation(txOpts.Isolation)
+	if err != nil {
+		return nil, err
+	}
+	level, err := toSQLIsolation(effective)
+	if err != nil {
+		return nil, err
+	}
 	opts := &sql.TxOptions{
-		Isolation: d.isolationLevel,
+		Isolation: level,
 	}
 	tx, err := d.db.BeginTx(ctx, opts)
 	if err != nil {

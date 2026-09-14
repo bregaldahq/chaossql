@@ -10,6 +10,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/bregaldahq/chaossql/internal/domain"
 	_ "modernc.org/sqlite"
 )
 
@@ -110,13 +111,73 @@ func (d *SQLiteDriver) Reset(ctx context.Context, schemaSQL, seedSQL string) err
 	return nil
 }
 
-func (d *SQLiteDriver) BeginTx(ctx context.Context) (Tx, error) {
+func (d *SQLiteDriver) EffectiveIsolation(requested domain.IsolationLevel) (domain.IsolationLevel, error) {
+	return resolveIsolation("sqlite", requested, domain.LevelSerializable, domain.LevelSerializable, domain.LevelReadUncommitted)
+}
+
+func (d *SQLiteDriver) BeginTx(ctx context.Context, opts TransactionOptions) (Tx, error) {
 	if d.db == nil {
 		if err := d.Open(ctx); err != nil {
 			return nil, err
 		}
 	}
-	return d.db.BeginTx(ctx, nil)
+	effective, err := d.EffectiveIsolation(opts.Isolation)
+	if err != nil {
+		return nil, err
+	}
+	readUncommitted := 0
+	if effective == domain.LevelReadUncommitted {
+		readUncommitted = 1
+		d.db.SetMaxOpenConns(50)
+		d.db.SetMaxIdleConns(50)
+	}
+	conn, err := d.db.Conn(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := conn.ExecContext(ctx, fmt.Sprintf("PRAGMA read_uncommitted = %d", readUncommitted)); err != nil {
+		_ = conn.Close()
+		return nil, fmt.Errorf("failed to configure sqlite isolation %q: %w", effective, err)
+	}
+	_, _ = conn.ExecContext(ctx, "PRAGMA busy_timeout = 250")
+	tx, err := conn.BeginTx(ctx, nil)
+	if err != nil {
+		_ = conn.Close()
+		return nil, err
+	}
+	return &sqliteTx{Tx: tx, conn: conn}, nil
+}
+
+type sqliteTx struct {
+	*sql.Tx
+	conn *sql.Conn
+}
+
+func (tx *sqliteTx) Commit() error {
+	commitErr := tx.Tx.Commit()
+	cleanupErr := tx.resetIsolation()
+	if commitErr != nil {
+		return commitErr
+	}
+	return cleanupErr
+}
+
+func (tx *sqliteTx) Rollback() error {
+	rollbackErr := tx.Tx.Rollback()
+	cleanupErr := tx.resetIsolation()
+	if rollbackErr != nil {
+		return rollbackErr
+	}
+	return cleanupErr
+}
+
+func (tx *sqliteTx) resetIsolation() error {
+	_, resetErr := tx.conn.ExecContext(context.Background(), "PRAGMA read_uncommitted = 0")
+	closeErr := tx.conn.Close()
+	if resetErr != nil {
+		return fmt.Errorf("failed to reset sqlite isolation: %w", resetErr)
+	}
+	return closeErr
 }
 
 func (d *SQLiteDriver) QueryRow(ctx context.Context, query string, args ...any) *sql.Row {

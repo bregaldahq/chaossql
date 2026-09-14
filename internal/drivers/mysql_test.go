@@ -217,7 +217,7 @@ func TestMySQLDriver_ResetAndConcurrency(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			tx, err := driver.BeginTx(ctx)
+			tx, err := driver.BeginTx(ctx, drivers.TransactionOptions{})
 			if err != nil {
 				mu.Lock()
 				errs = append(errs, err)
@@ -258,4 +258,35 @@ func TestMySQLDriver_ResetAndConcurrency(t *testing.T) {
 			t.Logf("transaction failed with error: %v", err)
 		}
 	}
+}
+
+func TestMySQLDriver_TransactionIntegration(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping mysql live integration tests in short mode")
+	}
+
+	ctx := context.Background()
+	driver := drivers.NewMySQLDriver(getMySQLDSN())
+	t.Cleanup(func() { _ = driver.Close() })
+	if err := driver.Open(ctx); err != nil {
+		skipUnavailableDatabase(t, "mysql", err)
+	}
+
+	tx, err := driver.BeginTx(ctx, drivers.TransactionOptions{Isolation: domain.LevelRepeatableRead})
+	if err != nil {
+		t.Fatalf("begin repeatable read transaction: %v", err)
+	}
+	var actualIsolation string
+	if err := tx.QueryRowContext(ctx, "SELECT @@transaction_isolation").Scan(&actualIsolation); err != nil {
+		_ = tx.Rollback()
+		t.Fatalf("query transaction isolation: %v", err)
+	}
+	if err := tx.Rollback(); err != nil {
+		t.Fatalf("rollback isolation probe: %v", err)
+	}
+	if actualIsolation != "REPEATABLE-READ" {
+		t.Fatalf("transaction isolation = %q, want REPEATABLE-READ", actualIsolation)
+	}
+
+	assertLiveRunnerTransactionSemantics(t, driver, domain.LevelRepeatableRead)
 }

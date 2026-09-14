@@ -8,7 +8,9 @@
 
 ## 2. Savepoints & Partial Rollback
 - Syntax: `SAVEPOINT <id>`, `ROLLBACK TO <id>`, `RELEASE SAVEPOINT <id>`.
-- Allows transactions to undo sub-operations without aborting the entire transaction.
+- Every savepoint statement executes through the operation's active transaction; it must never use an autocommit connection.
+- A partial rollback may undo sub-operations without ending the transaction. The operation still performs one final driver commit or rollback.
+- MySQL transaction fixtures must verify the effective isolation level and prove that a successful operation commits while a later statement error rolls back all earlier writes in that operation.
 
 ## 3. OpenTelemetry Distributed Tracing Format
 - Format: OpenTelemetry JSON Trace Spec (OTLP HTTP/JSON span format).

@@ -1,6 +1,7 @@
 package reporter_test
 
 import (
+	"errors"
 	"go/parser"
 	"go/token"
 	"os"
@@ -14,6 +15,14 @@ import (
 	"github.com/bregaldahq/chaossql/internal/engine"
 	"github.com/bregaldahq/chaossql/internal/reporter"
 )
+
+func TestRenderRunSummary_ExecutionErrorIsNotSuccess(t *testing.T) {
+	result := &engine.RunResult{Status: domain.StatusExecutionError, Error: errors.New("statement failed")}
+	summary := reporter.RenderRunSummary(domain.Spec{Name: "broken"}, result, domain.AnomalyUnknown)
+	if !strings.Contains(summary, "EXECUTION_ERROR") || strings.Contains(summary, "ALL INVARIANTS SATISFIED") {
+		t.Fatalf("misleading execution summary: %s", summary)
+	}
+}
 
 func TestGenerateMermaidSequence_Valid(t *testing.T) {
 	trace := domain.ExecutionTrace{
@@ -477,4 +486,3 @@ func TestGenerateStandaloneTypeScriptRepro(t *testing.T) {
 		t.Fatalf("expected node repro execution to succeed, got:\n%s", string(out))
 	}
 }
-

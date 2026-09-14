@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/charmbracelet/lipgloss"
 	"github.com/bregaldahq/chaossql/internal/domain"
 	"github.com/bregaldahq/chaossql/internal/engine"
+	"github.com/charmbracelet/lipgloss"
 )
 
 var (
@@ -68,10 +68,10 @@ var (
 
 // RenderBanner returns the ChaosSQL CLI ASCII Banner.
 func RenderBanner() string {
-	rawBanner := `  ____ _                     ____   ___  _     
- / ___| |__   __ _  ___  ___/ ___| / _ \| |    
-| |   | '_ \ / _` + "`" + ` |/ _ \/ __\___ \| | | | |    
-| |___| | | | (_| | (_) \__ \___) | |_| | |___ 
+	rawBanner := `  ____ _                     ____   ___  _
+ / ___| |__   __ _  ___  ___/ ___| / _ \| |
+| |   | '_ \ / _` + "`" + ` |/ _ \/ __\___ \| | | | |
+| |___| | | | (_| | (_) \__ \___) | |_| | |___
  \____|_| |_|\__,_|\___/|___/____/ \__\_\_____|`
 
 	tagline := lipgloss.NewStyle().
@@ -105,16 +105,23 @@ func RenderRunSummary(spec domain.Spec, result *engine.RunResult, anomaly domain
 	if result != nil {
 		sb.WriteString(fmt.Sprintf("  • %s: %s\n\n", boldStyle.Render("Elapsed Time"), result.Duration.Round(100*1000)))
 
-		if result.ViolationDetected {
+		switch result.Status {
+		case domain.StatusViolation:
 			anomalyStr := string(anomaly)
 			if anomalyStr == "" || anomalyStr == string(domain.AnomalyUnknown) {
 				anomalyStr = "INVARIANT_VIOLATION"
 			}
 			badge := violationBadge.Render(" ✘ ISOLATION ANOMALY DETECTED ")
 			sb.WriteString(fmt.Sprintf("  Status: %s  %s\n", badge, boldStyle.Foreground(colorRed).Render("["+anomalyStr+"]")))
-		} else {
+		case domain.StatusPassed, "":
 			badge := successBadge.Render(" ✔ ALL INVARIANTS SATISFIED ")
 			sb.WriteString(fmt.Sprintf("  Status: %s\n", badge))
+		default:
+			badge := violationBadge.Render(" ✘ " + strings.ToUpper(string(result.Status)) + " ")
+			sb.WriteString(fmt.Sprintf("  Status: %s\n", badge))
+			if result.Error != nil {
+				sb.WriteString(fmt.Sprintf("  Error: %s\n", result.Error))
+			}
 		}
 	}
 
