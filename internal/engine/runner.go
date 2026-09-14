@@ -108,12 +108,16 @@ func (r *Runner) Run(ctx context.Context, spec domain.Spec) (*RunResult, error) 
 
 // ExecuteSchedule dispatches the given operations across workers and captures the trace.
 func (r *Runner) ExecuteSchedule(ctx context.Context, spec domain.Spec, ops []domain.ScheduledOp) (ScheduleOutcome, error) {
+	if err := validateScheduledOps(ops); err != nil {
+		return ScheduleOutcome{}, err
+	}
 	nWorkers := spec.Engine.Workers
 	if nWorkers <= 0 {
 		nWorkers = 4
 	}
-
-	plan := BuildSchedulePlan(spec, ops, r.prng)
+	plannedSpec := spec
+	plannedSpec.Engine.Workers = nWorkers
+	plan := BuildSchedulePlan(plannedSpec, ops, r.prng)
 	decisions := make(map[scheduleDecisionKey]domain.ScheduleDecision, len(plan.Decisions))
 	for _, decision := range plan.Decisions {
 		decisions[scheduleDecisionKey{operationID: decision.OperationID, stepIndex: decision.StepIndex}] = decision
@@ -158,15 +162,7 @@ func (r *Runner) ExecuteSchedule(ctx context.Context, spec domain.Spec, ops []do
 		errorsMu.Unlock()
 	}
 
-	orderedOps := append([]domain.ScheduledOp(nil), ops...)
-	sort.SliceStable(orderedOps, func(i, j int) bool {
-		return orderedOps[i].ID < orderedOps[j].ID
-	})
-	workerQueues := make([][]domain.ScheduledOp, nWorkers)
-	for _, op := range orderedOps {
-		workerID := (op.ID-1)%nWorkers + 1
-		workerQueues[workerID-1] = append(workerQueues[workerID-1], op)
-	}
+	workerQueues := partitionScheduledOps(ops, nWorkers)
 
 	var wg sync.WaitGroup
 	for w := 1; w <= nWorkers; w++ {
@@ -325,7 +321,18 @@ func SubstituteParams(sql string, state map[string]string) string {
 
 func substituteParams(sql string, state map[string]string) string {
 	result := sql
-	for k, v := range state {
+	stateKeys := make([]string, 0, len(state))
+	for key := range state {
+		stateKeys = append(stateKeys, key)
+	}
+	sort.Slice(stateKeys, func(i, j int) bool {
+		if len(stateKeys[i]) != len(stateKeys[j]) {
+			return len(stateKeys[i]) > len(stateKeys[j])
+		}
+		return stateKeys[i] < stateKeys[j]
+	})
+	for _, k := range stateKeys {
+		v := state[k]
 		placeholder := "{" + k + "}"
 		result = strings.ReplaceAll(result, placeholder, v)
 	}
@@ -338,8 +345,8 @@ func substituteParams(sql string, state map[string]string) string {
 		}
 		expr := result[start+1 : end]
 
-		for k, v := range state {
-			expr = strings.ReplaceAll(expr, k, v)
+		for _, k := range stateKeys {
+			expr = strings.ReplaceAll(expr, k, state[k])
 		}
 
 		valStr := evalSimpleArithmetic(expr)

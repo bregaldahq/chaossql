@@ -56,8 +56,8 @@
 
 ### Task 6: Final audit, review, PR, and merge
 
-- [ ] Run `gofmt`, `git diff --check`, `go test -race ./... -count=1`, and `make verify`.
-- [ ] Run zero-CGO native and WASM builds.
-- [ ] Request independent review and resolve every Critical and Important finding.
+- [x] Run `gofmt`, `git diff --check`, `go test -race ./... -count=1`, and `make verify`.
+- [x] Run zero-CGO native and WASM builds.
+- [x] Request independent review and resolve every Critical and Important finding.
 - [ ] Push `codex/eng-02-deterministic-schedule`, open a PR to `main`, and wait for all checks.
 - [ ] Mark this plan complete, merge with a merge commit, and mark ENG-02 complete in the ignored commercialization plan.

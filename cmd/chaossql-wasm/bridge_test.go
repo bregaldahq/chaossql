@@ -280,3 +280,10 @@ operations:
 	}
 }
 
+func TestExecuteWasmScenario_RejectsUnsafeJavaScriptSeed(t *testing.T) {
+	configJSON := `{"yamlContent":"version: '1.0'\nname: test\ndatabase:\n  driver: sqlite\noperations: []","seed":9007199254740992}`
+	_, err := ExecuteWasmScenario(context.Background(), configJSON, nil)
+	if err == nil || !strings.Contains(err.Error(), "JavaScript safe integer") {
+		t.Fatalf("error = %v, want JavaScript safe integer validation", err)
+	}
+}

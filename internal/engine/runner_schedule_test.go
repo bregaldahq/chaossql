@@ -2,6 +2,7 @@ package engine_test
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/bregaldahq/chaossql/internal/domain"
@@ -43,6 +44,28 @@ func TestExecuteSchedule_UsesDeterministicWorkerQueues(t *testing.T) {
 		if len(seenBegin) != len(ops) {
 			t.Fatalf("run %d saw %d begins, want %d", run, len(seenBegin), len(ops))
 		}
+	}
+}
+
+func TestExecuteSchedule_RejectsInvalidOperationIDs(t *testing.T) {
+	tests := []struct {
+		name string
+		ops  []domain.ScheduledOp
+		want string
+	}{
+		{name: "zero", ops: []domain.ScheduledOp{{ID: 0}}, want: "must be positive"},
+		{name: "negative", ops: []domain.ScheduledOp{{ID: -1}}, want: "must be positive"},
+		{name: "duplicate", ops: []domain.ScheduledOp{{ID: 1}, {ID: 1}}, want: "must be unique"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			driver := drivers.NewMockDriver()
+			defer driver.Close()
+			_, err := engine.NewRunner(driver, 1).ExecuteSchedule(context.Background(), domain.Spec{}, tt.ops)
+			if err == nil || !strings.Contains(err.Error(), tt.want) {
+				t.Fatalf("error = %v, want text %q", err, tt.want)
+			}
+		})
 	}
 }
 

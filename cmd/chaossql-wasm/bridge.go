@@ -55,6 +55,8 @@ type ExecutionReport struct {
 	DurationMs       int64                 `json:"durationMs"`
 }
 
+const maxJavaScriptSafeInteger uint64 = 1<<53 - 1
+
 func ValidateScenarioYAML(yamlContent string) ValidationResult {
 	spec, err := domain.ParseSpecBytes([]byte(yamlContent))
 	if err != nil {
@@ -83,6 +85,9 @@ func ExecuteWasmScenario(ctx context.Context, configJSON string, onProgress func
 	if err := json.Unmarshal([]byte(configJSON), &req); err != nil {
 		return nil, fmt.Errorf("invalid config JSON: %w", err)
 	}
+	if req.Seed != nil && *req.Seed > maxJavaScriptSafeInteger {
+		return nil, fmt.Errorf("seed must be a JavaScript safe integer (0 through %d)", maxJavaScriptSafeInteger)
+	}
 
 	spec, err := domain.ParseSpecBytes([]byte(req.YAMLContent))
 	if err != nil {
@@ -101,6 +106,9 @@ func ExecuteWasmScenario(ctx context.Context, configJSON string, onProgress func
 	effectiveSeed := spec.Engine.Seed
 	if req.Seed != nil {
 		effectiveSeed = *req.Seed
+	}
+	if effectiveSeed > maxJavaScriptSafeInteger {
+		return nil, fmt.Errorf("seed must be a JavaScript safe integer (0 through %d)", maxJavaScriptSafeInteger)
 	}
 	spec.Engine.Seed = effectiveSeed
 

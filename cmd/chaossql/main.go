@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/signal"
@@ -199,8 +200,9 @@ func executeChaos(specPath string, seedOverride ...bool) error {
 
 	runner := engine.NewRunner(driver, spec.Engine.Seed)
 	runResult, err := runner.Run(ctx, *spec)
+	runResult, err = preserveRunResult(runResult, err)
 	if err != nil {
-		return fmt.Errorf("chaos execution failed: %w", err)
+		return err
 	}
 
 	graph := analyzer.BuildGraph(runResult.Trace)
@@ -454,6 +456,16 @@ func executeChaos(specPath string, seedOverride ...bool) error {
 	}
 
 	return unreliableRunError(runResult)
+}
+
+func preserveRunResult(result *engine.RunResult, runErr error) (*engine.RunResult, error) {
+	if result != nil {
+		return result, nil
+	}
+	if runErr != nil {
+		return nil, fmt.Errorf("chaos execution failed: %w", runErr)
+	}
+	return nil, errors.New("chaos execution returned no result")
 }
 
 func resolveEffectiveSeed(specSeed, overrideSeed uint64, overrideSet bool) uint64 {

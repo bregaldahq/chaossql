@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"strings"
 	"testing"
@@ -108,6 +109,14 @@ func TestUnreliableRunError(t *testing.T) {
 	}
 	if err := unreliableRunError(&domain.ExecutionResult{Status: domain.StatusInconclusive}); err == nil {
 		t.Fatal("inconclusive result returned nil error")
+	}
+}
+
+func TestPreserveRunResult_KeepsCanceledResultForReporting(t *testing.T) {
+	result := &domain.ExecutionResult{Status: domain.StatusCanceled, Error: context.Canceled}
+	got, err := preserveRunResult(result, context.Canceled)
+	if err != nil || got != result {
+		t.Fatalf("got result=%p err=%v, want preserved result=%p", got, err, result)
 	}
 }
 

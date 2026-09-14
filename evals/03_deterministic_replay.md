@@ -11,5 +11,6 @@ Guarantee that identical specifications, engine versions, and `seed` values prod
 5. **Zero Seed:** An omitted or explicitly zero seed must produce the checked-in version 1 golden corpus and must be persisted as `0` in the result.
 6. **Cancellation:** A context canceled during a planned jitter or latency wait must return promptly and roll back an open transaction.
 7. **Shrinker Determinism:** The synthesized minimal failure trace must contain identical operation IDs across all independent runs given the same seed and logical schedule.
+8. **Input Safety:** Duplicate or non-positive operation IDs and JavaScript seeds above `Number.MAX_SAFE_INTEGER` must fail with explicit validation errors rather than panic or round silently.
 
 Physical database completion order is measured rather than promised. A schedule mismatch is a harness determinism failure; a trace mismatch with an identical schedule is evidence of external runtime or database timing and must be reported as such.

@@ -36,7 +36,7 @@ type ScheduleDecision struct {
     Sequence    int           `json:"sequence"`
     OperationID int           `json:"operation_id"`
     WorkerID    int           `json:"worker_id"`
-    StepIndex   int           `json:"step_index"`
+    StepIndex   int  `json:"step_index"`
     JitterMs    int  `json:"jitter_ms"`
     LatencyMs   int  `json:"latency_ms"`
     Abort       bool `json:"abort"`
@@ -45,7 +45,7 @@ type ScheduleDecision struct {
 
 `ExecutionResult` includes `Seed` and `Schedule`. `ScheduleOutcome` carries the same schedule to the shared result finalizer. `SchedulePlan.Version` starts at `1`; changing the derivation algorithm requires a new version.
 
-Each decision represents the harness inputs immediately before one SQL step. Decisions are ordered by operation ID and step index, making serialization stable. `WorkerID` is assigned round-robin as `(operationID - 1) % workers + 1`. Configured worker count is part of the specification, so changing it intentionally changes worker assignment.
+Each decision represents the harness inputs immediately before one SQL step. Decisions are ordered by operation ID and step index, making serialization stable. `WorkerID` is assigned round-robin as `(operationID - 1) % workers + 1`. Configured worker count is part of the specification, so changing it intentionally changes worker assignment. Scheduled operation IDs must be positive and unique.
 
 ## Generation
 
@@ -55,13 +55,15 @@ Decision randomness is derived from `(master seed, operation ID, step index)` ra
 
 ## Execution
 
-Before workers start, the runner builds one schedule plan and partitions operations into deterministic per-worker queues. A worker consumes only its own queue in operation-ID order. `executeOperation` looks up the precomputed decision for each step and applies its jitter, latency, and abort fields.
+Before workers start, the runner builds one schedule plan and partitions operations into deterministic per-worker queues. A worker consumes only its own queue in operation-ID order. `executeOperation` looks up the precomputed decision for each step and applies its jitter, latency, and abort fields. The plan records deterministic harness intent; it does not globally block transaction lifecycle calls because a database call may wait on a lock held by another worker. Transaction completion and terminal actions remain physical observations in the trace.
 
 Context cancellation still interrupts every planned wait. Database calls continue to use context-aware driver methods, so externally blocked steps terminate according to the execution context and produce the status defined by ENG-01.
 
 ## Compatibility
 
 Existing specifications remain valid. Result fields are additive. Existing `ScheduledOps` and physical `Trace` remain available. JSON, cloud payloads, SDK adapters, and report metadata must preserve the effective seed and logical schedule when they expose full execution results.
+
+TypeScript and WebAssembly inputs validate seeds against JavaScript's exact integer range, `0` through `Number.MAX_SAFE_INTEGER`. Native Go, CLI, IPC, and Python callers continue to support the full unsigned 64-bit seed range.
 
 The legacy package-level generator API remains available, but engine schedule generation must not use its global monotonic counter state.
 

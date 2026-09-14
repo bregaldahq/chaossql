@@ -45,3 +45,5 @@ def test_scenario_marker(chaossql_runner):
     report = chaossql_runner.run_scenario(scenario_path, workers=2, iterations=10, seed=42)
     # The oversell scenario catches invariant violation or completes
     assert report.duration_ms >= 0
+    assert report.seed == 42
+    assert report.schedule["version"] == 1

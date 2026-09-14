@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"fmt"
 	"math/rand/v2"
 	"sort"
 
@@ -17,18 +18,18 @@ func BuildSchedulePlan(spec domain.Spec, ops []domain.ScheduledOp, prng *PRNG) d
 		workers = 4
 	}
 
+	plan := domain.SchedulePlan{
+		Version:   schedulePlanVersion,
+		Seed:      prng.MasterSeed(),
+		Workers:   workers,
+		Decisions: make([]domain.ScheduleDecision, 0),
+	}
 	orderedOps := append([]domain.ScheduledOp(nil), ops...)
 	sort.SliceStable(orderedOps, func(i, j int) bool {
 		return orderedOps[i].ID < orderedOps[j].ID
 	})
-
-	plan := domain.SchedulePlan{
-		Version: schedulePlanVersion,
-		Seed:    prng.MasterSeed(),
-		Workers: workers,
-	}
 	for _, op := range orderedOps {
-		workerID := (op.ID-1)%workers + 1
+		workerID := assignedWorker(op.ID, workers)
 		for stepIndex := range op.Steps {
 			stepNumber := stepIndex + 1
 			plan.Decisions = append(plan.Decisions, domain.ScheduleDecision{
@@ -43,6 +44,41 @@ func BuildSchedulePlan(spec domain.Spec, ops []domain.ScheduledOp, prng *PRNG) d
 		}
 	}
 	return plan
+}
+
+func validateScheduledOps(ops []domain.ScheduledOp) error {
+	seen := make(map[int]struct{}, len(ops))
+	for _, op := range ops {
+		if op.ID <= 0 {
+			return fmt.Errorf("scheduled operation ID must be positive: %d", op.ID)
+		}
+		if _, exists := seen[op.ID]; exists {
+			return fmt.Errorf("scheduled operation ID must be unique: %d", op.ID)
+		}
+		seen[op.ID] = struct{}{}
+	}
+	return nil
+}
+
+func partitionScheduledOps(ops []domain.ScheduledOp, workers int) [][]domain.ScheduledOp {
+	orderedOps := append([]domain.ScheduledOp(nil), ops...)
+	sort.SliceStable(orderedOps, func(i, j int) bool {
+		return orderedOps[i].ID < orderedOps[j].ID
+	})
+	queues := make([][]domain.ScheduledOp, workers)
+	for _, op := range orderedOps {
+		workerID := assignedWorker(op.ID, workers)
+		queues[workerID-1] = append(queues[workerID-1], op)
+	}
+	return queues
+}
+
+func assignedWorker(operationID, workers int) int {
+	index := (operationID - 1) % workers
+	if index < 0 {
+		index += workers
+	}
+	return index + 1
 }
 
 func plannedJitter(jitterRange [2]int, seed uint64, operationID, stepIndex int) int {

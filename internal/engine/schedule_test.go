@@ -45,10 +45,10 @@ func TestBuildSchedulePlan_IsDeterministic(t *testing.T) {
 		t.Fatalf("expected four step decisions, got %d", len(want.Decisions))
 	}
 	wantIdentity := [][3]int{{1, 1, 1}, {2, 1, 2}, {3, 2, 1}, {4, 3, 1}}
-	for i, decision := range want.Decisions {
+	for stepIndex, decision := range want.Decisions {
 		got := [3]int{decision.Sequence, decision.OperationID, decision.StepIndex}
-		if got != wantIdentity[i] {
-			t.Fatalf("decision %d identity = %v, want %v", i, got, wantIdentity[i])
+		if got != wantIdentity[stepIndex] {
+			t.Fatalf("step decision %d identity = %v, want %v", stepIndex, got, wantIdentity[stepIndex])
 		}
 		wantWorker := (decision.OperationID-1)%3 + 1
 		if decision.WorkerID != wantWorker {
@@ -79,6 +79,17 @@ func TestBuildSchedulePlan_DecisionsDependOnIdentityNotInputOrder(t *testing.T) 
 	c := engine.BuildSchedulePlan(spec, []domain.ScheduledOp{first, second}, engine.NewPRNG(92))
 	if reflect.DeepEqual(a.Decisions, c.Decisions) {
 		t.Fatal("different seeds produced identical decisions")
+	}
+}
+
+func TestBuildSchedulePlan_EmptyDecisionsEncodeAsArray(t *testing.T) {
+	plan := engine.BuildSchedulePlan(domain.Spec{}, nil, engine.NewPRNG(0))
+	encoded, err := json.Marshal(plan)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Contains(encoded, []byte(`"decisions":[]`)) {
+		t.Fatalf("empty decisions must encode as an array: %s", encoded)
 	}
 }
 

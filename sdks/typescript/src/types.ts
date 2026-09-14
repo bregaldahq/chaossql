@@ -88,5 +88,6 @@ export interface ChaosHarnessOptions {
 export interface RunOptions {
   workers?: number;
   iterations?: number;
+  /** Non-negative JavaScript safe integer (0 through Number.MAX_SAFE_INTEGER). */
   seed?: number;
 }
