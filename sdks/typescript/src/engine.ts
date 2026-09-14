@@ -151,6 +151,7 @@ export function executeIPC(payload: any, binaryPath?: string, timeoutMs: number 
             reducedSize: raw.shrink.reduced_size,
             reductionRatio: raw.shrink.reduction_ratio,
             iterations: raw.shrink.iterations,
+            trials: raw.shrink.trials || 0,
             minimalOps: (raw.shrink.minimal_ops || []).map((op: any) => ({
               id: op.id,
               name: op.name,

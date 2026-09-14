@@ -18,11 +18,11 @@
 
 **Files:** `internal/shrinker/ddmin.go`, `internal/shrinker/ddmin_test.go`, `internal/domain/types.go`
 
-- [ ] Add failing tests for cancellation before the first oracle call, deterministic ties, explicit 1-minimality, and trial counts.
-- [ ] Count actual oracle trials and make cancellation checks surround oracle execution.
-- [ ] Add a final single-removal audit that converges to a 1-minimal set.
-- [ ] Run focused tests repeatedly under the race detector.
-- [ ] Commit the shrinker auditability change.
+- [x] Add failing tests for cancellation before the first oracle call, deterministic ties, explicit 1-minimality, and trial counts.
+- [x] Count actual oracle trials and make cancellation checks surround oracle execution.
+- [x] Add a final single-removal audit that converges to a 1-minimal set.
+- [x] Run focused tests repeatedly under the race detector.
+- [x] Commit the shrinker auditability change.
 
 ### Task 3: Versioned replay artifact export
 

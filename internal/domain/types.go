@@ -243,6 +243,7 @@ type ShrinkResult struct {
 	ReductionRatio float64       `json:"reduction_ratio"`
 	MinimalOps     []ScheduledOp `json:"minimal_ops"`
 	Iterations     int           `json:"iterations"`
+	Trials         int           `json:"trials"`
 	Duration       time.Duration `json:"duration"`
 }
 

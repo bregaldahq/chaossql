@@ -82,24 +82,35 @@ func ReproducesFailure(result *domain.ExecutionResult, target domain.FailureSign
 // Shrink applies the Zeller Delta-Debugging algorithm with memoization to find a minimal failing subset
 func Shrink(ctx context.Context, testFn func([]domain.ScheduledOp) bool, initialOps []domain.ScheduledOp) (*domain.ShrinkResult, error) {
 	start := time.Now()
-
-	// initial set must fail to be shrinkable. In testFn, false means FAIL (reproduces bug), true means PASS.
-	if testFn(initialOps) {
-		return nil, fmt.Errorf("initial operations do not fail the test")
-	}
-
 	memo := make(map[string]bool)
-	cachedTestFn := func(ops []domain.ScheduledOp) bool {
+	trials := 0
+	cachedTestFn := func(ops []domain.ScheduledOp) (bool, error) {
+		if err := ctx.Err(); err != nil {
+			return false, err
+		}
 		if len(ops) == 0 {
-			return true
+			return true, nil
 		}
 		key := computeScheduleKey(ops)
 		if res, ok := memo[key]; ok {
-			return res
+			return res, nil
 		}
+		trials++
 		res := testFn(ops)
+		if err := ctx.Err(); err != nil {
+			return false, err
+		}
 		memo[key] = res
-		return res
+		return res, nil
+	}
+
+	// The initial set must fail to be shrinkable. In testFn, false means FAIL.
+	initialPassed, err := cachedTestFn(initialOps)
+	if err != nil {
+		return nil, err
+	}
+	if initialPassed {
+		return nil, fmt.Errorf("initial operations do not fail the test")
 	}
 
 	c := initialOps
@@ -123,7 +134,11 @@ func Shrink(ctx context.Context, testFn func([]domain.ScheduledOp) bool, initial
 				}
 			}
 
-			if !cachedTestFn(complement) { // Failed, which means we can reduce to complement
+			passed, err := cachedTestFn(complement)
+			if err != nil {
+				return nil, err
+			}
+			if !passed { // Failed, which means we can reduce to complement
 				c = complement
 				n = max(n-1, 2)
 				someComplementFailed = true
@@ -134,7 +149,11 @@ func Shrink(ctx context.Context, testFn func([]domain.ScheduledOp) bool, initial
 		if !someComplementFailed {
 			someSubsetFailed := false
 			for i := 0; i < n; i++ {
-				if !cachedTestFn(subsets[i]) { // Failed, reduce to this subset
+				passed, err := cachedTestFn(subsets[i])
+				if err != nil {
+					return nil, err
+				}
+				if !passed { // Failed, reduce to this subset
 					c = subsets[i]
 					n = 2
 					someSubsetFailed = true
@@ -151,12 +170,35 @@ func Shrink(ctx context.Context, testFn func([]domain.ScheduledOp) bool, initial
 		}
 	}
 
+	// Audit and enforce 1-minimality explicitly, independent of ddmin partition history.
+	for len(c) > 1 {
+		reduced := false
+		for index := range c {
+			candidate := make([]domain.ScheduledOp, 0, len(c)-1)
+			candidate = append(candidate, c[:index]...)
+			candidate = append(candidate, c[index+1:]...)
+			passed, err := cachedTestFn(candidate)
+			if err != nil {
+				return nil, err
+			}
+			if !passed {
+				c = candidate
+				reduced = true
+				break
+			}
+		}
+		if !reduced {
+			break
+		}
+	}
+
 	result := &domain.ShrinkResult{
 		OriginalSize:   len(initialOps),
 		ReducedSize:    len(c),
 		ReductionRatio: float64(len(initialOps)-len(c)) / float64(len(initialOps)) * 100.0,
 		MinimalOps:     c,
 		Iterations:     iterations,
+		Trials:         trials,
 		Duration:       time.Since(start),
 	}
 

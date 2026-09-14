@@ -414,7 +414,7 @@ func benchmarkDeltaDebugging(ctx context.Context, duration time.Duration) (Delta
 		if err != nil {
 			return DeltaDebuggingBenchResult{}, err
 		}
-		totalIterations += shrunk.Iterations
+		totalIterations += shrunk.Trials
 		lastReducedSize = shrunk.ReducedSize
 
 		if time.Now().After(deadline) {

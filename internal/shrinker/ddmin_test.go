@@ -2,6 +2,8 @@ package shrinker
 
 import (
 	"context"
+	"errors"
+	"reflect"
 	"testing"
 
 	"github.com/bregaldahq/chaossql/internal/domain"
@@ -123,5 +125,70 @@ func TestShrink_NoBug(t *testing.T) {
 	_, err := Shrink(ctx, testFn, initialOps)
 	if err == nil {
 		t.Errorf("expected error when initial ops don't fail")
+	}
+}
+
+func TestShrink_CanceledContextSkipsOracle(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	calls := 0
+	_, err := Shrink(ctx, func([]domain.ScheduledOp) bool {
+		calls++
+		return false
+	}, []domain.ScheduledOp{{ID: 1}, {ID: 2}})
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("error = %v, want context.Canceled", err)
+	}
+	if calls != 0 {
+		t.Fatalf("oracle called %d times after cancellation", calls)
+	}
+}
+
+func TestShrink_ReportsActualOracleTrials(t *testing.T) {
+	initial := []domain.ScheduledOp{{ID: 1}, {ID: 2}, {ID: 3}, {ID: 4}}
+	calls := 0
+	result, err := Shrink(context.Background(), func(ops []domain.ScheduledOp) bool {
+		calls++
+		for _, op := range ops {
+			if op.ID == 2 {
+				return false
+			}
+		}
+		return true
+	}, initial)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Trials != calls {
+		t.Fatalf("reported trials = %d, actual oracle calls = %d", result.Trials, calls)
+	}
+	if result.Trials == 0 {
+		t.Fatal("expected at least one oracle trial")
+	}
+}
+
+func TestShrink_DeterministicTieBreaking(t *testing.T) {
+	initial := []domain.ScheduledOp{{ID: 1}, {ID: 2}, {ID: 3}, {ID: 4}}
+	oracle := func(ops []domain.ScheduledOp) bool {
+		for _, op := range ops {
+			if op.ID == 1 || op.ID == 2 {
+				return false
+			}
+		}
+		return true
+	}
+	var want []domain.ScheduledOp
+	for run := 0; run < 25; run++ {
+		result, err := Shrink(context.Background(), oracle, initial)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if run == 0 {
+			want = result.MinimalOps
+			continue
+		}
+		if !reflect.DeepEqual(result.MinimalOps, want) {
+			t.Fatalf("run %d result = %#v, want %#v", run, result.MinimalOps, want)
+		}
 	}
 }
