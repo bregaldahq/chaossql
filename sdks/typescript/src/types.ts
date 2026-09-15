@@ -28,7 +28,7 @@ export interface ShrinkResult {
   reducedSize: number;
   reductionRatio: number;
   iterations: number;
-  trials: number;
+  trials?: number;
   minimalOps: ScheduledOp[];
 }
 

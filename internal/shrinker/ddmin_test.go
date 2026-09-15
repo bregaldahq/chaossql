@@ -153,6 +153,27 @@ func TestShrink_CanceledContextSkipsOracle(t *testing.T) {
 	}
 }
 
+func TestShrink_PropagatesCancellationRaisedByOracle(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	_, err := Shrink(ctx, func([]domain.ScheduledOp) bool {
+		cancel()
+		return false
+	}, []domain.ScheduledOp{{ID: 1}, {ID: 2}})
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("error = %v, want context.Canceled", err)
+	}
+}
+
+func TestShrink_RejectsFailureWithoutOperations(t *testing.T) {
+	initial := []domain.ScheduledOp{{ID: 1}}
+	result, err := Shrink(context.Background(), func([]domain.ScheduledOp) bool {
+		return false
+	}, initial)
+	if !errors.Is(err, ErrBaselineFailure) {
+		t.Fatalf("result = %#v, error = %v, want ErrBaselineFailure", result, err)
+	}
+}
+
 func TestShrink_ReportsActualOracleTrials(t *testing.T) {
 	initial := []domain.ScheduledOp{{ID: 1}, {ID: 2}, {ID: 3}, {ID: 4}}
 	calls := 0

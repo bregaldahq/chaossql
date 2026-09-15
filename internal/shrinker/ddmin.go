@@ -2,6 +2,7 @@ package shrinker
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -10,6 +11,10 @@ import (
 	"github.com/bregaldahq/chaossql/internal/domain"
 	"github.com/bregaldahq/chaossql/internal/engine"
 )
+
+// ErrBaselineFailure means the target failure exists even when no operation runs,
+// so operation-level delta debugging cannot produce a meaningful reproducer.
+var ErrBaselineFailure = errors.New("failure reproduces without scheduled operations")
 
 func min(a, b int) int {
 	if a < b {
@@ -99,9 +104,6 @@ func Shrink(ctx context.Context, testFn func([]domain.ScheduledOp) bool, initial
 		if err := ctx.Err(); err != nil {
 			return false, err
 		}
-		if len(ops) == 0 {
-			return true, nil
-		}
 		key := computeScheduleKey(ops)
 		if res, ok := memo[key]; ok {
 			return res, nil
@@ -122,6 +124,13 @@ func Shrink(ctx context.Context, testFn func([]domain.ScheduledOp) bool, initial
 	}
 	if initialPassed {
 		return nil, fmt.Errorf("initial operations do not fail the test")
+	}
+	baselinePassed, err := cachedTestFn(nil)
+	if err != nil {
+		return nil, err
+	}
+	if !baselinePassed {
+		return nil, ErrBaselineFailure
 	}
 
 	c := initialOps
@@ -182,7 +191,7 @@ func Shrink(ctx context.Context, testFn func([]domain.ScheduledOp) bool, initial
 	}
 
 	// Audit and enforce 1-minimality explicitly, independent of ddmin partition history.
-	for len(c) > 1 {
+	for len(c) > 0 {
 		reduced := false
 		for index := range c {
 			candidate := make([]domain.ScheduledOp, 0, len(c)-1)
@@ -193,6 +202,9 @@ func Shrink(ctx context.Context, testFn func([]domain.ScheduledOp) bool, initial
 				return nil, err
 			}
 			if !passed {
+				if len(candidate) == 0 {
+					return nil, ErrBaselineFailure
+				}
 				c = candidate
 				reduced = true
 				break

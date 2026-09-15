@@ -85,10 +85,15 @@ func (s Spec) Validate() error {
 	if len(s.Operations) == 0 {
 		return fmt.Errorf("%w: 'operations' must have at least one entry", ErrSpecValidationFailed)
 	}
+	invariantNames := make(map[string]struct{}, len(s.Invariants))
 	for i, inv := range s.Invariants {
 		if inv.Name == "" {
 			return fmt.Errorf("%w: invariant[%d] missing name", ErrSpecValidationFailed, i)
 		}
+		if _, exists := invariantNames[inv.Name]; exists {
+			return fmt.Errorf("%w: duplicate invariant name %q", ErrSpecValidationFailed, inv.Name)
+		}
+		invariantNames[inv.Name] = struct{}{}
 	}
 	for i, op := range s.Operations {
 		if op.Name == "" {

@@ -176,8 +176,9 @@ func ExecuteWasmScenario(ctx context.Context, configJSON string, onProgress func
 			return nil, ctx.Err()
 		}
 		if shrinkErr == nil && shrinkRes != nil && len(shrinkRes.MinimalOps) > 0 {
-			reducedOps = shrinkRes.MinimalOps
-			if minRun, minErr := runner.RunSchedule(ctx, *spec, reducedOps); minErr == nil {
+			candidateOps := shrinkRes.MinimalOps
+			if minRun, minErr := runner.RunSchedule(ctx, *spec, candidateOps); minErr == nil && shrinker.ReproducesFailure(minRun, target) {
+				reducedOps = candidateOps
 				reducedTrace = minRun.Trace
 			}
 			if ctx.Err() != nil {

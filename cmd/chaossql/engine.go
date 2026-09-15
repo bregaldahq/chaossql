@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -349,12 +350,29 @@ func executeIPCPayload(ctx context.Context, p IPCPayload) IPCResponse {
 		}
 
 		shrunk, err := shrinker.Shrink(ctx, testFn, runResult.ScheduledOps)
+		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+			return IPCResponse{
+				Status:            domain.StatusCanceled,
+				Isolation:         runResult.Isolation,
+				Seed:              runResult.Seed,
+				Schedule:          runResult.Schedule,
+				OperationErrors:   runResult.OperationErrors,
+				Success:           false,
+				ViolationDetected: false,
+				DurationMs:        runResult.Duration.Milliseconds(),
+				TraceEventsCount:  len(runResult.Trace),
+				Error:             err.Error(),
+			}
+		}
 		if err == nil && shrunk != nil {
-			shrinkResult = shrunk
-			minimalOps = shrunk.MinimalOps
-
-			minRunRes, err := runner.RunSchedule(ctx, spec, minimalOps)
-			if err == nil && minRunRes != nil {
+			candidateOps := shrunk.MinimalOps
+			minRunRes, err := runner.RunSchedule(ctx, spec, candidateOps)
+			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+				return IPCResponse{Status: domain.StatusCanceled, Seed: runResult.Seed, Success: false, Error: err.Error()}
+			}
+			if err == nil && shrinker.ReproducesFailure(minRunRes, target) {
+				shrinkResult = shrunk
+				minimalOps = candidateOps
 				minimalTrace = minRunRes.Trace
 				minGraph := analyzer.BuildGraph(minimalTrace)
 				minCycles := analyzer.FindCycles(minGraph)

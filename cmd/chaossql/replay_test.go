@@ -96,6 +96,28 @@ func TestReplayArtifactV1_RoundTrip(t *testing.T) {
 	}
 }
 
+func TestWriteReplayArtifactAtomicallyReplacesExistingFile(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "finding.json")
+	if err := os.WriteFile(path, []byte("stale"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	payload := replayViolationFixture(t)
+	if err := writeReplayArtifact(path, payload); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var decoded ReplayPayload
+	if err := json.Unmarshal(data, &decoded); err != nil {
+		t.Fatalf("replacement is not a complete replay artifact: %v", err)
+	}
+	if decoded.Version != replayArtifactVersion {
+		t.Fatalf("version = %d, want %d", decoded.Version, replayArtifactVersion)
+	}
+}
+
 func TestRunCmd_HasExportResultFlag(t *testing.T) {
 	flag := newRunCmd().Flags().Lookup("export-result")
 	if flag == nil {
