@@ -245,5 +245,16 @@ func ShrinkExecution(ctx context.Context, runner *engine.Runner, spec domain.Spe
 		}
 		return !ReproducesFailure(res, target)
 	}
-	return Shrink(ctx, testFn, initialOps)
+	result, err := Shrink(ctx, testFn, initialOps)
+	if err != nil || result == nil {
+		return result, err
+	}
+	verified, err := runner.RunSchedule(ctx, spec, result.MinimalOps)
+	if err != nil {
+		return nil, err
+	}
+	if !ReproducesFailure(verified, target) {
+		return nil, fmt.Errorf("minimal operations did not reproduce target failure")
+	}
+	return result, nil
 }

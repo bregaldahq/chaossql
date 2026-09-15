@@ -120,6 +120,23 @@ func TestPreserveRunResult_KeepsCanceledResultForReporting(t *testing.T) {
 	}
 }
 
+func TestCanceledIPCResponsePreservesRunMetadata(t *testing.T) {
+	result := &domain.ExecutionResult{
+		Status:    domain.StatusViolation,
+		Isolation: domain.LevelSerializable,
+		Seed:      42,
+		Schedule:  domain.SchedulePlan{Version: 1, Seed: 42, Workers: 2},
+		Trace:     domain.ExecutionTrace{{Type: domain.EventBegin}},
+	}
+	response := canceledIPCResponse(result, context.DeadlineExceeded)
+	if response.Status != domain.StatusCanceled || response.Success || response.ViolationDetected {
+		t.Fatalf("unexpected cancellation status: %+v", response)
+	}
+	if response.Isolation != result.Isolation || response.Seed != 42 || response.Schedule.Version != 1 || response.TraceEventsCount != 1 {
+		t.Fatalf("cancellation lost run metadata: %+v", response)
+	}
+}
+
 func TestResolveEffectiveSeed_ExplicitZeroOverridesSpec(t *testing.T) {
 	if got := resolveEffectiveSeed(99, 0, true); got != 0 {
 		t.Fatalf("explicit seed zero resolved to %d", got)

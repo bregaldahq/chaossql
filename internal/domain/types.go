@@ -85,6 +85,23 @@ func (s Spec) Validate() error {
 	if len(s.Operations) == 0 {
 		return fmt.Errorf("%w: 'operations' must have at least one entry", ErrSpecValidationFailed)
 	}
+	if err := s.ValidateInvariantNames(); err != nil {
+		return err
+	}
+	for i, op := range s.Operations {
+		if op.Name == "" {
+			return fmt.Errorf("%w: operation[%d] missing name", ErrSpecValidationFailed, i)
+		}
+	}
+	if s.Engine.JitterMs[0] < 0 || s.Engine.JitterMs[1] < s.Engine.JitterMs[0] {
+		return fmt.Errorf("%w: invalid jitter range [%d, %d]", ErrSpecValidationFailed, s.Engine.JitterMs[0], s.Engine.JitterMs[1])
+	}
+	return nil
+}
+
+// ValidateInvariantNames ensures failure signatures can identify one invariant.
+// Runner entry points call it even when they accept an otherwise partial Spec.
+func (s Spec) ValidateInvariantNames() error {
 	invariantNames := make(map[string]struct{}, len(s.Invariants))
 	for i, inv := range s.Invariants {
 		if inv.Name == "" {
@@ -94,14 +111,6 @@ func (s Spec) Validate() error {
 			return fmt.Errorf("%w: duplicate invariant name %q", ErrSpecValidationFailed, inv.Name)
 		}
 		invariantNames[inv.Name] = struct{}{}
-	}
-	for i, op := range s.Operations {
-		if op.Name == "" {
-			return fmt.Errorf("%w: operation[%d] missing name", ErrSpecValidationFailed, i)
-		}
-	}
-	if s.Engine.JitterMs[0] < 0 || s.Engine.JitterMs[1] < s.Engine.JitterMs[0] {
-		return fmt.Errorf("%w: invalid jitter range [%d, %d]", ErrSpecValidationFailed, s.Engine.JitterMs[0], s.Engine.JitterMs[1])
 	}
 	return nil
 }

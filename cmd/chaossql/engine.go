@@ -100,6 +100,23 @@ type IPCResponse struct {
 	Error             string                  `json:"error,omitempty"`
 }
 
+func canceledIPCResponse(result *domain.ExecutionResult, err error) IPCResponse {
+	response := IPCResponse{Status: domain.StatusCanceled, Success: false}
+	if err != nil {
+		response.Error = err.Error()
+	}
+	if result == nil {
+		return response
+	}
+	response.Isolation = result.Isolation
+	response.Seed = result.Seed
+	response.Schedule = result.Schedule
+	response.OperationErrors = result.OperationErrors
+	response.DurationMs = result.Duration.Milliseconds()
+	response.TraceEventsCount = len(result.Trace)
+	return response
+}
+
 func newEngineCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "engine",
@@ -351,24 +368,13 @@ func executeIPCPayload(ctx context.Context, p IPCPayload) IPCResponse {
 
 		shrunk, err := shrinker.Shrink(ctx, testFn, runResult.ScheduledOps)
 		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-			return IPCResponse{
-				Status:            domain.StatusCanceled,
-				Isolation:         runResult.Isolation,
-				Seed:              runResult.Seed,
-				Schedule:          runResult.Schedule,
-				OperationErrors:   runResult.OperationErrors,
-				Success:           false,
-				ViolationDetected: false,
-				DurationMs:        runResult.Duration.Milliseconds(),
-				TraceEventsCount:  len(runResult.Trace),
-				Error:             err.Error(),
-			}
+			return canceledIPCResponse(runResult, err)
 		}
 		if err == nil && shrunk != nil {
 			candidateOps := shrunk.MinimalOps
 			minRunRes, err := runner.RunSchedule(ctx, spec, candidateOps)
 			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-				return IPCResponse{Status: domain.StatusCanceled, Seed: runResult.Seed, Success: false, Error: err.Error()}
+				return canceledIPCResponse(runResult, err)
 			}
 			if err == nil && shrinker.ReproducesFailure(minRunRes, target) {
 				shrinkResult = shrunk
