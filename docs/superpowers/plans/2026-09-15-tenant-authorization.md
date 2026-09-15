@@ -1,0 +1,41 @@
+# SEC-01 Tenant Authorization Implementation Plan
+
+**Goal:** Enforce authentication, role checks, and organization ownership across the SaaS API and persistence layer.
+
+**Design:** `docs/superpowers/specs/2026-09-15-tenant-authorization-design.md`
+
+### Task 1: Identity and role contract
+
+- [ ] Add failing tests for principal lookup, invalid roles, and legacy token migration.
+- [ ] Add token roles, principal authentication, and context-only request identity.
+- [ ] Create bootstrap tokens explicitly as owners.
+- [ ] Run focused store and server tests and commit.
+
+### Task 2: Tenant-scoped persistence
+
+- [ ] Add failing two-organization tests for duplicate repository names and scoped run/repository lookups.
+- [ ] Scope repository uniqueness and queries by organization.
+- [ ] Add tenant-aware run listing and detail methods.
+- [ ] Run store and regression tests and commit.
+
+### Task 3: Endpoint authorization matrix
+
+- [ ] Add table-driven tests covering missing credentials, cross-tenant access, and member/admin roles on every route.
+- [ ] Protect all tenant-data routes and enforce ownership from the context principal.
+- [ ] Return consistent `401`, `403`, and `404` responses.
+- [ ] Run handler and webhook tests and commit.
+
+### Task 4: Explicit local router and specification
+
+- [ ] Add tests proving the SaaS router never enables short unauthenticated routes.
+- [ ] Add a separate local router with an explicit `org_default` owner identity.
+- [ ] Document the public authorization matrix and storage invariants.
+- [ ] Run compatibility tests and commit.
+
+### Task 5: Final audit, review, PR, and merge
+
+- [ ] Run `gofmt`, `git diff --check`, race tests, and `make verify`.
+- [ ] Run zero-CGO native and WASM builds.
+- [ ] Request independent review and resolve every Critical and Important finding.
+- [ ] Push `codex/sec-01-tenant-authorization`, open a PR to `main`, and wait for all checks.
+- [ ] Mark this plan complete, merge with a merge commit, and mark SEC-01 complete in the ignored commercialization plan.
