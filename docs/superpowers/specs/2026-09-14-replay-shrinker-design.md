@@ -14,7 +14,7 @@ The signature deliberately excludes trace timestamps and physical anomaly classi
 
 ## Shrinking contract
 
-The shrinker keeps the existing oracle convention: `false` means that the target failure reproduced. It checks cancellation before every oracle call, memoizes subsets by their ordered operation IDs, and reports the number of actual oracle trials. After ddmin converges, an explicit single-removal audit verifies 1-minimality and continues reducing if any operation can still be removed.
+The shrinker keeps the existing oracle convention: `false` means that the target failure reproduced. It checks cancellation before every oracle call, memoizes subsets by their ordered operation IDs, and reports the number of actual oracle trials. It executes the empty subset through the same oracle and returns an explicit baseline failure when the target reproduces without operations. After ddmin converges, an explicit single-removal audit verifies 1-minimality and continues reducing if any operation can still be removed.
 
 Every engine entry point that shrinks a violation derives one target signature from the original result and tests candidates against that signature. A different failure can never satisfy the oracle.
 
@@ -45,7 +45,7 @@ The command prints a concise verification result and returns a nonzero error whe
 
 Replay artifact versioning allows future schema changes. Version `0` is accepted only for legacy trace inspection and cannot be executed. Verification rejects a missing specification, empty operation set, unsupported artifact or schedule versions, and inconsistent seeds before opening a driver.
 
-Artifacts may contain database credentials and SQL data inherited from the specification. They are written only to the explicit local path requested by the caller and are not uploaded automatically.
+Artifacts may contain database credentials and SQL data inherited from the specification. They are written only to the explicit local path requested by the caller and are not uploaded automatically. Publication uses a temporary owner-only file and an atomic replacement. Unix uses mode `0600`; Windows creates the temporary file with a protected ACL granting full access only to the current account.
 
 ## Acceptance
 
