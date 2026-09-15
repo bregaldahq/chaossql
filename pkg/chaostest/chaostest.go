@@ -2,6 +2,7 @@ package chaostest
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"sync"
@@ -193,15 +194,19 @@ func (tr *Tester) Run(ctx context.Context, workers, iterations int, seed uint64)
 	}
 
 	// Invariant violation detected: perform Causal Delta-Debugging (ddmin)
+	target, _ := shrinker.FailureSignatureFor(execRes)
 	testFn := func(subset []domain.ScheduledOp) bool {
 		res, err := runner.RunSchedule(ctx, spec, subset)
 		if err != nil {
 			return true
 		}
-		return !res.ViolationDetected
+		return !shrinker.ReproducesFailure(res, target)
 	}
 
 	shrinkRes, shrinkErr := shrinker.Shrink(ctx, testFn, execRes.ScheduledOps)
+	if errors.Is(shrinkErr, context.Canceled) || errors.Is(shrinkErr, context.DeadlineExceeded) {
+		return execRes, nil, shrinkErr
+	}
 	if shrinkErr != nil || shrinkRes == nil {
 		fallbackShrink := &domain.ShrinkResult{
 			OriginalSize:   len(execRes.ScheduledOps),
@@ -209,6 +214,21 @@ func (tr *Tester) Run(ctx context.Context, workers, iterations int, seed uint64)
 			ReductionRatio: 0.0,
 			MinimalOps:     execRes.ScheduledOps,
 			Iterations:     0,
+		}
+		return execRes, fallbackShrink, nil
+	}
+	minRes, minErr := runner.RunSchedule(ctx, spec, shrinkRes.MinimalOps)
+	if errors.Is(minErr, context.Canceled) || errors.Is(minErr, context.DeadlineExceeded) {
+		return execRes, nil, minErr
+	}
+	if minErr != nil || !shrinker.ReproducesFailure(minRes, target) {
+		fallbackShrink := &domain.ShrinkResult{
+			OriginalSize:   len(execRes.ScheduledOps),
+			ReducedSize:    len(execRes.ScheduledOps),
+			ReductionRatio: 0.0,
+			MinimalOps:     execRes.ScheduledOps,
+			Iterations:     shrinkRes.Iterations,
+			Trials:         shrinkRes.Trials,
 		}
 		return execRes, fallbackShrink, nil
 	}

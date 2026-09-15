@@ -63,6 +63,15 @@ chaossql run examples/banking_lost_update/chaos.yaml
 
 ChaosSQL schedules concurrent worker transactions, detects invariant violations, and generates a standalone Go reproduction test (`repro_test.go`) ready for your test suite.
 
+Export a portable finding and verify the same logical schedule and invariant failure later:
+
+```bash
+chaossql run examples/banking_lost_update/chaos.yaml --export-result finding.json
+chaossql replay finding.json --verify
+```
+
+Replay artifacts contain the complete database specification and may include credentials or sensitive SQL data. Store them as restricted test evidence.
+
 ---
 
 ## 🔬 3 Flagship Concurrency Demos

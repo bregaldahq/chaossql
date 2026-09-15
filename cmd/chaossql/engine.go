@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -97,6 +98,23 @@ type IPCResponse struct {
 	ReproPython       string                  `json:"repro_python,omitempty"`
 	ReproTypeScript   string                  `json:"repro_typescript,omitempty"`
 	Error             string                  `json:"error,omitempty"`
+}
+
+func canceledIPCResponse(result *domain.ExecutionResult, err error) IPCResponse {
+	response := IPCResponse{Status: domain.StatusCanceled, Success: false}
+	if err != nil {
+		response.Error = err.Error()
+	}
+	if result == nil {
+		return response
+	}
+	response.Isolation = result.Isolation
+	response.Seed = result.Seed
+	response.Schedule = result.Schedule
+	response.OperationErrors = result.OperationErrors
+	response.DurationMs = result.Duration.Milliseconds()
+	response.TraceEventsCount = len(result.Trace)
+	return response
 }
 
 func newEngineCmd() *cobra.Command {
@@ -339,21 +357,28 @@ func executeIPCPayload(ctx context.Context, p IPCPayload) IPCResponse {
 	minimalOps := runResult.ScheduledOps
 
 	if runResult.ViolationDetected {
+		target, _ := shrinker.FailureSignatureFor(runResult)
 		testFn := func(subset []domain.ScheduledOp) bool {
 			res, err := runner.RunSchedule(ctx, spec, subset)
 			if err != nil {
 				return true
 			}
-			return !res.ViolationDetected
+			return !shrinker.ReproducesFailure(res, target)
 		}
 
 		shrunk, err := shrinker.Shrink(ctx, testFn, runResult.ScheduledOps)
+		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+			return canceledIPCResponse(runResult, err)
+		}
 		if err == nil && shrunk != nil {
-			shrinkResult = shrunk
-			minimalOps = shrunk.MinimalOps
-
-			minRunRes, err := runner.RunSchedule(ctx, spec, minimalOps)
-			if err == nil && minRunRes != nil {
+			candidateOps := shrunk.MinimalOps
+			minRunRes, err := runner.RunSchedule(ctx, spec, candidateOps)
+			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+				return canceledIPCResponse(runResult, err)
+			}
+			if err == nil && shrinker.ReproducesFailure(minRunRes, target) {
+				shrinkResult = shrunk
+				minimalOps = candidateOps
 				minimalTrace = minRunRes.Trace
 				minGraph := analyzer.BuildGraph(minimalTrace)
 				minCycles := analyzer.FindCycles(minGraph)

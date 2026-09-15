@@ -85,10 +85,8 @@ func (s Spec) Validate() error {
 	if len(s.Operations) == 0 {
 		return fmt.Errorf("%w: 'operations' must have at least one entry", ErrSpecValidationFailed)
 	}
-	for i, inv := range s.Invariants {
-		if inv.Name == "" {
-			return fmt.Errorf("%w: invariant[%d] missing name", ErrSpecValidationFailed, i)
-		}
+	if err := s.ValidateInvariantNames(); err != nil {
+		return err
 	}
 	for i, op := range s.Operations {
 		if op.Name == "" {
@@ -97,6 +95,22 @@ func (s Spec) Validate() error {
 	}
 	if s.Engine.JitterMs[0] < 0 || s.Engine.JitterMs[1] < s.Engine.JitterMs[0] {
 		return fmt.Errorf("%w: invalid jitter range [%d, %d]", ErrSpecValidationFailed, s.Engine.JitterMs[0], s.Engine.JitterMs[1])
+	}
+	return nil
+}
+
+// ValidateInvariantNames ensures failure signatures can identify one invariant.
+// Runner entry points call it even when they accept an otherwise partial Spec.
+func (s Spec) ValidateInvariantNames() error {
+	invariantNames := make(map[string]struct{}, len(s.Invariants))
+	for i, inv := range s.Invariants {
+		if inv.Name == "" {
+			return fmt.Errorf("%w: invariant[%d] missing name", ErrSpecValidationFailed, i)
+		}
+		if _, exists := invariantNames[inv.Name]; exists {
+			return fmt.Errorf("%w: duplicate invariant name %q", ErrSpecValidationFailed, inv.Name)
+		}
+		invariantNames[inv.Name] = struct{}{}
 	}
 	return nil
 }
@@ -230,6 +244,12 @@ type ScheduleDecision struct {
 	Abort       bool `json:"abort"`
 }
 
+// FailureSignature identifies the stable outcome that a replay or shrink candidate must reproduce.
+type FailureSignature struct {
+	Status           ExecutionStatus `json:"status"`
+	FailingInvariant string          `json:"failing_invariant,omitempty"`
+}
+
 // ShrinkResult summarizes the output of the Delta-Debugging algorithm.
 type ShrinkResult struct {
 	OriginalSize   int           `json:"original_size"`
@@ -237,6 +257,7 @@ type ShrinkResult struct {
 	ReductionRatio float64       `json:"reduction_ratio"`
 	MinimalOps     []ScheduledOp `json:"minimal_ops"`
 	Iterations     int           `json:"iterations"`
+	Trials         int           `json:"trials"`
 	Duration       time.Duration `json:"duration"`
 }
 

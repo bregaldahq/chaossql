@@ -99,6 +99,23 @@ func TestRunner_RejectsUnsupportedIsolationBeforeReset(t *testing.T) {
 	}
 }
 
+func TestRunner_RejectsDuplicateInvariantNamesBeforeReset(t *testing.T) {
+	driver := &resetSpyDriver{DatabaseDriver: drivers.NewMockDriver()}
+	t.Cleanup(func() { _ = driver.Close() })
+	spec := domain.Spec{
+		Invariants: []domain.InvariantConfig{{Name: "balance"}, {Name: "balance"}},
+		Engine:     domain.EngineConfig{Workers: 1},
+	}
+
+	result, err := engine.NewRunner(driver, 1).RunSchedule(context.Background(), spec, nil)
+	if err == nil || result != nil {
+		t.Fatalf("result=%+v error=%v, want duplicate invariant failure", result, err)
+	}
+	if driver.resetCalled {
+		t.Fatal("database reset occurred before invariant identity validation")
+	}
+}
+
 type cancelAfterResetDriver struct {
 	drivers.DatabaseDriver
 	cancel context.CancelFunc

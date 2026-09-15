@@ -57,6 +57,18 @@ func TestSpecValidateIsolation(t *testing.T) {
 	}
 }
 
+func TestSpecValidateRejectsDuplicateInvariantNames(t *testing.T) {
+	spec := validDomainSpec()
+	spec.Invariants = append(spec.Invariants, domain.InvariantConfig{Name: spec.Invariants[0].Name})
+	err := spec.Validate()
+	if !errors.Is(err, domain.ErrSpecValidationFailed) {
+		t.Fatalf("expected ErrSpecValidationFailed, got %v", err)
+	}
+	if !strings.Contains(err.Error(), "duplicate invariant name") {
+		t.Fatalf("expected duplicate invariant detail, got %v", err)
+	}
+}
+
 func TestExecutionStatusJSON(t *testing.T) {
 	statuses := []domain.ExecutionStatus{
 		domain.StatusPassed,

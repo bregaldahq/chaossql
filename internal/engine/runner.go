@@ -82,6 +82,9 @@ func GenerateSchedule(spec domain.Spec, prng *PRNG) []domain.ScheduledOp {
 func (r *Runner) Run(ctx context.Context, spec domain.Spec) (*RunResult, error) {
 	startTime := time.Now()
 
+	if err := spec.ValidateInvariantNames(); err != nil {
+		return nil, err
+	}
 	if _, err := r.driver.EffectiveIsolation(spec.Database.Isolation); err != nil {
 		return nil, err
 	}
@@ -384,6 +387,9 @@ func evalSimpleArithmetic(expr string) string {
 func (r *Runner) RunSchedule(ctx context.Context, spec domain.Spec, ops []domain.ScheduledOp) (*RunResult, error) {
 	startTime := time.Now()
 
+	if err := spec.ValidateInvariantNames(); err != nil {
+		return nil, err
+	}
 	if _, err := r.driver.EffectiveIsolation(spec.Database.Isolation); err != nil {
 		return nil, err
 	}
