@@ -240,8 +240,15 @@ func (s *Store) ensureAPITokenRoleColumn() error {
 }
 
 func (s *Store) ensureTenantRepositoryUniqueness() error {
+	ctx := context.Background()
+	conn, err := s.db.Conn(ctx)
+	if err != nil {
+		return fmt.Errorf("acquire repository migration connection: %w", err)
+	}
+	defer func() { _ = conn.Close() }()
+
 	var schema string
-	if err := s.db.QueryRow(`SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'repositories'`).Scan(&schema); err != nil {
+	if err := conn.QueryRowContext(ctx, `SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'repositories'`).Scan(&schema); err != nil {
 		return fmt.Errorf("inspect repository schema: %w", err)
 	}
 	normalized := strings.ToLower(strings.Join(strings.Fields(schema), " "))
@@ -250,17 +257,17 @@ func (s *Store) ensureTenantRepositoryUniqueness() error {
 	}
 
 	var foreignKeys int
-	if err := s.db.QueryRow(`PRAGMA foreign_keys`).Scan(&foreignKeys); err != nil {
+	if err := conn.QueryRowContext(ctx, `PRAGMA foreign_keys`).Scan(&foreignKeys); err != nil {
 		return fmt.Errorf("inspect foreign key mode: %w", err)
 	}
 	if foreignKeys != 0 {
-		if _, err := s.db.Exec(`PRAGMA foreign_keys = OFF`); err != nil {
+		if _, err := conn.ExecContext(ctx, `PRAGMA foreign_keys = OFF`); err != nil {
 			return fmt.Errorf("disable foreign keys for repository migration: %w", err)
 		}
-		defer func() { _, _ = s.db.Exec(`PRAGMA foreign_keys = ON`) }()
+		defer func() { _, _ = conn.ExecContext(ctx, `PRAGMA foreign_keys = ON`) }()
 	}
 
-	tx, err := s.db.Begin()
+	tx, err := conn.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("begin repository migration: %w", err)
 	}

@@ -225,8 +225,12 @@ func TestAutoMigrateReplacesLegacyGlobalRepositoryUniqueness(t *testing.T) {
 		PRAGMA foreign_keys = ON;
 		CREATE TABLE organizations (id TEXT PRIMARY KEY, name TEXT NOT NULL, plan TEXT NOT NULL, created_at DATETIME NOT NULL);
 		CREATE TABLE repositories (id TEXT PRIMARY KEY, org_id TEXT NOT NULL, full_name TEXT NOT NULL UNIQUE, default_branch TEXT NOT NULL, created_at DATETIME NOT NULL, FOREIGN KEY (org_id) REFERENCES organizations(id));
+		CREATE TABLE scenarios (id TEXT PRIMARY KEY, repo_id TEXT NOT NULL, name TEXT NOT NULL, driver TEXT NOT NULL, created_at DATETIME NOT NULL, UNIQUE(repo_id, name), FOREIGN KEY (repo_id) REFERENCES repositories(id));
+		CREATE TABLE runs (id TEXT PRIMARY KEY, repo_id TEXT NOT NULL, scenario_id TEXT NOT NULL, commit_sha TEXT NOT NULL, branch TEXT NOT NULL, pr_number INTEGER NOT NULL, status TEXT NOT NULL, anomaly_type TEXT, seed INTEGER NOT NULL, duration_ms INTEGER NOT NULL, created_at DATETIME NOT NULL, FOREIGN KEY (repo_id) REFERENCES repositories(id), FOREIGN KEY (scenario_id) REFERENCES scenarios(id));
 		INSERT INTO organizations VALUES ('org_a', 'A', 'team', CURRENT_TIMESTAMP), ('org_b', 'B', 'team', CURRENT_TIMESTAMP);
 		INSERT INTO repositories VALUES ('repo_a', 'org_a', 'shared/api', 'main', CURRENT_TIMESTAMP);
+		INSERT INTO scenarios VALUES ('scenario_a', 'repo_a', 'transfer', 'sqlite', CURRENT_TIMESTAMP);
+		INSERT INTO runs VALUES ('run_a', 'repo_a', 'scenario_a', 'abc', 'main', 0, 'passed', '', 1, 1, CURRENT_TIMESTAMP);
 	`)
 	if err != nil {
 		t.Fatal(err)
@@ -241,6 +245,13 @@ func TestAutoMigrateReplacesLegacyGlobalRepositoryUniqueness(t *testing.T) {
 	}
 	if repoB.OrgID != "org_b" {
 		t.Fatalf("unexpected migrated repository: %+v", repoB)
+	}
+	if run, _, err := s.GetRunForOrg("org_a", "run_a"); err != nil || run.RepoID != "repo_a" {
+		t.Fatalf("dependent run was not preserved: run=%+v error=%v", run, err)
+	}
+	var foreignKeys int
+	if err := db.QueryRow(`PRAGMA foreign_keys`).Scan(&foreignKeys); err != nil || foreignKeys != 1 {
+		t.Fatalf("foreign key mode was not restored: enabled=%d error=%v", foreignKeys, err)
 	}
 }
 
