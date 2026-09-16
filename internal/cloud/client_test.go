@@ -3,12 +3,78 @@ package cloud
 import (
 	"context"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/bregaldahq/chaossql/internal/domain"
 )
+
+func TestClientPublishRunUsesMetadataAllowlist(t *testing.T) {
+	var body []byte
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, _ = io.ReadAll(r.Body)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		_ = json.NewEncoder(w).Encode(RunIngestResponse{Success: true, RunID: "run_safe"})
+	}))
+	defer ts.Close()
+
+	original := &RunIngestRequest{
+		Version: "1.0",
+		CI: &CIContext{
+			Provider: "github-actions", Repository: "acme/payments", CommitSHA: "abc123",
+			Branch: "main", Actor: "alice@example.com",
+		},
+		Scenario: ScenarioMetadata{Name: "transfer", Driver: "postgres", Seed: 42},
+		Schedule: domain.SchedulePlan{Version: 1, Seed: 42, Decisions: []domain.ScheduleDecision{{Sequence: 1, OperationID: 7}}},
+		Result: ExecutionSummary{
+			Status: "failed", ViolationDetected: true, AnomalyType: "P4",
+			FailingInvariant: &InvariantSummary{
+				Name: "balance_preserved", Query: "SELECT email FROM private.customers",
+				Assertion: "email != 'alice@example.com'", Actual: "alice@example.com",
+			},
+		},
+		Reproduction: &ReproductionData{
+			MinimalOperationsCount: 2,
+			ShrinkDurationMS:       15,
+			ReproGoCode:            `const dsn = "postgres://alice:secret@db/private"`,
+			MermaidDiagram:         "private.customers --> alice@example.com",
+			SanitizedMinimalTrace: []SanitizedTraceEvent{{
+				Worker: "T1", OpType: "read", Table: "private.customers",
+				SQL: "SELECT * FROM private.customers WHERE email = 'alice@example.com' AND token = 'tok_secret'",
+			}},
+		},
+	}
+
+	client := NewClient(Config{BaseURL: ts.URL, Token: "transport-token"})
+	if _, err := client.PublishRun(context.Background(), original); err != nil {
+		t.Fatal(err)
+	}
+
+	payload := string(body)
+	for _, forbidden := range []string{
+		"alice@example.com", "private.customers", "postgres://alice:secret@db/private", "tok_secret",
+		`"actor"`, `"schedule"`, `"query"`, `"assertion"`, `"actual"`,
+		`"repro_go_code"`, `"mermaid_diagram"`, `"sanitized_minimal_trace"`, `"sql"`, `"table"`,
+	} {
+		if strings.Contains(payload, forbidden) {
+			t.Errorf("cloud payload contains forbidden content %q: %s", forbidden, payload)
+		}
+	}
+	for _, allowed := range []string{"acme/payments", "balance_preserved", `"minimal_operations_count":2`} {
+		if !strings.Contains(payload, allowed) {
+			t.Errorf("cloud payload omitted allowed metadata %q: %s", allowed, payload)
+		}
+	}
+	if original.CI.Actor != "alice@example.com" || original.Reproduction.ReproGoCode == "" || original.Result.FailingInvariant.Actual == "" {
+		t.Fatal("metadata projection mutated the caller request")
+	}
+}
 
 func TestClientPublishRunSuccess(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

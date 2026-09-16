@@ -67,8 +67,6 @@ func SanitizeTrace(trace []domain.TraceEvent) []SanitizedTraceEvent {
 		sanitized[i] = SanitizedTraceEvent{
 			Worker:   fmt.Sprintf("T%d", ev.WorkerID),
 			OpType:   ClassifyOpType(ev),
-			Table:    ExtractTable(ev.SQL),
-			SQL:      SanitizeSQL(ev.SQL),
 			Duration: ev.Timestamp.Microseconds(),
 		}
 	}

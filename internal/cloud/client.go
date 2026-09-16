@@ -61,14 +61,7 @@ func (c *Client) PublishRun(ctx context.Context, req *RunIngestRequest) (*RunIng
 		return nil, errors.New("missing cloud token")
 	}
 
-	if req.Version == "" {
-		req.Version = "1.0"
-	}
-	if req.Timestamp.IsZero() {
-		req.Timestamp = time.Now().UTC()
-	}
-
-	bodyBytes, err := json.Marshal(req)
+	bodyBytes, err := json.Marshal(projectMetadataPayload(req, time.Now()))
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode run ingest payload: %w", err)
 	}
@@ -126,7 +119,6 @@ func (c *Client) PublishRun(ctx context.Context, req *RunIngestRequest) (*RunIng
 
 	return nil, fmt.Errorf("%w: %v", ErrCloudUnavailable, lastErr)
 }
-
 
 // BaseURL returns the configured base URL
 func (c *Client) BaseURL() string {
