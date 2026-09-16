@@ -188,7 +188,12 @@ func (s *Server) handleIngestRun(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := decoder.Decode(&struct{}{}); !errors.Is(err, io.EOF) {
-		http.Error(w, `{"error":"payload must contain one JSON object"}`, http.StatusBadRequest)
+		var maxBytesErr *http.MaxBytesError
+		if errors.As(err, &maxBytesErr) {
+			http.Error(w, `{"error":"cloud payload exceeds 64 KiB limit"}`, http.StatusRequestEntityTooLarge)
+		} else {
+			http.Error(w, `{"error":"payload must contain one JSON object"}`, http.StatusBadRequest)
+		}
 		return
 	}
 	if err := cloud.ValidateMetadataOnlyRequest(&req); err != nil {

@@ -142,6 +142,14 @@ func TestIngestRunRejectsUnknownAndOversizedPayloads(t *testing.T) {
 	if oversizedResponse.Code != http.StatusRequestEntityTooLarge {
 		t.Fatalf("oversized status=%d body=%s", oversizedResponse.Code, oversizedResponse.Body.String())
 	}
+
+	trailing := httptest.NewRequest(http.MethodPost, "/v1/runs", strings.NewReader(`{}`+strings.Repeat(" ", cloud.MaxPayloadBytes)))
+	trailing.Header.Set("Authorization", "Bearer "+token)
+	trailingResponse := httptest.NewRecorder()
+	handler.ServeHTTP(trailingResponse, trailing)
+	if trailingResponse.Code != http.StatusRequestEntityTooLarge {
+		t.Fatalf("oversized trailing data status=%d body=%s", trailingResponse.Code, trailingResponse.Body.String())
+	}
 }
 
 func TestIngestRunFlowAndRegression(t *testing.T) {

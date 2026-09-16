@@ -26,7 +26,7 @@ func TestRunIngestRequestSerialization(t *testing.T) {
 			Iterations: 100,
 			Seed:       184729,
 		},
-		Schedule: domain.SchedulePlan{Version: 1, Seed: 184729, Workers: 4},
+		Schedule: &domain.SchedulePlan{Version: 1, Seed: 184729, Workers: 4},
 		Result: ExecutionSummary{
 			Status:            "failed",
 			Success:           false,
@@ -68,7 +68,7 @@ func TestRunIngestRequestSerialization(t *testing.T) {
 	if parsed.Result.AnomalyType != "P4" {
 		t.Errorf("expected anomaly P4, got %q", parsed.Result.AnomalyType)
 	}
-	if parsed.Schedule.Version != 1 || parsed.Schedule.Seed != 184729 {
+	if parsed.Schedule == nil || parsed.Schedule.Version != 1 || parsed.Schedule.Seed != 184729 {
 		t.Errorf("unexpected schedule metadata: %+v", parsed.Schedule)
 	}
 	if parsed.Reproduction.MinimalOperationsCount != 4 {
