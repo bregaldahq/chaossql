@@ -133,9 +133,10 @@ func (s *Store) AutoMigrate() error {
 		`CREATE TABLE IF NOT EXISTS repositories (
 			id TEXT PRIMARY KEY,
 			org_id TEXT NOT NULL,
-			full_name TEXT NOT NULL UNIQUE,
+			full_name TEXT NOT NULL,
 			default_branch TEXT NOT NULL,
 			created_at DATETIME NOT NULL,
+			UNIQUE(org_id, full_name),
 			FOREIGN KEY (org_id) REFERENCES organizations(id)
 		);`,
 		`CREATE TABLE IF NOT EXISTS scenarios (
@@ -202,7 +203,10 @@ func (s *Store) AutoMigrate() error {
 			return fmt.Errorf("migration failed for query [%s]: %w", q, err)
 		}
 	}
-	return s.ensureAPITokenRoleColumn()
+	if err := s.ensureAPITokenRoleColumn(); err != nil {
+		return err
+	}
+	return s.ensureTenantRepositoryUniqueness()
 }
 
 func (s *Store) ensureAPITokenRoleColumn() error {
@@ -231,6 +235,59 @@ func (s *Store) ensureAPITokenRoleColumn() error {
 	}
 	if _, err := s.db.Exec(`ALTER TABLE api_tokens ADD COLUMN role TEXT NOT NULL DEFAULT 'member'`); err != nil {
 		return fmt.Errorf("add api token role: %w", err)
+	}
+	return nil
+}
+
+func (s *Store) ensureTenantRepositoryUniqueness() error {
+	var schema string
+	if err := s.db.QueryRow(`SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'repositories'`).Scan(&schema); err != nil {
+		return fmt.Errorf("inspect repository schema: %w", err)
+	}
+	normalized := strings.ToLower(strings.Join(strings.Fields(schema), " "))
+	if strings.Contains(normalized, "unique(org_id, full_name)") || strings.Contains(normalized, "unique (org_id, full_name)") {
+		return nil
+	}
+
+	var foreignKeys int
+	if err := s.db.QueryRow(`PRAGMA foreign_keys`).Scan(&foreignKeys); err != nil {
+		return fmt.Errorf("inspect foreign key mode: %w", err)
+	}
+	if foreignKeys != 0 {
+		if _, err := s.db.Exec(`PRAGMA foreign_keys = OFF`); err != nil {
+			return fmt.Errorf("disable foreign keys for repository migration: %w", err)
+		}
+		defer func() { _, _ = s.db.Exec(`PRAGMA foreign_keys = ON`) }()
+	}
+
+	tx, err := s.db.Begin()
+	if err != nil {
+		return fmt.Errorf("begin repository migration: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+	statements := []string{
+		`DROP TABLE IF EXISTS repositories_tenant_migration`,
+		`CREATE TABLE repositories_tenant_migration (
+			id TEXT PRIMARY KEY,
+			org_id TEXT NOT NULL,
+			full_name TEXT NOT NULL,
+			default_branch TEXT NOT NULL,
+			created_at DATETIME NOT NULL,
+			UNIQUE(org_id, full_name),
+			FOREIGN KEY (org_id) REFERENCES organizations(id)
+		)`,
+		`INSERT INTO repositories_tenant_migration (id, org_id, full_name, default_branch, created_at)
+			SELECT id, org_id, full_name, default_branch, created_at FROM repositories`,
+		`DROP TABLE repositories`,
+		`ALTER TABLE repositories_tenant_migration RENAME TO repositories`,
+	}
+	for _, statement := range statements {
+		if _, err := tx.Exec(statement); err != nil {
+			return fmt.Errorf("migrate repository uniqueness: %w", err)
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit repository uniqueness migration: %w", err)
 	}
 	return nil
 }
@@ -286,7 +343,7 @@ func (s *Store) GetOrCreateRepo(orgID, fullName, defaultBranch string) (*Reposit
 	}
 
 	var repo Repository
-	err := s.db.QueryRow(`SELECT id, org_id, full_name, default_branch, created_at FROM repositories WHERE full_name = ?`, fullName).
+	err := s.db.QueryRow(`SELECT id, org_id, full_name, default_branch, created_at FROM repositories WHERE org_id = ? AND full_name = ?`, orgID, fullName).
 		Scan(&repo.ID, &repo.OrgID, &repo.FullName, &repo.DefaultBranch, &repo.CreatedAt)
 	if err == nil {
 		return &repo, nil
@@ -310,6 +367,20 @@ func (s *Store) GetOrCreateRepo(orgID, fullName, defaultBranch string) (*Reposit
 		DefaultBranch: defaultBranch,
 		CreatedAt:     now,
 	}, nil
+}
+
+func (s *Store) GetRepositoryByFullName(orgID, fullName string) (*Repository, error) {
+	var repo Repository
+	err := s.db.QueryRow(`SELECT id, org_id, full_name, default_branch, created_at
+		FROM repositories WHERE org_id = ? AND full_name = ?`, orgID, fullName).
+		Scan(&repo.ID, &repo.OrgID, &repo.FullName, &repo.DefaultBranch, &repo.CreatedAt)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, ErrNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &repo, nil
 }
 
 func (s *Store) GetOrCreateScenario(repoID, name, driver string) (*Scenario, error) {
@@ -385,6 +456,38 @@ func (s *Store) GetRun(runID string) (*RunRecord, *FindingRecord, error) {
 	return &run, &finding, nil
 }
 
+func (s *Store) GetRunForOrg(orgID, runID string) (*RunRecord, *FindingRecord, error) {
+	var run RunRecord
+	err := s.db.QueryRow(`SELECT r.id, r.repo_id, r.scenario_id, r.commit_sha, r.branch, r.pr_number,
+		r.status, r.anomaly_type, r.seed, r.duration_ms, r.created_at
+		FROM runs r
+		JOIN repositories repo ON repo.id = r.repo_id
+		WHERE r.id = ? AND repo.org_id = ?`, runID, orgID).
+		Scan(&run.ID, &run.RepoID, &run.ScenarioID, &run.CommitSHA, &run.Branch, &run.PRNumber,
+			&run.Status, &run.AnomalyType, &run.Seed, &run.DurationMS, &run.CreatedAt)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil, ErrNotFound
+	}
+	if err != nil {
+		return nil, nil, err
+	}
+	return s.findingForRun(&run)
+}
+
+func (s *Store) findingForRun(run *RunRecord) (*RunRecord, *FindingRecord, error) {
+	var finding FindingRecord
+	err := s.db.QueryRow(`SELECT id, run_id, anomaly_type, assertion, minimal_ops, repro_code, trace_json, created_at
+		FROM findings WHERE run_id = ?`, run.ID).
+		Scan(&finding.ID, &finding.RunID, &finding.AnomalyType, &finding.Assertion, &finding.MinimalOps, &finding.ReproCode, &finding.TraceJSON, &finding.CreatedAt)
+	if errors.Is(err, sql.ErrNoRows) {
+		return run, nil, nil
+	}
+	if err != nil {
+		return run, nil, err
+	}
+	return run, &finding, nil
+}
+
 func (s *Store) GetLatestBaseline(repoID, scenarioID, branch string) (*RunRecord, error) {
 	var runID string
 	err := s.db.QueryRow(`SELECT run_id FROM baselines WHERE repo_id = ? AND scenario_id = ? AND branch = ?`,
@@ -451,6 +554,33 @@ func (s *Store) ListRecentRuns(limit, offset int) ([]*RunRecord, error) {
 			return nil, err
 		}
 		results = append(results, &r)
+	}
+	return results, rows.Err()
+}
+
+func (s *Store) ListRecentRunsForOrg(orgID string, limit, offset int) ([]*RunRecord, error) {
+	if limit <= 0 {
+		limit = 50
+	}
+	rows, err := s.db.Query(`SELECT r.id, r.repo_id, r.scenario_id, r.commit_sha, r.branch, r.pr_number,
+		r.status, r.anomaly_type, r.seed, r.duration_ms, r.created_at
+		FROM runs r
+		JOIN repositories repo ON repo.id = r.repo_id
+		WHERE repo.org_id = ?
+		ORDER BY r.created_at DESC LIMIT ? OFFSET ?`, orgID, limit, offset)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+
+	var results []*RunRecord
+	for rows.Next() {
+		var run RunRecord
+		if err := rows.Scan(&run.ID, &run.RepoID, &run.ScenarioID, &run.CommitSHA, &run.Branch,
+			&run.PRNumber, &run.Status, &run.AnomalyType, &run.Seed, &run.DurationMS, &run.CreatedAt); err != nil {
+			return nil, err
+		}
+		results = append(results, &run)
 	}
 	return results, rows.Err()
 }

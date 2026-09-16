@@ -13,10 +13,10 @@
 
 ### Task 2: Tenant-scoped persistence
 
-- [ ] Add failing two-organization tests for duplicate repository names and scoped run/repository lookups.
-- [ ] Scope repository uniqueness and queries by organization.
-- [ ] Add tenant-aware run listing and detail methods.
-- [ ] Run store and regression tests and commit.
+- [x] Add failing two-organization tests for duplicate repository names and scoped run/repository lookups.
+- [x] Scope repository uniqueness and queries by organization.
+- [x] Add tenant-aware run listing and detail methods.
+- [x] Run store and regression tests and commit.
 
 ### Task 3: Endpoint authorization matrix
 

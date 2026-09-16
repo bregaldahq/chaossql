@@ -154,6 +154,85 @@ func TestStoreRunsAndBaselines(t *testing.T) {
 	}
 }
 
+func TestStoreScopesRepositoriesAndRunsByOrganization(t *testing.T) {
+	s := newTestStore(t)
+	for _, orgID := range []string{"org_a", "org_b"} {
+		if err := s.CreateOrganization(orgID, orgID, "team"); err != nil {
+			t.Fatal(err)
+		}
+	}
+	repoA, err := s.GetOrCreateRepo("org_a", "shared/payments", "main")
+	if err != nil {
+		t.Fatal(err)
+	}
+	repoB, err := s.GetOrCreateRepo("org_b", "shared/payments", "main")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if repoA.ID == repoB.ID || repoA.OrgID == repoB.OrgID {
+		t.Fatalf("repositories crossed tenant boundary: A=%+v B=%+v", repoA, repoB)
+	}
+	scenarioA, err := s.GetOrCreateScenario(repoA.ID, "transfer", "sqlite")
+	if err != nil {
+		t.Fatal(err)
+	}
+	runA := &RunRecord{
+		ID: "run_a", RepoID: repoA.ID, ScenarioID: scenarioA.ID, CommitSHA: "abc",
+		Branch: "main", Status: "passed", Seed: 1, CreatedAt: time.Now().UTC(),
+	}
+	if err := s.SaveRun(runA, nil); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, _, err := s.GetRunForOrg("org_b", runA.ID); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("cross-tenant GetRunForOrg error = %v, want ErrNotFound", err)
+	}
+	owned, _, err := s.GetRunForOrg("org_a", runA.ID)
+	if err != nil || owned.ID != runA.ID {
+		t.Fatalf("owner could not read run: run=%+v error=%v", owned, err)
+	}
+	runs, err := s.ListRecentRunsForOrg("org_b", 50, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(runs) != 0 {
+		t.Fatalf("organization B listed A runs: %+v", runs)
+	}
+	if _, err := s.GetRepositoryByFullName("org_b", "shared/payments"); err != nil {
+		t.Fatalf("organization B could not resolve its repository: %v", err)
+	}
+}
+
+func TestAutoMigrateReplacesLegacyGlobalRepositoryUniqueness(t *testing.T) {
+	db, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	db.SetMaxOpenConns(1)
+	t.Cleanup(func() { _ = db.Close() })
+	_, err = db.Exec(`
+		PRAGMA foreign_keys = ON;
+		CREATE TABLE organizations (id TEXT PRIMARY KEY, name TEXT NOT NULL, plan TEXT NOT NULL, created_at DATETIME NOT NULL);
+		CREATE TABLE repositories (id TEXT PRIMARY KEY, org_id TEXT NOT NULL, full_name TEXT NOT NULL UNIQUE, default_branch TEXT NOT NULL, created_at DATETIME NOT NULL, FOREIGN KEY (org_id) REFERENCES organizations(id));
+		INSERT INTO organizations VALUES ('org_a', 'A', 'team', CURRENT_TIMESTAMP), ('org_b', 'B', 'team', CURRENT_TIMESTAMP);
+		INSERT INTO repositories VALUES ('repo_a', 'org_a', 'shared/api', 'main', CURRENT_TIMESTAMP);
+	`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := NewStore(db)
+	if err := s.AutoMigrate(); err != nil {
+		t.Fatal(err)
+	}
+	repoB, err := s.GetOrCreateRepo("org_b", "shared/api", "main")
+	if err != nil {
+		t.Fatalf("tenant-scoped repository uniqueness was not migrated: %v", err)
+	}
+	if repoB.OrgID != "org_b" {
+		t.Fatalf("unexpected migrated repository: %+v", repoB)
+	}
+}
+
 func TestStoreListRecentRuns(t *testing.T) {
 	s := newTestStore(t)
 	orgID := "org_list_test"
