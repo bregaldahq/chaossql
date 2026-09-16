@@ -71,33 +71,30 @@ func FormatPRMarkdown(req *RunIngestRequest, resp *RunIngestResponse) string {
 	if req.Result.FailingInvariant != nil {
 		sb.WriteString("### 🚨 Failing Invariant\n")
 		sb.WriteString(fmt.Sprintf("- **Name:** `%s`\n", req.Result.FailingInvariant.Name))
-		if req.Result.FailingInvariant.Assertion != "" {
-			sb.WriteString(fmt.Sprintf("- **Assertion:** `%s`\n", req.Result.FailingInvariant.Assertion))
-		}
-		if req.Result.FailingInvariant.Actual != "" {
-			sb.WriteString(fmt.Sprintf("- **Actual Result:** `%s`\n", req.Result.FailingInvariant.Actual))
-		}
 		sb.WriteString("\n")
 	}
 
-	// Minimal trace steps
+	// Structural operation categories only. SQL and schema identifiers stay local.
 	if req.Reproduction != nil && len(req.Reproduction.SanitizedMinimalTrace) > 0 {
-		sb.WriteString("### 🔬 Minimal Causal Trace\n")
-		sb.WriteString("```sql\n")
+		sb.WriteString("### 🔬 Minimal Execution Structure\n")
 		for _, op := range req.Reproduction.SanitizedMinimalTrace {
 			worker := op.Worker
 			if worker == "" {
 				worker = "Worker"
 			}
-			sb.WriteString(fmt.Sprintf("%s: %s\n", worker, op.SQL))
+			opType := op.OpType
+			if opType == "" {
+				opType = "operation"
+			}
+			sb.WriteString(fmt.Sprintf("- `%s`: `%s`\n", worker, opType))
 		}
-		sb.WriteString("```\n\n")
+		sb.WriteString("\n")
 	}
 
 	// Cloud & Reproduction Action Links
 	sb.WriteString("### 🔗 Links & Resources\n")
 	if resp != nil && resp.URL != "" {
-		sb.WriteString(fmt.Sprintf("- 🔍 [View Full Trace in ChaosSQL Cloud](%s)\n", resp.URL))
+		sb.WriteString(fmt.Sprintf("- 🔍 [View Run Metadata in ChaosSQL Cloud](%s)\n", resp.URL))
 	}
 	sb.WriteString("- ⚡ Reproduce locally: `chaossql run --seed " + fmt.Sprintf("%d", req.Scenario.Seed) + "`\n")
 

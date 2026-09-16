@@ -50,16 +50,18 @@ type ExecutionSummary struct {
 	FailingInvariant  *InvariantSummary `json:"failing_invariant,omitempty"`
 }
 
-// SanitizedTraceEvent represents an individual operation safely stripped of sensitive payloads
+// SanitizedTraceEvent represents structural operation metadata. Table and SQL
+// remain for decoding legacy payloads and are rejected by hosted ingestion.
 type SanitizedTraceEvent struct {
 	Worker   string `json:"worker"`
-	OpType   string `json:"op_type"` // "read", "write", "commit", "abort"
-	Table    string `json:"table,omitempty"`
-	SQL      string `json:"sql"`
+	OpType   string `json:"op_type"`         // "read", "write", "commit", "abort"
+	Table    string `json:"table,omitempty"` // Deprecated: hosted payloads must omit this field.
+	SQL      string `json:"sql,omitempty"`   // Deprecated: hosted payloads must omit this field.
 	Duration int64  `json:"duration_us,omitempty"`
 }
 
-// ReproductionData contains the synthesized causal artifact
+// ReproductionData contains reduction metrics and legacy detail fields. Hosted
+// ingestion accepts only the numeric metrics.
 type ReproductionData struct {
 	MinimalOperationsCount int                   `json:"minimal_operations_count"`
 	ShrinkDurationMS       int64                 `json:"shrink_duration_ms"`

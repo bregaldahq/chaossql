@@ -125,7 +125,7 @@ When an invariant fails, the action blocks the pull request, publishes a GitHub 
 ### 1. ChaosSQL Cloud (CI/CD Regression Guard)
 * **Main Branch Baseline:** Automatically stores invariant baselines for your default branch.
 * **Pull Request Comments:** Instantly comments on failing PRs with the root-cause trace and anomaly classification ($P4$, $A5B$, etc.).
-* **Zero Sensitive Data:** Queries and database payloads remain inside your CI runner—only execution metadata and minimal traces are reported.
+* **Metadata-Only Uploads:** SQL, schemas, parameters, query results, invariant values, schedules, traces, and generated reproductions stay in your runner. The hosted API receives repository/revision identifiers, scenario configuration, aggregate status, anomaly type, invariant name, and numeric reduction metrics. Payloads are limited to 64 KiB and detailed uploads are rejected.
 
 👉 **[Explore Cloud Dashboard](https://chaossql.bregalda.com/#/dashboard)** • **[View Plans & Pricing](https://chaossql.bregalda.com/#/pricing)** • **[Join Early Access](https://chaossql.bregalda.com/#waitlist)**
 

@@ -20,10 +20,10 @@
 
 ### Task 3: Contract and product claims
 
-- [ ] Add the normative hosted payload specification.
-- [ ] Correct README privacy language to match proven behavior.
-- [ ] Update client, server, serialization, and PR report compatibility tests.
-- [ ] Run focused tests and commit.
+- [x] Add the normative hosted payload specification.
+- [x] Correct README privacy language to match proven behavior.
+- [x] Update client, server, serialization, and PR report compatibility tests.
+- [x] Run focused tests and commit.
 
 ### Task 4: Final audit, review, PR, and merge
 
