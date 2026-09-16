@@ -340,7 +340,7 @@ func TestTenantAuthorizationMatrix(t *testing.T) {
 		{http.MethodGet, "/v1/runs/run_b", memberTokenA},
 		{http.MethodGet, "/v1/repositories/acme/private-b/runs", memberTokenA},
 		{http.MethodGet, "/v1/organizations/org_b/subscription", memberTokenA},
-		{http.MethodGet, "/v1/organizations/org_b/webhooks", memberTokenA},
+		{http.MethodGet, "/v1/organizations/org_b/webhooks", "admin-a"},
 		{http.MethodPost, "/v1/organizations/org_b/webhooks", "admin-a"},
 		{http.MethodDelete, "/v1/organizations/org_b/webhooks/wh_b", "admin-a"},
 		{http.MethodPost, "/v1/organizations/org_b/webhooks/test", "admin-a"},
@@ -355,6 +355,14 @@ func TestTenantAuthorizationMatrix(t *testing.T) {
 				t.Fatalf("status = %d, want 404; body=%s", response.Code, response.Body.String())
 			}
 		})
+	}
+
+	memberList := httptest.NewRequest(http.MethodGet, "/v1/organizations/me/webhooks", nil)
+	memberList.Header.Set("Authorization", "Bearer "+memberTokenA)
+	memberListResponse := httptest.NewRecorder()
+	handler.ServeHTTP(memberListResponse, memberList)
+	if memberListResponse.Code != http.StatusForbidden {
+		t.Fatalf("member webhook list status = %d, want 403", memberListResponse.Code)
 	}
 
 	memberCreate := httptest.NewRequest(http.MethodPost, "/v1/organizations/me/webhooks", strings.NewReader(`{}`))

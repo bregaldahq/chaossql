@@ -253,6 +253,10 @@ func TestAutoMigrateReplacesLegacyGlobalRepositoryUniqueness(t *testing.T) {
 	if err := db.QueryRow(`PRAGMA foreign_keys`).Scan(&foreignKeys); err != nil || foreignKeys != 1 {
 		t.Fatalf("foreign key mode was not restored: enabled=%d error=%v", foreignKeys, err)
 	}
+	var invalidTable string
+	if err := db.QueryRow(`PRAGMA foreign_key_check`).Scan(&invalidTable); !errors.Is(err, sql.ErrNoRows) {
+		t.Fatalf("repository migration left an invalid foreign key in table %q: %v", invalidTable, err)
+	}
 }
 
 func TestStoreListRecentRuns(t *testing.T) {

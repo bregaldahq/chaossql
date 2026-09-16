@@ -20,7 +20,7 @@ Existing tokens migrate to `member`, which preserves run ingestion and read acce
 | `GET /v1/runs/{id}` | Member | Run repository must belong to caller organization |
 | `GET /v1/repositories/{owner}/{name}/runs` | Member | Repository must belong to caller organization |
 | `GET /v1/organizations/{id}/subscription` | Member | `{id}` is `me` or caller organization |
-| `GET /v1/organizations/{id}/webhooks` | Member | `{id}` is `me` or caller organization |
+| `GET /v1/organizations/{id}/webhooks` | Admin | `{id}` is `me` or caller organization |
 | Webhook create, delete, and test | Admin | `{id}` is `me` or caller organization |
 
 Cross-organization resource access returns `404` consistently so the API does not disclose whether another tenant owns an identifier. Missing or invalid credentials return `401`; an authenticated member attempting an administrative operation receives `403`.
@@ -37,7 +37,7 @@ Tenant-aware store methods require `orgID` and enforce ownership in SQL joins. R
 
 - Every tenant-data route returns `401` without a bearer token.
 - Organization A cannot read, mutate, delete, test, or ingest into organization B.
-- Member tokens can ingest and read their tenant but cannot administer webhooks.
+- Member tokens can ingest and read runs, repositories, and subscriptions in their tenant but cannot read webhook URLs or administer webhooks.
 - Owner and admin tokens can administer webhooks only for their tenant.
 - Two organizations may use the same repository full name and receive distinct records.
 - Direct store methods cannot return a run or repository outside the supplied organization.

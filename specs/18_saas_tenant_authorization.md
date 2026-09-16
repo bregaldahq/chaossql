@@ -14,8 +14,8 @@ Normative for the hosted HTTP control plane. The local CLI and engine remain ind
 
 ## Roles
 
-1. Members MAY ingest runs and read runs, repositories, subscriptions, and webhook configuration within their organization.
-2. Admins inherit member access and MAY create, delete, and test webhooks within their organization.
+1. Members MAY ingest runs and read runs, repositories, and subscriptions within their organization.
+2. Admins inherit member access and MAY list, create, delete, and test webhooks within their organization. Webhook URLs are administrative secrets and MUST NOT be returned to members.
 3. Owners inherit admin access.
 4. An authenticated principal below the required role returns HTTP `403`.
 

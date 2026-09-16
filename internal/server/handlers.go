@@ -72,7 +72,7 @@ func newRouter(cfg RouterConfig, local bool) http.Handler {
 	mux.HandleFunc("GET /v1/organizations/{id}/subscription", protect(RoleMember, s.handleGetSubscription))
 
 	// Webhooks management API
-	mux.HandleFunc("GET /v1/organizations/{id}/webhooks", protect(RoleMember, s.handleListWebhooks))
+	mux.HandleFunc("GET /v1/organizations/{id}/webhooks", protect(RoleAdmin, s.handleListWebhooks))
 	mux.HandleFunc("POST /v1/organizations/{id}/webhooks", protect(RoleAdmin, s.handleCreateWebhook))
 	mux.HandleFunc("DELETE /v1/organizations/{id}/webhooks/{wh_id}", protect(RoleAdmin, s.handleDeleteWebhook))
 	mux.HandleFunc("POST /v1/organizations/{id}/webhooks/test", protect(RoleAdmin, s.handleTestWebhook))
