@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"testing"
@@ -200,6 +201,16 @@ func TestStoreScopesRepositoriesAndRunsByOrganization(t *testing.T) {
 	}
 	if _, err := s.GetRepositoryByFullName("org_b", "shared/payments"); err != nil {
 		t.Fatalf("organization B could not resolve its repository: %v", err)
+	}
+	if err := s.CreateWebhook(context.Background(), &WebhookRecord{ID: "wh_b", OrgID: "org_b", TargetType: "generic", URL: "https://example.com/hook", Events: "all", Active: true}); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.DeleteWebhook(context.Background(), "org_a", "wh_b"); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("cross-tenant webhook deletion error = %v, want ErrNotFound", err)
+	}
+	webhooksB, err := s.ListWebhooks(context.Background(), "org_b")
+	if err != nil || len(webhooksB) != 1 {
+		t.Fatalf("organization B webhook changed: webhooks=%+v error=%v", webhooksB, err)
 	}
 }
 

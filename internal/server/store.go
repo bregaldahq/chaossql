@@ -623,8 +623,18 @@ func (s *Store) ListWebhooks(ctx context.Context, orgID string) ([]WebhookRecord
 
 func (s *Store) DeleteWebhook(ctx context.Context, orgID, webhookID string) error {
 	query := `DELETE FROM webhooks WHERE id = ? AND org_id = ?`
-	_, err := s.db.ExecContext(ctx, query, webhookID, orgID)
-	return err
+	result, err := s.db.ExecContext(ctx, query, webhookID, orgID)
+	if err != nil {
+		return err
+	}
+	deleted, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if deleted == 0 {
+		return ErrNotFound
+	}
+	return nil
 }
 
 func (s *Store) GetActiveWebhooksForEvent(ctx context.Context, orgID, eventType string) ([]WebhookRecord, error) {

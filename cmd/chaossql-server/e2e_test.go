@@ -161,6 +161,7 @@ func TestCloudControlPlaneE2E(t *testing.T) {
 	// Step 3: Verify GET /v1/runs/{id} returns full run and finding
 	getURL := ts.URL + "/v1/runs/" + resp2.RunID
 	httpReq, _ := http.NewRequestWithContext(ctx, http.MethodGet, getURL, nil)
+	httpReq.Header.Set("Authorization", "Bearer "+token)
 	httpResp, err := http.DefaultClient.Do(httpReq)
 	if err != nil {
 		t.Fatalf("failed to fetch run details: %v", err)

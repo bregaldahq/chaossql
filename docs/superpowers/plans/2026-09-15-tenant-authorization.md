@@ -20,17 +20,17 @@
 
 ### Task 3: Endpoint authorization matrix
 
-- [ ] Add table-driven tests covering missing credentials, cross-tenant access, and member/admin roles on every route.
-- [ ] Protect all tenant-data routes and enforce ownership from the context principal.
-- [ ] Return consistent `401`, `403`, and `404` responses.
-- [ ] Run handler and webhook tests and commit.
+- [x] Add table-driven tests covering missing credentials, cross-tenant access, and member/admin roles on every route.
+- [x] Protect all tenant-data routes and enforce ownership from the context principal.
+- [x] Return consistent `401`, `403`, and `404` responses.
+- [x] Run handler and webhook tests and commit.
 
 ### Task 4: Explicit local router and specification
 
-- [ ] Add tests proving the SaaS router never enables short unauthenticated routes.
-- [ ] Add a separate local router with an explicit `org_default` owner identity.
-- [ ] Document the public authorization matrix and storage invariants.
-- [ ] Run compatibility tests and commit.
+- [x] Add tests proving the SaaS router never enables short unauthenticated routes.
+- [x] Add a separate local router with an explicit `org_default` owner identity.
+- [x] Document the public authorization matrix and storage invariants.
+- [x] Run compatibility tests and commit.
 
 ### Task 5: Final audit, review, PR, and merge
 

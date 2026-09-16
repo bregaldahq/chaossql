@@ -361,7 +361,7 @@ func TestValidateWebhookTargetAllowsPublicHTTPS(t *testing.T) {
 	}
 }
 
-func TestShortWebhookRoutesRequireAuthByDefault(t *testing.T) {
+func TestSaaSRouterDoesNotExposeShortWebhookRoutes(t *testing.T) {
 	s := newTestStore(t)
 	router := NewRouter(RouterConfig{Store: s, Engine: NewRegressionEngine(s)})
 
@@ -372,49 +372,47 @@ func TestShortWebhookRoutesRequireAuthByDefault(t *testing.T) {
 		Events: "all", Active: true, CreatedAt: time.Now().UTC(),
 	})
 
-	t.Setenv(localDashboardEnvVar, "")
-
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest("GET", "/v1/webhooks", nil)
 	req.RemoteAddr = "203.0.113.7:44444"
 	router.ServeHTTP(rec, req)
 
-	if rec.Code != http.StatusUnauthorized {
-		t.Fatalf("expected 401 for unauthenticated remote caller, got %d", rec.Code)
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("expected 404 for route absent from SaaS router, got %d", rec.Code)
 	}
 	if strings.Contains(rec.Body.String(), "SUPERSECRETTOKEN") {
 		t.Fatal("webhook secret leaked in an unauthenticated response")
 	}
 }
 
-func TestShortWebhookRoutesRejectRemoteEvenWhenOptedIn(t *testing.T) {
+func TestSaaSRouterCannotEnableShortRoutesThroughEnvironment(t *testing.T) {
 	s := newTestStore(t)
 	router := NewRouter(RouterConfig{Store: s, Engine: NewRegressionEngine(s)})
 
-	t.Setenv(localDashboardEnvVar, "1")
+	t.Setenv("CHAOSSQL_LOCAL_DASHBOARD", "1")
 
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest("GET", "/v1/webhooks", nil)
 	req.RemoteAddr = "203.0.113.7:44444"
 	router.ServeHTTP(rec, req)
 
-	if rec.Code != http.StatusUnauthorized {
-		t.Fatalf("opt-in must still require loopback; got %d for a remote caller", rec.Code)
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("environment must not alter SaaS routes; got %d", rec.Code)
 	}
 }
 
-func TestShortWebhookRoutesAllowLoopbackWhenOptedIn(t *testing.T) {
+func TestExplicitLocalRouterAllowsShortWebhookRoutes(t *testing.T) {
 	s := newTestStore(t)
-	router := NewRouter(RouterConfig{Store: s, Engine: NewRegressionEngine(s)})
-
-	t.Setenv(localDashboardEnvVar, "1")
+	if err := s.CreateOrganization("org_default", "Local", "developer"); err != nil {
+		t.Fatal(err)
+	}
+	router := NewLocalRouter(RouterConfig{Store: s, Engine: NewRegressionEngine(s)})
 
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest("GET", "/v1/webhooks", nil)
-	req.RemoteAddr = "127.0.0.1:55555"
 	router.ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusOK {
-		t.Fatalf("expected loopback dashboard access to work when opted in, got %d", rec.Code)
+		t.Fatalf("expected explicit local dashboard access, got %d", rec.Code)
 	}
 }
