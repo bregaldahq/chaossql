@@ -92,6 +92,58 @@ func TestIngestRunAuthFailure(t *testing.T) {
 	}
 }
 
+func TestIngestRunRejectsForbiddenCloudDetailsBeforePersistence(t *testing.T) {
+	handler, store, token := newTestServer(t)
+	tests := []struct {
+		name    string
+		payload string
+	}{
+		{"ci actor", `{"ci":{"actor":"alice@example.com"}}`},
+		{"schedule", `{"schedule":{"version":1,"decisions":[]}}`},
+		{"invariant values", `{"result":{"failing_invariant":{"name":"balance","actual":"alice@example.com"}}}`},
+		{"trace SQL", `{"reproduction":{"sanitized_minimal_trace":[{"sql":"SELECT secret FROM private.users"}]}}`},
+		{"reproduction code", `{"reproduction":{"repro_go_code":"const password = secret"}}`},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodPost, "/v1/runs", strings.NewReader(test.payload))
+			req.Header.Set("Authorization", "Bearer "+token)
+			response := httptest.NewRecorder()
+			handler.ServeHTTP(response, req)
+			if response.Code != http.StatusBadRequest {
+				t.Fatalf("status=%d body=%s", response.Code, response.Body.String())
+			}
+		})
+	}
+	runs, err := store.ListRecentRunsForOrg("org_cloud_test", 50, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(runs) != 0 {
+		t.Fatalf("forbidden payloads persisted %d runs", len(runs))
+	}
+}
+
+func TestIngestRunRejectsUnknownAndOversizedPayloads(t *testing.T) {
+	handler, _, token := newTestServer(t)
+
+	unknown := httptest.NewRequest(http.MethodPost, "/v1/runs", strings.NewReader(`{"unexpected_sensitive_field":"secret"}`))
+	unknown.Header.Set("Authorization", "Bearer "+token)
+	unknownResponse := httptest.NewRecorder()
+	handler.ServeHTTP(unknownResponse, unknown)
+	if unknownResponse.Code != http.StatusBadRequest {
+		t.Fatalf("unknown field status=%d body=%s", unknownResponse.Code, unknownResponse.Body.String())
+	}
+
+	oversized := httptest.NewRequest(http.MethodPost, "/v1/runs", strings.NewReader(`{"scenario":{"name":"`+strings.Repeat("x", cloud.MaxPayloadBytes)+`"}}`))
+	oversized.Header.Set("Authorization", "Bearer "+token)
+	oversizedResponse := httptest.NewRecorder()
+	handler.ServeHTTP(oversizedResponse, oversized)
+	if oversizedResponse.Code != http.StatusRequestEntityTooLarge {
+		t.Fatalf("oversized status=%d body=%s", oversizedResponse.Code, oversizedResponse.Body.String())
+	}
+}
+
 func TestIngestRunFlowAndRegression(t *testing.T) {
 	handler, _, token := newTestServer(t)
 
@@ -160,16 +212,11 @@ func TestIngestRunFlowAndRegression(t *testing.T) {
 			AnomalyType:       "P4",
 			DurationMS:        410,
 			FailingInvariant: &cloud.InvariantSummary{
-				Name:      "balance_sum",
-				Assertion: "total == 2000",
-				Actual:    "1950",
+				Name: "balance_sum",
 			},
 		},
 		Reproduction: &cloud.ReproductionData{
 			MinimalOperationsCount: 4,
-			SanitizedMinimalTrace: []cloud.SanitizedTraceEvent{
-				{Worker: "w1", OpType: "write", Table: "accounts", SQL: "UPDATE accounts SET balance = balance - 50"},
-			},
 		},
 	}
 

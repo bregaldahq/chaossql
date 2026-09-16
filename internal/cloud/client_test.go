@@ -3,6 +3,7 @@ package cloud
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -31,7 +32,7 @@ func TestClientPublishRunUsesMetadataAllowlist(t *testing.T) {
 			Branch: "main", Actor: "alice@example.com",
 		},
 		Scenario: ScenarioMetadata{Name: "transfer", Driver: "postgres", Seed: 42},
-		Schedule: domain.SchedulePlan{Version: 1, Seed: 42, Decisions: []domain.ScheduleDecision{{Sequence: 1, OperationID: 7}}},
+		Schedule: &domain.SchedulePlan{Version: 1, Seed: 42, Decisions: []domain.ScheduleDecision{{Sequence: 1, OperationID: 7}}},
 		Result: ExecutionSummary{
 			Status: "failed", ViolationDetected: true, AnomalyType: "P4",
 			FailingInvariant: &InvariantSummary{
@@ -73,6 +74,26 @@ func TestClientPublishRunUsesMetadataAllowlist(t *testing.T) {
 	}
 	if original.CI.Actor != "alice@example.com" || original.Reproduction.ReproGoCode == "" || original.Result.FailingInvariant.Actual == "" {
 		t.Fatal("metadata projection mutated the caller request")
+	}
+}
+
+func TestClientPublishRunRejectsOversizedMetadata(t *testing.T) {
+	var requests int32
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		atomic.AddInt32(&requests, 1)
+		w.WriteHeader(http.StatusCreated)
+	}))
+	defer ts.Close()
+
+	client := NewClient(Config{BaseURL: ts.URL, Token: "transport-token"})
+	_, err := client.PublishRun(context.Background(), &RunIngestRequest{
+		Scenario: ScenarioMetadata{Name: strings.Repeat("x", MaxPayloadBytes)},
+	})
+	if !errors.Is(err, ErrPayloadTooLarge) {
+		t.Fatalf("error = %v, want ErrPayloadTooLarge", err)
+	}
+	if atomic.LoadInt32(&requests) != 0 {
+		t.Fatal("oversized payload reached the network")
 	}
 }
 

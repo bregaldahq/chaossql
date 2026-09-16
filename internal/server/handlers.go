@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 	"time"
@@ -171,11 +172,27 @@ func (s *Server) handleIngestRun(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	r.Body = http.MaxBytesReader(w, r.Body, cloud.MaxPayloadBytes)
+	decoder := json.NewDecoder(r.Body)
+	decoder.DisallowUnknownFields()
 	var req cloud.RunIngestRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if err := decoder.Decode(&req); err != nil {
+		var maxBytesErr *http.MaxBytesError
 		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusBadRequest)
+		if errors.As(err, &maxBytesErr) {
+			w.WriteHeader(http.StatusRequestEntityTooLarge)
+		} else {
+			w.WriteHeader(http.StatusBadRequest)
+		}
 		_ = json.NewEncoder(w).Encode(map[string]string{"error": "invalid json payload: " + err.Error()})
+		return
+	}
+	if err := decoder.Decode(&struct{}{}); !errors.Is(err, io.EOF) {
+		http.Error(w, `{"error":"payload must contain one JSON object"}`, http.StatusBadRequest)
+		return
+	}
+	if err := cloud.ValidateMetadataOnlyRequest(&req); err != nil {
+		http.Error(w, fmt.Sprintf(`{"error":%q}`, err.Error()), http.StatusBadRequest)
 		return
 	}
 
@@ -251,7 +268,7 @@ func (s *Server) handleIngestRun(w http.ResponseWriter, r *http.Request) {
 
 		assertion := ""
 		if req.Result.FailingInvariant != nil {
-			assertion = fmt.Sprintf("%s: %s (got %s)", req.Result.FailingInvariant.Name, req.Result.FailingInvariant.Assertion, req.Result.FailingInvariant.Actual)
+			assertion = req.Result.FailingInvariant.Name
 		}
 
 		finding = &FindingRecord{

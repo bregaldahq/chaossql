@@ -70,13 +70,13 @@ type ReproductionData struct {
 
 // RunIngestRequest is the root JSON payload sent to POST /v1/runs
 type RunIngestRequest struct {
-	Version      string              `json:"version"`
-	Timestamp    time.Time           `json:"timestamp"`
-	CI           *CIContext          `json:"ci,omitempty"`
-	Scenario     ScenarioMetadata    `json:"scenario"`
-	Schedule     domain.SchedulePlan `json:"schedule"`
-	Result       ExecutionSummary    `json:"result"`
-	Reproduction *ReproductionData   `json:"reproduction,omitempty"`
+	Version      string               `json:"version"`
+	Timestamp    time.Time            `json:"timestamp"`
+	CI           *CIContext           `json:"ci,omitempty"`
+	Scenario     ScenarioMetadata     `json:"scenario"`
+	Schedule     *domain.SchedulePlan `json:"schedule,omitempty"`
+	Result       ExecutionSummary     `json:"result"`
+	Reproduction *ReproductionData    `json:"reproduction,omitempty"`
 }
 
 // BaselineComparison describes whether this run represents a regression

@@ -13,10 +13,10 @@
 
 ### Task 2: Server-side privacy boundary
 
-- [ ] Add failing tests for detailed fields, unknown fields, and oversized payloads.
-- [ ] Reject forbidden content before repository or run persistence.
-- [ ] Enforce strict JSON decoding and a 64 KiB request limit.
-- [ ] Run server and command integration tests and commit.
+- [x] Add failing tests for detailed fields, unknown fields, and oversized payloads.
+- [x] Reject forbidden content before repository or run persistence.
+- [x] Enforce strict JSON decoding and a 64 KiB request limit.
+- [x] Run server and command integration tests and commit.
 
 ### Task 3: Contract and product claims
 

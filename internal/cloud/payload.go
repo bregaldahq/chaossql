@@ -1,12 +1,20 @@
 package cloud
 
-import "time"
+import (
+	"errors"
+	"fmt"
+	"time"
+)
+
+const MaxPayloadBytes = 64 * 1024
+
+var ErrForbiddenPayloadDetail = errors.New("cloud payload contains details that must remain local")
 
 type metadataPayload struct {
 	Version      string                       `json:"version"`
 	Timestamp    time.Time                    `json:"timestamp"`
 	CI           *metadataCI                  `json:"ci,omitempty"`
-	Scenario     ScenarioMetadata             `json:"scenario"`
+	Scenario     metadataScenario             `json:"scenario"`
 	Result       metadataExecutionSummary     `json:"result"`
 	Reproduction *metadataReproductionSummary `json:"reproduction,omitempty"`
 }
@@ -19,6 +27,16 @@ type metadataCI struct {
 	BaseBranch        string `json:"base_branch,omitempty"`
 	PullRequestNumber int    `json:"pull_request_number,omitempty"`
 	RunID             string `json:"run_id,omitempty"`
+}
+
+type metadataScenario struct {
+	Name          string `json:"name"`
+	Fingerprint   string `json:"fingerprint,omitempty"`
+	Driver        string `json:"driver"`
+	DriverVersion string `json:"driver_version,omitempty"`
+	Workers       int    `json:"workers"`
+	Iterations    int    `json:"iterations"`
+	Seed          uint64 `json:"seed"`
 }
 
 type metadataExecutionSummary struct {
@@ -55,7 +73,15 @@ func projectMetadataPayload(req *RunIngestRequest, now time.Time) metadataPayloa
 	payload := metadataPayload{
 		Version:   version,
 		Timestamp: timestamp,
-		Scenario:  req.Scenario,
+		Scenario: metadataScenario{
+			Name:          req.Scenario.Name,
+			Fingerprint:   req.Scenario.Fingerprint,
+			Driver:        req.Scenario.Driver,
+			DriverVersion: req.Scenario.DriverVersion,
+			Workers:       req.Scenario.Workers,
+			Iterations:    req.Scenario.Iterations,
+			Seed:          req.Scenario.Seed,
+		},
 		Result: metadataExecutionSummary{
 			Status:            req.Result.Status,
 			ExecutionStatus:   req.Result.ExecutionStatus,
@@ -88,4 +114,24 @@ func projectMetadataPayload(req *RunIngestRequest, now time.Time) metadataPayloa
 		}
 	}
 	return payload
+}
+
+func ValidateMetadataOnlyRequest(req *RunIngestRequest) error {
+	if req.CI != nil && req.CI.Actor != "" {
+		return fmt.Errorf("%w: ci.actor", ErrForbiddenPayloadDetail)
+	}
+	if req.Schedule != nil {
+		return fmt.Errorf("%w: schedule", ErrForbiddenPayloadDetail)
+	}
+	if invariant := req.Result.FailingInvariant; invariant != nil {
+		if invariant.Query != "" || invariant.Assertion != "" || invariant.Actual != "" {
+			return fmt.Errorf("%w: invariant query, assertion, and actual values", ErrForbiddenPayloadDetail)
+		}
+	}
+	if reproduction := req.Reproduction; reproduction != nil {
+		if reproduction.ReproGoCode != "" || reproduction.MermaidDiagram != "" || len(reproduction.SanitizedMinimalTrace) > 0 {
+			return fmt.Errorf("%w: traces, diagrams, and reproduction code", ErrForbiddenPayloadDetail)
+		}
+	}
+	return nil
 }
