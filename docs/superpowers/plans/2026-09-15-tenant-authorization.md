@@ -37,5 +37,5 @@
 - [x] Run `gofmt`, `git diff --check`, race tests, and `make verify`.
 - [x] Run zero-CGO native and WASM builds.
 - [x] Request independent review and resolve every Critical and Important finding.
-- [ ] Push `codex/sec-01-tenant-authorization`, open a PR to `main`, and wait for all checks.
-- [ ] Mark this plan complete, merge with a merge commit, and mark SEC-01 complete in the ignored commercialization plan.
+- [x] Push `codex/sec-01-tenant-authorization`, open a PR to `main`, and wait for all checks.
+- [x] Mark this plan complete, merge with a merge commit, and mark SEC-01 complete in the ignored commercialization plan.
