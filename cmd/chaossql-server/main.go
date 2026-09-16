@@ -54,6 +54,7 @@ func main() {
 
 	var orgFlag string
 	var nameFlag string
+	var roleFlag string
 	tokenCmd := &cobra.Command{
 		Use:   "create-token",
 		Short: "Generate a new CI API token for an organization",
@@ -79,13 +80,14 @@ func main() {
 			rawToken := "csql_" + hex.EncodeToString(tokenBytes)
 			tokenID := fmt.Sprintf("tok_%d", time.Now().UnixNano())
 
-			if err := store.CreateAPIToken(tokenID, orgFlag, rawToken, nameFlag); err != nil {
+			if err := store.CreateAPITokenWithRole(tokenID, orgFlag, rawToken, nameFlag, server.Role(roleFlag)); err != nil {
 				return fmt.Errorf("failed to store token: %w", err)
 			}
 
 			fmt.Println("=== ChaosSQL API Token Created ===")
 			fmt.Printf("Organization: %s\n", orgFlag)
 			fmt.Printf("Token Name:   %s\n", nameFlag)
+			fmt.Printf("Role:         %s\n", roleFlag)
 			fmt.Printf("API Token:    %s\n", rawToken)
 			fmt.Println("===================================")
 			return nil
@@ -94,6 +96,7 @@ func main() {
 	tokenCmd.Flags().StringVar(&dbPathFlag, "db", getEnv("DB_PATH", "chaossql-cloud.db"), "Path to SQLite database file")
 	tokenCmd.Flags().StringVar(&orgFlag, "org", "org_default", "Organization ID")
 	tokenCmd.Flags().StringVar(&nameFlag, "name", "CI Token", "Token descriptive name")
+	tokenCmd.Flags().StringVar(&roleFlag, "role", string(server.RoleMember), "Organization role: owner, admin, or member")
 
 	rootCmd.AddCommand(startCmd)
 	rootCmd.AddCommand(tokenCmd)
@@ -119,7 +122,7 @@ func runServer() error {
 	// Seed default token if provided
 	if tokenFlag != "" {
 		_ = store.CreateOrganization("org_default", "Default Organization", "pro")
-		_ = store.CreateAPIToken("tok_admin", "org_default", tokenFlag, "Initial Admin Token")
+		_ = store.CreateAPITokenWithRole("tok_admin", "org_default", tokenFlag, "Initial Admin Token", server.RoleOwner)
 		log.Printf("[ChaosSQL Cloud] Admin token configured.")
 	}
 

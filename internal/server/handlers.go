@@ -29,7 +29,7 @@ func corsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Org-ID")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 		if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusNoContent)
 			return
@@ -87,15 +87,13 @@ func (s *Server) requireAuth(next http.HandlerFunc) http.HandlerFunc {
 			return
 		}
 
-		orgID, err := s.cfg.Store.ValidateToken(token)
-		if err != nil || orgID == "" {
+		principal, err := s.cfg.Store.AuthenticateToken(token)
+		if err != nil {
 			http.Error(w, `{"error":"invalid or unauthorized token"}`, http.StatusUnauthorized)
 			return
 		}
 
-		// Store orgID in request header/context if needed
-		r.Header.Set("X-Org-ID", orgID)
-		next(w, r)
+		next(w, r.WithContext(contextWithPrincipal(r.Context(), principal)))
 	}
 }
 
@@ -150,7 +148,7 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleIngestRun(w http.ResponseWriter, r *http.Request) {
-	orgID := r.Header.Get("X-Org-ID")
+	orgID := organizationFromContext(r.Context())
 	if orgID == "" {
 		http.Error(w, `{"error":"unauthorized"}`, http.StatusUnauthorized)
 		return
@@ -310,7 +308,6 @@ func (s *Server) handleIngestRun(w http.ResponseWriter, r *http.Request) {
 		}()
 	}
 
-
 	msg := "Execution passed successfully."
 	if isReg {
 		baseBranch := defaultBranch
@@ -388,10 +385,9 @@ func (s *Server) handleListRuns(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-
 func (s *Server) handleGetSubscription(w http.ResponseWriter, r *http.Request) {
 	orgID := r.PathValue("id")
-	callerOrgID := r.Header.Get("X-Org-ID")
+	callerOrgID := organizationFromContext(r.Context())
 	if orgID == "me" || orgID == "" {
 		orgID = callerOrgID
 	}
@@ -429,7 +425,7 @@ func (s *Server) handleListAllRuns(w http.ResponseWriter, r *http.Request) {
 type CreateWebhookRequest struct {
 	TargetType string `json:"target_type"` // "discord", "slack", "generic"
 	URL        string `json:"url"`
-	Events     string `json:"events"`      // "regression", "failure", "all"
+	Events     string `json:"events"` // "regression", "failure", "all"
 	Active     *bool  `json:"active,omitempty"`
 }
 
@@ -441,7 +437,7 @@ type TestWebhookRequest struct {
 func (s *Server) handleListWebhooks(w http.ResponseWriter, r *http.Request) {
 	orgID := r.PathValue("id")
 	if orgID == "" {
-		orgID = r.Header.Get("X-Org-ID")
+		orgID = organizationFromContext(r.Context())
 	}
 	if orgID == "" {
 		orgID = "org_default"
@@ -463,7 +459,7 @@ func (s *Server) handleListWebhooks(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleCreateWebhook(w http.ResponseWriter, r *http.Request) {
 	orgID := r.PathValue("id")
 	if orgID == "" {
-		orgID = r.Header.Get("X-Org-ID")
+		orgID = organizationFromContext(r.Context())
 	}
 	if orgID == "" {
 		orgID = "org_default"
@@ -517,7 +513,7 @@ func (s *Server) handleCreateWebhook(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleDeleteWebhook(w http.ResponseWriter, r *http.Request) {
 	orgID := r.PathValue("id")
 	if orgID == "" {
-		orgID = r.Header.Get("X-Org-ID")
+		orgID = organizationFromContext(r.Context())
 	}
 	if orgID == "" {
 		orgID = "org_default"

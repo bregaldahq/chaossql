@@ -6,10 +6,10 @@
 
 ### Task 1: Identity and role contract
 
-- [ ] Add failing tests for principal lookup, invalid roles, and legacy token migration.
-- [ ] Add token roles, principal authentication, and context-only request identity.
-- [ ] Create bootstrap tokens explicitly as owners.
-- [ ] Run focused store and server tests and commit.
+- [x] Add failing tests for principal lookup, invalid roles, and legacy token migration.
+- [x] Add token roles, principal authentication, and context-only request identity.
+- [x] Create bootstrap tokens explicitly as owners.
+- [x] Run focused store and server tests and commit.
 
 ### Task 2: Tenant-scoped persistence
 

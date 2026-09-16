@@ -1,13 +1,13 @@
 package server
 
 import (
-	"strings"
 	"context"
 	"crypto/sha256"
 	"database/sql"
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	_ "modernc.org/sqlite"
@@ -16,7 +16,31 @@ import (
 var (
 	ErrNotFound     = errors.New("record not found")
 	ErrUnauthorized = errors.New("unauthorized token")
+	ErrInvalidRole  = errors.New("invalid organization role")
 )
+
+type Role string
+
+const (
+	RoleMember Role = "member"
+	RoleAdmin  Role = "admin"
+	RoleOwner  Role = "owner"
+)
+
+func (r Role) valid() bool {
+	return r == RoleMember || r == RoleAdmin || r == RoleOwner
+}
+
+func (r Role) Allows(required Role) bool {
+	rank := map[Role]int{RoleMember: 1, RoleAdmin: 2, RoleOwner: 3}
+	return r.valid() && required.valid() && rank[r] >= rank[required]
+}
+
+type Principal struct {
+	TokenID string
+	OrgID   string
+	Role    Role
+}
 
 type Organization struct {
 	ID        string    `json:"id"`
@@ -66,13 +90,12 @@ type FindingRecord struct {
 	CreatedAt   time.Time `json:"created_at"`
 }
 
-
 type WebhookRecord struct {
 	ID         string    `json:"id"`
 	OrgID      string    `json:"org_id"`
 	TargetType string    `json:"target_type"` // "discord", "slack", "generic"
 	URL        string    `json:"url"`
-	Events     string    `json:"events"`      // "regression", "failure", "all"
+	Events     string    `json:"events"` // "regression", "failure", "all"
 	Active     bool      `json:"active"`
 	CreatedAt  time.Time `json:"created_at"`
 }
@@ -103,6 +126,7 @@ func (s *Store) AutoMigrate() error {
 			org_id TEXT NOT NULL,
 			token_hash TEXT NOT NULL UNIQUE,
 			name TEXT NOT NULL,
+			role TEXT NOT NULL DEFAULT 'member',
 			created_at DATETIME NOT NULL,
 			FOREIGN KEY (org_id) REFERENCES organizations(id)
 		);`,
@@ -149,7 +173,7 @@ func (s *Store) AutoMigrate() error {
 			created_at DATETIME NOT NULL,
 			FOREIGN KEY (run_id) REFERENCES runs(id)
 		);`,
-				`CREATE TABLE IF NOT EXISTS webhooks (
+		`CREATE TABLE IF NOT EXISTS webhooks (
 			id TEXT PRIMARY KEY,
 			org_id TEXT NOT NULL,
 			target_type TEXT NOT NULL,
@@ -159,7 +183,7 @@ func (s *Store) AutoMigrate() error {
 			created_at DATETIME NOT NULL,
 			FOREIGN KEY (org_id) REFERENCES organizations(id)
 		);`,
-`CREATE TABLE IF NOT EXISTS baselines (
+		`CREATE TABLE IF NOT EXISTS baselines (
 			id TEXT PRIMARY KEY,
 			repo_id TEXT NOT NULL,
 			scenario_id TEXT NOT NULL,
@@ -178,6 +202,36 @@ func (s *Store) AutoMigrate() error {
 			return fmt.Errorf("migration failed for query [%s]: %w", q, err)
 		}
 	}
+	return s.ensureAPITokenRoleColumn()
+}
+
+func (s *Store) ensureAPITokenRoleColumn() error {
+	rows, err := s.db.Query(`PRAGMA table_info(api_tokens)`)
+	if err != nil {
+		return fmt.Errorf("inspect api token schema: %w", err)
+	}
+	hasRole := false
+	for rows.Next() {
+		var cid, notNull, primaryKey int
+		var name, columnType string
+		var defaultValue any
+		if err := rows.Scan(&cid, &name, &columnType, &notNull, &defaultValue, &primaryKey); err != nil {
+			_ = rows.Close()
+			return fmt.Errorf("inspect api token column: %w", err)
+		}
+		if name == "role" {
+			hasRole = true
+		}
+	}
+	if err := rows.Close(); err != nil {
+		return fmt.Errorf("close api token schema inspection: %w", err)
+	}
+	if hasRole {
+		return nil
+	}
+	if _, err := s.db.Exec(`ALTER TABLE api_tokens ADD COLUMN role TEXT NOT NULL DEFAULT 'member'`); err != nil {
+		return fmt.Errorf("add api token role: %w", err)
+	}
 	return nil
 }
 
@@ -188,20 +242,42 @@ func (s *Store) CreateOrganization(id, name, plan string) error {
 }
 
 func (s *Store) CreateAPIToken(id, orgID, token, name string) error {
+	return s.CreateAPITokenWithRole(id, orgID, token, name, RoleMember)
+}
+
+func (s *Store) CreateAPITokenWithRole(id, orgID, token, name string, role Role) error {
+	if !role.valid() {
+		return fmt.Errorf("%w: %q", ErrInvalidRole, role)
+	}
 	th := hashToken(token)
-	_, err := s.db.Exec(`INSERT INTO api_tokens (id, org_id, token_hash, name, created_at) VALUES (?, ?, ?, ?, ?)`,
-		id, orgID, th, name, time.Now().UTC())
+	_, err := s.db.Exec(`INSERT INTO api_tokens (id, org_id, token_hash, name, role, created_at) VALUES (?, ?, ?, ?, ?, ?)`,
+		id, orgID, th, name, role, time.Now().UTC())
 	return err
 }
 
 func (s *Store) ValidateToken(token string) (string, error) {
-	th := hashToken(token)
-	var orgID string
-	err := s.db.QueryRow(`SELECT org_id FROM api_tokens WHERE token_hash = ?`, th).Scan(&orgID)
-	if errors.Is(err, sql.ErrNoRows) {
-		return "", ErrUnauthorized
+	principal, err := s.AuthenticateToken(token)
+	if err != nil {
+		return "", err
 	}
-	return orgID, err
+	return principal.OrgID, nil
+}
+
+func (s *Store) AuthenticateToken(token string) (Principal, error) {
+	th := hashToken(token)
+	var principal Principal
+	err := s.db.QueryRow(`SELECT id, org_id, role FROM api_tokens WHERE token_hash = ?`, th).
+		Scan(&principal.TokenID, &principal.OrgID, &principal.Role)
+	if errors.Is(err, sql.ErrNoRows) {
+		return Principal{}, ErrUnauthorized
+	}
+	if err != nil {
+		return Principal{}, err
+	}
+	if !principal.Role.valid() {
+		return Principal{}, fmt.Errorf("%w: stored role %q", ErrInvalidRole, principal.Role)
+	}
+	return principal, nil
 }
 
 func (s *Store) GetOrCreateRepo(orgID, fullName, defaultBranch string) (*Repository, error) {

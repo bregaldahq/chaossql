@@ -2,6 +2,7 @@ package server
 
 import (
 	"database/sql"
+	"errors"
 	"testing"
 	"time"
 
@@ -45,6 +46,64 @@ func TestStoreTokenAndOrganization(t *testing.T) {
 	_, err = s.ValidateToken("invalid_token")
 	if err != ErrUnauthorized {
 		t.Errorf("expected ErrUnauthorized, got %v", err)
+	}
+}
+
+func TestStoreAuthenticateTokenReturnsPrincipalRole(t *testing.T) {
+	s := newTestStore(t)
+	if err := s.CreateOrganization("org_auth", "Auth Org", "team"); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.CreateAPITokenWithRole("tok_admin", "org_auth", "secret", "Admin", RoleAdmin); err != nil {
+		t.Fatal(err)
+	}
+
+	principal, err := s.AuthenticateToken("secret")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if principal.TokenID != "tok_admin" || principal.OrgID != "org_auth" || principal.Role != RoleAdmin {
+		t.Fatalf("unexpected principal: %+v", principal)
+	}
+}
+
+func TestStoreRejectsInvalidTokenRole(t *testing.T) {
+	s := newTestStore(t)
+	if err := s.CreateOrganization("org_auth", "Auth Org", "team"); err != nil {
+		t.Fatal(err)
+	}
+	err := s.CreateAPITokenWithRole("tok_bad", "org_auth", "secret", "Bad", Role("superuser"))
+	if !errors.Is(err, ErrInvalidRole) {
+		t.Fatalf("error = %v, want ErrInvalidRole", err)
+	}
+}
+
+func TestAutoMigrateAddsMemberRoleToLegacyTokens(t *testing.T) {
+	db, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	db.SetMaxOpenConns(1)
+	t.Cleanup(func() { _ = db.Close() })
+	_, err = db.Exec(`
+		CREATE TABLE organizations (id TEXT PRIMARY KEY, name TEXT NOT NULL, plan TEXT NOT NULL, created_at DATETIME NOT NULL);
+		CREATE TABLE api_tokens (id TEXT PRIMARY KEY, org_id TEXT NOT NULL, token_hash TEXT NOT NULL UNIQUE, name TEXT NOT NULL, created_at DATETIME NOT NULL);
+		INSERT INTO organizations VALUES ('org_legacy', 'Legacy', 'team', CURRENT_TIMESTAMP);
+		INSERT INTO api_tokens VALUES ('tok_legacy', 'org_legacy', ?, 'Legacy token', CURRENT_TIMESTAMP);
+	`, hashToken("legacy-secret"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := NewStore(db)
+	if err := s.AutoMigrate(); err != nil {
+		t.Fatal(err)
+	}
+	principal, err := s.AuthenticateToken("legacy-secret")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if principal.Role != RoleMember {
+		t.Fatalf("legacy role = %q, want %q", principal.Role, RoleMember)
 	}
 }
 
