@@ -1,13 +1,13 @@
 package server
 
 import (
-	"strings"
 	"context"
 	"crypto/sha256"
 	"database/sql"
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	_ "modernc.org/sqlite"
@@ -16,7 +16,31 @@ import (
 var (
 	ErrNotFound     = errors.New("record not found")
 	ErrUnauthorized = errors.New("unauthorized token")
+	ErrInvalidRole  = errors.New("invalid organization role")
 )
+
+type Role string
+
+const (
+	RoleMember Role = "member"
+	RoleAdmin  Role = "admin"
+	RoleOwner  Role = "owner"
+)
+
+func (r Role) valid() bool {
+	return r == RoleMember || r == RoleAdmin || r == RoleOwner
+}
+
+func (r Role) Allows(required Role) bool {
+	rank := map[Role]int{RoleMember: 1, RoleAdmin: 2, RoleOwner: 3}
+	return r.valid() && required.valid() && rank[r] >= rank[required]
+}
+
+type Principal struct {
+	TokenID string
+	OrgID   string
+	Role    Role
+}
 
 type Organization struct {
 	ID        string    `json:"id"`
@@ -66,13 +90,12 @@ type FindingRecord struct {
 	CreatedAt   time.Time `json:"created_at"`
 }
 
-
 type WebhookRecord struct {
 	ID         string    `json:"id"`
 	OrgID      string    `json:"org_id"`
 	TargetType string    `json:"target_type"` // "discord", "slack", "generic"
 	URL        string    `json:"url"`
-	Events     string    `json:"events"`      // "regression", "failure", "all"
+	Events     string    `json:"events"` // "regression", "failure", "all"
 	Active     bool      `json:"active"`
 	CreatedAt  time.Time `json:"created_at"`
 }
@@ -82,6 +105,10 @@ type Store struct {
 }
 
 func NewStore(db *sql.DB) *Store {
+	// SQLite foreign-key pragmas are connection-local. Keep the control-plane
+	// store on one connection so migrations and every subsequent query share
+	// the same enforcement mode.
+	db.SetMaxOpenConns(1)
 	return &Store{db: db}
 }
 
@@ -92,6 +119,7 @@ func hashToken(token string) string {
 
 func (s *Store) AutoMigrate() error {
 	queries := []string{
+		`PRAGMA foreign_keys = ON;`,
 		`CREATE TABLE IF NOT EXISTS organizations (
 			id TEXT PRIMARY KEY,
 			name TEXT NOT NULL,
@@ -103,15 +131,17 @@ func (s *Store) AutoMigrate() error {
 			org_id TEXT NOT NULL,
 			token_hash TEXT NOT NULL UNIQUE,
 			name TEXT NOT NULL,
+			role TEXT NOT NULL DEFAULT 'member',
 			created_at DATETIME NOT NULL,
 			FOREIGN KEY (org_id) REFERENCES organizations(id)
 		);`,
 		`CREATE TABLE IF NOT EXISTS repositories (
 			id TEXT PRIMARY KEY,
 			org_id TEXT NOT NULL,
-			full_name TEXT NOT NULL UNIQUE,
+			full_name TEXT NOT NULL,
 			default_branch TEXT NOT NULL,
 			created_at DATETIME NOT NULL,
+			UNIQUE(org_id, full_name),
 			FOREIGN KEY (org_id) REFERENCES organizations(id)
 		);`,
 		`CREATE TABLE IF NOT EXISTS scenarios (
@@ -149,7 +179,7 @@ func (s *Store) AutoMigrate() error {
 			created_at DATETIME NOT NULL,
 			FOREIGN KEY (run_id) REFERENCES runs(id)
 		);`,
-				`CREATE TABLE IF NOT EXISTS webhooks (
+		`CREATE TABLE IF NOT EXISTS webhooks (
 			id TEXT PRIMARY KEY,
 			org_id TEXT NOT NULL,
 			target_type TEXT NOT NULL,
@@ -159,7 +189,7 @@ func (s *Store) AutoMigrate() error {
 			created_at DATETIME NOT NULL,
 			FOREIGN KEY (org_id) REFERENCES organizations(id)
 		);`,
-`CREATE TABLE IF NOT EXISTS baselines (
+		`CREATE TABLE IF NOT EXISTS baselines (
 			id TEXT PRIMARY KEY,
 			repo_id TEXT NOT NULL,
 			scenario_id TEXT NOT NULL,
@@ -178,6 +208,99 @@ func (s *Store) AutoMigrate() error {
 			return fmt.Errorf("migration failed for query [%s]: %w", q, err)
 		}
 	}
+	if err := s.ensureAPITokenRoleColumn(); err != nil {
+		return err
+	}
+	return s.ensureTenantRepositoryUniqueness()
+}
+
+func (s *Store) ensureAPITokenRoleColumn() error {
+	rows, err := s.db.Query(`PRAGMA table_info(api_tokens)`)
+	if err != nil {
+		return fmt.Errorf("inspect api token schema: %w", err)
+	}
+	hasRole := false
+	for rows.Next() {
+		var cid, notNull, primaryKey int
+		var name, columnType string
+		var defaultValue any
+		if err := rows.Scan(&cid, &name, &columnType, &notNull, &defaultValue, &primaryKey); err != nil {
+			_ = rows.Close()
+			return fmt.Errorf("inspect api token column: %w", err)
+		}
+		if name == "role" {
+			hasRole = true
+		}
+	}
+	if err := rows.Close(); err != nil {
+		return fmt.Errorf("close api token schema inspection: %w", err)
+	}
+	if hasRole {
+		return nil
+	}
+	if _, err := s.db.Exec(`ALTER TABLE api_tokens ADD COLUMN role TEXT NOT NULL DEFAULT 'member'`); err != nil {
+		return fmt.Errorf("add api token role: %w", err)
+	}
+	return nil
+}
+
+func (s *Store) ensureTenantRepositoryUniqueness() error {
+	ctx := context.Background()
+	conn, err := s.db.Conn(ctx)
+	if err != nil {
+		return fmt.Errorf("acquire repository migration connection: %w", err)
+	}
+	defer func() { _ = conn.Close() }()
+
+	var schema string
+	if err := conn.QueryRowContext(ctx, `SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'repositories'`).Scan(&schema); err != nil {
+		return fmt.Errorf("inspect repository schema: %w", err)
+	}
+	normalized := strings.ToLower(strings.Join(strings.Fields(schema), " "))
+	if strings.Contains(normalized, "unique(org_id, full_name)") || strings.Contains(normalized, "unique (org_id, full_name)") {
+		return nil
+	}
+
+	var foreignKeys int
+	if err := conn.QueryRowContext(ctx, `PRAGMA foreign_keys`).Scan(&foreignKeys); err != nil {
+		return fmt.Errorf("inspect foreign key mode: %w", err)
+	}
+	if foreignKeys != 0 {
+		if _, err := conn.ExecContext(ctx, `PRAGMA foreign_keys = OFF`); err != nil {
+			return fmt.Errorf("disable foreign keys for repository migration: %w", err)
+		}
+		defer func() { _, _ = conn.ExecContext(ctx, `PRAGMA foreign_keys = ON`) }()
+	}
+
+	tx, err := conn.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin repository migration: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+	statements := []string{
+		`DROP TABLE IF EXISTS repositories_tenant_migration`,
+		`CREATE TABLE repositories_tenant_migration (
+			id TEXT PRIMARY KEY,
+			org_id TEXT NOT NULL,
+			full_name TEXT NOT NULL,
+			default_branch TEXT NOT NULL,
+			created_at DATETIME NOT NULL,
+			UNIQUE(org_id, full_name),
+			FOREIGN KEY (org_id) REFERENCES organizations(id)
+		)`,
+		`INSERT INTO repositories_tenant_migration (id, org_id, full_name, default_branch, created_at)
+			SELECT id, org_id, full_name, default_branch, created_at FROM repositories`,
+		`DROP TABLE repositories`,
+		`ALTER TABLE repositories_tenant_migration RENAME TO repositories`,
+	}
+	for _, statement := range statements {
+		if _, err := tx.Exec(statement); err != nil {
+			return fmt.Errorf("migrate repository uniqueness: %w", err)
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit repository uniqueness migration: %w", err)
+	}
 	return nil
 }
 
@@ -187,21 +310,64 @@ func (s *Store) CreateOrganization(id, name, plan string) error {
 	return err
 }
 
+func (s *Store) EnsureOrganization(id, name, plan string) error {
+	_, err := s.db.Exec(`INSERT INTO organizations (id, name, plan, created_at) VALUES (?, ?, ?, ?)
+		ON CONFLICT(id) DO NOTHING`, id, name, plan, time.Now().UTC())
+	return err
+}
+
 func (s *Store) CreateAPIToken(id, orgID, token, name string) error {
+	return s.CreateAPITokenWithRole(id, orgID, token, name, RoleMember)
+}
+
+func (s *Store) CreateAPITokenWithRole(id, orgID, token, name string, role Role) error {
+	if !role.valid() {
+		return fmt.Errorf("%w: %q", ErrInvalidRole, role)
+	}
 	th := hashToken(token)
-	_, err := s.db.Exec(`INSERT INTO api_tokens (id, org_id, token_hash, name, created_at) VALUES (?, ?, ?, ?, ?)`,
-		id, orgID, th, name, time.Now().UTC())
+	_, err := s.db.Exec(`INSERT INTO api_tokens (id, org_id, token_hash, name, role, created_at) VALUES (?, ?, ?, ?, ?, ?)`,
+		id, orgID, th, name, role, time.Now().UTC())
+	return err
+}
+
+func (s *Store) UpsertAPITokenWithRole(id, orgID, token, name string, role Role) error {
+	if !role.valid() {
+		return fmt.Errorf("%w: %q", ErrInvalidRole, role)
+	}
+	_, err := s.db.Exec(`INSERT INTO api_tokens (id, org_id, token_hash, name, role, created_at)
+		VALUES (?, ?, ?, ?, ?, ?)
+		ON CONFLICT(id) DO UPDATE SET
+			org_id = excluded.org_id,
+			token_hash = excluded.token_hash,
+			name = excluded.name,
+			role = excluded.role`,
+		id, orgID, hashToken(token), name, role, time.Now().UTC())
 	return err
 }
 
 func (s *Store) ValidateToken(token string) (string, error) {
-	th := hashToken(token)
-	var orgID string
-	err := s.db.QueryRow(`SELECT org_id FROM api_tokens WHERE token_hash = ?`, th).Scan(&orgID)
-	if errors.Is(err, sql.ErrNoRows) {
-		return "", ErrUnauthorized
+	principal, err := s.AuthenticateToken(token)
+	if err != nil {
+		return "", err
 	}
-	return orgID, err
+	return principal.OrgID, nil
+}
+
+func (s *Store) AuthenticateToken(token string) (Principal, error) {
+	th := hashToken(token)
+	var principal Principal
+	err := s.db.QueryRow(`SELECT id, org_id, role FROM api_tokens WHERE token_hash = ?`, th).
+		Scan(&principal.TokenID, &principal.OrgID, &principal.Role)
+	if errors.Is(err, sql.ErrNoRows) {
+		return Principal{}, ErrUnauthorized
+	}
+	if err != nil {
+		return Principal{}, err
+	}
+	if !principal.Role.valid() {
+		return Principal{}, fmt.Errorf("%w: stored role %q", ErrInvalidRole, principal.Role)
+	}
+	return principal, nil
 }
 
 func (s *Store) GetOrCreateRepo(orgID, fullName, defaultBranch string) (*Repository, error) {
@@ -210,7 +376,7 @@ func (s *Store) GetOrCreateRepo(orgID, fullName, defaultBranch string) (*Reposit
 	}
 
 	var repo Repository
-	err := s.db.QueryRow(`SELECT id, org_id, full_name, default_branch, created_at FROM repositories WHERE full_name = ?`, fullName).
+	err := s.db.QueryRow(`SELECT id, org_id, full_name, default_branch, created_at FROM repositories WHERE org_id = ? AND full_name = ?`, orgID, fullName).
 		Scan(&repo.ID, &repo.OrgID, &repo.FullName, &repo.DefaultBranch, &repo.CreatedAt)
 	if err == nil {
 		return &repo, nil
@@ -234,6 +400,20 @@ func (s *Store) GetOrCreateRepo(orgID, fullName, defaultBranch string) (*Reposit
 		DefaultBranch: defaultBranch,
 		CreatedAt:     now,
 	}, nil
+}
+
+func (s *Store) GetRepositoryByFullName(orgID, fullName string) (*Repository, error) {
+	var repo Repository
+	err := s.db.QueryRow(`SELECT id, org_id, full_name, default_branch, created_at
+		FROM repositories WHERE org_id = ? AND full_name = ?`, orgID, fullName).
+		Scan(&repo.ID, &repo.OrgID, &repo.FullName, &repo.DefaultBranch, &repo.CreatedAt)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, ErrNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &repo, nil
 }
 
 func (s *Store) GetOrCreateScenario(repoID, name, driver string) (*Scenario, error) {
@@ -309,6 +489,38 @@ func (s *Store) GetRun(runID string) (*RunRecord, *FindingRecord, error) {
 	return &run, &finding, nil
 }
 
+func (s *Store) GetRunForOrg(orgID, runID string) (*RunRecord, *FindingRecord, error) {
+	var run RunRecord
+	err := s.db.QueryRow(`SELECT r.id, r.repo_id, r.scenario_id, r.commit_sha, r.branch, r.pr_number,
+		r.status, r.anomaly_type, r.seed, r.duration_ms, r.created_at
+		FROM runs r
+		JOIN repositories repo ON repo.id = r.repo_id
+		WHERE r.id = ? AND repo.org_id = ?`, runID, orgID).
+		Scan(&run.ID, &run.RepoID, &run.ScenarioID, &run.CommitSHA, &run.Branch, &run.PRNumber,
+			&run.Status, &run.AnomalyType, &run.Seed, &run.DurationMS, &run.CreatedAt)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil, ErrNotFound
+	}
+	if err != nil {
+		return nil, nil, err
+	}
+	return s.findingForRun(&run)
+}
+
+func (s *Store) findingForRun(run *RunRecord) (*RunRecord, *FindingRecord, error) {
+	var finding FindingRecord
+	err := s.db.QueryRow(`SELECT id, run_id, anomaly_type, assertion, minimal_ops, repro_code, trace_json, created_at
+		FROM findings WHERE run_id = ?`, run.ID).
+		Scan(&finding.ID, &finding.RunID, &finding.AnomalyType, &finding.Assertion, &finding.MinimalOps, &finding.ReproCode, &finding.TraceJSON, &finding.CreatedAt)
+	if errors.Is(err, sql.ErrNoRows) {
+		return run, nil, nil
+	}
+	if err != nil {
+		return run, nil, err
+	}
+	return run, &finding, nil
+}
+
 func (s *Store) GetLatestBaseline(repoID, scenarioID, branch string) (*RunRecord, error) {
 	var runID string
 	err := s.db.QueryRow(`SELECT run_id FROM baselines WHERE repo_id = ? AND scenario_id = ? AND branch = ?`,
@@ -379,6 +591,33 @@ func (s *Store) ListRecentRuns(limit, offset int) ([]*RunRecord, error) {
 	return results, rows.Err()
 }
 
+func (s *Store) ListRecentRunsForOrg(orgID string, limit, offset int) ([]*RunRecord, error) {
+	if limit <= 0 {
+		limit = 50
+	}
+	rows, err := s.db.Query(`SELECT r.id, r.repo_id, r.scenario_id, r.commit_sha, r.branch, r.pr_number,
+		r.status, r.anomaly_type, r.seed, r.duration_ms, r.created_at
+		FROM runs r
+		JOIN repositories repo ON repo.id = r.repo_id
+		WHERE repo.org_id = ?
+		ORDER BY r.created_at DESC LIMIT ? OFFSET ?`, orgID, limit, offset)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+
+	var results []*RunRecord
+	for rows.Next() {
+		var run RunRecord
+		if err := rows.Scan(&run.ID, &run.RepoID, &run.ScenarioID, &run.CommitSHA, &run.Branch,
+			&run.PRNumber, &run.Status, &run.AnomalyType, &run.Seed, &run.DurationMS, &run.CreatedAt); err != nil {
+			return nil, err
+		}
+		results = append(results, &run)
+	}
+	return results, rows.Err()
+}
+
 func (s *Store) CreateWebhook(ctx context.Context, w *WebhookRecord) error {
 	if w.CreatedAt.IsZero() {
 		w.CreatedAt = time.Now().UTC()
@@ -417,8 +656,18 @@ func (s *Store) ListWebhooks(ctx context.Context, orgID string) ([]WebhookRecord
 
 func (s *Store) DeleteWebhook(ctx context.Context, orgID, webhookID string) error {
 	query := `DELETE FROM webhooks WHERE id = ? AND org_id = ?`
-	_, err := s.db.ExecContext(ctx, query, webhookID, orgID)
-	return err
+	result, err := s.db.ExecContext(ctx, query, webhookID, orgID)
+	if err != nil {
+		return err
+	}
+	deleted, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if deleted == 0 {
+		return ErrNotFound
+	}
+	return nil
 }
 
 func (s *Store) GetActiveWebhooksForEvent(ctx context.Context, orgID, eventType string) ([]WebhookRecord, error) {

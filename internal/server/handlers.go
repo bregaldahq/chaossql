@@ -5,9 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net"
 	"net/http"
-	"os"
 	"strings"
 	"time"
 
@@ -29,7 +27,7 @@ func corsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Org-ID")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 		if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusNoContent)
 			return
@@ -39,6 +37,16 @@ func corsMiddleware(next http.Handler) http.Handler {
 }
 
 func NewRouter(cfg RouterConfig) http.Handler {
+	return newRouter(cfg, false)
+}
+
+// NewLocalRouter creates an explicitly permissive single-organization router
+// for a developer dashboard. Production server entry points must use NewRouter.
+func NewLocalRouter(cfg RouterConfig) http.Handler {
+	return newRouter(cfg, true)
+}
+
+func newRouter(cfg RouterConfig, local bool) http.Handler {
 	if cfg.PublicBaseURL == "" {
 		cfg.PublicBaseURL = "https://app.chaossql.bregalda.com"
 	}
@@ -48,29 +56,78 @@ func NewRouter(cfg RouterConfig) http.Handler {
 		cfg:        cfg,
 		dispatcher: NewWebhookDispatcher(nil),
 	}
+	protect := s.authorize
+	if local {
+		protect = func(_ Role, next http.HandlerFunc) http.HandlerFunc {
+			return s.assumeLocalOwner(next)
+		}
+	}
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /v1/health", s.handleHealth)
-	mux.HandleFunc("GET /v1/runs", s.handleListAllRuns)
-	mux.HandleFunc("POST /v1/runs", s.requireAuth(s.handleIngestRun))
-	mux.HandleFunc("GET /v1/runs/{id}", s.handleGetRun)
-	mux.HandleFunc("GET /v1/repositories/{owner}/{name}/runs", s.handleListRuns)
-	mux.HandleFunc("GET /v1/organizations/{id}/subscription", s.requireAuth(s.handleGetSubscription))
+	mux.HandleFunc("GET /v1/runs", protect(RoleMember, s.handleListAllRuns))
+	mux.HandleFunc("POST /v1/runs", protect(RoleMember, s.handleIngestRun))
+	mux.HandleFunc("GET /v1/runs/{id}", protect(RoleMember, s.handleGetRun))
+	mux.HandleFunc("GET /v1/repositories/{owner}/{name}/runs", protect(RoleMember, s.handleListRuns))
+	mux.HandleFunc("GET /v1/organizations/{id}/subscription", protect(RoleMember, s.handleGetSubscription))
 
 	// Webhooks management API
-	mux.HandleFunc("GET /v1/organizations/{id}/webhooks", s.requireAuth(s.handleListWebhooks))
-	mux.HandleFunc("POST /v1/organizations/{id}/webhooks", s.requireAuth(s.handleCreateWebhook))
-	mux.HandleFunc("DELETE /v1/organizations/{id}/webhooks/{wh_id}", s.requireAuth(s.handleDeleteWebhook))
-	mux.HandleFunc("POST /v1/organizations/{id}/webhooks/test", s.requireAuth(s.handleTestWebhook))
+	mux.HandleFunc("GET /v1/organizations/{id}/webhooks", protect(RoleAdmin, s.handleListWebhooks))
+	mux.HandleFunc("POST /v1/organizations/{id}/webhooks", protect(RoleAdmin, s.handleCreateWebhook))
+	mux.HandleFunc("DELETE /v1/organizations/{id}/webhooks/{wh_id}", protect(RoleAdmin, s.handleDeleteWebhook))
+	mux.HandleFunc("POST /v1/organizations/{id}/webhooks/test", protect(RoleAdmin, s.handleTestWebhook))
 
-	// Short-form webhook routes for the local dashboard. These are NOT
-	// unauthenticated by default: see requireLocalDashboard.
-	mux.HandleFunc("GET /v1/webhooks", s.requireLocalDashboard(s.handleListWebhooks))
-	mux.HandleFunc("POST /v1/webhooks", s.requireLocalDashboard(s.handleCreateWebhook))
-	mux.HandleFunc("DELETE /v1/webhooks/{wh_id}", s.requireLocalDashboard(s.handleDeleteWebhook))
-	mux.HandleFunc("POST /v1/webhooks/test", s.requireLocalDashboard(s.handleTestWebhook))
+	if local {
+		mux.HandleFunc("GET /v1/webhooks", s.assumeLocalOwner(s.handleListWebhooks))
+		mux.HandleFunc("POST /v1/webhooks", s.assumeLocalOwner(s.handleCreateWebhook))
+		mux.HandleFunc("DELETE /v1/webhooks/{wh_id}", s.assumeLocalOwner(s.handleDeleteWebhook))
+		mux.HandleFunc("POST /v1/webhooks/test", s.assumeLocalOwner(s.handleTestWebhook))
+	}
 
 	return corsMiddleware(mux)
+}
+
+func (s *Server) assumeLocalOwner(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		principal := Principal{TokenID: "local", OrgID: "org_default", Role: RoleOwner}
+		next(w, r.WithContext(contextWithPrincipal(r.Context(), principal)))
+	}
+}
+
+func (s *Server) authorize(required Role, next http.HandlerFunc) http.HandlerFunc {
+	return s.requireAuth(s.requireRole(required, next))
+}
+
+func (s *Server) requireRole(required Role, next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		principal, ok := principalFromContext(r.Context())
+		if !ok {
+			http.Error(w, `{"error":"unauthorized"}`, http.StatusUnauthorized)
+			return
+		}
+		if !principal.Role.Allows(required) {
+			http.Error(w, `{"error":"insufficient role"}`, http.StatusForbidden)
+			return
+		}
+		next(w, r)
+	}
+}
+
+func organizationForRequest(w http.ResponseWriter, r *http.Request) (string, bool) {
+	principal, ok := principalFromContext(r.Context())
+	if !ok {
+		http.Error(w, `{"error":"unauthorized"}`, http.StatusUnauthorized)
+		return "", false
+	}
+	requested := r.PathValue("id")
+	if requested == "" || requested == "me" {
+		return principal.OrgID, true
+	}
+	if requested != principal.OrgID {
+		http.Error(w, `{"error":"resource not found"}`, http.StatusNotFound)
+		return "", false
+	}
+	return principal.OrgID, true
 }
 
 func (s *Server) requireAuth(next http.HandlerFunc) http.HandlerFunc {
@@ -87,56 +144,14 @@ func (s *Server) requireAuth(next http.HandlerFunc) http.HandlerFunc {
 			return
 		}
 
-		orgID, err := s.cfg.Store.ValidateToken(token)
-		if err != nil || orgID == "" {
+		principal, err := s.cfg.Store.AuthenticateToken(token)
+		if err != nil {
 			http.Error(w, `{"error":"invalid or unauthorized token"}`, http.StatusUnauthorized)
 			return
 		}
 
-		// Store orgID in request header/context if needed
-		r.Header.Set("X-Org-ID", orgID)
-		next(w, r)
+		next(w, r.WithContext(contextWithPrincipal(r.Context(), principal)))
 	}
-}
-
-// localDashboardEnvVar opts in to unauthenticated webhook management. It is
-// off by default: handleListWebhooks returns full WebhookRecords, and a
-// webhook URL embeds the provider secret, so an unauthenticated GET on a
-// reachable host hands out every stored Discord/Slack token.
-const localDashboardEnvVar = "CHAOSSQL_LOCAL_DASHBOARD"
-
-// requireLocalDashboard permits the short-form webhook routes without a token
-// only when the operator explicitly opted in AND the caller is on the loopback
-// interface. Anything else falls back to normal bearer-token auth.
-//
-// Note: if this server ever sits behind a same-host reverse proxy, every
-// request arrives from loopback. Do not enable the opt-in in that topology.
-func (s *Server) requireLocalDashboard(next http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		if localDashboardEnabled() && isLoopbackRequest(r) {
-			next(w, r)
-			return
-		}
-		s.requireAuth(next)(w, r)
-	}
-}
-
-func localDashboardEnabled() bool {
-	switch strings.ToLower(strings.TrimSpace(os.Getenv(localDashboardEnvVar))) {
-	case "1", "true", "yes", "on":
-		return true
-	default:
-		return false
-	}
-}
-
-func isLoopbackRequest(r *http.Request) bool {
-	host, _, err := net.SplitHostPort(r.RemoteAddr)
-	if err != nil {
-		host = r.RemoteAddr
-	}
-	ip := net.ParseIP(strings.TrimSpace(host))
-	return ip != nil && ip.IsLoopback()
 }
 
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
@@ -150,7 +165,7 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleIngestRun(w http.ResponseWriter, r *http.Request) {
-	orgID := r.Header.Get("X-Org-ID")
+	orgID := organizationFromContext(r.Context())
 	if orgID == "" {
 		http.Error(w, `{"error":"unauthorized"}`, http.StatusUnauthorized)
 		return
@@ -310,7 +325,6 @@ func (s *Server) handleIngestRun(w http.ResponseWriter, r *http.Request) {
 		}()
 	}
 
-
 	msg := "Execution passed successfully."
 	if isReg {
 		baseBranch := defaultBranch
@@ -343,7 +357,8 @@ func (s *Server) handleGetRun(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	run, finding, err := s.cfg.Store.GetRun(runID)
+	orgID := organizationFromContext(r.Context())
+	run, finding, err := s.cfg.Store.GetRunForOrg(orgID, runID)
 	if errors.Is(err, ErrNotFound) {
 		http.Error(w, `{"error":"run not found"}`, http.StatusNotFound)
 		return
@@ -366,15 +381,18 @@ func (s *Server) handleListRuns(w http.ResponseWriter, r *http.Request) {
 	name := r.PathValue("name")
 	fullName := fmt.Sprintf("%s/%s", owner, name)
 
-	// Lookup repo
-	var repoID string
-	err := s.cfg.Store.db.QueryRow(`SELECT id FROM repositories WHERE full_name = ?`, fullName).Scan(&repoID)
-	if err != nil {
+	orgID := organizationFromContext(r.Context())
+	repo, err := s.cfg.Store.GetRepositoryByFullName(orgID, fullName)
+	if errors.Is(err, ErrNotFound) {
 		http.Error(w, `{"error":"repository not found"}`, http.StatusNotFound)
 		return
 	}
+	if err != nil {
+		http.Error(w, `{"error":"failed to resolve repository"}`, http.StatusInternalServerError)
+		return
+	}
 
-	runs, err := s.cfg.Store.ListRuns(repoID, 50, 0)
+	runs, err := s.cfg.Store.ListRuns(repo.ID, 50, 0)
 	if err != nil {
 		http.Error(w, `{"error":"failed to list runs"}`, http.StatusInternalServerError)
 		return
@@ -388,12 +406,10 @@ func (s *Server) handleListRuns(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-
 func (s *Server) handleGetSubscription(w http.ResponseWriter, r *http.Request) {
-	orgID := r.PathValue("id")
-	callerOrgID := r.Header.Get("X-Org-ID")
-	if orgID == "me" || orgID == "" {
-		orgID = callerOrgID
+	orgID, ok := organizationForRequest(w, r)
+	if !ok {
+		return
 	}
 
 	sub, err := s.cfg.Store.GetOrgSubscription(orgID)
@@ -412,7 +428,8 @@ func (s *Server) handleGetSubscription(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleListAllRuns(w http.ResponseWriter, r *http.Request) {
-	runs, err := s.cfg.Store.ListRecentRuns(50, 0)
+	orgID := organizationFromContext(r.Context())
+	runs, err := s.cfg.Store.ListRecentRunsForOrg(orgID, 50, 0)
 	if err != nil {
 		http.Error(w, fmt.Sprintf(`{"error":"failed to list runs: %s"}`, err.Error()), http.StatusInternalServerError)
 		return
@@ -429,7 +446,7 @@ func (s *Server) handleListAllRuns(w http.ResponseWriter, r *http.Request) {
 type CreateWebhookRequest struct {
 	TargetType string `json:"target_type"` // "discord", "slack", "generic"
 	URL        string `json:"url"`
-	Events     string `json:"events"`      // "regression", "failure", "all"
+	Events     string `json:"events"` // "regression", "failure", "all"
 	Active     *bool  `json:"active,omitempty"`
 }
 
@@ -439,12 +456,9 @@ type TestWebhookRequest struct {
 }
 
 func (s *Server) handleListWebhooks(w http.ResponseWriter, r *http.Request) {
-	orgID := r.PathValue("id")
-	if orgID == "" {
-		orgID = r.Header.Get("X-Org-ID")
-	}
-	if orgID == "" {
-		orgID = "org_default"
+	orgID, ok := organizationForRequest(w, r)
+	if !ok {
+		return
 	}
 
 	webhooks, err := s.cfg.Store.ListWebhooks(r.Context(), orgID)
@@ -461,12 +475,9 @@ func (s *Server) handleListWebhooks(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleCreateWebhook(w http.ResponseWriter, r *http.Request) {
-	orgID := r.PathValue("id")
-	if orgID == "" {
-		orgID = r.Header.Get("X-Org-ID")
-	}
-	if orgID == "" {
-		orgID = "org_default"
+	orgID, ok := organizationForRequest(w, r)
+	if !ok {
+		return
 	}
 
 	var req CreateWebhookRequest
@@ -515,12 +526,9 @@ func (s *Server) handleCreateWebhook(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleDeleteWebhook(w http.ResponseWriter, r *http.Request) {
-	orgID := r.PathValue("id")
-	if orgID == "" {
-		orgID = r.Header.Get("X-Org-ID")
-	}
-	if orgID == "" {
-		orgID = "org_default"
+	orgID, ok := organizationForRequest(w, r)
+	if !ok {
+		return
 	}
 
 	whID := r.PathValue("wh_id")
@@ -528,7 +536,10 @@ func (s *Server) handleDeleteWebhook(w http.ResponseWriter, r *http.Request) {
 		whID = r.PathValue("id")
 	}
 
-	if err := s.cfg.Store.DeleteWebhook(r.Context(), orgID, whID); err != nil {
+	if err := s.cfg.Store.DeleteWebhook(r.Context(), orgID, whID); errors.Is(err, ErrNotFound) {
+		http.Error(w, `{"error":"webhook not found"}`, http.StatusNotFound)
+		return
+	} else if err != nil {
 		http.Error(w, fmt.Sprintf(`{"error":"failed to delete webhook: %s"}`, err.Error()), http.StatusInternalServerError)
 		return
 	}
@@ -537,6 +548,9 @@ func (s *Server) handleDeleteWebhook(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleTestWebhook(w http.ResponseWriter, r *http.Request) {
+	if _, ok := organizationForRequest(w, r); !ok {
+		return
+	}
 	var req TestWebhookRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, `{"error":"invalid request body"}`, http.StatusBadRequest)
