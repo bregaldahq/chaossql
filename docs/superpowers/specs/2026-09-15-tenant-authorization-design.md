@@ -10,6 +10,8 @@ Bearer tokens resolve to an internal `Principal` containing token ID, organizati
 
 Existing tokens migrate to `member`, which preserves run ingestion and read access without granting webhook administration. Bootstrap administration tokens are created explicitly as `owner`.
 
+The hosted server requires `CHAOSSQL_ADMIN_TOKEN` or `--token`; there is no built-in credential. Startup reconciles the reserved bootstrap token to the configured secret and `owner` role, so upgrades and rotations cannot silently retain a legacy member token or an old credential.
+
 ## Authorization matrix
 
 | Endpoint | Minimum role | Resource rule |
@@ -42,4 +44,5 @@ Tenant-aware store methods require `orgID` and enforce ownership in SQL joins. R
 - Two organizations may use the same repository full name and receive distinct records.
 - Direct store methods cannot return a run or repository outside the supplied organization.
 - Local permissive routes exist only on `NewLocalRouter`.
+- Hosted startup fails without an explicit owner token and rotation invalidates the previous bootstrap credential.
 - `make verify`, race tests, and zero-CGO builds pass.

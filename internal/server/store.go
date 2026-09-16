@@ -105,6 +105,10 @@ type Store struct {
 }
 
 func NewStore(db *sql.DB) *Store {
+	// SQLite foreign-key pragmas are connection-local. Keep the control-plane
+	// store on one connection so migrations and every subsequent query share
+	// the same enforcement mode.
+	db.SetMaxOpenConns(1)
 	return &Store{db: db}
 }
 
@@ -115,6 +119,7 @@ func hashToken(token string) string {
 
 func (s *Store) AutoMigrate() error {
 	queries := []string{
+		`PRAGMA foreign_keys = ON;`,
 		`CREATE TABLE IF NOT EXISTS organizations (
 			id TEXT PRIMARY KEY,
 			name TEXT NOT NULL,
@@ -305,6 +310,12 @@ func (s *Store) CreateOrganization(id, name, plan string) error {
 	return err
 }
 
+func (s *Store) EnsureOrganization(id, name, plan string) error {
+	_, err := s.db.Exec(`INSERT INTO organizations (id, name, plan, created_at) VALUES (?, ?, ?, ?)
+		ON CONFLICT(id) DO NOTHING`, id, name, plan, time.Now().UTC())
+	return err
+}
+
 func (s *Store) CreateAPIToken(id, orgID, token, name string) error {
 	return s.CreateAPITokenWithRole(id, orgID, token, name, RoleMember)
 }
@@ -316,6 +327,21 @@ func (s *Store) CreateAPITokenWithRole(id, orgID, token, name string, role Role)
 	th := hashToken(token)
 	_, err := s.db.Exec(`INSERT INTO api_tokens (id, org_id, token_hash, name, role, created_at) VALUES (?, ?, ?, ?, ?, ?)`,
 		id, orgID, th, name, role, time.Now().UTC())
+	return err
+}
+
+func (s *Store) UpsertAPITokenWithRole(id, orgID, token, name string, role Role) error {
+	if !role.valid() {
+		return fmt.Errorf("%w: %q", ErrInvalidRole, role)
+	}
+	_, err := s.db.Exec(`INSERT INTO api_tokens (id, org_id, token_hash, name, role, created_at)
+		VALUES (?, ?, ?, ?, ?, ?)
+		ON CONFLICT(id) DO UPDATE SET
+			org_id = excluded.org_id,
+			token_hash = excluded.token_hash,
+			name = excluded.name,
+			role = excluded.role`,
+		id, orgID, hashToken(token), name, role, time.Now().UTC())
 	return err
 }
 

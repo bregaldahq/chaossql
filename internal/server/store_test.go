@@ -79,6 +79,26 @@ func TestStoreRejectsInvalidTokenRole(t *testing.T) {
 	}
 }
 
+func TestStoreUpsertsAPITokenRoleAndCredential(t *testing.T) {
+	s := newTestStore(t)
+	if err := s.CreateOrganization("org_auth", "Auth Org", "team"); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.CreateAPIToken("tok_admin", "org_auth", "old-secret", "Legacy"); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.UpsertAPITokenWithRole("tok_admin", "org_auth", "new-secret", "Bootstrap", RoleOwner); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.AuthenticateToken("old-secret"); !errors.Is(err, ErrUnauthorized) {
+		t.Fatalf("old credential remains active: %v", err)
+	}
+	principal, err := s.AuthenticateToken("new-secret")
+	if err != nil || principal.Role != RoleOwner {
+		t.Fatalf("upserted principal=%+v error=%v", principal, err)
+	}
+}
+
 func TestAutoMigrateAddsMemberRoleToLegacyTokens(t *testing.T) {
 	db, err := sql.Open("sqlite", ":memory:")
 	if err != nil {
@@ -215,11 +235,10 @@ func TestStoreScopesRepositoriesAndRunsByOrganization(t *testing.T) {
 }
 
 func TestAutoMigrateReplacesLegacyGlobalRepositoryUniqueness(t *testing.T) {
-	db, err := sql.Open("sqlite", ":memory:")
+	db, err := sql.Open("sqlite", t.TempDir()+"/legacy.db")
 	if err != nil {
 		t.Fatal(err)
 	}
-	db.SetMaxOpenConns(1)
 	t.Cleanup(func() { _ = db.Close() })
 	_, err = db.Exec(`
 		PRAGMA foreign_keys = ON;

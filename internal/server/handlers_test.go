@@ -312,6 +312,9 @@ func TestTenantAuthorizationMatrix(t *testing.T) {
 	if err := store.CreateAPITokenWithRole("tok_admin_a", "org_cloud_test", "admin-a", "Admin A", RoleAdmin); err != nil {
 		t.Fatal(err)
 	}
+	if err := store.CreateAPITokenWithRole("tok_owner_a", "org_cloud_test", "owner-a", "Owner A", RoleOwner); err != nil {
+		t.Fatal(err)
+	}
 	repoA, err := store.GetOrCreateRepo("org_cloud_test", "acme/private-a", "main")
 	if err != nil {
 		t.Fatal(err)
@@ -390,6 +393,42 @@ func TestTenantAuthorizationMatrix(t *testing.T) {
 	handler.ServeHTTP(adminResponse, adminCreate)
 	if adminResponse.Code != http.StatusCreated {
 		t.Fatalf("admin webhook creation status = %d, want 201; body=%s", adminResponse.Code, adminResponse.Body.String())
+	}
+	var created WebhookRecord
+	if err := json.Unmarshal(adminResponse.Body.Bytes(), &created); err != nil {
+		t.Fatal(err)
+	}
+
+	adminList := httptest.NewRequest(http.MethodGet, "/v1/organizations/me/webhooks", nil)
+	adminList.Header.Set("Authorization", "Bearer admin-a")
+	adminListResponse := httptest.NewRecorder()
+	handler.ServeHTTP(adminListResponse, adminList)
+	if adminListResponse.Code != http.StatusOK || !strings.Contains(adminListResponse.Body.String(), created.ID) {
+		t.Fatalf("admin webhook list status=%d body=%s", adminListResponse.Code, adminListResponse.Body.String())
+	}
+
+	ownerCreate := httptest.NewRequest(http.MethodPost, "/v1/organizations/me/webhooks", strings.NewReader(`{}`))
+	ownerCreate.Header.Set("Authorization", "Bearer owner-a")
+	ownerCreateResponse := httptest.NewRecorder()
+	handler.ServeHTTP(ownerCreateResponse, ownerCreate)
+	if ownerCreateResponse.Code == http.StatusForbidden || ownerCreateResponse.Code == http.StatusUnauthorized {
+		t.Fatalf("owner did not inherit webhook administration: status=%d", ownerCreateResponse.Code)
+	}
+
+	adminTest := httptest.NewRequest(http.MethodPost, "/v1/organizations/me/webhooks/test", strings.NewReader(`{}`))
+	adminTest.Header.Set("Authorization", "Bearer admin-a")
+	adminTestResponse := httptest.NewRecorder()
+	handler.ServeHTTP(adminTestResponse, adminTest)
+	if adminTestResponse.Code == http.StatusForbidden || adminTestResponse.Code == http.StatusUnauthorized {
+		t.Fatalf("admin could not reach webhook test handler: status=%d", adminTestResponse.Code)
+	}
+
+	adminDelete := httptest.NewRequest(http.MethodDelete, "/v1/organizations/me/webhooks/"+created.ID, nil)
+	adminDelete.Header.Set("Authorization", "Bearer admin-a")
+	adminDeleteResponse := httptest.NewRecorder()
+	handler.ServeHTTP(adminDeleteResponse, adminDelete)
+	if adminDeleteResponse.Code != http.StatusNoContent {
+		t.Fatalf("admin webhook delete status=%d body=%s", adminDeleteResponse.Code, adminDeleteResponse.Body.String())
 	}
 }
 

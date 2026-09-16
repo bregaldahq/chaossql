@@ -11,6 +11,8 @@ Normative for the hosted HTTP control plane. The local CLI and engine remain ind
 3. Request identity MUST be carried in a server-owned context value. Headers, path values, query values, and bodies MUST NOT override the authenticated organization.
 4. Missing, malformed, or unknown credentials return HTTP `401`.
 5. Existing tokens created before role support migrate to `member`.
+6. The hosted server MUST require an explicit bootstrap owner token. It MUST NOT ship a known default credential.
+7. On startup, the bootstrap token record MUST be reconciled to the configured credential and `owner` role. Rotation replaces the previous credential, and persistence failures stop startup.
 
 ## Roles
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -13,6 +14,52 @@ import (
 	"github.com/bregaldahq/chaossql/internal/server"
 	_ "modernc.org/sqlite"
 )
+
+func TestConfigureBootstrapOwnerRequiresExplicitToken(t *testing.T) {
+	store := newCommandTestStore(t)
+	if err := configureBootstrapOwner(store, ""); err == nil {
+		t.Fatal("expected missing bootstrap token to fail")
+	}
+}
+
+func TestConfigureBootstrapOwnerRotatesLegacyTokenAndRole(t *testing.T) {
+	store := newCommandTestStore(t)
+	if err := store.CreateOrganization("org_default", "Default Organization", "pro"); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.CreateAPIToken("tok_admin", "org_default", "legacy-token", "Legacy Admin"); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := configureBootstrapOwner(store, "rotated-token"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.AuthenticateToken("legacy-token"); !errors.Is(err, server.ErrUnauthorized) {
+		t.Fatalf("legacy token remains active: %v", err)
+	}
+	principal, err := store.AuthenticateToken("rotated-token")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if principal.TokenID != "tok_admin" || principal.OrgID != "org_default" || principal.Role != server.RoleOwner {
+		t.Fatalf("unexpected bootstrap principal: %+v", principal)
+	}
+}
+
+func newCommandTestStore(t *testing.T) *server.Store {
+	t.Helper()
+	db, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	db.SetMaxOpenConns(1)
+	t.Cleanup(func() { _ = db.Close() })
+	store := server.NewStore(db)
+	if err := store.AutoMigrate(); err != nil {
+		t.Fatal(err)
+	}
+	return store
+}
 
 func TestCloudControlPlaneE2E(t *testing.T) {
 	db, err := sql.Open("sqlite", ":memory:")
