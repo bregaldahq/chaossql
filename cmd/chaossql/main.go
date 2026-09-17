@@ -559,7 +559,7 @@ func publishToCloud(
 			Iterations: spec.Engine.Iterations,
 			Seed:       runResult.Seed,
 		},
-		Schedule: runResult.Schedule,
+		Schedule: &runResult.Schedule,
 		Result: cloud.ExecutionSummary{
 			Status:            status,
 			ExecutionStatus:   string(runResult.Status),

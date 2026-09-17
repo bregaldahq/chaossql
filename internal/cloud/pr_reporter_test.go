@@ -26,16 +26,15 @@ func TestFormatPRMarkdown_Regression(t *testing.T) {
 			DurationMS:      340,
 			FailingInvariant: &InvariantSummary{
 				Name:      "wealth_conservation",
-				Assertion: "sum == 2000",
-				Actual:    "1950",
+				Assertion: "email != 'alice@example.com'",
+				Actual:    "alice@example.com",
 			},
 		},
 		Reproduction: &ReproductionData{
 			SanitizedMinimalTrace: []SanitizedTraceEvent{
-				{Worker: "T1", SQL: "SELECT balance FROM accounts WHERE id = 1"},
-				{Worker: "T2", SQL: "SELECT balance FROM accounts WHERE id = 1"},
-				{Worker: "T1", SQL: "UPDATE accounts SET balance = balance - 50 WHERE id = 1"},
-				{Worker: "T2", SQL: "UPDATE accounts SET balance = balance - 50 WHERE id = 1"},
+				{Worker: "T1", OpType: "read", Table: "private.accounts", SQL: "SELECT email FROM private.accounts"},
+				{Worker: "T2", OpType: "write", Table: "private.accounts", SQL: "UPDATE private.accounts SET email = 'alice@example.com'"},
+				{Worker: "alice@example.com", OpType: "SELECT secret FROM private.accounts"},
 			},
 		},
 	}
@@ -65,6 +64,14 @@ func TestFormatPRMarkdown_Regression(t *testing.T) {
 	}
 	if !strings.Contains(md, "wealth_conservation") {
 		t.Errorf("expected invariant details in markdown")
+	}
+	for _, forbidden := range []string{"alice@example.com", "private.accounts", "SELECT email", "UPDATE private.accounts", "SELECT secret"} {
+		if strings.Contains(md, forbidden) {
+			t.Errorf("remote report contains forbidden detail %q: %s", forbidden, md)
+		}
+	}
+	if !strings.Contains(md, "Minimal Execution Structure") || !strings.Contains(md, "`T1`: `read`") {
+		t.Errorf("expected structural execution summary, got: %s", md)
 	}
 	if !strings.Contains(md, "https://cloud.chaossql.com/runs/run_999") {
 		t.Errorf("expected cloud link in markdown")

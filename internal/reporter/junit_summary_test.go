@@ -65,7 +65,12 @@ func TestGenerateGitHubSummaryMarkdown(t *testing.T) {
 		ViolationDetected: true,
 		Duration:          300 * time.Millisecond,
 		FailingInvariant: &domain.InvariantResult{
-			Name: "active_doctors",
+			Name:       "active_doctors",
+			Expression: "email != 'alice@example.com'",
+			ActualValues: map[string]interface{}{
+				"email": "alice@example.com",
+				"dsn":   "postgres://alice:secret@db/private",
+			},
 		},
 	}
 	shrink := &domain.ShrinkResult{
@@ -79,5 +84,13 @@ func TestGenerateGitHubSummaryMarkdown(t *testing.T) {
 	md := reporter.GenerateGitHubSummaryMarkdown(spec, res, shrink, domain.AnomalyWriteSkew)
 	if !strings.Contains(md, "hospital_write_skew") || !strings.Contains(md, "90.0% reduction") {
 		t.Errorf("expected markdown to contain scenario name and reduction, got: %s", md)
+	}
+	if !strings.Contains(md, "active_doctors") {
+		t.Errorf("expected safe invariant name, got: %s", md)
+	}
+	for _, forbidden := range []string{"alice@example.com", "postgres://alice:secret@db/private", "email !="} {
+		if strings.Contains(md, forbidden) {
+			t.Errorf("GitHub summary contains forbidden detail %q: %s", forbidden, md)
+		}
 	}
 }

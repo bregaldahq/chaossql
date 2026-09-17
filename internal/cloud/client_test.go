@@ -3,12 +3,154 @@ package cloud
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/bregaldahq/chaossql/internal/domain"
 )
+
+func TestClientPublishRunUsesMetadataAllowlist(t *testing.T) {
+	var body []byte
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, _ = io.ReadAll(r.Body)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		_ = json.NewEncoder(w).Encode(RunIngestResponse{Success: true, RunID: "run_safe"})
+	}))
+	defer ts.Close()
+
+	original := &RunIngestRequest{
+		Version: "1.0",
+		CI: &CIContext{
+			Provider: "github-actions", Repository: "acme/payments", CommitSHA: "abc123",
+			Branch: "main", Actor: "alice@example.com",
+		},
+		Scenario: ScenarioMetadata{Name: "transfer", Driver: "postgres", Seed: 42},
+		Schedule: &domain.SchedulePlan{Version: 1, Seed: 42, Decisions: []domain.ScheduleDecision{{Sequence: 1, OperationID: 7}}},
+		Result: ExecutionSummary{
+			Status: "failed", ViolationDetected: true, AnomalyType: "P4",
+			FailingInvariant: &InvariantSummary{
+				Name: "balance_preserved", Query: "SELECT email FROM private.customers",
+				Assertion: "email != 'alice@example.com'", Actual: "alice@example.com",
+			},
+		},
+		Reproduction: &ReproductionData{
+			MinimalOperationsCount: 2,
+			ShrinkDurationMS:       15,
+			ReproGoCode:            `const dsn = "postgres://alice:secret@db/private"`,
+			MermaidDiagram:         "private.customers --> alice@example.com",
+			SanitizedMinimalTrace: []SanitizedTraceEvent{{
+				Worker: "T1", OpType: "read", Table: "private.customers",
+				SQL: "SELECT * FROM private.customers WHERE email = 'alice@example.com' AND token = 'tok_secret'",
+			}},
+		},
+	}
+
+	client := NewClient(Config{BaseURL: ts.URL, Token: "transport-token"})
+	if _, err := client.PublishRun(context.Background(), original); err != nil {
+		t.Fatal(err)
+	}
+
+	payload := string(body)
+	for _, forbidden := range []string{
+		"alice@example.com", "private.customers", "postgres://alice:secret@db/private", "tok_secret",
+		`"actor"`, `"schedule"`, `"query"`, `"assertion"`, `"actual"`,
+		`"repro_go_code"`, `"mermaid_diagram"`, `"sanitized_minimal_trace"`, `"sql"`, `"table"`,
+	} {
+		if strings.Contains(payload, forbidden) {
+			t.Errorf("cloud payload contains forbidden content %q: %s", forbidden, payload)
+		}
+	}
+	for _, allowed := range []string{"acme/payments", "balance_preserved", `"minimal_operations_count":2`} {
+		if !strings.Contains(payload, allowed) {
+			t.Errorf("cloud payload omitted allowed metadata %q: %s", allowed, payload)
+		}
+	}
+	if original.CI.Actor != "alice@example.com" || original.Reproduction.ReproGoCode == "" || original.Result.FailingInvariant.Actual == "" {
+		t.Fatal("metadata projection mutated the caller request")
+	}
+}
+
+func TestClientPublishRunRejectsOversizedMetadata(t *testing.T) {
+	var requests int32
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		atomic.AddInt32(&requests, 1)
+		w.WriteHeader(http.StatusCreated)
+	}))
+	defer ts.Close()
+
+	client := NewClient(Config{BaseURL: ts.URL, Token: "transport-token"})
+	_, err := client.PublishRun(context.Background(), &RunIngestRequest{
+		Scenario: ScenarioMetadata{Name: strings.Repeat("x", MaxPayloadBytes)},
+	})
+	if !errors.Is(err, ErrPayloadTooLarge) {
+		t.Fatalf("error = %v, want ErrPayloadTooLarge", err)
+	}
+	if atomic.LoadInt32(&requests) != 0 {
+		t.Fatal("oversized payload reached the network")
+	}
+}
+
+func TestClientPublishRunRejectsSensitiveContentInAllowedFields(t *testing.T) {
+	var requests int32
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		atomic.AddInt32(&requests, 1)
+		w.WriteHeader(http.StatusCreated)
+	}))
+	defer ts.Close()
+	client := NewClient(Config{BaseURL: ts.URL, Token: "transport-token"})
+
+	tests := []struct {
+		name string
+		req  *RunIngestRequest
+	}{
+		{"repository credential URL", &RunIngestRequest{CI: &CIContext{Repository: "https://alice:token@git.example/private/repo"}}},
+		{"scenario DSN", &RunIngestRequest{Scenario: ScenarioMetadata{Name: "postgres://alice:secret@db/private"}}},
+		{"invariant email", &RunIngestRequest{Result: ExecutionSummary{FailingInvariant: &InvariantSummary{Name: "alice@example.com"}}}},
+		{"branch free text", &RunIngestRequest{CI: &CIContext{Branch: "SELECT secret FROM customers"}}},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if _, err := client.PublishRun(context.Background(), test.req); !errors.Is(err, ErrUnsafeMetadata) {
+				t.Fatalf("error = %v, want ErrUnsafeMetadata", err)
+			}
+		})
+	}
+	if atomic.LoadInt32(&requests) != 0 {
+		t.Fatal("unsafe metadata reached the network")
+	}
+}
+
+func TestMetadataValidationAcceptsOfficialDriversAndAnomalyCodes(t *testing.T) {
+	tests := []struct {
+		name        string
+		driver      string
+		anomalyType string
+	}{
+		{name: "mock driver", driver: "mock", anomalyType: "NONE"},
+		{name: "dirty read code", driver: "sqlite", anomalyType: "G1a"},
+		{name: "circular information code", driver: "postgres", anomalyType: "G1c"},
+		{name: "deadlock code", driver: "mysql", anomalyType: "G-DL"},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			payload := projectMetadataPayload(&RunIngestRequest{
+				Scenario: ScenarioMetadata{Driver: test.driver},
+				Result:   ExecutionSummary{AnomalyType: test.anomalyType},
+			}, time.Time{})
+			if err := validateMetadataPayload(&payload); err != nil {
+				t.Fatalf("official metadata rejected: %v", err)
+			}
+		})
+	}
+}
 
 func TestClientPublishRunSuccess(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

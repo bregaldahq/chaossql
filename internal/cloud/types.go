@@ -32,9 +32,9 @@ type ScenarioMetadata struct {
 // InvariantSummary describes an invariant assertion outcome
 type InvariantSummary struct {
 	Name      string `json:"name"`
-	Query     string `json:"query"`
-	Assertion string `json:"assertion"`
-	Actual    string `json:"actual"`
+	Query     string `json:"query,omitempty"`
+	Assertion string `json:"assertion,omitempty"`
+	Actual    string `json:"actual,omitempty"`
 }
 
 // ExecutionSummary describes the outcome of the chaos execution
@@ -50,33 +50,35 @@ type ExecutionSummary struct {
 	FailingInvariant  *InvariantSummary `json:"failing_invariant,omitempty"`
 }
 
-// SanitizedTraceEvent represents an individual operation safely stripped of sensitive payloads
+// SanitizedTraceEvent represents structural operation metadata. Table and SQL
+// remain for decoding legacy payloads and are rejected by hosted ingestion.
 type SanitizedTraceEvent struct {
 	Worker   string `json:"worker"`
-	OpType   string `json:"op_type"` // "read", "write", "commit", "abort"
-	Table    string `json:"table,omitempty"`
-	SQL      string `json:"sql"`
+	OpType   string `json:"op_type"`         // "read", "write", "commit", "abort"
+	Table    string `json:"table,omitempty"` // Deprecated: hosted payloads must omit this field.
+	SQL      string `json:"sql,omitempty"`   // Deprecated: hosted payloads must omit this field.
 	Duration int64  `json:"duration_us,omitempty"`
 }
 
-// ReproductionData contains the synthesized causal artifact
+// ReproductionData contains reduction metrics and legacy detail fields. Hosted
+// ingestion accepts only the numeric metrics.
 type ReproductionData struct {
 	MinimalOperationsCount int                   `json:"minimal_operations_count"`
 	ShrinkDurationMS       int64                 `json:"shrink_duration_ms"`
 	ReproGoCode            string                `json:"repro_go_code,omitempty"`
 	MermaidDiagram         string                `json:"mermaid_diagram,omitempty"`
-	SanitizedMinimalTrace  []SanitizedTraceEvent `json:"sanitized_minimal_trace"`
+	SanitizedMinimalTrace  []SanitizedTraceEvent `json:"sanitized_minimal_trace,omitempty"`
 }
 
 // RunIngestRequest is the root JSON payload sent to POST /v1/runs
 type RunIngestRequest struct {
-	Version      string              `json:"version"`
-	Timestamp    time.Time           `json:"timestamp"`
-	CI           *CIContext          `json:"ci,omitempty"`
-	Scenario     ScenarioMetadata    `json:"scenario"`
-	Schedule     domain.SchedulePlan `json:"schedule"`
-	Result       ExecutionSummary    `json:"result"`
-	Reproduction *ReproductionData   `json:"reproduction,omitempty"`
+	Version      string               `json:"version"`
+	Timestamp    time.Time            `json:"timestamp"`
+	CI           *CIContext           `json:"ci,omitempty"`
+	Scenario     ScenarioMetadata     `json:"scenario"`
+	Schedule     *domain.SchedulePlan `json:"schedule,omitempty"`
+	Result       ExecutionSummary     `json:"result"`
+	Reproduction *ReproductionData    `json:"reproduction,omitempty"`
 }
 
 // BaselineComparison describes whether this run represents a regression

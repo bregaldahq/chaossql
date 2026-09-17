@@ -86,3 +86,21 @@ func TestDetectCIContextGitHub(t *testing.T) {
 		t.Errorf("expected base branch main, got %q", ci.BaseBranch)
 	}
 }
+
+func TestSanitizeRepositoryRemoteRemovesCredentialsAndURLDetails(t *testing.T) {
+	tests := []struct {
+		remote string
+		want   string
+	}{
+		{"https://alice:secret@gitlab.example.com/group/repo.git?token=other#fragment", "gitlab.example.com/group/repo"},
+		{"ssh://git:secret@gitlab.example.com/group/repo.git", "gitlab.example.com/group/repo"},
+		{"git@github.com:bregaldahq/chaossql.git", "bregaldahq/chaossql"},
+		{"https://token@github.com/bregaldahq/chaossql.git", "bregaldahq/chaossql"},
+		{"/home/alice/private/repository", "local/repository"},
+	}
+	for _, test := range tests {
+		if got := sanitizeRepositoryRemote(test.remote); got != test.want {
+			t.Errorf("sanitizeRepositoryRemote(%q) = %q, want %q", test.remote, got, test.want)
+		}
+	}
+}

@@ -111,7 +111,6 @@ func TestCloudControlPlaneE2E(t *testing.T) {
 			Repository: "acme/fintech-ledger",
 			CommitSHA:  "commit_base_100",
 			Branch:     "main",
-			Actor:      "octocat",
 		},
 		Scenario: cloud.ScenarioMetadata{
 			Name:       "double_spend_check",
@@ -153,7 +152,6 @@ func TestCloudControlPlaneE2E(t *testing.T) {
 			CommitSHA:         "commit_pr_200",
 			Branch:            "feat/instant-settlement",
 			PullRequestNumber: 42,
-			Actor:             "contributor",
 		},
 		Scenario: cloud.ScenarioMetadata{
 			Name:       "double_spend_check",
@@ -170,23 +168,11 @@ func TestCloudControlPlaneE2E(t *testing.T) {
 			DurationMS:        550,
 			TotalSchedules:    100,
 			FailedSchedules:   18,
-			FailingInvariant: &cloud.InvariantSummary{
-				Name:      "no_negative_balance",
-				Query:     "SELECT count(*) FROM accounts WHERE balance < 0",
-				Assertion: "count == 0",
-				Actual:    "1",
-			},
+			FailingInvariant:  &cloud.InvariantSummary{Name: "no_negative_balance"},
 		},
 		Reproduction: &cloud.ReproductionData{
 			MinimalOperationsCount: 4,
 			ShrinkDurationMS:       80,
-			ReproGoCode:            "package main\nfunc main() { /* repro */ }",
-			SanitizedMinimalTrace: []cloud.SanitizedTraceEvent{
-				{Worker: "T1", OpType: "read", Table: "accounts", SQL: "SELECT balance FROM accounts WHERE id = 1"},
-				{Worker: "T2", OpType: "read", Table: "accounts", SQL: "SELECT balance FROM accounts WHERE id = 1"},
-				{Worker: "T1", OpType: "write", Table: "accounts", SQL: "UPDATE accounts SET balance = balance - 100 WHERE id = 1"},
-				{Worker: "T2", OpType: "write", Table: "accounts", SQL: "UPDATE accounts SET balance = balance - 100 WHERE id = 1"},
-			},
 		},
 	}
 

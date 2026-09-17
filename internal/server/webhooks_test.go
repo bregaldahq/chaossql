@@ -231,7 +231,6 @@ func TestIngestTriggersWebhookOnRegression(t *testing.T) {
 			Repository: "acme/checkout",
 			CommitSHA:  "aaa1111",
 			Branch:     "main",
-			Actor:      "octocat",
 		},
 		Scenario: cloud.ScenarioMetadata{
 			Name:       "cart_checkout",
@@ -271,7 +270,6 @@ func TestIngestTriggersWebhookOnRegression(t *testing.T) {
 			CommitSHA:         "bbb2222",
 			Branch:            "feat/discount",
 			PullRequestNumber: 99,
-			Actor:             "contributor",
 		},
 		Scenario: cloud.ScenarioMetadata{
 			Name:       "cart_checkout",

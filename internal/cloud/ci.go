@@ -2,6 +2,7 @@ package cloud
 
 import (
 	"encoding/json"
+	"net/url"
 	"os"
 	"os/exec"
 	"regexp"
@@ -9,7 +10,10 @@ import (
 	"strings"
 )
 
-var prRefRegex = regexp.MustCompile(`refs/pull/([0-9]+)/(merge|head)`)
+var (
+	prRefRegex     = regexp.MustCompile(`refs/pull/([0-9]+)/(merge|head)`)
+	scpRemoteRegex = regexp.MustCompile(`^[^@]+@([^:]+):(.+)$`)
+)
 
 // DetectCIContext extracts CI environment metadata or falls back to local git
 func DetectCIContext() *CIContext {
@@ -121,16 +125,30 @@ func detectLocalRepo() string {
 		return "local/repository"
 	}
 	raw := strings.TrimSpace(string(out))
-	raw = strings.TrimSuffix(raw, ".git")
+	return sanitizeRepositoryRemote(raw)
+}
 
-	if strings.HasPrefix(raw, "git@github.com:") {
-		return strings.TrimPrefix(raw, "git@github.com:")
+func sanitizeRepositoryRemote(raw string) string {
+	trimmed := strings.TrimSpace(raw)
+	if matches := scpRemoteRegex.FindStringSubmatch(trimmed); len(matches) == 3 {
+		return repositoryIdentifier(matches[1], matches[2])
 	}
-	if strings.Contains(raw, "github.com/") {
-		parts := strings.Split(raw, "github.com/")
-		if len(parts) == 2 {
-			return parts[1]
-		}
+	parsed, err := url.Parse(trimmed)
+	if err != nil || parsed.Scheme == "" || parsed.Hostname() == "" {
+		return "local/repository"
 	}
-	return raw
+	return repositoryIdentifier(parsed.Hostname(), parsed.Path)
+}
+
+func repositoryIdentifier(host, repoPath string) string {
+	host = strings.ToLower(strings.TrimSpace(host))
+	repoPath = strings.Trim(strings.TrimSpace(repoPath), "/")
+	repoPath = strings.TrimSuffix(repoPath, ".git")
+	if host == "" || repoPath == "" {
+		return "local/repository"
+	}
+	if host == "github.com" {
+		return repoPath
+	}
+	return host + "/" + repoPath
 }

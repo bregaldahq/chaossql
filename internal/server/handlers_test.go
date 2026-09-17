@@ -92,6 +92,114 @@ func TestIngestRunAuthFailure(t *testing.T) {
 	}
 }
 
+func TestIngestRunRejectsForbiddenCloudDetailsBeforePersistence(t *testing.T) {
+	handler, store, token := newTestServer(t)
+	tests := []struct {
+		name    string
+		payload string
+	}{
+		{"ci actor", `{"ci":{"actor":"alice@example.com"}}`},
+		{"schedule", `{"schedule":{"version":1,"decisions":[]}}`},
+		{"invariant values", `{"result":{"failing_invariant":{"name":"balance","actual":"alice@example.com"}}}`},
+		{"trace SQL", `{"reproduction":{"sanitized_minimal_trace":[{"sql":"SELECT secret FROM private.users"}]}}`},
+		{"reproduction code", `{"reproduction":{"repro_go_code":"const password = secret"}}`},
+		{"empty actor field", `{"ci":{"actor":""}}`},
+		{"null schedule field", `{"schedule":null}`},
+		{"empty actual field", `{"result":{"failing_invariant":{"name":"balance","actual":""}}}`},
+		{"unsafe allowed field", `{"scenario":{"name":"postgres://alice:secret@db/private"}}`},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodPost, "/v1/runs", strings.NewReader(test.payload))
+			req.Header.Set("Authorization", "Bearer "+token)
+			response := httptest.NewRecorder()
+			handler.ServeHTTP(response, req)
+			if response.Code != http.StatusBadRequest {
+				t.Fatalf("status=%d body=%s", response.Code, response.Body.String())
+			}
+		})
+	}
+	runs, err := store.ListRecentRunsForOrg("org_cloud_test", 50, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(runs) != 0 {
+		t.Fatalf("forbidden payloads persisted %d runs", len(runs))
+	}
+}
+
+func TestIngestRunRejectsUnknownAndOversizedPayloads(t *testing.T) {
+	handler, _, token := newTestServer(t)
+
+	unknown := httptest.NewRequest(http.MethodPost, "/v1/runs", strings.NewReader(`{"unexpected_sensitive_field":"secret"}`))
+	unknown.Header.Set("Authorization", "Bearer "+token)
+	unknownResponse := httptest.NewRecorder()
+	handler.ServeHTTP(unknownResponse, unknown)
+	if unknownResponse.Code != http.StatusBadRequest {
+		t.Fatalf("unknown field status=%d body=%s", unknownResponse.Code, unknownResponse.Body.String())
+	}
+
+	oversized := httptest.NewRequest(http.MethodPost, "/v1/runs", strings.NewReader(`{"scenario":{"name":"`+strings.Repeat("x", cloud.MaxPayloadBytes)+`"}}`))
+	oversized.Header.Set("Authorization", "Bearer "+token)
+	oversizedResponse := httptest.NewRecorder()
+	handler.ServeHTTP(oversizedResponse, oversized)
+	if oversizedResponse.Code != http.StatusRequestEntityTooLarge {
+		t.Fatalf("oversized status=%d body=%s", oversizedResponse.Code, oversizedResponse.Body.String())
+	}
+
+	trailing := httptest.NewRequest(http.MethodPost, "/v1/runs", strings.NewReader(`{}`+strings.Repeat(" ", cloud.MaxPayloadBytes)))
+	trailing.Header.Set("Authorization", "Bearer "+token)
+	trailingResponse := httptest.NewRecorder()
+	handler.ServeHTTP(trailingResponse, trailing)
+	if trailingResponse.Code != http.StatusRequestEntityTooLarge {
+		t.Fatalf("oversized trailing data status=%d body=%s", trailingResponse.Code, trailingResponse.Body.String())
+	}
+}
+
+func TestGetRunNeverReturnsStoredDetailedFindingFields(t *testing.T) {
+	handler, store, token := newTestServer(t)
+	repo, err := store.GetOrCreateRepo("org_cloud_test", "acme/private", "main")
+	if err != nil {
+		t.Fatal(err)
+	}
+	scenario, err := store.GetOrCreateScenario(repo.ID, "transfer", "sqlite")
+	if err != nil {
+		t.Fatal(err)
+	}
+	run := &RunRecord{ID: "run_private", RepoID: repo.ID, ScenarioID: scenario.ID, CommitSHA: "alice@example.com", Branch: "postgres://alice:secret@db/private", Status: "SELECT secret", AnomalyType: "private.accounts", CreatedAt: time.Now().UTC()}
+	finding := &FindingRecord{ID: "finding_private", RunID: run.ID, AnomalyType: "P4", Assertion: "alice@example.com", MinimalOps: 2, ReproCode: "postgres://alice:secret@db/private", TraceJSON: `[{"sql":"SELECT secret"}]`, CreatedAt: time.Now().UTC()}
+	if err := store.SaveRun(run, finding); err != nil {
+		t.Fatal(err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/v1/runs/"+run.ID, nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, req)
+	if response.Code != http.StatusOK {
+		t.Fatalf("status=%d body=%s", response.Code, response.Body.String())
+	}
+	for _, forbidden := range []string{"alice@example.com", "postgres://alice:secret@db/private", "SELECT secret", "private.accounts", "repro_code", "trace_json"} {
+		if strings.Contains(response.Body.String(), forbidden) {
+			t.Errorf("run response contains forbidden detail %q: %s", forbidden, response.Body.String())
+		}
+	}
+	for _, path := range []string{"/v1/runs", "/v1/repositories/acme/private/runs"} {
+		listRequest := httptest.NewRequest(http.MethodGet, path, nil)
+		listRequest.Header.Set("Authorization", "Bearer "+token)
+		listResponse := httptest.NewRecorder()
+		handler.ServeHTTP(listResponse, listRequest)
+		if listResponse.Code != http.StatusOK {
+			t.Fatalf("list %s status=%d body=%s", path, listResponse.Code, listResponse.Body.String())
+		}
+		for _, forbidden := range []string{"alice@example.com", "postgres://alice:secret@db/private", "SELECT secret", "private.accounts"} {
+			if strings.Contains(listResponse.Body.String(), forbidden) {
+				t.Errorf("run list %s contains forbidden detail %q: %s", path, forbidden, listResponse.Body.String())
+			}
+		}
+	}
+}
+
 func TestIngestRunFlowAndRegression(t *testing.T) {
 	handler, _, token := newTestServer(t)
 
@@ -160,16 +268,11 @@ func TestIngestRunFlowAndRegression(t *testing.T) {
 			AnomalyType:       "P4",
 			DurationMS:        410,
 			FailingInvariant: &cloud.InvariantSummary{
-				Name:      "balance_sum",
-				Assertion: "total == 2000",
-				Actual:    "1950",
+				Name: "balance_sum",
 			},
 		},
 		Reproduction: &cloud.ReproductionData{
 			MinimalOperationsCount: 4,
-			SanitizedMinimalTrace: []cloud.SanitizedTraceEvent{
-				{Worker: "w1", OpType: "write", Table: "accounts", SQL: "UPDATE accounts SET balance = balance - 50"},
-			},
 		},
 	}
 

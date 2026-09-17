@@ -7,58 +7,6 @@ import (
 	"github.com/bregaldahq/chaossql/internal/domain"
 )
 
-func TestSanitizeSQL(t *testing.T) {
-	tests := []struct {
-		name     string
-		input    string
-		expected string
-	}{
-		{
-			name:     "clean select",
-			input:    "SELECT balance FROM accounts WHERE id = 1",
-			expected: "SELECT balance FROM accounts WHERE id = 1",
-		},
-		{
-			name:     "redact password in update",
-			input:    "UPDATE users SET password = 'super_secret_123' WHERE id = 10",
-			expected: "UPDATE users SET password = '[REDACTED]' WHERE id = 10",
-		},
-		{
-			name:     "redact api token",
-			input:    "UPDATE api_keys SET token = 'tok_live_99812491' WHERE org = 5",
-			expected: "UPDATE api_keys SET token = '[REDACTED]' WHERE org = 5",
-		},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			actual := SanitizeSQL(tc.input)
-			if actual != tc.expected {
-				t.Errorf("expected %q, got %q", tc.expected, actual)
-			}
-		})
-	}
-}
-
-func TestExtractTable(t *testing.T) {
-	tests := []struct {
-		sql      string
-		expected string
-	}{
-		{"SELECT * FROM accounts WHERE id = 1", "accounts"},
-		{"UPDATE schema_name.wallets SET bal = 100", "schema_name.wallets"},
-		{"INSERT INTO transactions (id, val) VALUES (1, 10)", "transactions"},
-		{"BEGIN", ""},
-	}
-
-	for _, tc := range tests {
-		actual := ExtractTable(tc.sql)
-		if actual != tc.expected {
-			t.Errorf("sql: %s => expected table %q, got %q", tc.sql, tc.expected, actual)
-		}
-	}
-}
-
 func TestSanitizeTrace(t *testing.T) {
 	trace := []domain.TraceEvent{
 		{
@@ -86,10 +34,10 @@ func TestSanitizeTrace(t *testing.T) {
 		t.Fatalf("expected 3 sanitized events, got %d", len(sanitized))
 	}
 
-	if sanitized[0].Worker != "T1" || sanitized[0].OpType != "read" || sanitized[0].Table != "accounts" {
+	if sanitized[0].Worker != "T1" || sanitized[0].OpType != "read" || sanitized[0].Table != "" || sanitized[0].SQL != "" {
 		t.Errorf("unexpected event 0: %+v", sanitized[0])
 	}
-	if sanitized[1].Worker != "T2" || sanitized[1].OpType != "write" || sanitized[1].SQL != "UPDATE accounts SET password = '[REDACTED]' WHERE id = 1" {
+	if sanitized[1].Worker != "T2" || sanitized[1].OpType != "write" || sanitized[1].Table != "" || sanitized[1].SQL != "" {
 		t.Errorf("unexpected event 1: %+v", sanitized[1])
 	}
 	if sanitized[2].OpType != "commit" {

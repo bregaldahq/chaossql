@@ -16,6 +16,7 @@ var (
 	ErrUnauthorized     = errors.New("invalid or unauthorized ChaosSQL Cloud token (HTTP 401)")
 	ErrBadRequest       = errors.New("invalid run ingest payload (HTTP 400)")
 	ErrCloudUnavailable = errors.New("chaossql cloud api unavailable after retries")
+	ErrPayloadTooLarge  = errors.New("cloud metadata payload exceeds 64 KiB limit")
 )
 
 // Config configures the Cloud HTTP API client
@@ -61,16 +62,16 @@ func (c *Client) PublishRun(ctx context.Context, req *RunIngestRequest) (*RunIng
 		return nil, errors.New("missing cloud token")
 	}
 
-	if req.Version == "" {
-		req.Version = "1.0"
-	}
-	if req.Timestamp.IsZero() {
-		req.Timestamp = time.Now().UTC()
-	}
-
-	bodyBytes, err := json.Marshal(req)
+	payload := projectMetadataPayload(req, time.Now())
+	bodyBytes, err := json.Marshal(payload)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode run ingest payload: %w", err)
+	}
+	if len(bodyBytes) > MaxPayloadBytes {
+		return nil, fmt.Errorf("%w: %d bytes", ErrPayloadTooLarge, len(bodyBytes))
+	}
+	if err := validateMetadataPayload(&payload); err != nil {
+		return nil, err
 	}
 
 	endpoint := fmt.Sprintf("%s/v1/runs", c.cfg.BaseURL)
@@ -126,7 +127,6 @@ func (c *Client) PublishRun(ctx context.Context, req *RunIngestRequest) (*RunIng
 
 	return nil, fmt.Errorf("%w: %v", ErrCloudUnavailable, lastErr)
 }
-
 
 // BaseURL returns the configured base URL
 func (c *Client) BaseURL() string {

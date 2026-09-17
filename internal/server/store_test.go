@@ -278,6 +278,45 @@ func TestAutoMigrateReplacesLegacyGlobalRepositoryUniqueness(t *testing.T) {
 	}
 }
 
+func TestAutoMigratePurgesLegacyHostedFindingDetails(t *testing.T) {
+	db, err := sql.Open("sqlite", t.TempDir()+"/legacy-findings.db")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	_, err = db.Exec(`
+		CREATE TABLE organizations (id TEXT PRIMARY KEY, name TEXT NOT NULL, plan TEXT NOT NULL, created_at DATETIME NOT NULL);
+		CREATE TABLE repositories (id TEXT PRIMARY KEY, org_id TEXT NOT NULL, full_name TEXT NOT NULL, default_branch TEXT NOT NULL, created_at DATETIME NOT NULL, UNIQUE(org_id, full_name));
+		CREATE TABLE scenarios (id TEXT PRIMARY KEY, repo_id TEXT NOT NULL, name TEXT NOT NULL, driver TEXT NOT NULL, created_at DATETIME NOT NULL, UNIQUE(repo_id, name));
+		CREATE TABLE runs (id TEXT PRIMARY KEY, repo_id TEXT NOT NULL, scenario_id TEXT NOT NULL, commit_sha TEXT NOT NULL, branch TEXT NOT NULL, pr_number INTEGER NOT NULL, status TEXT NOT NULL, anomaly_type TEXT, seed INTEGER NOT NULL, duration_ms INTEGER NOT NULL, created_at DATETIME NOT NULL);
+		CREATE TABLE findings (id TEXT PRIMARY KEY, run_id TEXT NOT NULL, anomaly_type TEXT NOT NULL, assertion TEXT, minimal_ops INTEGER NOT NULL, repro_code TEXT, trace_json TEXT, created_at DATETIME NOT NULL);
+		INSERT INTO organizations VALUES ('org_a', 'A', 'team', CURRENT_TIMESTAMP);
+		INSERT INTO repositories VALUES ('repo_a', 'org_a', 'acme/private', 'main', CURRENT_TIMESTAMP);
+		INSERT INTO scenarios VALUES ('scenario_a', 'repo_a', 'transfer', 'sqlite', CURRENT_TIMESTAMP);
+		INSERT INTO runs VALUES ('run_a', 'repo_a', 'scenario_a', 'abc', 'main', 0, 'failed', 'P4', 1, 1, CURRENT_TIMESTAMP);
+		INSERT INTO findings VALUES ('finding_a', 'run_a', 'P4', 'email = alice@example.com', 2, 'postgres://alice:secret@db/private', '[{"sql":"SELECT secret"}]', CURRENT_TIMESTAMP);
+	`)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	store := NewStore(db)
+	if err := store.AutoMigrate(); err != nil {
+		t.Fatal(err)
+	}
+	_, finding, err := store.GetRunForOrg("org_a", "run_a")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if finding == nil || finding.Assertion != "" || finding.ReproCode != "" || finding.TraceJSON != "" {
+		t.Fatalf("legacy finding details were not purged: %+v", finding)
+	}
+	var migrations int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM schema_migrations WHERE version = '2026-09-16-purge-hosted-finding-details'`).Scan(&migrations); err != nil || migrations != 1 {
+		t.Fatalf("privacy migration marker count=%d error=%v", migrations, err)
+	}
+}
+
 func TestStoreListRecentRuns(t *testing.T) {
 	s := newTestStore(t)
 	orgID := "org_list_test"
