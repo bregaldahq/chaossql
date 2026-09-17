@@ -127,6 +127,31 @@ func TestClientPublishRunRejectsSensitiveContentInAllowedFields(t *testing.T) {
 	}
 }
 
+func TestMetadataValidationAcceptsOfficialDriversAndAnomalyCodes(t *testing.T) {
+	tests := []struct {
+		name        string
+		driver      string
+		anomalyType string
+	}{
+		{name: "mock driver", driver: "mock", anomalyType: "NONE"},
+		{name: "dirty read code", driver: "sqlite", anomalyType: "G1a"},
+		{name: "circular information code", driver: "postgres", anomalyType: "G1c"},
+		{name: "deadlock code", driver: "mysql", anomalyType: "G-DL"},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			payload := projectMetadataPayload(&RunIngestRequest{
+				Scenario: ScenarioMetadata{Driver: test.driver},
+				Result:   ExecutionSummary{AnomalyType: test.anomalyType},
+			}, time.Time{})
+			if err := validateMetadataPayload(&payload); err != nil {
+				t.Fatalf("official metadata rejected: %v", err)
+			}
+		})
+	}
+}
+
 func TestClientPublishRunSuccess(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {

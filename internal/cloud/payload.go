@@ -210,7 +210,7 @@ func validateMetadataPayload(payload *metadataPayload) error {
 
 func isAllowedDriver(value string) bool {
 	switch value {
-	case "sqlite", "postgres", "postgresql", "mysql", "mariadb":
+	case "mock", "sqlite", "postgres", "postgresql", "mysql", "mariadb":
 		return true
 	default:
 		return false
@@ -232,7 +232,7 @@ func isAllowedExecutionStatus(value string) bool {
 
 func IsAllowedAnomalyType(value string) bool {
 	switch value {
-	case "NONE", "P4", "A5B", "A3", "A5A", "G0", "G1A", "G1B", "G1C", "G2",
+	case "NONE", "P4", "A5B", "A3", "A5A", "G0", "G1a", "G1b", "G1c", "G1A", "G1B", "G1C", "G2", "G-DL",
 		"P4_LOST_UPDATE", "A5B_WRITE_SKEW", "A3_PHANTOM_READ", "A5A_READ_SKEW",
 		"G0_DIRTY_WRITE", "G1A_DIRTY_READ", "G1B_INTERMEDIATE_READ", "FRACTURED_READ",
 		"G1C_CIRCULAR_INFO", "G2_ANTI_DEPENDENCY", "UNKNOWN_INVARIANT_VIOLATION":
