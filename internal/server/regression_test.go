@@ -151,3 +151,127 @@ func TestRegressionEngine_BaselineEstablishedAndPRRegresses(t *testing.T) {
 		t.Errorf("expected comparison against run_main_01, got %v", comp)
 	}
 }
+
+func TestRegressionEngine_OutOfOrderDefaultBranchCommit(t *testing.T) {
+	s := newTestStore(t)
+	repo, sc := setupTestRepoAndScenario(t, s)
+	engine := NewRegressionEngine(s)
+
+	tNewer := time.Date(2026, 9, 17, 14, 0, 0, 0, time.UTC)
+	tOlder := time.Date(2026, 9, 17, 13, 0, 0, 0, time.UTC)
+
+	// 1. Commit at 14:00 runs and passes on main -> becomes baseline
+	runNewer := &RunRecord{
+		ID:                  "run_newer_1400",
+		RepoID:              repo.ID,
+		ScenarioID:          sc.ID,
+		CommitSHA:           "sha_newer",
+		Branch:              "main",
+		PRNumber:            0,
+		Status:              "passed",
+		CreatedAt:           tNewer,
+		CommitTimestamp:     &tNewer,
+		ScenarioFingerprint: "fp_auth_v1",
+	}
+	if err := s.SaveRun(runNewer, nil); err != nil {
+		t.Fatalf("failed to save runNewer: %v", err)
+	}
+	_, _, err := engine.Evaluate(repo, sc, runNewer)
+	if err != nil {
+		t.Fatalf("evaluate newer run failed: %v", err)
+	}
+
+	base, err := s.GetLatestBaseline(repo.ID, sc.ID, "main")
+	if err != nil || base.ID != "run_newer_1400" {
+		t.Fatalf("expected baseline to be run_newer_1400, got: %+v err=%v", base, err)
+	}
+
+	// 2. An older commit (from 13:00) finishes CI late on main
+	runOlder := &RunRecord{
+		ID:                  "run_older_1300",
+		RepoID:              repo.ID,
+		ScenarioID:          sc.ID,
+		CommitSHA:           "sha_older",
+		Branch:              "main",
+		PRNumber:            0,
+		Status:              "passed",
+		CreatedAt:           tNewer.Add(5 * time.Minute), // finished after newer run
+		CommitTimestamp:     &tOlder,                    // but committed earlier!
+		ScenarioFingerprint: "fp_auth_v1",
+	}
+	if err := s.SaveRun(runOlder, nil); err != nil {
+		t.Fatalf("failed to save runOlder: %v", err)
+	}
+	comp, isReg, err := engine.Evaluate(repo, sc, runOlder)
+	if err != nil {
+		t.Fatalf("evaluate older run failed: %v", err)
+	}
+	if isReg {
+		t.Errorf("older passing run should not be a regression")
+	}
+
+	// 3. Verify baseline was NOT overwritten by the older commit!
+	baseAfter, err := s.GetLatestBaseline(repo.ID, sc.ID, "main")
+	if err != nil {
+		t.Fatalf("get baseline failed: %v", err)
+	}
+	if baseAfter.ID != "run_newer_1400" {
+		t.Errorf("CRITICAL: baseline was downgraded! Expected run_newer_1400, got: %s", baseAfter.ID)
+	}
+	if comp == nil || comp.RunID != "run_newer_1400" {
+		t.Errorf("expected comparison to reference active baseline run_newer_1400, got %+v", comp)
+	}
+}
+
+func TestRegressionEngine_ScenarioFingerprintMismatch(t *testing.T) {
+	s := newTestStore(t)
+	repo, sc := setupTestRepoAndScenario(t, s)
+	engine := NewRegressionEngine(s)
+
+	now := time.Now().UTC()
+
+	// 1. Baseline established on main with fingerprint v1
+	mainRun := &RunRecord{
+		ID:                  "run_main_v1",
+		RepoID:              repo.ID,
+		ScenarioID:          sc.ID,
+		CommitSHA:           "sha_main_v1",
+		Branch:              "main",
+		PRNumber:            0,
+		Status:              "passed",
+		CreatedAt:           now,
+		CommitTimestamp:     &now,
+		ScenarioFingerprint: "fingerprint_v1_postgres",
+	}
+	_ = s.SaveRun(mainRun, nil)
+	_, _, _ = engine.Evaluate(repo, sc, mainRun)
+
+	// 2. PR run with DIFFERENT scenario fingerprint v2 fails
+	prRunDiffFP := &RunRecord{
+		ID:                  "run_pr_diff_fp",
+		RepoID:              repo.ID,
+		ScenarioID:          sc.ID,
+		CommitSHA:           "sha_pr_v2",
+		Branch:              "feat/rewrite-scenario",
+		PRNumber:            88,
+		Status:              "failed",
+		AnomalyType:         "P4",
+		CreatedAt:           now.Add(time.Minute),
+		CommitTimestamp:     &now,
+		ScenarioFingerprint: "fingerprint_v2_postgres_modified_invariants",
+	}
+	_ = s.SaveRun(prRunDiffFP, nil)
+
+	comp, isReg, err := engine.Evaluate(repo, sc, prRunDiffFP)
+	if err != nil {
+		t.Fatalf("evaluate diff fp run failed: %v", err)
+	}
+
+	// Because fingerprints don't match, this PR run must NOT be compared against incompatible baseline v1
+	if isReg {
+		t.Errorf("expected isReg=false due to scenario fingerprint mismatch, got true")
+	}
+	if comp != nil {
+		t.Errorf("expected comp=nil due to scenario fingerprint mismatch, got %+v", comp)
+	}
+}

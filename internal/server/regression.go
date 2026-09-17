@@ -38,11 +38,21 @@ func (re *RegressionEngine) Evaluate(repo *Repository, sc *Scenario, run *RunRec
 
 	hasBaseline := (err == nil && baseRun != nil)
 
-	// If this is on the default branch and passed, it becomes the new baseline!
+	// If this is on the default branch and passed, check whether it can become or update the baseline:
 	if isDefaultBranch && run.Status == "passed" {
-		if err := re.store.SetBaseline(repo.ID, sc.ID, defaultBranch, run.ID); err != nil {
-			return nil, false, fmt.Errorf("failed to update baseline: %w", err)
+		canUpdate := true
+		if hasBaseline && run.CommitTimestamp != nil && baseRun.CommitTimestamp != nil {
+			if run.CommitTimestamp.Before(*baseRun.CommitTimestamp) {
+				canUpdate = false
+			}
 		}
+
+		if canUpdate {
+			if err := re.store.SetBaseline(repo.ID, sc.ID, defaultBranch, run.ID); err != nil {
+				return nil, false, fmt.Errorf("failed to update baseline: %w", err)
+			}
+		}
+
 		var comp *cloud.BaselineComparison
 		if hasBaseline {
 			comp = &cloud.BaselineComparison{
@@ -57,6 +67,12 @@ func (re *RegressionEngine) Evaluate(repo *Repository, sc *Scenario, run *RunRec
 
 	// If there is no baseline yet, we cannot declare a regression
 	if !hasBaseline {
+		return nil, false, nil
+	}
+
+	// Scenario fingerprint check: If both run and baseline have scenario fingerprints,
+	// and they do not match, the run cannot be compared against this incompatible baseline.
+	if run.ScenarioFingerprint != "" && baseRun.ScenarioFingerprint != "" && run.ScenarioFingerprint != baseRun.ScenarioFingerprint {
 		return nil, false, nil
 	}
 
