@@ -1,0 +1,77 @@
+name: chaossql-enterprise
+
+services:
+  chaossql-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: chaossql-server
+    restart: unless-stopped
+    ports:
+      - "${PORT:-8080}:8080"
+    environment:
+      - PORT=8080
+      - DB_PATH=/data/chaossql-cloud.db
+      - CHAOSSQL_ADMIN_TOKEN=${CHAOSSQL_ADMIN_TOKEN:-chaossql_prod_secret}
+      - PUBLIC_URL=${PUBLIC_URL:-http://localhost:8080}
+      - DISCORD_WEBHOOK_URL=${DISCORD_WEBHOOK_URL:-}
+    volumes:
+      - chaossql_data:/data
+    networks:
+      - chaossql-net
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:8080/v1/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+
+  chaossql-dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile.dashboard
+    container_name: chaossql-dashboard
+    restart: unless-stopped
+    ports:
+      - "${DASHBOARD_PORT:-3000}:80"
+    depends_on:
+      chaossql-server:
+        condition: service_healthy
+    networks:
+      - chaossql-net
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost/"]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: chaossql-postgres-target
+    restart: unless-stopped
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-test}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - chaossql-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  chaossql_data:
+    name: chaossql_enterprise_data
+  postgres_data:
+    name: chaossql_postgres_data
+
+networks:
+  chaossql-net:
+    name: chaossql_enterprise_net
+    driver: bridge
