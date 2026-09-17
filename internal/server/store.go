@@ -578,29 +578,133 @@ func (s *Store) GetOrCreateScenario(repoID, name, driver string) (*Scenario, err
 }
 
 func (s *Store) SaveRun(run *RunRecord, finding *FindingRecord) error {
-	_, err := s.db.Exec(`INSERT INTO runs (id, repo_id, scenario_id, commit_sha, branch, pr_number, status, anomaly_type, seed, duration_ms, created_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		run.ID, run.RepoID, run.ScenarioID, run.CommitSHA, run.Branch, run.PRNumber, run.Status, run.AnomalyType, run.Seed, run.DurationMS, run.CreatedAt)
+	_, _, err := s.SaveRunTx(context.Background(), run, finding, nil)
+	return err
+}
+
+func (s *Store) SaveRunTx(ctx context.Context, run *RunRecord, finding *FindingRecord, outbox []*OutboxItem) (*RunRecord, bool, error) {
+	if run == nil {
+		return nil, false, errors.New("cannot save nil run")
+	}
+
+	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
-		return fmt.Errorf("failed to insert run: %w", err)
+		return nil, false, fmt.Errorf("begin save run tx: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	if run.IdempotencyKey != "" {
+		var existing RunRecord
+		var idempotencyKey, scenarioFingerprint sql.NullString
+		var commitTimestamp sql.NullTime
+		err := tx.QueryRowContext(ctx, `SELECT id, repo_id, scenario_id, commit_sha, branch, pr_number,
+			status, anomaly_type, seed, duration_ms, created_at, idempotency_key, scenario_fingerprint, commit_timestamp
+			FROM runs WHERE repo_id = ? AND idempotency_key = ?`, run.RepoID, run.IdempotencyKey).
+			Scan(&existing.ID, &existing.RepoID, &existing.ScenarioID, &existing.CommitSHA, &existing.Branch,
+				&existing.PRNumber, &existing.Status, &existing.AnomalyType, &existing.Seed, &existing.DurationMS,
+				&existing.CreatedAt, &idempotencyKey, &scenarioFingerprint, &commitTimestamp)
+		if err == nil {
+			if idempotencyKey.Valid {
+				existing.IdempotencyKey = idempotencyKey.String
+			}
+			if scenarioFingerprint.Valid {
+				existing.ScenarioFingerprint = scenarioFingerprint.String
+			}
+			if commitTimestamp.Valid {
+				t := commitTimestamp.Time.UTC()
+				existing.CommitTimestamp = &t
+			}
+			return &existing, false, nil
+		}
+		if !errors.Is(err, sql.ErrNoRows) {
+			return nil, false, fmt.Errorf("query existing idempotency run: %w", err)
+		}
+	}
+
+	var nullKey any
+	if run.IdempotencyKey != "" {
+		nullKey = run.IdempotencyKey
+	}
+	var commitTime any
+	if run.CommitTimestamp != nil {
+		commitTime = run.CommitTimestamp.UTC()
+	}
+
+	_, err = tx.ExecContext(ctx, `INSERT INTO runs (id, repo_id, scenario_id, commit_sha, branch, pr_number,
+		status, anomaly_type, seed, duration_ms, created_at, idempotency_key, scenario_fingerprint, commit_timestamp)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		run.ID, run.RepoID, run.ScenarioID, run.CommitSHA, run.Branch, run.PRNumber,
+		run.Status, run.AnomalyType, run.Seed, run.DurationMS, run.CreatedAt.UTC(),
+		nullKey, run.ScenarioFingerprint, commitTime)
+	if err != nil {
+		return nil, false, fmt.Errorf("insert run: %w", err)
 	}
 
 	if finding != nil {
-		_, err = s.db.Exec(`INSERT INTO findings (id, run_id, anomaly_type, assertion, minimal_ops, repro_code, trace_json, created_at)
+		_, err = tx.ExecContext(ctx, `INSERT INTO findings (id, run_id, anomaly_type, assertion, minimal_ops, repro_code, trace_json, created_at)
 			VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-			finding.ID, finding.RunID, finding.AnomalyType, finding.Assertion, finding.MinimalOps, finding.ReproCode, finding.TraceJSON, finding.CreatedAt)
+			finding.ID, finding.RunID, finding.AnomalyType, finding.Assertion, finding.MinimalOps, finding.ReproCode, finding.TraceJSON, finding.CreatedAt.UTC())
 		if err != nil {
-			return fmt.Errorf("failed to insert finding: %w", err)
+			return nil, false, fmt.Errorf("insert finding: %w", err)
 		}
 	}
-	return nil
+
+	for _, item := range outbox {
+		if item == nil {
+			continue
+		}
+		status := item.Status
+		if status == "" {
+			status = "pending"
+		}
+		nextRetry := item.NextRetryAt
+		if nextRetry.IsZero() {
+			nextRetry = time.Now().UTC()
+		}
+		createdAt := item.CreatedAt
+		if createdAt.IsZero() {
+			createdAt = time.Now().UTC()
+		}
+		var delTime any
+		if item.DeliveredAt != nil {
+			delTime = item.DeliveredAt.UTC()
+		}
+		_, err = tx.ExecContext(ctx, `INSERT INTO webhook_outbox (id, org_id, webhook_id, event_type, payload_json, status, attempts, next_retry_at, created_at, delivered_at, last_error)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			item.ID, item.OrgID, item.WebhookID, item.EventType, item.PayloadJSON, status, item.Attempts, nextRetry.UTC(), createdAt.UTC(), delTime, item.LastError)
+		if err != nil {
+			return nil, false, fmt.Errorf("insert outbox item %s: %w", item.ID, err)
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, false, fmt.Errorf("commit save run tx: %w", err)
+	}
+
+	return run, true, nil
 }
 
 func (s *Store) GetRun(runID string) (*RunRecord, *FindingRecord, error) {
 	var run RunRecord
-	err := s.db.QueryRow(`SELECT id, repo_id, scenario_id, commit_sha, branch, pr_number, status, anomaly_type, seed, duration_ms, created_at
+	var idempotencyKey, scenarioFingerprint sql.NullString
+	var commitTimestamp sql.NullTime
+	err := s.db.QueryRow(`SELECT id, repo_id, scenario_id, commit_sha, branch, pr_number, status, anomaly_type, seed, duration_ms, created_at,
+		idempotency_key, scenario_fingerprint, commit_timestamp
 		FROM runs WHERE id = ?`, runID).
-		Scan(&run.ID, &run.RepoID, &run.ScenarioID, &run.CommitSHA, &run.Branch, &run.PRNumber, &run.Status, &run.AnomalyType, &run.Seed, &run.DurationMS, &run.CreatedAt)
+		Scan(&run.ID, &run.RepoID, &run.ScenarioID, &run.CommitSHA, &run.Branch, &run.PRNumber, &run.Status, &run.AnomalyType, &run.Seed, &run.DurationMS, &run.CreatedAt,
+			&idempotencyKey, &scenarioFingerprint, &commitTimestamp)
+	if err == nil {
+		if idempotencyKey.Valid {
+			run.IdempotencyKey = idempotencyKey.String
+		}
+		if scenarioFingerprint.Valid {
+			run.ScenarioFingerprint = scenarioFingerprint.String
+		}
+		if commitTimestamp.Valid {
+			t := commitTimestamp.Time.UTC()
+			run.CommitTimestamp = &t
+		}
+	}
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil, ErrNotFound
 	}
@@ -624,13 +728,29 @@ func (s *Store) GetRun(runID string) (*RunRecord, *FindingRecord, error) {
 
 func (s *Store) GetRunForOrg(orgID, runID string) (*RunRecord, *FindingRecord, error) {
 	var run RunRecord
+	var idempotencyKey, scenarioFingerprint sql.NullString
+	var commitTimestamp sql.NullTime
 	err := s.db.QueryRow(`SELECT r.id, r.repo_id, r.scenario_id, r.commit_sha, r.branch, r.pr_number,
-		r.status, r.anomaly_type, r.seed, r.duration_ms, r.created_at
+		r.status, r.anomaly_type, r.seed, r.duration_ms, r.created_at,
+		r.idempotency_key, r.scenario_fingerprint, r.commit_timestamp
 		FROM runs r
 		JOIN repositories repo ON repo.id = r.repo_id
 		WHERE r.id = ? AND repo.org_id = ?`, runID, orgID).
 		Scan(&run.ID, &run.RepoID, &run.ScenarioID, &run.CommitSHA, &run.Branch, &run.PRNumber,
-			&run.Status, &run.AnomalyType, &run.Seed, &run.DurationMS, &run.CreatedAt)
+			&run.Status, &run.AnomalyType, &run.Seed, &run.DurationMS, &run.CreatedAt,
+			&idempotencyKey, &scenarioFingerprint, &commitTimestamp)
+	if err == nil {
+		if idempotencyKey.Valid {
+			run.IdempotencyKey = idempotencyKey.String
+		}
+		if scenarioFingerprint.Valid {
+			run.ScenarioFingerprint = scenarioFingerprint.String
+		}
+		if commitTimestamp.Valid {
+			t := commitTimestamp.Time.UTC()
+			run.CommitTimestamp = &t
+		}
+	}
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil, ErrNotFound
 	}

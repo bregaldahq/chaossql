@@ -397,3 +397,238 @@ func TestStore_IdempotentRunsAndOutboxMigration(t *testing.T) {
 		t.Fatalf("expected migration '2026-09-17-idempotent-runs-and-outbox' recorded, applied=%d, err=%v", applied, err)
 	}
 }
+func TestStore_SaveRunTx_Atomicity(t *testing.T) {
+	s := newTestStore(t)
+	orgID := "org_atomicity"
+	_ = s.CreateOrganization(orgID, "Atomicity Org", "free")
+	repo, _ := s.GetOrCreateRepo(orgID, "bregaldahq/atomic", "main")
+	sc, _ := s.GetOrCreateScenario(repo.ID, "atomic_sc", "sqlite")
+
+	// 1. Successful atomic save of run, finding, and outbox item
+	runID := "run_atomic_success"
+	now := time.Now().UTC()
+	run := &RunRecord{
+		ID:                  runID,
+		RepoID:              repo.ID,
+		ScenarioID:          sc.ID,
+		CommitSHA:           "sha_atomic",
+		Branch:              "main",
+		Status:              "failed",
+		AnomalyType:         "G1a",
+		Seed:                42,
+		DurationMS:          120,
+		CreatedAt:           now,
+		IdempotencyKey:      "key_atomic_1",
+		ScenarioFingerprint: "fp_atomic_1",
+		CommitTimestamp:     &now,
+	}
+	finding := &FindingRecord{
+		ID:          "find_atomic_success",
+		RunID:       runID,
+		AnomalyType: "G1a",
+		Assertion:   "no dirty read",
+		MinimalOps:  2,
+		CreatedAt:   now,
+	}
+	outbox := []*OutboxItem{
+		{
+			ID:          "outbox_1",
+			OrgID:       orgID,
+			WebhookID:   "wh_fake", // Note: won't enforce FK if webhook isn't created, or create webhook first
+			EventType:   "failure",
+			PayloadJSON: `{"status":"failed"}`,
+			Status:      "pending",
+			NextRetryAt: now,
+			CreatedAt:   now,
+		},
+	}
+	// Create a webhook for FK
+	_ = s.CreateWebhook(context.Background(), &WebhookRecord{
+		ID:         "wh_fake",
+		OrgID:      orgID,
+		TargetType: "slack",
+		URL:        "https://example.com/slack",
+		Events:     "failure,regression",
+		Active:     true,
+		CreatedAt:  now,
+	})
+
+	savedRun, created, err := s.SaveRunTx(context.Background(), run, finding, outbox)
+	if err != nil {
+		t.Fatalf("expected successful SaveRunTx, got: %v", err)
+	}
+	if !created {
+		t.Fatalf("expected created=true for new run")
+	}
+	if savedRun.ID != runID {
+		t.Errorf("expected savedRun.ID=%s, got %s", runID, savedRun.ID)
+	}
+
+	// Verify all persisted
+	r, f, err := s.GetRun(runID)
+	if err != nil || r == nil || f == nil {
+		t.Fatalf("expected run and finding persisted, err=%v", err)
+	}
+	if r.IdempotencyKey != "key_atomic_1" || r.ScenarioFingerprint != "fp_atomic_1" {
+		t.Errorf("unexpected run fields: key=%s fp=%s", r.IdempotencyKey, r.ScenarioFingerprint)
+	}
+	var outboxCount int
+	if err := s.db.QueryRow(`SELECT COUNT(*) FROM webhook_outbox WHERE id = 'outbox_1'`).Scan(&outboxCount); err != nil || outboxCount != 1 {
+		t.Fatalf("expected outbox item persisted, count=%d, err=%v", outboxCount, err)
+	}
+
+	// 2. Failed atomic save: simulate failure (e.g. invalid duplicate finding ID)
+	failedRunID := "run_atomic_fail"
+	failedRun := &RunRecord{
+		ID:             failedRunID,
+		RepoID:         repo.ID,
+		ScenarioID:     sc.ID,
+		CommitSHA:      "sha_fail",
+		Branch:         "main",
+		Status:         "failed",
+		CreatedAt:      now,
+		IdempotencyKey: "key_atomic_2",
+	}
+	// duplicate finding ID "find_atomic_success" should violate PRIMARY KEY
+	duplicateFinding := &FindingRecord{
+		ID:          "find_atomic_success",
+		RunID:       failedRunID,
+		AnomalyType: "G1a",
+		CreatedAt:   now,
+	}
+	_, _, err = s.SaveRunTx(context.Background(), failedRun, duplicateFinding, nil)
+	if err == nil {
+		t.Fatalf("expected error on duplicate finding primary key")
+	}
+
+	// Verify rollback: failedRun MUST NOT exist in runs table
+	var exists int
+	_ = s.db.QueryRow(`SELECT COUNT(*) FROM runs WHERE id = ?`, failedRunID).Scan(&exists)
+	if exists != 0 {
+		t.Fatalf("expected failedRun to be rolled back, but found in runs table")
+	}
+}
+
+func TestStore_SaveRunTx_Idempotency(t *testing.T) {
+	s := newTestStore(t)
+	orgID := "org_idem"
+	_ = s.CreateOrganization(orgID, "Idem Org", "free")
+	repo, _ := s.GetOrCreateRepo(orgID, "bregaldahq/idem", "main")
+	sc, _ := s.GetOrCreateScenario(repo.ID, "idem_sc", "sqlite")
+
+	now := time.Now().UTC()
+	_ = s.CreateWebhook(context.Background(), &WebhookRecord{
+		ID:         "wh_idem",
+		OrgID:      orgID,
+		TargetType: "discord",
+		URL:        "https://example.com/discord",
+		Events:     "failure",
+		Active:     true,
+		CreatedAt:  now,
+	})
+
+	run1 := &RunRecord{
+		ID:                  "run_idem_first",
+		RepoID:              repo.ID,
+		ScenarioID:          sc.ID,
+		CommitSHA:           "sha_idem",
+		Branch:              "main",
+		Status:              "failed",
+		AnomalyType:         "G2",
+		Seed:                999,
+		DurationMS:          300,
+		CreatedAt:           now,
+		IdempotencyKey:      "ci_workflow_run_42",
+		ScenarioFingerprint: "fp_idem_1",
+		CommitTimestamp:     &now,
+	}
+	finding1 := &FindingRecord{
+		ID:          "find_idem_1",
+		RunID:       run1.ID,
+		AnomalyType: "G2",
+		MinimalOps:  3,
+		CreatedAt:   now,
+	}
+	outbox1 := []*OutboxItem{
+		{
+			ID:          "outbox_idem_1",
+			OrgID:       orgID,
+			WebhookID:   "wh_idem",
+			EventType:   "failure",
+			PayloadJSON: `{"event":"failure"}`,
+			Status:      "pending",
+			NextRetryAt: now,
+			CreatedAt:   now,
+		},
+	}
+
+	saved1, created1, err := s.SaveRunTx(context.Background(), run1, finding1, outbox1)
+	if err != nil || !created1 {
+		t.Fatalf("first save failed: created=%v err=%v", created1, err)
+	}
+	if saved1.ID != run1.ID {
+		t.Errorf("expected saved1.ID=%s, got %s", run1.ID, saved1.ID)
+	}
+
+	// Second attempt with same idempotency key and repo, but different run ID (simulating retry)
+	run2 := &RunRecord{
+		ID:                  "run_idem_retry",
+		RepoID:              repo.ID,
+		ScenarioID:          sc.ID,
+		CommitSHA:           "sha_idem",
+		Branch:              "main",
+		Status:              "failed",
+		AnomalyType:         "G2",
+		Seed:                999,
+		DurationMS:          300,
+		CreatedAt:           now.Add(10 * time.Second),
+		IdempotencyKey:      "ci_workflow_run_42",
+		ScenarioFingerprint: "fp_idem_1",
+	}
+	finding2 := &FindingRecord{
+		ID:          "find_idem_2",
+		RunID:       run2.ID,
+		AnomalyType: "G2",
+		CreatedAt:   now.Add(10 * time.Second),
+	}
+	outbox2 := []*OutboxItem{
+		{
+			ID:          "outbox_idem_2",
+			OrgID:       orgID,
+			WebhookID:   "wh_idem",
+			EventType:   "failure",
+			PayloadJSON: `{"event":"failure"}`,
+			Status:      "pending",
+			NextRetryAt: now,
+			CreatedAt:   now,
+		},
+	}
+
+	saved2, created2, err := s.SaveRunTx(context.Background(), run2, finding2, outbox2)
+	if err != nil {
+		t.Fatalf("second save returned unexpected error: %v", err)
+	}
+	if created2 {
+		t.Fatalf("expected created=false for duplicate idempotency key")
+	}
+	if saved2.ID != run1.ID {
+		t.Errorf("expected duplicate save to return original run ID %s, got %s", run1.ID, saved2.ID)
+	}
+
+	// Verify database only has 1 run, 1 finding, and 1 outbox item
+	var totalRuns int
+	_ = s.db.QueryRow(`SELECT COUNT(*) FROM runs WHERE repo_id = ?`, repo.ID).Scan(&totalRuns)
+	if totalRuns != 1 {
+		t.Errorf("expected 1 run in db, got %d", totalRuns)
+	}
+	var totalFindings int
+	_ = s.db.QueryRow(`SELECT COUNT(*) FROM findings WHERE run_id = ?`, run1.ID).Scan(&totalFindings)
+	if totalFindings != 1 {
+		t.Errorf("expected 1 finding in db, got %d", totalFindings)
+	}
+	var totalOutbox int
+	_ = s.db.QueryRow(`SELECT COUNT(*) FROM webhook_outbox WHERE org_id = ?`, orgID).Scan(&totalOutbox)
+	if totalOutbox != 1 {
+		t.Errorf("expected 1 outbox item in db, got %d", totalOutbox)
+	}
+}
