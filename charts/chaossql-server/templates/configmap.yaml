@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "chaossql-server.fullname" . }}-config
+  labels:
+    {{- include "chaossql-server.labels" . | nindent 4 }}
+data:
+  PORT: {{ .Values.config.port | quote }}
+  DB_PATH: {{ .Values.config.dbPath | quote }}
+  PUBLIC_URL: {{ .Values.config.publicUrl | quote }}
