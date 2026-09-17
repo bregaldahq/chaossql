@@ -116,7 +116,7 @@ jobs:
           export-summary: true
 ```
 
-When an invariant fails, the action blocks the pull request, publishes a GitHub Step Summary with the minimal execution trace, and synthesizes a `repro_test.go` artifact.
+When an invariant fails, the action blocks the pull request, publishes a metadata-only GitHub Step Summary, and can synthesize a local `repro_test.go` artifact. SQL, invariant values, and reproduction source are not included in the remote summary or PR comment.
 
 ---
 
@@ -124,7 +124,7 @@ When an invariant fails, the action blocks the pull request, publishes a GitHub 
 
 ### 1. ChaosSQL Cloud (CI/CD Regression Guard)
 * **Main Branch Baseline:** Automatically stores invariant baselines for your default branch.
-* **Pull Request Comments:** Instantly comments on failing PRs with the root-cause trace and anomaly classification ($P4$, $A5B$, etc.).
+* **Pull Request Comments:** Reports the failing invariant name, structural operation categories, and anomaly classification ($P4$, $A5B$, etc.) without SQL or result values.
 * **Metadata-Only Uploads:** SQL, schemas, parameters, query results, invariant values, schedules, traces, and generated reproductions stay in your runner. The hosted API receives repository/revision identifiers, scenario configuration, aggregate status, anomaly type, invariant name, and numeric reduction metrics. Payloads are limited to 64 KiB and detailed uploads are rejected.
 
 👉 **[Explore Cloud Dashboard](https://chaossql.bregalda.com/#/dashboard)** • **[View Plans & Pricing](https://chaossql.bregalda.com/#/pricing)** • **[Join Early Access](https://chaossql.bregalda.com/#waitlist)**

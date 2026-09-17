@@ -201,6 +201,10 @@ func (s *Store) AutoMigrate() error {
 			FOREIGN KEY (scenario_id) REFERENCES scenarios(id),
 			FOREIGN KEY (run_id) REFERENCES runs(id)
 		);`,
+		`CREATE TABLE IF NOT EXISTS schema_migrations (
+			version TEXT PRIMARY KEY,
+			applied_at DATETIME NOT NULL
+		);`,
 	}
 
 	for _, q := range queries {
@@ -211,7 +215,36 @@ func (s *Store) AutoMigrate() error {
 	if err := s.ensureAPITokenRoleColumn(); err != nil {
 		return err
 	}
-	return s.ensureTenantRepositoryUniqueness()
+	if err := s.ensureTenantRepositoryUniqueness(); err != nil {
+		return err
+	}
+	return s.purgeLegacyFindingDetails()
+}
+
+func (s *Store) purgeLegacyFindingDetails() error {
+	const migration = "2026-09-16-purge-hosted-finding-details"
+	var applied int
+	if err := s.db.QueryRow(`SELECT COUNT(*) FROM schema_migrations WHERE version = ?`, migration).Scan(&applied); err != nil {
+		return fmt.Errorf("inspect finding privacy migration: %w", err)
+	}
+	if applied != 0 {
+		return nil
+	}
+	tx, err := s.db.Begin()
+	if err != nil {
+		return fmt.Errorf("begin finding privacy migration: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+	if _, err := tx.Exec(`UPDATE findings SET assertion = '', repro_code = '', trace_json = ''`); err != nil {
+		return fmt.Errorf("purge legacy finding details: %w", err)
+	}
+	if _, err := tx.Exec(`INSERT INTO schema_migrations (version, applied_at) VALUES (?, ?)`, migration, time.Now().UTC()); err != nil {
+		return fmt.Errorf("record finding privacy migration: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit finding privacy migration: %w", err)
+	}
+	return nil
 }
 
 func (s *Store) ensureAPITokenRoleColumn() error {

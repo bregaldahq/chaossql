@@ -8,9 +8,28 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"regexp"
 	"strings"
 	"time"
 )
+
+var reportWorkerPattern = regexp.MustCompile(`^T[0-9]+$`)
+
+func safeReportIdentifier(value, fallback string) string {
+	if !IsSafeMetadataIdentifier(value) {
+		return fallback
+	}
+	return value
+}
+
+func safeReportOperation(value string) string {
+	switch value {
+	case "begin", "read", "write", "commit", "rollback", "savepoint", "error", "exec":
+		return value
+	default:
+		return "operation"
+	}
+}
 
 // FormatPRMarkdown constructs a high-impact GitHub Markdown report
 func FormatPRMarkdown(req *RunIngestRequest, resp *RunIngestResponse) string {
@@ -33,29 +52,26 @@ func FormatPRMarkdown(req *RunIngestRequest, resp *RunIngestResponse) string {
 	sb.WriteString("| Metric | Value |\n")
 	sb.WriteString("| :--- | :--- |\n")
 
-	scenarioName := req.Scenario.Name
-	if scenarioName == "" {
-		scenarioName = "default"
-	}
+	scenarioName := safeReportIdentifier(req.Scenario.Name, "default")
 	sb.WriteString(fmt.Sprintf("| **Scenario** | `%s` |\n", scenarioName))
 
 	if req.Scenario.Driver != "" {
-		sb.WriteString(fmt.Sprintf("| **Database Engine** | `%s` |\n", req.Scenario.Driver))
+		sb.WriteString(fmt.Sprintf("| **Database Engine** | `%s` |\n", safeReportIdentifier(req.Scenario.Driver, "database")))
 	}
 
 	if isFailed {
-		anomaly := req.Result.AnomalyType
-		if anomaly == "" {
-			anomaly = "Invariant Violation"
-		}
+		anomaly := safeReportIdentifier(req.Result.AnomalyType, "Invariant Violation")
 		sb.WriteString(fmt.Sprintf("| **Anomaly Type** | **%s** |\n", anomaly))
 	}
 
 	if resp != nil && resp.Baseline != nil {
-		sb.WriteString(fmt.Sprintf("| **Baseline (`%s`)** | `%s` |\n", resp.Baseline.Branch, strings.ToUpper(resp.Baseline.Status)))
+		branch := safeReportIdentifier(resp.Baseline.Branch, "baseline")
+		status := safeReportIdentifier(strings.ToUpper(resp.Baseline.Status), "UNKNOWN")
+		sb.WriteString(fmt.Sprintf("| **Baseline (`%s`)** | `%s` |\n", branch, status))
 	}
 
-	sb.WriteString(fmt.Sprintf("| **Current PR Status** | `%s` |\n", strings.ToUpper(req.Result.Status)))
+	currentStatus := safeReportIdentifier(strings.ToUpper(req.Result.Status), "UNKNOWN")
+	sb.WriteString(fmt.Sprintf("| **Current PR Status** | `%s` |\n", currentStatus))
 
 	if req.Result.TotalSchedules > 0 {
 		sb.WriteString(fmt.Sprintf("| **Schedules Tested** | %d (%d failed) |\n", req.Result.TotalSchedules, req.Result.FailedSchedules))
@@ -70,7 +86,8 @@ func FormatPRMarkdown(req *RunIngestRequest, resp *RunIngestResponse) string {
 	// Invariant violation details
 	if req.Result.FailingInvariant != nil {
 		sb.WriteString("### 🚨 Failing Invariant\n")
-		sb.WriteString(fmt.Sprintf("- **Name:** `%s`\n", req.Result.FailingInvariant.Name))
+		name := safeReportIdentifier(req.Result.FailingInvariant.Name, "invariant")
+		sb.WriteString(fmt.Sprintf("- **Name:** `%s`\n", name))
 		sb.WriteString("\n")
 	}
 
@@ -79,13 +96,10 @@ func FormatPRMarkdown(req *RunIngestRequest, resp *RunIngestResponse) string {
 		sb.WriteString("### 🔬 Minimal Execution Structure\n")
 		for _, op := range req.Reproduction.SanitizedMinimalTrace {
 			worker := op.Worker
-			if worker == "" {
+			if !reportWorkerPattern.MatchString(worker) {
 				worker = "Worker"
 			}
-			opType := op.OpType
-			if opType == "" {
-				opType = "operation"
-			}
+			opType := safeReportOperation(op.OpType)
 			sb.WriteString(fmt.Sprintf("- `%s`: `%s`\n", worker, opType))
 		}
 		sb.WriteString("\n")

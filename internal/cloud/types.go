@@ -32,9 +32,9 @@ type ScenarioMetadata struct {
 // InvariantSummary describes an invariant assertion outcome
 type InvariantSummary struct {
 	Name      string `json:"name"`
-	Query     string `json:"query"`
-	Assertion string `json:"assertion"`
-	Actual    string `json:"actual"`
+	Query     string `json:"query,omitempty"`
+	Assertion string `json:"assertion,omitempty"`
+	Actual    string `json:"actual,omitempty"`
 }
 
 // ExecutionSummary describes the outcome of the chaos execution
@@ -67,7 +67,7 @@ type ReproductionData struct {
 	ShrinkDurationMS       int64                 `json:"shrink_duration_ms"`
 	ReproGoCode            string                `json:"repro_go_code,omitempty"`
 	MermaidDiagram         string                `json:"mermaid_diagram,omitempty"`
-	SanitizedMinimalTrace  []SanitizedTraceEvent `json:"sanitized_minimal_trace"`
+	SanitizedMinimalTrace  []SanitizedTraceEvent `json:"sanitized_minimal_trace,omitempty"`
 }
 
 // RunIngestRequest is the root JSON payload sent to POST /v1/runs

@@ -173,10 +173,8 @@ func (s *Server) handleIngestRun(w http.ResponseWriter, r *http.Request) {
 	}
 
 	r.Body = http.MaxBytesReader(w, r.Body, cloud.MaxPayloadBytes)
-	decoder := json.NewDecoder(r.Body)
-	decoder.DisallowUnknownFields()
-	var req cloud.RunIngestRequest
-	if err := decoder.Decode(&req); err != nil {
+	payload, err := io.ReadAll(r.Body)
+	if err != nil {
 		var maxBytesErr *http.MaxBytesError
 		w.Header().Set("Content-Type", "application/json")
 		if errors.As(err, &maxBytesErr) {
@@ -187,16 +185,8 @@ func (s *Server) handleIngestRun(w http.ResponseWriter, r *http.Request) {
 		_ = json.NewEncoder(w).Encode(map[string]string{"error": "invalid json payload: " + err.Error()})
 		return
 	}
-	if err := decoder.Decode(&struct{}{}); !errors.Is(err, io.EOF) {
-		var maxBytesErr *http.MaxBytesError
-		if errors.As(err, &maxBytesErr) {
-			http.Error(w, `{"error":"cloud payload exceeds 64 KiB limit"}`, http.StatusRequestEntityTooLarge)
-		} else {
-			http.Error(w, `{"error":"payload must contain one JSON object"}`, http.StatusBadRequest)
-		}
-		return
-	}
-	if err := cloud.ValidateMetadataOnlyRequest(&req); err != nil {
+	req, err := cloud.DecodeMetadataOnlyRequest(payload)
+	if err != nil {
 		http.Error(w, fmt.Sprintf(`{"error":%q}`, err.Error()), http.StatusBadRequest)
 		return
 	}
@@ -394,8 +384,35 @@ func (s *Server) handleGetRun(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	_ = json.NewEncoder(w).Encode(map[string]interface{}{
 		"run":     run,
-		"finding": finding,
+		"finding": publicFinding(finding),
 	})
+}
+
+type publicFindingRecord struct {
+	ID          string    `json:"id"`
+	RunID       string    `json:"run_id"`
+	AnomalyType string    `json:"anomaly_type"`
+	Assertion   string    `json:"assertion,omitempty"`
+	MinimalOps  int       `json:"minimal_ops"`
+	CreatedAt   time.Time `json:"created_at"`
+}
+
+func publicFinding(finding *FindingRecord) *publicFindingRecord {
+	if finding == nil {
+		return nil
+	}
+	assertion := ""
+	if cloud.IsSafeMetadataIdentifier(finding.Assertion) {
+		assertion = finding.Assertion
+	}
+	return &publicFindingRecord{
+		ID:          finding.ID,
+		RunID:       finding.RunID,
+		AnomalyType: finding.AnomalyType,
+		Assertion:   assertion,
+		MinimalOps:  finding.MinimalOps,
+		CreatedAt:   finding.CreatedAt,
+	}
 }
 
 func (s *Server) handleListRuns(w http.ResponseWriter, r *http.Request) {

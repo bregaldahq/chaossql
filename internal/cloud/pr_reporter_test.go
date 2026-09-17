@@ -34,6 +34,7 @@ func TestFormatPRMarkdown_Regression(t *testing.T) {
 			SanitizedMinimalTrace: []SanitizedTraceEvent{
 				{Worker: "T1", OpType: "read", Table: "private.accounts", SQL: "SELECT email FROM private.accounts"},
 				{Worker: "T2", OpType: "write", Table: "private.accounts", SQL: "UPDATE private.accounts SET email = 'alice@example.com'"},
+				{Worker: "alice@example.com", OpType: "SELECT secret FROM private.accounts"},
 			},
 		},
 	}
@@ -64,7 +65,7 @@ func TestFormatPRMarkdown_Regression(t *testing.T) {
 	if !strings.Contains(md, "wealth_conservation") {
 		t.Errorf("expected invariant details in markdown")
 	}
-	for _, forbidden := range []string{"alice@example.com", "private.accounts", "SELECT email", "UPDATE private.accounts"} {
+	for _, forbidden := range []string{"alice@example.com", "private.accounts", "SELECT email", "UPDATE private.accounts", "SELECT secret"} {
 		if strings.Contains(md, forbidden) {
 			t.Errorf("remote report contains forbidden detail %q: %s", forbidden, md)
 		}

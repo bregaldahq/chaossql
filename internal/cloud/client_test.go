@@ -97,6 +97,36 @@ func TestClientPublishRunRejectsOversizedMetadata(t *testing.T) {
 	}
 }
 
+func TestClientPublishRunRejectsSensitiveContentInAllowedFields(t *testing.T) {
+	var requests int32
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		atomic.AddInt32(&requests, 1)
+		w.WriteHeader(http.StatusCreated)
+	}))
+	defer ts.Close()
+	client := NewClient(Config{BaseURL: ts.URL, Token: "transport-token"})
+
+	tests := []struct {
+		name string
+		req  *RunIngestRequest
+	}{
+		{"repository credential URL", &RunIngestRequest{CI: &CIContext{Repository: "https://alice:token@git.example/private/repo"}}},
+		{"scenario DSN", &RunIngestRequest{Scenario: ScenarioMetadata{Name: "postgres://alice:secret@db/private"}}},
+		{"invariant email", &RunIngestRequest{Result: ExecutionSummary{FailingInvariant: &InvariantSummary{Name: "alice@example.com"}}}},
+		{"branch free text", &RunIngestRequest{CI: &CIContext{Branch: "SELECT secret FROM customers"}}},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if _, err := client.PublishRun(context.Background(), test.req); !errors.Is(err, ErrUnsafeMetadata) {
+				t.Fatalf("error = %v, want ErrUnsafeMetadata", err)
+			}
+		})
+	}
+	if atomic.LoadInt32(&requests) != 0 {
+		t.Fatal("unsafe metadata reached the network")
+	}
+}
+
 func TestClientPublishRunSuccess(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {

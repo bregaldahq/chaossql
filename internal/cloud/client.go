@@ -62,12 +62,16 @@ func (c *Client) PublishRun(ctx context.Context, req *RunIngestRequest) (*RunIng
 		return nil, errors.New("missing cloud token")
 	}
 
-	bodyBytes, err := json.Marshal(projectMetadataPayload(req, time.Now()))
+	payload := projectMetadataPayload(req, time.Now())
+	bodyBytes, err := json.Marshal(payload)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode run ingest payload: %w", err)
 	}
 	if len(bodyBytes) > MaxPayloadBytes {
 		return nil, fmt.Errorf("%w: %d bytes", ErrPayloadTooLarge, len(bodyBytes))
+	}
+	if err := validateMetadataPayload(&payload); err != nil {
+		return nil, err
 	}
 
 	endpoint := fmt.Sprintf("%s/v1/runs", c.cfg.BaseURL)

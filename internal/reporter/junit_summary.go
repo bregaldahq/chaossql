@@ -3,11 +3,21 @@ package reporter
 import (
 	"encoding/xml"
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
 
 	"github.com/bregaldahq/chaossql/internal/domain"
 )
+
+var summaryIdentifierPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._/+:-]{0,127}$`)
+
+func safeSummaryIdentifier(value, fallback string) string {
+	if strings.Contains(value, "://") || !summaryIdentifierPattern.MatchString(value) {
+		return fallback
+	}
+	return value
+}
 
 type JUnitTestSuites struct {
 	XMLName   xml.Name         `xml:"testsuites"`
@@ -100,11 +110,13 @@ func GenerateGitHubSummaryMarkdown(spec domain.Spec, res domain.ExecutionResult,
 		statusBadge = strings.ToUpper(string(res.Status))
 	}
 
-	md := fmt.Sprintf("# %s ChaosSQL Execution Summary: `%s`\n\n", statusEmoji, spec.Name)
+	scenarioName := safeSummaryIdentifier(spec.Name, "scenario")
+	driver := safeSummaryIdentifier(spec.Database.Driver, "database")
+	md := fmt.Sprintf("# %s ChaosSQL Execution Summary: `%s`\n\n", statusEmoji, scenarioName)
 	md += "| Attribute | Value |\n"
 	md += "| :--- | :--- |\n"
 	md += fmt.Sprintf("| **Status** | `%s` |\n", statusBadge)
-	md += fmt.Sprintf("| **Database Driver** | `%s` |\n", spec.Database.Driver)
+	md += fmt.Sprintf("| **Database Driver** | `%s` |\n", driver)
 	md += fmt.Sprintf("| **Workers / Ops** | %d workers / %d ops |\n", spec.Engine.Workers, spec.Engine.Iterations)
 	md += fmt.Sprintf("| **Seed** | `%d` |\n", spec.Engine.Seed)
 	md += fmt.Sprintf("| **Duration** | `%v` |\n\n", res.Duration.Round(time.Millisecond))
@@ -118,7 +130,8 @@ func GenerateGitHubSummaryMarkdown(spec domain.Spec, res domain.ExecutionResult,
 
 	if res.FailingInvariant != nil {
 		md += "## ⚠️ Invariant Violation Details\n\n"
-		md += fmt.Sprintf("```\n%s\n```\n", res.FailingInvariant.String())
+		name := safeSummaryIdentifier(res.FailingInvariant.Name, "invariant")
+		md += fmt.Sprintf("- **Name:** `%s`\n", name)
 	}
 
 	return md

@@ -1,14 +1,21 @@
 package cloud
 
 import (
+	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"regexp"
+	"strings"
 	"time"
 )
 
 const MaxPayloadBytes = 64 * 1024
 
-var ErrForbiddenPayloadDetail = errors.New("cloud payload contains details that must remain local")
+var ErrUnsafeMetadata = errors.New("cloud metadata contains an unsafe identifier")
+
+var metadataIdentifierPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._/+:-]*$`)
 
 type metadataPayload struct {
 	Version      string                       `json:"version"`
@@ -116,22 +123,133 @@ func projectMetadataPayload(req *RunIngestRequest, now time.Time) metadataPayloa
 	return payload
 }
 
-func ValidateMetadataOnlyRequest(req *RunIngestRequest) error {
-	if req.CI != nil && req.CI.Actor != "" {
-		return fmt.Errorf("%w: ci.actor", ErrForbiddenPayloadDetail)
+func validateMetadataPayload(payload *metadataPayload) error {
+	fields := []struct {
+		name  string
+		value string
+		limit int
+	}{
+		{"version", payload.Version, 16},
+		{"scenario.name", payload.Scenario.Name, 128},
+		{"scenario.fingerprint", payload.Scenario.Fingerprint, 128},
+		{"scenario.driver", payload.Scenario.Driver, 32},
+		{"scenario.driver_version", payload.Scenario.DriverVersion, 64},
+		{"result.status", payload.Result.Status, 32},
+		{"result.execution_status", payload.Result.ExecutionStatus, 32},
+		{"result.anomaly_type", payload.Result.AnomalyType, 64},
 	}
-	if req.Schedule != nil {
-		return fmt.Errorf("%w: schedule", ErrForbiddenPayloadDetail)
+	if payload.CI != nil {
+		fields = append(fields,
+			struct {
+				name  string
+				value string
+				limit int
+			}{"ci.provider", payload.CI.Provider, 64},
+			struct {
+				name  string
+				value string
+				limit int
+			}{"ci.repository", payload.CI.Repository, 255},
+			struct {
+				name  string
+				value string
+				limit int
+			}{"ci.commit_sha", payload.CI.CommitSHA, 128},
+			struct {
+				name  string
+				value string
+				limit int
+			}{"ci.branch", payload.CI.Branch, 255},
+			struct {
+				name  string
+				value string
+				limit int
+			}{"ci.base_branch", payload.CI.BaseBranch, 255},
+			struct {
+				name  string
+				value string
+				limit int
+			}{"ci.run_id", payload.CI.RunID, 128},
+		)
 	}
-	if invariant := req.Result.FailingInvariant; invariant != nil {
-		if invariant.Query != "" || invariant.Assertion != "" || invariant.Actual != "" {
-			return fmt.Errorf("%w: invariant query, assertion, and actual values", ErrForbiddenPayloadDetail)
+	if payload.Result.FailingInvariant != nil {
+		fields = append(fields, struct {
+			name  string
+			value string
+			limit int
+		}{"result.failing_invariant.name", payload.Result.FailingInvariant.Name, 128})
+	}
+	for _, field := range fields {
+		if field.value == "" {
+			continue
 		}
-	}
-	if reproduction := req.Reproduction; reproduction != nil {
-		if reproduction.ReproGoCode != "" || reproduction.MermaidDiagram != "" || len(reproduction.SanitizedMinimalTrace) > 0 {
-			return fmt.Errorf("%w: traces, diagrams, and reproduction code", ErrForbiddenPayloadDetail)
+		if len(field.value) > field.limit || strings.Contains(field.value, "://") || !metadataIdentifierPattern.MatchString(field.value) {
+			return fmt.Errorf("%w: %s", ErrUnsafeMetadata, field.name)
 		}
 	}
 	return nil
+}
+
+func DecodeMetadataOnlyRequest(data []byte) (*RunIngestRequest, error) {
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	decoder.DisallowUnknownFields()
+	var payload metadataPayload
+	if err := decoder.Decode(&payload); err != nil {
+		return nil, err
+	}
+	if err := decoder.Decode(&struct{}{}); !errors.Is(err, io.EOF) {
+		return nil, errors.New("payload must contain one JSON object")
+	}
+	if err := validateMetadataPayload(&payload); err != nil {
+		return nil, err
+	}
+
+	req := &RunIngestRequest{
+		Version:   payload.Version,
+		Timestamp: payload.Timestamp,
+		Scenario: ScenarioMetadata{
+			Name:          payload.Scenario.Name,
+			Fingerprint:   payload.Scenario.Fingerprint,
+			Driver:        payload.Scenario.Driver,
+			DriverVersion: payload.Scenario.DriverVersion,
+			Workers:       payload.Scenario.Workers,
+			Iterations:    payload.Scenario.Iterations,
+			Seed:          payload.Scenario.Seed,
+		},
+		Result: ExecutionSummary{
+			Status:            payload.Result.Status,
+			ExecutionStatus:   payload.Result.ExecutionStatus,
+			Success:           payload.Result.Success,
+			ViolationDetected: payload.Result.ViolationDetected,
+			AnomalyType:       payload.Result.AnomalyType,
+			DurationMS:        payload.Result.DurationMS,
+			TotalSchedules:    payload.Result.TotalSchedules,
+			FailedSchedules:   payload.Result.FailedSchedules,
+		},
+	}
+	if payload.CI != nil {
+		req.CI = &CIContext{
+			Provider:          payload.CI.Provider,
+			Repository:        payload.CI.Repository,
+			CommitSHA:         payload.CI.CommitSHA,
+			Branch:            payload.CI.Branch,
+			BaseBranch:        payload.CI.BaseBranch,
+			PullRequestNumber: payload.CI.PullRequestNumber,
+			RunID:             payload.CI.RunID,
+		}
+	}
+	if payload.Result.FailingInvariant != nil {
+		req.Result.FailingInvariant = &InvariantSummary{Name: payload.Result.FailingInvariant.Name}
+	}
+	if payload.Reproduction != nil {
+		req.Reproduction = &ReproductionData{
+			MinimalOperationsCount: payload.Reproduction.MinimalOperationsCount,
+			ShrinkDurationMS:       payload.Reproduction.ShrinkDurationMS,
+		}
+	}
+	return req, nil
+}
+
+func IsSafeMetadataIdentifier(value string) bool {
+	return value != "" && len(value) <= 128 && !strings.Contains(value, "://") && metadataIdentifierPattern.MatchString(value)
 }
