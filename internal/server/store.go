@@ -66,17 +66,34 @@ type Scenario struct {
 }
 
 type RunRecord struct {
-	ID          string    `json:"id"`
-	RepoID      string    `json:"repo_id"`
-	ScenarioID  string    `json:"scenario_id"`
-	CommitSHA   string    `json:"commit_sha"`
-	Branch      string    `json:"branch"`
-	PRNumber    int       `json:"pr_number"`
-	Status      string    `json:"status"` // "passed" or "failed"
-	AnomalyType string    `json:"anomaly_type"`
-	Seed        uint64    `json:"seed"`
-	DurationMS  int64     `json:"duration_ms"`
-	CreatedAt   time.Time `json:"created_at"`
+	ID                  string     `json:"id"`
+	RepoID              string     `json:"repo_id"`
+	ScenarioID          string     `json:"scenario_id"`
+	CommitSHA           string     `json:"commit_sha"`
+	Branch              string     `json:"branch"`
+	PRNumber            int        `json:"pr_number"`
+	Status              string     `json:"status"` // "passed" or "failed"
+	AnomalyType         string     `json:"anomaly_type"`
+	Seed                uint64     `json:"seed"`
+	DurationMS          int64      `json:"duration_ms"`
+	CreatedAt           time.Time  `json:"created_at"`
+	IdempotencyKey      string     `json:"idempotency_key,omitempty"`
+	ScenarioFingerprint string     `json:"scenario_fingerprint,omitempty"`
+	CommitTimestamp     *time.Time `json:"commit_timestamp,omitempty"`
+}
+
+type OutboxItem struct {
+	ID          string     `json:"id"`
+	OrgID       string     `json:"org_id"`
+	WebhookID   string     `json:"webhook_id"`
+	EventType   string     `json:"event_type"`
+	PayloadJSON string     `json:"payload_json"`
+	Status      string     `json:"status"` // pending, delivered, failed
+	Attempts    int        `json:"attempts"`
+	NextRetryAt time.Time  `json:"next_retry_at"`
+	CreatedAt   time.Time  `json:"created_at"`
+	DeliveredAt *time.Time `json:"delivered_at,omitempty"`
+	LastError   string     `json:"last_error,omitempty"`
 }
 
 type FindingRecord struct {
@@ -218,7 +235,10 @@ func (s *Store) AutoMigrate() error {
 	if err := s.ensureTenantRepositoryUniqueness(); err != nil {
 		return err
 	}
-	return s.purgeLegacyFindingDetails()
+	if err := s.purgeLegacyFindingDetails(); err != nil {
+		return err
+	}
+	return s.ensureIdempotentRunsAndOutbox()
 }
 
 func (s *Store) purgeLegacyFindingDetails() error {
@@ -245,6 +265,86 @@ func (s *Store) purgeLegacyFindingDetails() error {
 		return fmt.Errorf("commit finding privacy migration: %w", err)
 	}
 	return nil
+}
+
+func (s *Store) ensureIdempotentRunsAndOutbox() error {
+	const migration = "2026-09-17-idempotent-runs-and-outbox"
+	var applied int
+	if err := s.db.QueryRow(`SELECT COUNT(*) FROM schema_migrations WHERE version = ?`, migration).Scan(&applied); err != nil {
+		return fmt.Errorf("inspect outbox migration: %w", err)
+	}
+	if applied != 0 {
+		return nil
+	}
+
+	rows, err := s.db.Query(`PRAGMA table_info(runs)`)
+	if err != nil {
+		return fmt.Errorf("inspect runs table info: %w", err)
+	}
+	cols := make(map[string]bool)
+	for rows.Next() {
+		var cid, notNull, primaryKey int
+		var name, columnType string
+		var defaultValue any
+		if err := rows.Scan(&cid, &name, &columnType, &notNull, &defaultValue, &primaryKey); err != nil {
+			_ = rows.Close()
+			return fmt.Errorf("scan runs column: %w", err)
+		}
+		cols[name] = true
+	}
+	if err := rows.Close(); err != nil {
+		return fmt.Errorf("close runs columns query: %w", err)
+	}
+
+	tx, err := s.db.Begin()
+	if err != nil {
+		return fmt.Errorf("begin outbox migration: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	if !cols["idempotency_key"] {
+		if _, err := tx.Exec(`ALTER TABLE runs ADD COLUMN idempotency_key TEXT`); err != nil {
+			return fmt.Errorf("add idempotency_key: %w", err)
+		}
+	}
+	if !cols["scenario_fingerprint"] {
+		if _, err := tx.Exec(`ALTER TABLE runs ADD COLUMN scenario_fingerprint TEXT NOT NULL DEFAULT ''`); err != nil {
+			return fmt.Errorf("add scenario_fingerprint: %w", err)
+		}
+	}
+	if !cols["commit_timestamp"] {
+		if _, err := tx.Exec(`ALTER TABLE runs ADD COLUMN commit_timestamp DATETIME`); err != nil {
+			return fmt.Errorf("add commit_timestamp: %w", err)
+		}
+	}
+
+	if _, err := tx.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_runs_repo_idempotency ON runs(repo_id, idempotency_key) WHERE idempotency_key IS NOT NULL`); err != nil {
+		return fmt.Errorf("create idempotency index: %w", err)
+	}
+
+	if _, err := tx.Exec(`CREATE TABLE IF NOT EXISTS webhook_outbox (
+		id TEXT PRIMARY KEY,
+		org_id TEXT NOT NULL,
+		webhook_id TEXT NOT NULL,
+		event_type TEXT NOT NULL,
+		payload_json TEXT NOT NULL,
+		status TEXT NOT NULL DEFAULT 'pending',
+		attempts INTEGER NOT NULL DEFAULT 0,
+		next_retry_at DATETIME NOT NULL,
+		created_at DATETIME NOT NULL,
+		delivered_at DATETIME,
+		last_error TEXT NOT NULL DEFAULT '',
+		FOREIGN KEY (org_id) REFERENCES organizations(id),
+		FOREIGN KEY (webhook_id) REFERENCES webhooks(id)
+	)`); err != nil {
+		return fmt.Errorf("create webhook_outbox table: %w", err)
+	}
+
+	if _, err := tx.Exec(`INSERT INTO schema_migrations (version, applied_at) VALUES (?, ?)`, migration, time.Now().UTC()); err != nil {
+		return fmt.Errorf("record outbox migration: %w", err)
+	}
+
+	return tx.Commit()
 }
 
 func (s *Store) ensureAPITokenRoleColumn() error {
@@ -478,29 +578,247 @@ func (s *Store) GetOrCreateScenario(repoID, name, driver string) (*Scenario, err
 }
 
 func (s *Store) SaveRun(run *RunRecord, finding *FindingRecord) error {
-	_, err := s.db.Exec(`INSERT INTO runs (id, repo_id, scenario_id, commit_sha, branch, pr_number, status, anomaly_type, seed, duration_ms, created_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		run.ID, run.RepoID, run.ScenarioID, run.CommitSHA, run.Branch, run.PRNumber, run.Status, run.AnomalyType, run.Seed, run.DurationMS, run.CreatedAt)
+	_, _, err := s.SaveRunTx(context.Background(), run, finding, nil)
+	return err
+}
+
+func (s *Store) SaveRunTx(ctx context.Context, run *RunRecord, finding *FindingRecord, outbox []*OutboxItem) (*RunRecord, bool, error) {
+	if run == nil {
+		return nil, false, errors.New("cannot save nil run")
+	}
+
+	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
-		return fmt.Errorf("failed to insert run: %w", err)
+		return nil, false, fmt.Errorf("begin save run tx: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	if run.IdempotencyKey != "" {
+		var existing RunRecord
+		var idempotencyKey, scenarioFingerprint sql.NullString
+		var commitTimestamp sql.NullTime
+		err := tx.QueryRowContext(ctx, `SELECT id, repo_id, scenario_id, commit_sha, branch, pr_number,
+			status, anomaly_type, seed, duration_ms, created_at, idempotency_key, scenario_fingerprint, commit_timestamp
+			FROM runs WHERE repo_id = ? AND idempotency_key = ?`, run.RepoID, run.IdempotencyKey).
+			Scan(&existing.ID, &existing.RepoID, &existing.ScenarioID, &existing.CommitSHA, &existing.Branch,
+				&existing.PRNumber, &existing.Status, &existing.AnomalyType, &existing.Seed, &existing.DurationMS,
+				&existing.CreatedAt, &idempotencyKey, &scenarioFingerprint, &commitTimestamp)
+		if err == nil {
+			if idempotencyKey.Valid {
+				existing.IdempotencyKey = idempotencyKey.String
+			}
+			if scenarioFingerprint.Valid {
+				existing.ScenarioFingerprint = scenarioFingerprint.String
+			}
+			if commitTimestamp.Valid {
+				t := commitTimestamp.Time.UTC()
+				existing.CommitTimestamp = &t
+			}
+			return &existing, false, nil
+		}
+		if !errors.Is(err, sql.ErrNoRows) {
+			return nil, false, fmt.Errorf("query existing idempotency run: %w", err)
+		}
+	}
+
+	var nullKey any
+	if run.IdempotencyKey != "" {
+		nullKey = run.IdempotencyKey
+	}
+	var commitTime any
+	if run.CommitTimestamp != nil {
+		commitTime = run.CommitTimestamp.UTC()
+	}
+
+	_, err = tx.ExecContext(ctx, `INSERT INTO runs (id, repo_id, scenario_id, commit_sha, branch, pr_number,
+		status, anomaly_type, seed, duration_ms, created_at, idempotency_key, scenario_fingerprint, commit_timestamp)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		run.ID, run.RepoID, run.ScenarioID, run.CommitSHA, run.Branch, run.PRNumber,
+		run.Status, run.AnomalyType, run.Seed, run.DurationMS, run.CreatedAt.UTC(),
+		nullKey, run.ScenarioFingerprint, commitTime)
+	if err != nil {
+		return nil, false, fmt.Errorf("insert run: %w", err)
 	}
 
 	if finding != nil {
-		_, err = s.db.Exec(`INSERT INTO findings (id, run_id, anomaly_type, assertion, minimal_ops, repro_code, trace_json, created_at)
+		_, err = tx.ExecContext(ctx, `INSERT INTO findings (id, run_id, anomaly_type, assertion, minimal_ops, repro_code, trace_json, created_at)
 			VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-			finding.ID, finding.RunID, finding.AnomalyType, finding.Assertion, finding.MinimalOps, finding.ReproCode, finding.TraceJSON, finding.CreatedAt)
+			finding.ID, finding.RunID, finding.AnomalyType, finding.Assertion, finding.MinimalOps, finding.ReproCode, finding.TraceJSON, finding.CreatedAt.UTC())
 		if err != nil {
-			return fmt.Errorf("failed to insert finding: %w", err)
+			return nil, false, fmt.Errorf("insert finding: %w", err)
 		}
 	}
-	return nil
+
+	for _, item := range outbox {
+		if item == nil {
+			continue
+		}
+		status := item.Status
+		if status == "" {
+			status = "pending"
+		}
+		nextRetry := item.NextRetryAt
+		if nextRetry.IsZero() {
+			nextRetry = time.Now().UTC()
+		}
+		createdAt := item.CreatedAt
+		if createdAt.IsZero() {
+			createdAt = time.Now().UTC()
+		}
+		var delTime any
+		if item.DeliveredAt != nil {
+			delTime = item.DeliveredAt.UTC()
+		}
+		_, err = tx.ExecContext(ctx, `INSERT INTO webhook_outbox (id, org_id, webhook_id, event_type, payload_json, status, attempts, next_retry_at, created_at, delivered_at, last_error)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			item.ID, item.OrgID, item.WebhookID, item.EventType, item.PayloadJSON, status, item.Attempts, nextRetry.UTC(), createdAt.UTC(), delTime, item.LastError)
+		if err != nil {
+			return nil, false, fmt.Errorf("insert outbox item %s: %w", item.ID, err)
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, false, fmt.Errorf("commit save run tx: %w", err)
+	}
+
+	return run, true, nil
+}
+
+func (s *Store) EnqueueOutbox(ctx context.Context, items []*OutboxItem) error {
+	if len(items) == 0 {
+		return nil
+	}
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	for _, item := range items {
+		if item == nil {
+			continue
+		}
+		status := item.Status
+		if status == "" {
+			status = "pending"
+		}
+		nextRetry := item.NextRetryAt
+		if nextRetry.IsZero() {
+			nextRetry = time.Now().UTC()
+		}
+		createdAt := item.CreatedAt
+		if createdAt.IsZero() {
+			createdAt = time.Now().UTC()
+		}
+		var delTime any
+		if item.DeliveredAt != nil {
+			delTime = item.DeliveredAt.UTC()
+		}
+		_, err = tx.ExecContext(ctx, `INSERT INTO webhook_outbox (id, org_id, webhook_id, event_type, payload_json, status, attempts, next_retry_at, created_at, delivered_at, last_error)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			item.ID, item.OrgID, item.WebhookID, item.EventType, item.PayloadJSON, status, item.Attempts, nextRetry.UTC(), createdAt.UTC(), delTime, item.LastError)
+		if err != nil {
+			return fmt.Errorf("insert outbox item %s: %w", item.ID, err)
+		}
+	}
+	return tx.Commit()
+}
+
+func (s *Store) GetPendingOutboxItems(ctx context.Context, limit int) ([]*OutboxItem, error) {
+	if limit <= 0 {
+		limit = 20
+	}
+	now := time.Now().UTC()
+	rows, err := s.db.QueryContext(ctx, `SELECT id, org_id, webhook_id, event_type, payload_json, status, attempts, next_retry_at, created_at, delivered_at, last_error
+		FROM webhook_outbox
+		WHERE status = 'pending' AND next_retry_at <= ?
+		ORDER BY created_at ASC LIMIT ?`, now, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+
+	var items []*OutboxItem
+	for rows.Next() {
+		var it OutboxItem
+		var deliveredAt sql.NullTime
+		if err := rows.Scan(&it.ID, &it.OrgID, &it.WebhookID, &it.EventType, &it.PayloadJSON, &it.Status, &it.Attempts, &it.NextRetryAt, &it.CreatedAt, &deliveredAt, &it.LastError); err != nil {
+			return nil, err
+		}
+		if deliveredAt.Valid {
+			t := deliveredAt.Time.UTC()
+			it.DeliveredAt = &t
+		}
+		items = append(items, &it)
+	}
+	return items, rows.Err()
+}
+
+func (s *Store) MarkOutboxDelivered(ctx context.Context, id string) error {
+	now := time.Now().UTC()
+	_, err := s.db.ExecContext(ctx, `UPDATE webhook_outbox SET status = 'delivered', delivered_at = ?, last_error = '' WHERE id = ?`, now, id)
+	return err
+}
+
+func (s *Store) MarkOutboxAttemptFailed(ctx context.Context, id string, lastErr string, maxAttempts int) error {
+	if maxAttempts <= 0 {
+		maxAttempts = 3
+	}
+	now := time.Now().UTC()
+	var currentAttempts int
+	err := s.db.QueryRowContext(ctx, `SELECT attempts FROM webhook_outbox WHERE id = ?`, id).Scan(&currentAttempts)
+	if err != nil {
+		return err
+	}
+	newAttempts := currentAttempts + 1
+	status := "pending"
+	backoffSec := 2 * (1 << (newAttempts - 1))
+	if newAttempts >= maxAttempts {
+		status = "failed"
+	}
+	nextRetry := now.Add(time.Duration(backoffSec) * time.Second)
+	_, err = s.db.ExecContext(ctx, `UPDATE webhook_outbox SET attempts = ?, status = ?, next_retry_at = ?, last_error = ? WHERE id = ?`,
+		newAttempts, status, nextRetry, lastErr, id)
+	return err
+}
+
+func (s *Store) GetWebhookByID(ctx context.Context, orgID, webhookID string) (*WebhookRecord, error) {
+	var w WebhookRecord
+	var activeInt int
+	err := s.db.QueryRowContext(ctx, `SELECT id, org_id, target_type, url, events, active, created_at
+		FROM webhooks WHERE org_id = ? AND id = ?`, orgID, webhookID).
+		Scan(&w.ID, &w.OrgID, &w.TargetType, &w.URL, &w.Events, &activeInt, &w.CreatedAt)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, ErrNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+	w.Active = activeInt == 1
+	return &w, nil
 }
 
 func (s *Store) GetRun(runID string) (*RunRecord, *FindingRecord, error) {
 	var run RunRecord
-	err := s.db.QueryRow(`SELECT id, repo_id, scenario_id, commit_sha, branch, pr_number, status, anomaly_type, seed, duration_ms, created_at
+	var idempotencyKey, scenarioFingerprint sql.NullString
+	var commitTimestamp sql.NullTime
+	err := s.db.QueryRow(`SELECT id, repo_id, scenario_id, commit_sha, branch, pr_number, status, anomaly_type, seed, duration_ms, created_at,
+		idempotency_key, scenario_fingerprint, commit_timestamp
 		FROM runs WHERE id = ?`, runID).
-		Scan(&run.ID, &run.RepoID, &run.ScenarioID, &run.CommitSHA, &run.Branch, &run.PRNumber, &run.Status, &run.AnomalyType, &run.Seed, &run.DurationMS, &run.CreatedAt)
+		Scan(&run.ID, &run.RepoID, &run.ScenarioID, &run.CommitSHA, &run.Branch, &run.PRNumber, &run.Status, &run.AnomalyType, &run.Seed, &run.DurationMS, &run.CreatedAt,
+			&idempotencyKey, &scenarioFingerprint, &commitTimestamp)
+	if err == nil {
+		if idempotencyKey.Valid {
+			run.IdempotencyKey = idempotencyKey.String
+		}
+		if scenarioFingerprint.Valid {
+			run.ScenarioFingerprint = scenarioFingerprint.String
+		}
+		if commitTimestamp.Valid {
+			t := commitTimestamp.Time.UTC()
+			run.CommitTimestamp = &t
+		}
+	}
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil, ErrNotFound
 	}
@@ -524,13 +842,29 @@ func (s *Store) GetRun(runID string) (*RunRecord, *FindingRecord, error) {
 
 func (s *Store) GetRunForOrg(orgID, runID string) (*RunRecord, *FindingRecord, error) {
 	var run RunRecord
+	var idempotencyKey, scenarioFingerprint sql.NullString
+	var commitTimestamp sql.NullTime
 	err := s.db.QueryRow(`SELECT r.id, r.repo_id, r.scenario_id, r.commit_sha, r.branch, r.pr_number,
-		r.status, r.anomaly_type, r.seed, r.duration_ms, r.created_at
+		r.status, r.anomaly_type, r.seed, r.duration_ms, r.created_at,
+		r.idempotency_key, r.scenario_fingerprint, r.commit_timestamp
 		FROM runs r
 		JOIN repositories repo ON repo.id = r.repo_id
 		WHERE r.id = ? AND repo.org_id = ?`, runID, orgID).
 		Scan(&run.ID, &run.RepoID, &run.ScenarioID, &run.CommitSHA, &run.Branch, &run.PRNumber,
-			&run.Status, &run.AnomalyType, &run.Seed, &run.DurationMS, &run.CreatedAt)
+			&run.Status, &run.AnomalyType, &run.Seed, &run.DurationMS, &run.CreatedAt,
+			&idempotencyKey, &scenarioFingerprint, &commitTimestamp)
+	if err == nil {
+		if idempotencyKey.Valid {
+			run.IdempotencyKey = idempotencyKey.String
+		}
+		if scenarioFingerprint.Valid {
+			run.ScenarioFingerprint = scenarioFingerprint.String
+		}
+		if commitTimestamp.Valid {
+			t := commitTimestamp.Time.UTC()
+			run.CommitTimestamp = &t
+		}
+	}
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil, ErrNotFound
 	}

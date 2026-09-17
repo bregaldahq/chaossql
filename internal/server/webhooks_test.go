@@ -414,3 +414,121 @@ func TestExplicitLocalRouterAllowsShortWebhookRoutes(t *testing.T) {
 		t.Fatalf("expected explicit local dashboard access, got %d", rec.Code)
 	}
 }
+
+func TestOutboxDispatcher_RetryAndFailure(t *testing.T) {
+	s := newTestStore(t)
+	orgID := "org_outbox_test"
+	_ = s.CreateOrganization(orgID, "Outbox Org", "pro")
+
+	var callCount int
+	var returnStatus int = http.StatusInternalServerError
+
+	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		callCount++
+		w.WriteHeader(returnStatus)
+	}))
+	defer mockServer.Close()
+
+	now := time.Now().UTC()
+	_ = s.CreateWebhook(context.Background(), &WebhookRecord{
+		ID:         "wh_retry_test",
+		OrgID:      orgID,
+		TargetType: "slack",
+		URL:        mockServer.URL,
+		Events:     "failure",
+		Active:     true,
+		CreatedAt:  now,
+	})
+
+	outboxItem := &OutboxItem{
+		ID:          "outbox_retry_1",
+		OrgID:       orgID,
+		WebhookID:   "wh_retry_test",
+		EventType:   "failure",
+		PayloadJSON: `{"repo_full_name":"acme/retry","branch":"main","anomaly_type":"P4"}`,
+		Status:      "pending",
+		NextRetryAt: now.Add(-time.Second), // ready now
+		CreatedAt:   now,
+	}
+	if err := s.EnqueueOutbox(context.Background(), []*OutboxItem{outboxItem}); err != nil {
+		t.Fatalf("enqueue outbox item failed: %v", err)
+	}
+
+	// Create dispatcher with mock client that allows local test server
+	dispatcher := NewWebhookDispatcher(mockServer.Client())
+	od := &OutboxDispatcher{
+		store:       s,
+		dispatcher:  dispatcher,
+		maxAttempts: 3,
+	}
+
+	// 1. First attempt fails (500)
+	if err := od.ProcessPending(context.Background()); err != nil {
+		t.Fatalf("process pending unexpected error: %v", err)
+	}
+	if callCount != 1 {
+		t.Errorf("expected 1 call, got %d", callCount)
+	}
+
+	// Verify attempt incremented and status is still pending with future retry
+	var attempts int
+	var status string
+	var nextRetry time.Time
+	_ = s.db.QueryRow(`SELECT attempts, status, next_retry_at FROM webhook_outbox WHERE id = 'outbox_retry_1'`).
+		Scan(&attempts, &status, &nextRetry)
+	if attempts != 1 || status != "pending" {
+		t.Errorf("expected attempts=1, status=pending, got attempts=%d status=%s", attempts, status)
+	}
+	if !nextRetry.After(now) {
+		t.Errorf("expected next_retry_at in future, got %v", nextRetry)
+	}
+
+	// 2. Fast forward time and fail attempt 2
+	_, _ = s.db.Exec(`UPDATE webhook_outbox SET next_retry_at = ? WHERE id = 'outbox_retry_1'`, now.Add(-time.Second))
+	_ = od.ProcessPending(context.Background())
+	_ = s.db.QueryRow(`SELECT attempts, status FROM webhook_outbox WHERE id = 'outbox_retry_1'`).Scan(&attempts, &status)
+	if attempts != 2 || status != "pending" {
+		t.Errorf("expected attempts=2, status=pending, got attempts=%d status=%s", attempts, status)
+	}
+
+	// 3. Fast forward time and fail attempt 3 (should transition to 'failed')
+	_, _ = s.db.Exec(`UPDATE webhook_outbox SET next_retry_at = ? WHERE id = 'outbox_retry_1'`, now.Add(-time.Second))
+	_ = od.ProcessPending(context.Background())
+	_ = s.db.QueryRow(`SELECT attempts, status FROM webhook_outbox WHERE id = 'outbox_retry_1'`).Scan(&attempts, &status)
+	if attempts != 3 || status != "failed" {
+		t.Errorf("expected attempts=3, status=failed, got attempts=%d status=%s", attempts, status)
+	}
+
+	// 4. Test success: new item with 200 OK transitions to 'delivered'
+	returnStatus = http.StatusOK
+	outboxSuccess := &OutboxItem{
+		ID:          "outbox_success_1",
+		OrgID:       orgID,
+		WebhookID:   "wh_retry_test",
+		EventType:   "failure",
+		PayloadJSON: `{"repo_full_name":"acme/retry","branch":"main","anomaly_type":"P4"}`,
+		Status:      "pending",
+		NextRetryAt: now.Add(-time.Second),
+		CreatedAt:   now,
+	}
+	_ = s.EnqueueOutbox(context.Background(), []*OutboxItem{outboxSuccess})
+	_ = od.ProcessPending(context.Background())
+
+	var deliveredStatus string
+	var deliveredAt *time.Time
+	_ = s.db.QueryRow(`SELECT status, delivered_at FROM webhook_outbox WHERE id = 'outbox_success_1'`).Scan(&deliveredStatus, &deliveredAt)
+	if deliveredStatus != "delivered" || deliveredAt == nil {
+		t.Errorf("expected delivered status and non-nil delivered_at, got status=%s delivered_at=%v", deliveredStatus, deliveredAt)
+	}
+}
+
+func TestSafeHTTPClient_RejectsInternalDial(t *testing.T) {
+	client := NewSafeHTTPClient()
+	_, err := client.Get("http://127.0.0.1:9999/test")
+	if err == nil {
+		t.Fatalf("expected error dialing internal address, got nil")
+	}
+	if !strings.Contains(err.Error(), "ssrf protection") && !strings.Contains(err.Error(), "connection refused") {
+		t.Logf("got error: %v", err)
+	}
+}

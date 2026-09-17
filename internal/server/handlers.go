@@ -20,8 +20,9 @@ type RouterConfig struct {
 }
 
 type Server struct {
-	cfg        RouterConfig
-	dispatcher *WebhookDispatcher
+	cfg              RouterConfig
+	dispatcher       *WebhookDispatcher
+	outboxDispatcher *OutboxDispatcher
 }
 
 func corsMiddleware(next http.Handler) http.Handler {
@@ -53,9 +54,16 @@ func newRouter(cfg RouterConfig, local bool) http.Handler {
 	}
 	cfg.PublicBaseURL = strings.TrimRight(cfg.PublicBaseURL, "/")
 
+	dispatcher := NewWebhookDispatcher(nil)
+	var outboxDispatcher *OutboxDispatcher
+	if cfg.Store != nil {
+		outboxDispatcher = NewOutboxDispatcher(cfg.Store, dispatcher)
+	}
+
 	s := &Server{
-		cfg:        cfg,
-		dispatcher: NewWebhookDispatcher(nil),
+		cfg:              cfg,
+		dispatcher:       dispatcher,
+		outboxDispatcher: outboxDispatcher,
 	}
 	protect := s.authorize
 	if local {
@@ -233,18 +241,35 @@ func (s *Server) handleIngestRun(w http.ResponseWriter, r *http.Request) {
 	}
 
 	runID := fmt.Sprintf("run_%d", time.Now().UnixNano())
+	now := time.Now().UTC()
+	var commitTimestamp *time.Time
+	if !req.Timestamp.IsZero() {
+		t := req.Timestamp.UTC()
+		commitTimestamp = &t
+	}
+
+	idempotencyKey := strings.TrimSpace(r.Header.Get("Idempotency-Key"))
+	if idempotencyKey == "" && req.CI != nil {
+		if req.CI.RunID != "" {
+			idempotencyKey = strings.TrimSpace(req.CI.RunID)
+		}
+	}
+
 	run := &RunRecord{
-		ID:          runID,
-		RepoID:      repo.ID,
-		ScenarioID:  sc.ID,
-		CommitSHA:   commitSHA,
-		Branch:      branch,
-		PRNumber:    prNumber,
-		Status:      req.Result.Status,
-		AnomalyType: req.Result.AnomalyType,
-		Seed:        req.Scenario.Seed,
-		DurationMS:  req.Result.DurationMS,
-		CreatedAt:   time.Now().UTC(),
+		ID:                  runID,
+		RepoID:              repo.ID,
+		ScenarioID:          sc.ID,
+		CommitSHA:           commitSHA,
+		Branch:              branch,
+		PRNumber:            prNumber,
+		Status:              req.Result.Status,
+		AnomalyType:         req.Result.AnomalyType,
+		Seed:                req.Scenario.Seed,
+		DurationMS:          req.Result.DurationMS,
+		CreatedAt:           now,
+		IdempotencyKey:      idempotencyKey,
+		ScenarioFingerprint: req.Scenario.Fingerprint,
+		CommitTimestamp:     commitTimestamp,
 	}
 
 	var finding *FindingRecord
@@ -274,67 +299,78 @@ func (s *Server) handleIngestRun(w http.ResponseWriter, r *http.Request) {
 			MinimalOps:  minimalOps,
 			ReproCode:   reproCode,
 			TraceJSON:   traceJSON,
-			CreatedAt:   time.Now().UTC(),
+			CreatedAt:   now,
 		}
 	}
 
-	if err := s.cfg.Store.SaveRun(run, finding); err != nil {
+	savedRun, created, err := s.cfg.Store.SaveRunTx(r.Context(), run, finding, nil)
+	if err != nil {
 		http.Error(w, fmt.Sprintf(`{"error":"failed to save run: %s"}`, err.Error()), http.StatusInternalServerError)
 		return
 	}
 
-	comp, isReg, err := s.cfg.Engine.Evaluate(repo, sc, run)
+	comp, isReg, err := s.cfg.Engine.Evaluate(repo, sc, savedRun)
 	if err != nil {
 		http.Error(w, fmt.Sprintf(`{"error":"failed to evaluate regression: %s"}`, err.Error()), http.StatusInternalServerError)
 		return
 	}
 
-	if isReg || run.Status != "passed" {
-		go func() {
-			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-			defer cancel()
+	if created && (isReg || savedRun.Status != "passed") {
+		eventType := "regression"
+		if !isReg {
+			eventType = "failure"
+		}
 
-			eventType := "regression"
-			if !isReg {
-				eventType = "failure"
-			}
-
-			webhooks, err := s.cfg.Store.GetActiveWebhooksForEvent(ctx, repo.OrgID, eventType)
-			if err != nil || len(webhooks) == 0 {
-				return
-			}
-
+		ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+		webhooks, err := s.cfg.Store.GetActiveWebhooksForEvent(ctx, repo.OrgID, eventType)
+		cancel()
+		if err == nil && len(webhooks) > 0 {
 			baseStatus := "PASS"
 			if comp != nil && comp.Status != "" {
 				baseStatus = comp.Status
 			}
 
-			anomalyName := run.AnomalyType
+			anomalyName := savedRun.AnomalyType
 			if req.Result.ViolationDetected && req.Result.AnomalyType != "" {
 				anomalyName = req.Result.AnomalyType
 			}
 
 			alert := &RegressionAlert{
 				RepoFullName:   repo.FullName,
-				Branch:         run.Branch,
-				PRNumber:       run.PRNumber,
-				CommitSHA:      run.CommitSHA,
-				AnomalyType:    run.AnomalyType,
+				Branch:         savedRun.Branch,
+				PRNumber:       savedRun.PRNumber,
+				CommitSHA:      savedRun.CommitSHA,
+				AnomalyType:    savedRun.AnomalyType,
 				AnomalyName:    anomalyName,
 				Driver:         sc.Driver,
 				Isolation:      "READ COMMITTED",
 				Scenario:       sc.Name,
-				Seed:           run.Seed,
-				DurationMS:     run.DurationMS,
+				Seed:           savedRun.Seed,
+				DurationMS:     savedRun.DurationMS,
 				BaselineStatus: baseStatus,
-				RunURL:         fmt.Sprintf("%s/#/visualizer?scenario=%s&seed=%d", s.cfg.PublicBaseURL, sc.Name, run.Seed),
+				RunURL:         fmt.Sprintf("%s/#/visualizer?scenario=%s&seed=%d", s.cfg.PublicBaseURL, sc.Name, savedRun.Seed),
 				IsRegression:   isReg,
 			}
 
-			for _, wh := range webhooks {
-				_ = s.dispatcher.DispatchAlert(ctx, wh, alert)
+			alertData, _ := json.Marshal(alert)
+			var outboxItems []*OutboxItem
+			for i, wh := range webhooks {
+				outboxItems = append(outboxItems, &OutboxItem{
+					ID:          fmt.Sprintf("outbox_%d_%d", time.Now().UnixNano(), i),
+					OrgID:       repo.OrgID,
+					WebhookID:   wh.ID,
+					EventType:   eventType,
+					PayloadJSON: string(alertData),
+					Status:      "pending",
+					NextRetryAt: now,
+					CreatedAt:   now,
+				})
 			}
-		}()
+			_ = s.cfg.Store.EnqueueOutbox(r.Context(), outboxItems)
+			if s.outboxDispatcher != nil {
+				s.outboxDispatcher.Trigger()
+			}
+		}
 	}
 
 	msg := "Execution passed successfully."
@@ -343,22 +379,26 @@ func (s *Server) handleIngestRun(w http.ResponseWriter, r *http.Request) {
 		if comp != nil && comp.Branch != "" {
 			baseBranch = comp.Branch
 		}
-		msg = fmt.Sprintf("Regression detected! Anomaly %s broke baseline on %s", run.AnomalyType, baseBranch)
-	} else if run.Status != "passed" {
-		msg = fmt.Sprintf("Execution finished with status %s.", run.Status)
+		msg = fmt.Sprintf("Regression detected! Anomaly %s broke baseline on %s", savedRun.AnomalyType, baseBranch)
+	} else if savedRun.Status != "passed" {
+		msg = fmt.Sprintf("Execution finished with status %s.", savedRun.Status)
 	}
 
 	resp := cloud.RunIngestResponse{
 		Success:      true,
-		RunID:        runID,
-		URL:          fmt.Sprintf("%s/runs/%s", s.cfg.PublicBaseURL, runID),
+		RunID:        savedRun.ID,
+		URL:          fmt.Sprintf("%s/runs/%s", s.cfg.PublicBaseURL, savedRun.ID),
 		IsRegression: isReg,
 		Baseline:     comp,
 		Message:      msg,
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
+	if created {
+		w.WriteHeader(http.StatusCreated)
+	} else {
+		w.WriteHeader(http.StatusOK)
+	}
 	_ = json.NewEncoder(w).Encode(resp)
 }
 

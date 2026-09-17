@@ -42,3 +42,6 @@ dist/
 # Internal Architecture & Roadmap (Confidential / Not for Git)
 internal_docs/
 .wrangler
+
+# Local commercialization assessment
+/docs/superpowers/plans/2026-09-10-saas-commercialization-assessment.md
