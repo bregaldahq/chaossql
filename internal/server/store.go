@@ -684,6 +684,120 @@ func (s *Store) SaveRunTx(ctx context.Context, run *RunRecord, finding *FindingR
 	return run, true, nil
 }
 
+func (s *Store) EnqueueOutbox(ctx context.Context, items []*OutboxItem) error {
+	if len(items) == 0 {
+		return nil
+	}
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	for _, item := range items {
+		if item == nil {
+			continue
+		}
+		status := item.Status
+		if status == "" {
+			status = "pending"
+		}
+		nextRetry := item.NextRetryAt
+		if nextRetry.IsZero() {
+			nextRetry = time.Now().UTC()
+		}
+		createdAt := item.CreatedAt
+		if createdAt.IsZero() {
+			createdAt = time.Now().UTC()
+		}
+		var delTime any
+		if item.DeliveredAt != nil {
+			delTime = item.DeliveredAt.UTC()
+		}
+		_, err = tx.ExecContext(ctx, `INSERT INTO webhook_outbox (id, org_id, webhook_id, event_type, payload_json, status, attempts, next_retry_at, created_at, delivered_at, last_error)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			item.ID, item.OrgID, item.WebhookID, item.EventType, item.PayloadJSON, status, item.Attempts, nextRetry.UTC(), createdAt.UTC(), delTime, item.LastError)
+		if err != nil {
+			return fmt.Errorf("insert outbox item %s: %w", item.ID, err)
+		}
+	}
+	return tx.Commit()
+}
+
+func (s *Store) GetPendingOutboxItems(ctx context.Context, limit int) ([]*OutboxItem, error) {
+	if limit <= 0 {
+		limit = 20
+	}
+	now := time.Now().UTC()
+	rows, err := s.db.QueryContext(ctx, `SELECT id, org_id, webhook_id, event_type, payload_json, status, attempts, next_retry_at, created_at, delivered_at, last_error
+		FROM webhook_outbox
+		WHERE status = 'pending' AND next_retry_at <= ?
+		ORDER BY created_at ASC LIMIT ?`, now, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+
+	var items []*OutboxItem
+	for rows.Next() {
+		var it OutboxItem
+		var deliveredAt sql.NullTime
+		if err := rows.Scan(&it.ID, &it.OrgID, &it.WebhookID, &it.EventType, &it.PayloadJSON, &it.Status, &it.Attempts, &it.NextRetryAt, &it.CreatedAt, &deliveredAt, &it.LastError); err != nil {
+			return nil, err
+		}
+		if deliveredAt.Valid {
+			t := deliveredAt.Time.UTC()
+			it.DeliveredAt = &t
+		}
+		items = append(items, &it)
+	}
+	return items, rows.Err()
+}
+
+func (s *Store) MarkOutboxDelivered(ctx context.Context, id string) error {
+	now := time.Now().UTC()
+	_, err := s.db.ExecContext(ctx, `UPDATE webhook_outbox SET status = 'delivered', delivered_at = ?, last_error = '' WHERE id = ?`, now, id)
+	return err
+}
+
+func (s *Store) MarkOutboxAttemptFailed(ctx context.Context, id string, lastErr string, maxAttempts int) error {
+	if maxAttempts <= 0 {
+		maxAttempts = 3
+	}
+	now := time.Now().UTC()
+	var currentAttempts int
+	err := s.db.QueryRowContext(ctx, `SELECT attempts FROM webhook_outbox WHERE id = ?`, id).Scan(&currentAttempts)
+	if err != nil {
+		return err
+	}
+	newAttempts := currentAttempts + 1
+	status := "pending"
+	backoffSec := 2 * (1 << (newAttempts - 1))
+	if newAttempts >= maxAttempts {
+		status = "failed"
+	}
+	nextRetry := now.Add(time.Duration(backoffSec) * time.Second)
+	_, err = s.db.ExecContext(ctx, `UPDATE webhook_outbox SET attempts = ?, status = ?, next_retry_at = ?, last_error = ? WHERE id = ?`,
+		newAttempts, status, nextRetry, lastErr, id)
+	return err
+}
+
+func (s *Store) GetWebhookByID(ctx context.Context, orgID, webhookID string) (*WebhookRecord, error) {
+	var w WebhookRecord
+	var activeInt int
+	err := s.db.QueryRowContext(ctx, `SELECT id, org_id, target_type, url, events, active, created_at
+		FROM webhooks WHERE org_id = ? AND id = ?`, orgID, webhookID).
+		Scan(&w.ID, &w.OrgID, &w.TargetType, &w.URL, &w.Events, &activeInt, &w.CreatedAt)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, ErrNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+	w.Active = activeInt == 1
+	return &w, nil
+}
+
 func (s *Store) GetRun(runID string) (*RunRecord, *FindingRecord, error) {
 	var run RunRecord
 	var idempotencyKey, scenarioFingerprint sql.NullString

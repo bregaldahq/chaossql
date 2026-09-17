@@ -561,3 +561,110 @@ func TestCallerCannotSpoofOrganizationHeader(t *testing.T) {
 		t.Fatalf("spoofed organization acquired repository: %v", err)
 	}
 }
+
+func TestIngestRun_IdempotencyAndOutboxStaging(t *testing.T) {
+	handler, store, token := newTestServer(t)
+
+	// Create a webhook for org_default
+	now := time.Now().UTC()
+	err := store.CreateWebhook(context.Background(), &WebhookRecord{
+		ID:         "wh_handler_test",
+		OrgID:      "org_cloud_test",
+		TargetType: "slack",
+		URL:        "https://example.com/slack",
+		Events:     "failure,regression",
+		Active:     true,
+		CreatedAt:  now,
+	})
+	if err != nil {
+		t.Fatalf("failed to create webhook: %v", err)
+	}
+
+	payload := cloud.RunIngestRequest{
+		Version:   "1.0",
+		Timestamp: now,
+		CI: &cloud.CIContext{
+			Provider:   "github-actions",
+			Repository: "bregaldahq/idempotent-api",
+			CommitSHA:  "commit_idem_1",
+			Branch:     "main",
+		},
+		Scenario: cloud.ScenarioMetadata{
+			Name:        "account_race",
+			Fingerprint: "fp_handler_test",
+			Driver:      "postgres",
+			Seed:        42,
+		},
+		Result: cloud.ExecutionSummary{
+			Status:            "failed",
+			Success:           false,
+			ViolationDetected: true,
+			AnomalyType:       "P4",
+			DurationMS:        250,
+		},
+	}
+
+	body, _ := json.Marshal(payload)
+
+	// 1. First submission with Idempotency-Key
+	req1 := httptest.NewRequest(http.MethodPost, "/v1/runs", bytes.NewReader(body))
+	req1.Header.Set("Authorization", "Bearer "+token)
+	req1.Header.Set("Idempotency-Key", "idemp_test_key_001")
+	w1 := httptest.NewRecorder()
+	handler.ServeHTTP(w1, req1)
+
+	if w1.Code != http.StatusCreated {
+		t.Fatalf("first submission expected 201 Created, got %d: %s", w1.Code, w1.Body.String())
+	}
+	var resp1 cloud.RunIngestResponse
+	if err := json.Unmarshal(w1.Body.Bytes(), &resp1); err != nil {
+		t.Fatalf("decode resp1 failed: %v", err)
+	}
+	if resp1.RunID == "" {
+		t.Fatalf("expected run ID in resp1")
+	}
+
+	// Verify 1 run and 1 outbox item
+	r1, _, err := store.GetRunForOrg("org_cloud_test", resp1.RunID)
+	if err != nil || r1 == nil {
+		t.Fatalf("expected run stored in db, err=%v", err)
+	}
+	if r1.IdempotencyKey != "idemp_test_key_001" {
+		t.Errorf("expected r1.IdempotencyKey=idemp_test_key_001, got %s", r1.IdempotencyKey)
+	}
+	if r1.ScenarioFingerprint != "fp_handler_test" {
+		t.Errorf("expected r1.ScenarioFingerprint=fp_handler_test, got %s", r1.ScenarioFingerprint)
+	}
+
+	var outboxCount int
+	if err := store.db.QueryRow(`SELECT COUNT(*) FROM webhook_outbox WHERE org_id = 'org_cloud_test'`).Scan(&outboxCount); err != nil || outboxCount != 1 {
+		t.Fatalf("expected 1 outbox item staged, got %d, err=%v", outboxCount, err)
+	}
+
+	// 2. Second submission with SAME Idempotency-Key (simulating retry)
+	req2 := httptest.NewRequest(http.MethodPost, "/v1/runs", bytes.NewReader(body))
+	req2.Header.Set("Authorization", "Bearer "+token)
+	req2.Header.Set("Idempotency-Key", "idemp_test_key_001")
+	w2 := httptest.NewRecorder()
+	handler.ServeHTTP(w2, req2)
+
+	if w2.Code != http.StatusOK {
+		t.Fatalf("second submission expected 200 OK (idempotent), got %d: %s", w2.Code, w2.Body.String())
+	}
+	var resp2 cloud.RunIngestResponse
+	if err := json.Unmarshal(w2.Body.Bytes(), &resp2); err != nil {
+		t.Fatalf("decode resp2 failed: %v", err)
+	}
+	if resp2.RunID != resp1.RunID {
+		t.Errorf("expected idempotent retry to return original run ID %s, got %s", resp1.RunID, resp2.RunID)
+	}
+
+	// Verify NO duplicate runs or outbox alerts in db
+	var runsCount int
+	if err := store.db.QueryRow(`SELECT COUNT(*) FROM runs WHERE idempotency_key = 'idemp_test_key_001'`).Scan(&runsCount); err != nil || runsCount != 1 {
+		t.Fatalf("expected 1 run in db, got %d, err=%v", runsCount, err)
+	}
+	if err := store.db.QueryRow(`SELECT COUNT(*) FROM webhook_outbox WHERE org_id = 'org_cloud_test'`).Scan(&outboxCount); err != nil || outboxCount != 1 {
+		t.Fatalf("expected still 1 outbox item in db, got %d, err=%v", outboxCount, err)
+	}
+}

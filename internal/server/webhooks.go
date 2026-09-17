@@ -4,11 +4,13 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
 	neturl "net/url"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -247,4 +249,149 @@ func isInternalIP(ip net.IP) bool {
 		return true
 	}
 	return false
+}
+
+
+// NewSafeHTTPClient creates an HTTP client with connection-time SSRF validation
+// and redirect blocking to internal/private IP ranges.
+func NewSafeHTTPClient() *http.Client {
+	dialer := &net.Dialer{
+		Timeout:   5 * time.Second,
+		KeepAlive: 30 * time.Second,
+	}
+
+	transport := &http.Transport{
+		DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+			host, _, err := net.SplitHostPort(addr)
+			if err != nil {
+				return nil, fmt.Errorf("invalid address %q: %w", addr, err)
+			}
+			var addrs []net.IP
+			if ip := net.ParseIP(host); ip != nil {
+				addrs = []net.IP{ip}
+			} else {
+				resolved, err := lookupIP(host)
+				if err != nil || len(resolved) == 0 {
+					return nil, fmt.Errorf("resolve host %q: %w", host, err)
+				}
+				addrs = resolved
+			}
+			for _, ip := range addrs {
+				if isInternalIP(ip) {
+					return nil, fmt.Errorf("ssrf protection: address %s is not permitted", ip.String())
+				}
+			}
+			return dialer.DialContext(ctx, network, addr)
+		},
+		ResponseHeaderTimeout: 5 * time.Second,
+	}
+
+	return &http.Client{
+		Transport: transport,
+		Timeout:   10 * time.Second,
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			if len(via) >= 5 {
+				return errors.New("stopped after 5 redirects")
+			}
+			if err := ValidateWebhookTarget(req.URL.String()); err != nil {
+				return fmt.Errorf("redirect blocked by ssrf policy: %w", err)
+			}
+			return nil
+		},
+	}
+}
+
+// OutboxDispatcher processes staged webhook notifications asynchronously and reliably.
+type OutboxDispatcher struct {
+	store       *Store
+	dispatcher  *WebhookDispatcher
+	maxAttempts int
+	triggerCh   chan struct{}
+	stopCh      chan struct{}
+	wg          sync.WaitGroup
+}
+
+func NewOutboxDispatcher(store *Store, dispatcher *WebhookDispatcher) *OutboxDispatcher {
+	if dispatcher == nil {
+		dispatcher = NewWebhookDispatcher(nil)
+	}
+	od := &OutboxDispatcher{
+		store:       store,
+		dispatcher:  dispatcher,
+		maxAttempts: 3,
+		triggerCh:   make(chan struct{}, 100),
+		stopCh:      make(chan struct{}),
+	}
+	od.Start()
+	return od
+}
+
+func (od *OutboxDispatcher) Trigger() {
+	select {
+	case od.triggerCh <- struct{}{}:
+	default:
+	}
+}
+
+func (od *OutboxDispatcher) Start() {
+	od.wg.Add(1)
+	go func() {
+		defer od.wg.Done()
+		ticker := time.NewTicker(20 * time.Millisecond)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-od.stopCh:
+				return
+			case <-ticker.C:
+				_ = od.ProcessPending(context.Background())
+			case <-od.triggerCh:
+				_ = od.ProcessPending(context.Background())
+			}
+		}
+	}()
+}
+
+func (od *OutboxDispatcher) Stop() {
+	close(od.stopCh)
+	od.wg.Wait()
+}
+
+func (od *OutboxDispatcher) ProcessPending(ctx context.Context) error {
+	if od.store == nil {
+		return nil
+	}
+	items, err := od.store.GetPendingOutboxItems(ctx, 20)
+	if err != nil || len(items) == 0 {
+		return err
+	}
+
+	for _, item := range items {
+		wh, err := od.store.GetWebhookByID(ctx, item.OrgID, item.WebhookID)
+		if err != nil {
+			_ = od.store.MarkOutboxAttemptFailed(ctx, item.ID, "webhook not found", od.maxAttempts)
+			continue
+		}
+		if !wh.Active {
+			_ = od.store.MarkOutboxAttemptFailed(ctx, item.ID, "webhook inactive", od.maxAttempts)
+			continue
+		}
+
+		var alert RegressionAlert
+		if err := json.Unmarshal([]byte(item.PayloadJSON), &alert); err != nil {
+			_ = od.store.MarkOutboxAttemptFailed(ctx, item.ID, "invalid payload json", od.maxAttempts)
+			continue
+		}
+
+		dispCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+		err = od.dispatcher.DispatchAlert(dispCtx, *wh, &alert)
+		cancel()
+
+		if err == nil {
+			_ = od.store.MarkOutboxDelivered(ctx, item.ID)
+		} else {
+			_ = od.store.MarkOutboxAttemptFailed(ctx, item.ID, err.Error(), od.maxAttempts)
+		}
+	}
+	return nil
 }
