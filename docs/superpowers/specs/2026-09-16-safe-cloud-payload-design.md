@@ -28,6 +28,10 @@ The following remain local:
 
 The server independently rejects requests containing forbidden detail fields. It also rejects unknown JSON fields and bodies larger than 64 KiB before persistence. Detailed upload is intentionally unavailable until a future design provides project-level consent, preview, access control, retention, and deletion as one complete feature.
 
+Allowed string fields use bounded structural-identifier syntax. Free text, email addresses, credential-bearing URLs, DSNs, query strings, and fragments are rejected. Local Git remotes are reduced to a credential-free host/path identifier before projection.
+
+The upgrade applies a one-time migration that clears historical assertion values, reproduction source, and trace JSON. Run detail and list responses use public projections that suppress unsafe historical strings. The finding projection never exposes reproduction or trace columns and returns an invariant name only when it passes the identifier policy.
+
 ## Compatibility
 
 Older clients that submit detailed fields receive HTTP 400 with a privacy-policy error. Structural types retain deprecated detail fields temporarily so the server can recognize and reject old payloads instead of silently accepting them.
@@ -39,4 +43,6 @@ Older clients that submit detailed fields receive HTTP 400 with a privacy-policy
 - Assert the original request is unchanged.
 - Assert the server rejects forbidden and unknown fields before writing a run.
 - Assert client and server enforce the payload size limit.
+- Assert the default GitHub summary and PR comment omit SQL, expressions, actual values, DSNs, and personal data.
+- Assert upgrades purge historical details and run responses cannot expose directly inserted legacy content.
 - Keep local reports useful without claiming that detailed evidence is uploaded.

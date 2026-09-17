@@ -383,9 +383,65 @@ func (s *Server) handleGetRun(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	_ = json.NewEncoder(w).Encode(map[string]interface{}{
-		"run":     run,
+		"run":     publicRun(run),
 		"finding": publicFinding(finding),
 	})
+}
+
+type publicRunRecord struct {
+	ID          string    `json:"id"`
+	RepoID      string    `json:"repo_id"`
+	ScenarioID  string    `json:"scenario_id"`
+	CommitSHA   string    `json:"commit_sha"`
+	Branch      string    `json:"branch"`
+	PRNumber    int       `json:"pr_number"`
+	Status      string    `json:"status"`
+	AnomalyType string    `json:"anomaly_type"`
+	Seed        uint64    `json:"seed"`
+	DurationMS  int64     `json:"duration_ms"`
+	CreatedAt   time.Time `json:"created_at"`
+}
+
+func publicRun(run *RunRecord) *publicRunRecord {
+	if run == nil {
+		return nil
+	}
+	status := ""
+	if run.Status == "passed" || run.Status == "failed" {
+		status = run.Status
+	}
+	anomalyType := ""
+	if cloud.IsAllowedAnomalyType(run.AnomalyType) {
+		anomalyType = run.AnomalyType
+	}
+	return &publicRunRecord{
+		ID:          safePublicIdentifier(run.ID, 128),
+		RepoID:      safePublicIdentifier(run.RepoID, 128),
+		ScenarioID:  safePublicIdentifier(run.ScenarioID, 128),
+		CommitSHA:   safePublicIdentifier(run.CommitSHA, 128),
+		Branch:      safePublicIdentifier(run.Branch, 255),
+		PRNumber:    run.PRNumber,
+		Status:      status,
+		AnomalyType: anomalyType,
+		Seed:        run.Seed,
+		DurationMS:  run.DurationMS,
+		CreatedAt:   run.CreatedAt,
+	}
+}
+
+func publicRuns(runs []*RunRecord) []*publicRunRecord {
+	result := make([]*publicRunRecord, len(runs))
+	for i, run := range runs {
+		result[i] = publicRun(run)
+	}
+	return result
+}
+
+func safePublicIdentifier(value string, limit int) string {
+	if cloud.IsSafeMetadataIdentifierWithLimit(value, limit) {
+		return value
+	}
+	return ""
 }
 
 type publicFindingRecord struct {
@@ -405,10 +461,14 @@ func publicFinding(finding *FindingRecord) *publicFindingRecord {
 	if cloud.IsSafeMetadataIdentifier(finding.Assertion) {
 		assertion = finding.Assertion
 	}
+	anomalyType := ""
+	if cloud.IsAllowedAnomalyType(finding.AnomalyType) {
+		anomalyType = finding.AnomalyType
+	}
 	return &publicFindingRecord{
-		ID:          finding.ID,
-		RunID:       finding.RunID,
-		AnomalyType: finding.AnomalyType,
+		ID:          safePublicIdentifier(finding.ID, 128),
+		RunID:       safePublicIdentifier(finding.RunID, 128),
+		AnomalyType: anomalyType,
 		Assertion:   assertion,
 		MinimalOps:  finding.MinimalOps,
 		CreatedAt:   finding.CreatedAt,
@@ -441,7 +501,7 @@ func (s *Server) handleListRuns(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	_ = json.NewEncoder(w).Encode(map[string]interface{}{
 		"repository": fullName,
-		"runs":       runs,
+		"runs":       publicRuns(runs),
 	})
 }
 
@@ -477,7 +537,7 @@ func (s *Server) handleListAllRuns(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	_ = json.NewEncoder(w).Encode(map[string]interface{}{
-		"runs":  runs,
+		"runs":  publicRuns(runs),
 		"count": len(runs),
 	})
 }

@@ -166,7 +166,7 @@ func TestGetRunNeverReturnsStoredDetailedFindingFields(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	run := &RunRecord{ID: "run_private", RepoID: repo.ID, ScenarioID: scenario.ID, CommitSHA: "abc", Branch: "main", Status: "failed", AnomalyType: "P4", CreatedAt: time.Now().UTC()}
+	run := &RunRecord{ID: "run_private", RepoID: repo.ID, ScenarioID: scenario.ID, CommitSHA: "alice@example.com", Branch: "postgres://alice:secret@db/private", Status: "SELECT secret", AnomalyType: "private.accounts", CreatedAt: time.Now().UTC()}
 	finding := &FindingRecord{ID: "finding_private", RunID: run.ID, AnomalyType: "P4", Assertion: "alice@example.com", MinimalOps: 2, ReproCode: "postgres://alice:secret@db/private", TraceJSON: `[{"sql":"SELECT secret"}]`, CreatedAt: time.Now().UTC()}
 	if err := store.SaveRun(run, finding); err != nil {
 		t.Fatal(err)
@@ -179,9 +179,23 @@ func TestGetRunNeverReturnsStoredDetailedFindingFields(t *testing.T) {
 	if response.Code != http.StatusOK {
 		t.Fatalf("status=%d body=%s", response.Code, response.Body.String())
 	}
-	for _, forbidden := range []string{"alice@example.com", "postgres://alice:secret@db/private", "SELECT secret", "repro_code", "trace_json"} {
+	for _, forbidden := range []string{"alice@example.com", "postgres://alice:secret@db/private", "SELECT secret", "private.accounts", "repro_code", "trace_json"} {
 		if strings.Contains(response.Body.String(), forbidden) {
 			t.Errorf("run response contains forbidden detail %q: %s", forbidden, response.Body.String())
+		}
+	}
+	for _, path := range []string{"/v1/runs", "/v1/repositories/acme/private/runs"} {
+		listRequest := httptest.NewRequest(http.MethodGet, path, nil)
+		listRequest.Header.Set("Authorization", "Bearer "+token)
+		listResponse := httptest.NewRecorder()
+		handler.ServeHTTP(listResponse, listRequest)
+		if listResponse.Code != http.StatusOK {
+			t.Fatalf("list %s status=%d body=%s", path, listResponse.Code, listResponse.Body.String())
+		}
+		for _, forbidden := range []string{"alice@example.com", "postgres://alice:secret@db/private", "SELECT secret", "private.accounts"} {
+			if strings.Contains(listResponse.Body.String(), forbidden) {
+				t.Errorf("run list %s contains forbidden detail %q: %s", path, forbidden, listResponse.Body.String())
+			}
 		}
 	}
 }

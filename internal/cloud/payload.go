@@ -187,7 +187,59 @@ func validateMetadataPayload(payload *metadataPayload) error {
 			return fmt.Errorf("%w: %s", ErrUnsafeMetadata, field.name)
 		}
 	}
+	if payload.CI != nil && payload.CI.Provider != "" {
+		provider := payload.CI.Provider
+		if provider != "github-actions" && provider != "gitlab-ci" && provider != "local" {
+			return fmt.Errorf("%w: ci.provider", ErrUnsafeMetadata)
+		}
+	}
+	if payload.Scenario.Driver != "" && !isAllowedDriver(payload.Scenario.Driver) {
+		return fmt.Errorf("%w: scenario.driver", ErrUnsafeMetadata)
+	}
+	if payload.Result.Status != "" && !isAllowedRunStatus(payload.Result.Status) {
+		return fmt.Errorf("%w: result.status", ErrUnsafeMetadata)
+	}
+	if payload.Result.ExecutionStatus != "" && !isAllowedExecutionStatus(payload.Result.ExecutionStatus) {
+		return fmt.Errorf("%w: result.execution_status", ErrUnsafeMetadata)
+	}
+	if payload.Result.AnomalyType != "" && !IsAllowedAnomalyType(payload.Result.AnomalyType) {
+		return fmt.Errorf("%w: result.anomaly_type", ErrUnsafeMetadata)
+	}
 	return nil
+}
+
+func isAllowedDriver(value string) bool {
+	switch value {
+	case "sqlite", "postgres", "postgresql", "mysql", "mariadb":
+		return true
+	default:
+		return false
+	}
+}
+
+func isAllowedRunStatus(value string) bool {
+	return value == "passed" || value == "failed"
+}
+
+func isAllowedExecutionStatus(value string) bool {
+	switch value {
+	case "passed", "violation", "execution_error", "inconclusive", "canceled":
+		return true
+	default:
+		return false
+	}
+}
+
+func IsAllowedAnomalyType(value string) bool {
+	switch value {
+	case "NONE", "P4", "A5B", "A3", "A5A", "G0", "G1A", "G1B", "G1C", "G2",
+		"P4_LOST_UPDATE", "A5B_WRITE_SKEW", "A3_PHANTOM_READ", "A5A_READ_SKEW",
+		"G0_DIRTY_WRITE", "G1A_DIRTY_READ", "G1B_INTERMEDIATE_READ", "FRACTURED_READ",
+		"G1C_CIRCULAR_INFO", "G2_ANTI_DEPENDENCY", "UNKNOWN_INVARIANT_VIOLATION":
+		return true
+	default:
+		return false
+	}
 }
 
 func DecodeMetadataOnlyRequest(data []byte) (*RunIngestRequest, error) {
@@ -251,5 +303,9 @@ func DecodeMetadataOnlyRequest(data []byte) (*RunIngestRequest, error) {
 }
 
 func IsSafeMetadataIdentifier(value string) bool {
-	return value != "" && len(value) <= 128 && !strings.Contains(value, "://") && metadataIdentifierPattern.MatchString(value)
+	return IsSafeMetadataIdentifierWithLimit(value, 128)
+}
+
+func IsSafeMetadataIdentifierWithLimit(value string, limit int) bool {
+	return value != "" && len(value) <= limit && !strings.Contains(value, "://") && metadataIdentifierPattern.MatchString(value)
 }
