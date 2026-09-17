@@ -351,3 +351,49 @@ func TestStoreListRecentRuns(t *testing.T) {
 		t.Errorf("expected newest run_test_e first, got %s", recent[0].ID)
 	}
 }
+
+func TestStore_IdempotentRunsAndOutboxMigration(t *testing.T) {
+	s := newTestStore(t)
+
+	// Verify columns on runs table
+	rows, err := s.db.Query(`PRAGMA table_info(runs)`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+
+	cols := make(map[string]bool)
+	for rows.Next() {
+		var cid, notNull, primaryKey int
+		var name, columnType string
+		var defaultValue any
+		if err := rows.Scan(&cid, &name, &columnType, &notNull, &defaultValue, &primaryKey); err != nil {
+			t.Fatal(err)
+		}
+		cols[name] = true
+	}
+
+	if !cols["idempotency_key"] {
+		t.Errorf("expected runs to have idempotency_key column")
+	}
+	if !cols["scenario_fingerprint"] {
+		t.Errorf("expected runs to have scenario_fingerprint column")
+	}
+	if !cols["commit_timestamp"] {
+		t.Errorf("expected runs to have commit_timestamp column")
+	}
+
+	// Verify webhook_outbox table
+	var outboxCount int
+	err = s.db.QueryRow(`SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'webhook_outbox'`).Scan(&outboxCount)
+	if err != nil || outboxCount != 1 {
+		t.Fatalf("expected webhook_outbox table to exist, count=%d, err=%v", outboxCount, err)
+	}
+
+	// Verify migration recorded
+	var applied int
+	err = s.db.QueryRow(`SELECT COUNT(*) FROM schema_migrations WHERE version = '2026-09-17-idempotent-runs-and-outbox'`).Scan(&applied)
+	if err != nil || applied != 1 {
+		t.Fatalf("expected migration '2026-09-17-idempotent-runs-and-outbox' recorded, applied=%d, err=%v", applied, err)
+	}
+}

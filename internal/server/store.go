@@ -66,17 +66,34 @@ type Scenario struct {
 }
 
 type RunRecord struct {
-	ID          string    `json:"id"`
-	RepoID      string    `json:"repo_id"`
-	ScenarioID  string    `json:"scenario_id"`
-	CommitSHA   string    `json:"commit_sha"`
-	Branch      string    `json:"branch"`
-	PRNumber    int       `json:"pr_number"`
-	Status      string    `json:"status"` // "passed" or "failed"
-	AnomalyType string    `json:"anomaly_type"`
-	Seed        uint64    `json:"seed"`
-	DurationMS  int64     `json:"duration_ms"`
-	CreatedAt   time.Time `json:"created_at"`
+	ID                  string     `json:"id"`
+	RepoID              string     `json:"repo_id"`
+	ScenarioID          string     `json:"scenario_id"`
+	CommitSHA           string     `json:"commit_sha"`
+	Branch              string     `json:"branch"`
+	PRNumber            int        `json:"pr_number"`
+	Status              string     `json:"status"` // "passed" or "failed"
+	AnomalyType         string     `json:"anomaly_type"`
+	Seed                uint64     `json:"seed"`
+	DurationMS          int64      `json:"duration_ms"`
+	CreatedAt           time.Time  `json:"created_at"`
+	IdempotencyKey      string     `json:"idempotency_key,omitempty"`
+	ScenarioFingerprint string     `json:"scenario_fingerprint,omitempty"`
+	CommitTimestamp     *time.Time `json:"commit_timestamp,omitempty"`
+}
+
+type OutboxItem struct {
+	ID          string     `json:"id"`
+	OrgID       string     `json:"org_id"`
+	WebhookID   string     `json:"webhook_id"`
+	EventType   string     `json:"event_type"`
+	PayloadJSON string     `json:"payload_json"`
+	Status      string     `json:"status"` // pending, delivered, failed
+	Attempts    int        `json:"attempts"`
+	NextRetryAt time.Time  `json:"next_retry_at"`
+	CreatedAt   time.Time  `json:"created_at"`
+	DeliveredAt *time.Time `json:"delivered_at,omitempty"`
+	LastError   string     `json:"last_error,omitempty"`
 }
 
 type FindingRecord struct {
@@ -218,7 +235,10 @@ func (s *Store) AutoMigrate() error {
 	if err := s.ensureTenantRepositoryUniqueness(); err != nil {
 		return err
 	}
-	return s.purgeLegacyFindingDetails()
+	if err := s.purgeLegacyFindingDetails(); err != nil {
+		return err
+	}
+	return s.ensureIdempotentRunsAndOutbox()
 }
 
 func (s *Store) purgeLegacyFindingDetails() error {
@@ -245,6 +265,86 @@ func (s *Store) purgeLegacyFindingDetails() error {
 		return fmt.Errorf("commit finding privacy migration: %w", err)
 	}
 	return nil
+}
+
+func (s *Store) ensureIdempotentRunsAndOutbox() error {
+	const migration = "2026-09-17-idempotent-runs-and-outbox"
+	var applied int
+	if err := s.db.QueryRow(`SELECT COUNT(*) FROM schema_migrations WHERE version = ?`, migration).Scan(&applied); err != nil {
+		return fmt.Errorf("inspect outbox migration: %w", err)
+	}
+	if applied != 0 {
+		return nil
+	}
+
+	rows, err := s.db.Query(`PRAGMA table_info(runs)`)
+	if err != nil {
+		return fmt.Errorf("inspect runs table info: %w", err)
+	}
+	cols := make(map[string]bool)
+	for rows.Next() {
+		var cid, notNull, primaryKey int
+		var name, columnType string
+		var defaultValue any
+		if err := rows.Scan(&cid, &name, &columnType, &notNull, &defaultValue, &primaryKey); err != nil {
+			_ = rows.Close()
+			return fmt.Errorf("scan runs column: %w", err)
+		}
+		cols[name] = true
+	}
+	if err := rows.Close(); err != nil {
+		return fmt.Errorf("close runs columns query: %w", err)
+	}
+
+	tx, err := s.db.Begin()
+	if err != nil {
+		return fmt.Errorf("begin outbox migration: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	if !cols["idempotency_key"] {
+		if _, err := tx.Exec(`ALTER TABLE runs ADD COLUMN idempotency_key TEXT`); err != nil {
+			return fmt.Errorf("add idempotency_key: %w", err)
+		}
+	}
+	if !cols["scenario_fingerprint"] {
+		if _, err := tx.Exec(`ALTER TABLE runs ADD COLUMN scenario_fingerprint TEXT NOT NULL DEFAULT ''`); err != nil {
+			return fmt.Errorf("add scenario_fingerprint: %w", err)
+		}
+	}
+	if !cols["commit_timestamp"] {
+		if _, err := tx.Exec(`ALTER TABLE runs ADD COLUMN commit_timestamp DATETIME`); err != nil {
+			return fmt.Errorf("add commit_timestamp: %w", err)
+		}
+	}
+
+	if _, err := tx.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_runs_repo_idempotency ON runs(repo_id, idempotency_key) WHERE idempotency_key IS NOT NULL`); err != nil {
+		return fmt.Errorf("create idempotency index: %w", err)
+	}
+
+	if _, err := tx.Exec(`CREATE TABLE IF NOT EXISTS webhook_outbox (
+		id TEXT PRIMARY KEY,
+		org_id TEXT NOT NULL,
+		webhook_id TEXT NOT NULL,
+		event_type TEXT NOT NULL,
+		payload_json TEXT NOT NULL,
+		status TEXT NOT NULL DEFAULT 'pending',
+		attempts INTEGER NOT NULL DEFAULT 0,
+		next_retry_at DATETIME NOT NULL,
+		created_at DATETIME NOT NULL,
+		delivered_at DATETIME,
+		last_error TEXT NOT NULL DEFAULT '',
+		FOREIGN KEY (org_id) REFERENCES organizations(id),
+		FOREIGN KEY (webhook_id) REFERENCES webhooks(id)
+	)`); err != nil {
+		return fmt.Errorf("create webhook_outbox table: %w", err)
+	}
+
+	if _, err := tx.Exec(`INSERT INTO schema_migrations (version, applied_at) VALUES (?, ?)`, migration, time.Now().UTC()); err != nil {
+		return fmt.Errorf("record outbox migration: %w", err)
+	}
+
+	return tx.Commit()
 }
 
 func (s *Store) ensureAPITokenRoleColumn() error {
