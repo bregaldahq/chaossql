@@ -148,7 +148,9 @@ async function executeOp(db, op) {
 }
 
 /**
- * In-process SQLite driver adapter using node:sqlite, better-sqlite3, or fallback.
+ * In-process SQLite driver adapter using node:sqlite (Node.js >= 22.5) or
+ * better-sqlite3. Without a real driver the reproduction cannot run, so it
+ * fails instead of reporting a vacuous success.
  */
 async function createDatabaseClient() {
   try {
@@ -171,12 +173,7 @@ async function createDatabaseClient() {
         close: () => db.close()
       };
     } catch (_) {
-      return {
-        exec: async () => {},
-        run: async () => {},
-        get: async () => null,
-        close: async () => {}
-      };
+      throw new Error('ChaosSQL reproduction requires a SQLite driver: use Node.js >= 22.5 (node:sqlite) or install better-sqlite3');
     }
   }
 }
@@ -203,6 +200,9 @@ async function runRepro() {
 test('ChaosSQL Anomaly Reproduction Suite', async (t) => {
   await t.test('Reproduce isolation anomaly: ' + INVARIANT_NAME, async () => {
     const { dbState } = await runRepro();
+    if (INVARIANT_QUERY) {
+      assert.ok(dbState, 'Invariant query returned no row; the anomaly could not be evaluated');
+    }
     if (dbState && INVARIANT_ASSERT) {
       const satisfied = evaluateAssertion(INVARIANT_ASSERT, dbState);
       assert.strictEqual(satisfied, false, 'Expected anomaly: invariant was satisfied instead of violated');
