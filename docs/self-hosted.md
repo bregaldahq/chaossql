@@ -85,6 +85,21 @@ give UID/GID 10001 read/write access to the directory and file. Point
 health and authenticated run history. Restore the matching private environment
 configuration as well. Test this procedure before relying on a backup.
 
+### Plan retention
+
+Each plan declares a history window: `developer` 7 days, `team` 90 days, `pro`
+365 days, `enterprise` unlimited. Enforcement is **off by default** so an upgrade
+never deletes existing history. To enable it, start the server with
+`--enforce-retention` or set `CHAOSSQL_ENFORCE_RETENTION=true`.
+
+When enabled, the server purges at startup and then hourly. For each
+organization it deletes runs older than the plan window, together with their
+findings and stored ingestion responses, and finished (delivered or failed)
+alerts older than the window. It keeps runs that a current baseline references,
+pending alerts, repositories, scenarios, webhooks, and tokens. Deletion is
+permanent; take a backup before enabling enforcement on an existing database.
+The bootstrap organization `org_default` uses the `pro` plan (365 days).
+
 ## Kubernetes
 
 `charts/chaossql-server` deploys the API and its SQLite volume. It does not deploy

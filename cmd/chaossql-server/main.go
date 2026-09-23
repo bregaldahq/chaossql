@@ -24,6 +24,7 @@ var (
 	dbPathFlag    string
 	tokenFlag     string
 	publicURLFlag string
+	retentionFlag bool
 )
 
 func main() {
@@ -39,6 +40,7 @@ func main() {
 	rootCmd.Flags().StringVar(&dbPathFlag, "db", getEnv("DB_PATH", "chaossql-cloud.db"), "Path to SQLite database file")
 	rootCmd.Flags().StringVar(&tokenFlag, "token", getEnv("CHAOSSQL_ADMIN_TOKEN", ""), "Required initial owner API token")
 	rootCmd.Flags().StringVar(&publicURLFlag, "public-url", getEnv("PUBLIC_URL", "http://localhost:8080"), "Public URL for dashboard links")
+	rootCmd.Flags().BoolVar(&retentionFlag, "enforce-retention", getEnv("CHAOSSQL_ENFORCE_RETENTION", "") == "true", "Delete run history older than each organization's plan retention window")
 
 	startCmd := &cobra.Command{
 		Use:   "start",
@@ -51,6 +53,7 @@ func main() {
 	startCmd.Flags().StringVar(&dbPathFlag, "db", getEnv("DB_PATH", "chaossql-cloud.db"), "Path to SQLite database file")
 	startCmd.Flags().StringVar(&tokenFlag, "token", getEnv("CHAOSSQL_ADMIN_TOKEN", ""), "Required initial owner API token")
 	startCmd.Flags().StringVar(&publicURLFlag, "public-url", getEnv("PUBLIC_URL", "http://localhost:8080"), "Public URL for dashboard links")
+	startCmd.Flags().BoolVar(&retentionFlag, "enforce-retention", getEnv("CHAOSSQL_ENFORCE_RETENTION", "") == "true", "Delete run history older than each organization's plan retention window")
 
 	var orgFlag string
 	var nameFlag string
@@ -160,6 +163,11 @@ func runServer() error {
 		}
 		close(idleConnsClosed)
 	}()
+
+	if retentionFlag {
+		server.StartRetention(shutdownContext, store, log.Printf)
+		log.Printf("[ChaosSQL Cloud] Plan retention enforcement enabled.")
+	}
 
 	log.Printf("[ChaosSQL Cloud] Server listening on http://0.0.0.0:%d (Public URL: %s)", portFlag, publicURLFlag)
 	if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {

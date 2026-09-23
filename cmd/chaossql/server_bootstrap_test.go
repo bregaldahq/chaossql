@@ -76,3 +76,15 @@ func TestServerRejectsPublishedExampleTokens(t *testing.T) {
 		})
 	}
 }
+
+func TestServerAcceptsRetentionEnforcement(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "retention.db")
+	cmd := newServerCmd()
+	cmd.SetOut(new(bytes.Buffer))
+	cmd.SetErr(new(bytes.Buffer))
+	cmd.SetArgs([]string{"start", "--enforce-retention", "--token=retention-review-owner", "--db=" + path, "--port=-1"})
+	// The listener fails after bootstrap and retention startup.
+	if err := cmd.Execute(); err == nil || !strings.Contains(err.Error(), "invalid port") {
+		t.Fatalf("expected listener failure after retention startup, got %v", err)
+	}
+}

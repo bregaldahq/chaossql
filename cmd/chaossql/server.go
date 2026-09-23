@@ -25,6 +25,7 @@ var (
 	serverTokenFlag     string
 	serverPublicURLFlag string
 	serverStaticDirFlag string
+	serverRetentionFlag bool
 )
 
 func newServerCmd() *cobra.Command {
@@ -44,6 +45,7 @@ real-time multi-channel alerts (Discord, Slack, Generic Webhooks), and serves th
 	serverCmd.PersistentFlags().StringVar(&serverTokenFlag, "token", getServerEnv("CHAOSSQL_ADMIN_TOKEN", ""), "Required initial owner API token")
 	serverCmd.PersistentFlags().StringVar(&serverPublicURLFlag, "public-url", getServerEnv("PUBLIC_URL", "http://localhost:8080"), "Public URL for dashboard links")
 	serverCmd.PersistentFlags().StringVar(&serverStaticDirFlag, "static-dir", getServerEnv("STATIC_DIR", ""), "Path to static directory to serve dashboard web assets")
+	serverCmd.PersistentFlags().BoolVar(&serverRetentionFlag, "enforce-retention", getServerEnv("CHAOSSQL_ENFORCE_RETENTION", "") == "true", "Delete run history older than each organization's plan retention window")
 
 	startCmd := &cobra.Command{
 		Use:   "start",
@@ -168,6 +170,11 @@ func runControlPlaneServer(out any) error {
 		}
 		close(idleConnsClosed)
 	}()
+
+	if serverRetentionFlag {
+		server.StartRetention(shutdownContext, store, log.Printf)
+		log.Printf("[ChaosSQL Cloud] Plan retention enforcement enabled.")
+	}
 
 	log.Printf("[ChaosSQL Cloud] Server listening on http://0.0.0.0:%d (Public URL: %s)", serverPortFlag, serverPublicURLFlag)
 	if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
