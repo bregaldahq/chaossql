@@ -15,8 +15,8 @@ RUN go mod download
 COPY . .
 
 # Build statically linked binaries
-RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w -X main.version=1.5.0" -o /bin/chaossql-server ./cmd/chaossql-server
-RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w -X main.version=1.5.0" -o /bin/chaossql ./cmd/chaossql
+RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /bin/chaossql-server ./cmd/chaossql-server
+RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /bin/chaossql ./cmd/chaossql
 
 # Stage 2: Production runtime
 FROM alpine:3.20

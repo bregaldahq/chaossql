@@ -1,6 +1,9 @@
 package main
 
-import "github.com/spf13/cobra"
+import (
+	"github.com/bregaldahq/chaossql/internal/version"
+	"github.com/spf13/cobra"
+)
 
 // newRootCmd constructs the primary ChaosSQL CLI command tree.
 func newRootCmd() *cobra.Command {
@@ -11,6 +14,7 @@ func newRootCmd() *cobra.Command {
 It injects stochastic interleavings across database worker threads to provoke subtle isolation anomalies
 (such as Lost Updates, Write Skew, and Phantom Reads) and applies causal Delta-Debugging to shrink
 noisy execution traces to minimal, deterministic reproductions.`,
+		Version: version.Version,
 	}
 
 	runCmd := newRunCmd()

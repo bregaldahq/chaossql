@@ -12,6 +12,8 @@ import (
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/bregaldahq/chaossql/internal/version"
 )
 
 var (
@@ -116,7 +118,7 @@ func (c *Client) PublishRun(ctx context.Context, req *RunIngestRequest) (*RunIng
 		httpReq.Header.Set("Authorization", "Bearer "+c.cfg.Token)
 		httpReq.Header.Set("Content-Type", "application/json")
 		httpReq.Header.Set("Idempotency-Key", payload.IdempotencyKey)
-		httpReq.Header.Set("User-Agent", "ChaosSQL-CLI/v1.4.0 (pure-go)")
+		httpReq.Header.Set("User-Agent", "ChaosSQL-CLI/v"+version.Version+" (pure-go)")
 
 		resp, err := c.cfg.HTTPClient.Do(httpReq)
 		if err != nil {

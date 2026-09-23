@@ -7,6 +7,54 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.6.0] - 2026-09-23
+
+Reliability and security release for ChaosSQL Cloud, plus the first managed
+deployment tooling. Upgrading self-hosted servers runs one-time database
+migrations automatically.
+
+### Added
+- **Multiple organizations per server**: `server org create|list|set-plan`
+  provisions isolated tenants with a one-time owner token (#25).
+- **Plan retention enforcement** (opt-in, `--enforce-retention` or
+  `CHAOSSQL_ENFORCE_RETENTION=true`), preserving baseline runs and pending
+  alerts (#26).
+- **Managed deployment** (`deploy/fly/`): single-origin API and dashboard with
+  continuous Litestream backups, restore drill, and runbook
+  (`docs/managed-deployment.md`) (#30).
+- **Self-hosted distribution**: Docker Compose, Helm chart, and `chaossql server`
+  (#22).
+- Admin endpoint to issue member tokens; `--version` on `chaossql` and
+  `chaossql-server`.
+- Deterministic schedule generation, trustworthy shrinking, and executable
+  replay (#17, #18); real transaction semantics in drivers (#16).
+
+### Changed
+- Ingestion is transactional and idempotent per execution; identical retries
+  replay the stored response and conflicting content returns 409 (#21, #23).
+- Baselines use real commit time and a locally computed scenario fingerprint;
+  a one-time migration clears legacy upload times stored as commit times (#23).
+- Hosted payloads carry metadata only: no SQL, parameters, schema, traces, or
+  reproduction code (#20).
+- Webhook alerts go through a transactional outbox with retries (#21).
+- `server create-token` requires an existing organization instead of silently
+  creating one (#25).
+- Site sections use crawlable path URLs (`/dashboard`, `/docs`); old hash links
+  are migrated (#27, #29). Cloud run links now point to `/dashboard?run=<id>`.
+- The release version has a single source (`internal/version`), used by the
+  CLI, SARIF reports, the Cloud client User-Agent, and the WASM engine.
+
+### Fixed
+- Tenant authorization on every hosted route (#19).
+- Webhook token leak and SSRF protections, including DNS pinning (#13, #23).
+- GitHub Action no longer interpolates inputs into shell source and exposes
+  `cloud-run-id`, `cloud-run-url`, and `is-regression` outputs (#23).
+- Generated TypeScript reproductions fail loudly without a SQLite driver
+  instead of reporting success against a no-op database (#28).
+- Dependency security updates (#14, #24).
+
+---
+
 ## [1.4.0] - 2026-09-06
 
 ### Added

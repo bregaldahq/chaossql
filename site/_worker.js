@@ -296,7 +296,7 @@ var worker_default = {
                     { name: "Dashboard", value: "[Visualizar Trace & Repro \u2794](https://chaossql.bregalda.com/dashboard)", inline: false }
                   ],
                   footer: {
-                    text: "ChaosSQL Concurrency Intelligence Engine \u2022 v1.5.0",
+                    text: "ChaosSQL Concurrency Intelligence Engine \u2022 v1.6.0",
                     icon_url: "https://chaossql.bregalda.com/brand/icone_bregalda.svg"
                   },
                   timestamp: (/* @__PURE__ */ new Date()).toISOString()

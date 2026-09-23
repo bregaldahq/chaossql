@@ -7,7 +7,7 @@
 ### Catch database concurrency bugs before production does.
 
 [![Documentation Portal](https://img.shields.io/badge/Docs-chaossql.bregalda.com-4B2E83?style=for-the-badge&logo=cloudflare&logoColor=white)](https://chaossql.bregalda.com)
-[![Release Version](https://img.shields.io/badge/Release-v1.4.0-F5C400?style=for-the-badge&logo=github&labelColor=2A2140)](https://github.com/bregaldahq/chaossql/releases/tag/v1.4.0)
+[![Release Version](https://img.shields.io/badge/Release-v1.6.0-F5C400?style=for-the-badge&logo=github&labelColor=2A2140)](https://github.com/bregaldahq/chaossql/releases/tag/v1.6.0)
 [![Go Version](https://img.shields.io/badge/Go-1.22+-00ADD8?style=for-the-badge&logo=go&logoColor=white)](https://golang.org)
 [![Zero CGO](https://img.shields.io/badge/CGO-Disabled_(Pure_Go)-22C55E?style=for-the-badge)](https://modernc.org/sqlite)
 [![CI Pipeline](https://img.shields.io/badge/CI-Passing-22C55E?style=for-the-badge&logo=githubactions&logoColor=white)](https://github.com/bregaldahq/chaossql/actions)
@@ -107,7 +107,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: bregaldahq/chaossql@v1.5.0
+      - uses: bregaldahq/chaossql@v1.6.0
         with:
           spec-path: examples/banking_lost_update/chaos.yaml
           cloud-token: ${{ secrets.CHAOSSQL_CLOUD_TOKEN }}

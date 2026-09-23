@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"sync"
 	"syscall/js"
+
+	"github.com/bregaldahq/chaossql/internal/version"
 )
 
 var (
@@ -103,7 +105,7 @@ func main() {
 	}))
 
 	js.Global().Set("ChaosSQL_GetVersion", js.FuncOf(func(this js.Value, args []js.Value) any {
-		return "1.4.0-wasm"
+		return version.Version + "-wasm"
 	}))
 
 	<-c
