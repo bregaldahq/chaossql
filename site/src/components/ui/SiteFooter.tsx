@@ -17,9 +17,9 @@ export function SiteFooter({ lang = 'pt' }: SiteFooterProps) {
         </div>
 
         <nav aria-label="Links de rodapé" className={styles.metaLinks}>
-          <a href="#/docs">{lang === 'pt' ? 'Documentação' : 'Documentation'}</a>
-          <a href="#/scenarios">{lang === 'pt' ? 'Cenários' : 'Scenarios'}</a>
-          <a href="#/playground">Playground WASM</a>
+          <a href="/docs">{lang === 'pt' ? 'Documentação' : 'Documentation'}</a>
+          <a href="/scenarios">{lang === 'pt' ? 'Cenários' : 'Scenarios'}</a>
+          <a href="/playground">Playground WASM</a>
           <a
             href="https://github.com/bregaldahq/chaossql"
             target="_blank"

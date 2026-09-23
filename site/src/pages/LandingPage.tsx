@@ -35,11 +35,11 @@ export function LandingPage({ lang = 'pt' }: LandingPageProps) {
         : 'Stress SQL workloads, check invariants, and shrink failing execution traces into focused reproductions. Concurrency bugs become evidence you can inspect.',
     primaryAction: {
       label: lang === 'pt' ? 'Explorar Documentação' : 'Explore Documentation',
-      href: '#/docs',
+      href: '/docs',
     },
     secondaryAction: {
       label: lang === 'pt' ? 'Testar no Playground WASM' : 'Test in WASM Playground',
-      href: '#/playground',
+      href: '/playground',
     },
     technologies: [
       'Go 1.25',
@@ -176,7 +176,7 @@ export function LandingPage({ lang = 'pt' }: LandingPageProps) {
 
         {/* Dual Actions */}
         <div className={styles.heroActions}>
-          <a href="#/playground" className={styles.ctaPlayground}>
+          <a href="/playground" className={styles.ctaPlayground}>
             <Play size={16} fill="currentColor" />
             {lang === 'pt' ? 'Testar no Playground WASM' : 'Launch WASM Playground'}
           </a>

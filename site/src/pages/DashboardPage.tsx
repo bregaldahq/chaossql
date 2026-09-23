@@ -373,7 +373,7 @@ export function DashboardPage({ lang }: DashboardPageProps) {
     try {
       const result = await api().runs();
       if (version === connectionVersion.current) { setRuns(result); setApiStatus('online'); }
-      const linkedRun = new URLSearchParams(window.location.hash.split('?')[1] || '').get('run');
+      const linkedRun = new URLSearchParams(window.location.search).get('run');
       if (linkedRun && version === connectionVersion.current) {
         const detail = result.find(run => run.id === linkedRun) || await api().run(linkedRun);
         if (version === connectionVersion.current) setSelectedRun(detail);
@@ -949,7 +949,7 @@ jobs:
             {!isLiveMode && <div className={styles.modalFooter}>
               {/* Deep-link direct to VisualizerPage */}
               <a
-                href="#/visualizer"
+                href="/visualizer"
                 className={styles.openVisualizerBtn}
                 onClick={() => setSelectedRun(null)}
               >
@@ -970,7 +970,7 @@ jobs:
               </button>
 
               <a
-                href={`#/playground?scenario=${selectedRun.scenario}`}
+                href={`/playground?scenario=${selectedRun.scenario}`}
                 className={styles.playgroundBtn}
                 onClick={() => setSelectedRun(null)}
               >

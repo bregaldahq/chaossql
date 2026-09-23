@@ -141,6 +141,72 @@ function parseWebhookTarget(raw: unknown): { url: string } | { error: string } {
   return { url: parsed.toString() };
 }
 
+// Section URLs served by the single-page app. Each one gets the app shell with
+// its own <title>, description and canonical injected, so crawlers index every
+// section as a distinct page without executing JavaScript. Keep in sync with
+// site/src/lib/route-meta.ts.
+const SITE_ORIGIN = 'https://chaossql.bregalda.com';
+const ROUTE_META: Record<string, { title: string; description: string; indexable: boolean }> = {
+  '/docs': {
+    title: "Documentação — ChaosSQL SQL Concurrency Fuzzer",
+    description:
+      "Guia do ChaosSQL: instalação, especificação chaos.yaml, invariantes, níveis de isolamento, classificação de anomalias de Adya e minimização por delta-debugging.",
+    indexable: true,
+  },
+  '/scenarios': {
+    title: "Cenários de Anomalias de Concorrência — ChaosSQL",
+    description:
+      "Cenários canônicos de anomalias de concorrência SQL: lost update, write skew, G2, deadlock e mais, com invariantes e reprodução determinística.",
+    indexable: true,
+  },
+  '/visualizer': {
+    title: "Trace Visualizer — ChaosSQL",
+    description:
+      "Visualize interleavings de transações concorrentes, timings por worker e o trace minimizado por delta-debugging de uma anomalia SQL.",
+    indexable: true,
+  },
+  '/matrix': {
+    title: "Matriz Hermitage de Níveis de Isolamento — ChaosSQL",
+    description:
+      "Matriz de anomalias por nível de isolamento em PostgreSQL, MySQL e SQLite, inspirada no projeto Hermitage.",
+    indexable: true,
+  },
+  '/playground': {
+    title: "Playground WASM — Teste Concorrência SQL no Navegador | ChaosSQL",
+    description:
+      "Execute o fuzzer de concorrência ChaosSQL direto no navegador via WebAssembly e reproduza lost update, write skew e deadlocks sem instalar nada.",
+    indexable: true,
+  },
+  '/pricing': {
+    title: "Planos e Preços — ChaosSQL Cloud",
+    description:
+      "Planos do ChaosSQL Cloud e auditorias de concorrência de banco de dados pelo Studio Bregalda.",
+    indexable: true,
+  },
+  '/dashboard': {
+    title: "Cloud Dashboard — ChaosSQL",
+    description:
+      "Painel do ChaosSQL Cloud para acompanhar execuções de CI, regressões de concorrência e alertas.",
+    indexable: false,
+  },
+};
+
+async function serveAppShell(request: Request, env: Env, pathname: string): Promise<Response> {
+  const meta = ROUTE_META[pathname];
+  const canonical = `${SITE_ORIGIN}${pathname}`;
+  const shell = await env.ASSETS.fetch(new Request(new URL('/', request.url), request));
+  if (!shell.ok) return shell;
+  return new HTMLRewriter()
+    .on('title', { element: (el) => { el.setInnerContent(meta.title); } })
+    .on('meta[name="description"]', { element: (el) => { el.setAttribute('content', meta.description); } })
+    .on('meta[name="robots"]', {
+      element: (el) => { el.setAttribute('content', meta.indexable ? 'index, follow, max-image-preview:large' : 'noindex, follow'); },
+    })
+    .on('link[rel="canonical"]', { element: (el) => { el.setAttribute('href', canonical); } })
+    .on('meta[property="og:url"]', { element: (el) => { el.setAttribute('content', canonical); } })
+    .transform(shell);
+}
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
@@ -301,7 +367,7 @@ export default {
                     { name: 'Anomalia', value: '**Deadlock Cycle (40P01)**', inline: true },
                     { name: 'Engine', value: 'PostgreSQL 16 (REPEATABLE READ)', inline: true },
                     { name: 'Status', value: '❌ FAILED (18/50 schedules abortados)', inline: true },
-                    { name: 'Dashboard', value: '[Visualizar Trace & Repro ➔](https://chaossql.bregalda.com/#/dashboard)', inline: false },
+                    { name: 'Dashboard', value: '[Visualizar Trace & Repro ➔](https://chaossql.bregalda.com/dashboard)', inline: false },
                   ],
                   footer: {
                     text: 'ChaosSQL Concurrency Intelligence Engine • v1.5.0',
@@ -354,6 +420,20 @@ export default {
       }
 
       return new Response('Method Not Allowed', { status: 405, headers: corsHeaders(request) });
+    }
+
+    if (request.method === 'GET' || request.method === 'HEAD') {
+      const trimmed = url.pathname.replace(/\/+$/, '');
+      if (trimmed !== url.pathname && ROUTE_META[trimmed]) {
+        return Response.redirect(`${url.origin}${trimmed}${url.search}`, 301);
+      }
+      if (ROUTE_META[url.pathname]) {
+        try {
+          return await serveAppShell(request, env, url.pathname);
+        } catch {
+          return new Response('Service Unavailable', { status: 503, headers: { 'Content-Type': 'text/plain' } });
+        }
+      }
     }
 
     // Default: Serve static assets via Cloudflare Assets binding. A thrown

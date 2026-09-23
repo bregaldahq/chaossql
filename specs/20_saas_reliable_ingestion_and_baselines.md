@@ -16,7 +16,7 @@ Normative for hosted run ingestion, baseline regression evaluation, and transact
    - The server MUST NOT re-enqueue duplicate webhook notifications.
 4. Repository quota checks, repository/scenario resolution, run/finding insertion, baseline evaluation, response persistence, and required outbox writes MUST share one transaction. Any storage failure MUST roll back all those writes and return an error. Recovery followed by a retry MUST produce one execution and one notification per matching destination.
 5. Repository plan limits MUST be enforced atomically during creation. Existing repositories remain usable at capacity. A request requiring a new repository beyond capacity returns HTTP 403 with a repository limit error.
-6. Returned run URLs MUST target the dashboard's supported `/#/dashboard?run=<id>` route. They MUST NOT imply that hosted SQL or reproduction artifacts are available.
+6. Returned run URLs MUST target the dashboard's supported `/dashboard?run=<id>` route. Legacy `/#/dashboard?run=<id>` links MUST keep resolving through client-side hash migration. They MUST NOT imply that hosted SQL or reproduction artifacts are available.
 
 ## Baseline Regression & Chronology
 

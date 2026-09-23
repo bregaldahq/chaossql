@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { navigate, useSearchParams } from '../lib/router';
 import { DOCS_DATA, CHAPTER_ORDER, ChapterId } from '../data/docs-content';
 import { DocsSidebar } from '../components/docs/DocsSidebar';
 import { DocsContent } from '../components/docs/DocsContent';
@@ -11,22 +12,16 @@ export interface DocsPageProps {
 export function DocsPage({ lang = 'pt' }: DocsPageProps) {
   const [activeChapterId, setActiveChapterId] = useState<ChapterId>('getting-started');
 
+  const chapterParam = useSearchParams().get('chapter');
   useEffect(() => {
-    const parseHash = () => {
-      const hash = window.location.hash;
-      const match = hash.match(/chapter=([a-z0-9_-]+)/);
-      if (match && CHAPTER_ORDER.includes(match[1] as ChapterId)) {
-        setActiveChapterId(match[1] as ChapterId);
-      }
-    };
-    parseHash();
-    window.addEventListener('hashchange', parseHash);
-    return () => window.removeEventListener('hashchange', parseHash);
-  }, []);
+    if (chapterParam && CHAPTER_ORDER.includes(chapterParam as ChapterId)) {
+      setActiveChapterId(chapterParam as ChapterId);
+    }
+  }, [chapterParam]);
 
   const handleSelectChapter = (id: ChapterId) => {
     setActiveChapterId(id);
-    window.location.hash = `#/docs?chapter=${id}`;
+    navigate(`/docs?chapter=${id}`);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 

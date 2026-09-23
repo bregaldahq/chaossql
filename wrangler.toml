@@ -9,6 +9,17 @@ routes = [
 [assets]
 directory = "./site"
 not_found_handling = "single-page-application"
+# Section URLs must reach the worker so it can inject per-route <title>,
+# description and canonical into the app shell (see ROUTE_META in worker.ts).
+run_worker_first = [
+  "/dashboard", "/dashboard/",
+  "/docs", "/docs/",
+  "/scenarios", "/scenarios/",
+  "/visualizer", "/visualizer/",
+  "/matrix", "/matrix/",
+  "/playground", "/playground/",
+  "/pricing", "/pricing/",
+]
 
 # DISCORD_WEBHOOK_URL is intentionally NOT declared here.
 # [vars] values are stored in plaintext and are visible in the Cloudflare

@@ -3,11 +3,15 @@ package main
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
+	"io/fs"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
+	"path"
+	"path/filepath"
 	"strconv"
 	"syscall"
 	"time"
@@ -90,11 +94,10 @@ func runControlPlaneServer(out any) error {
 	var handler http.Handler = router
 	if serverStaticDirFlag != "" {
 		if fi, err := os.Stat(serverStaticDirFlag); err == nil && fi.IsDir() {
-			fs := http.FileServer(http.Dir(serverStaticDirFlag))
 			mux := http.NewServeMux()
 			mux.Handle("/v1/", router)
 			mux.Handle("/health", router)
-			mux.Handle("/", fs)
+			mux.Handle("/", spaFileServer(serverStaticDirFlag))
 			handler = mux
 			log.Printf("[ChaosSQL Cloud] Serving static dashboard from %s", serverStaticDirFlag)
 		}
@@ -152,4 +155,19 @@ func getServerEnvInt(key string, defaultVal int) int {
 		}
 	}
 	return defaultVal
+}
+
+// spaFileServer serves files from dir and falls back to index.html for
+// extensionless paths that do not exist on disk, so dashboard routes such as
+// /dashboard or /docs survive a reload. Missing assets (e.g. /app.js) still 404.
+func spaFileServer(dir string) http.Handler {
+	fileServer := http.FileServer(http.Dir(dir))
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		clean := path.Clean("/" + r.URL.Path)
+		if _, err := os.Stat(filepath.Join(dir, filepath.FromSlash(clean))); errors.Is(err, fs.ErrNotExist) && path.Ext(clean) == "" {
+			http.ServeFile(w, r, filepath.Join(dir, "index.html"))
+			return
+		}
+		fileServer.ServeHTTP(w, r)
+	})
 }

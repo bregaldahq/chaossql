@@ -58,7 +58,7 @@ export function DocsSidebar({
               return (
                 <a
                   key={id}
-                  href={`#/docs?chapter=${id}`}
+                  href={`/docs?chapter=${id}`}
                   onClick={(e) => {
                     e.preventDefault();
                     onSelectChapter(id);

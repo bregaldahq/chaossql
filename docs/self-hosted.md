@@ -39,7 +39,7 @@ Default listeners bind only to localhost:
 
 | Service | Address | Purpose |
 | --- | --- | --- |
-| Dashboard | `http://localhost:3000/#/dashboard` | Token login and metadata summaries |
+| Dashboard | `http://localhost:3000/dashboard` | Token login and metadata summaries |
 | API | `http://localhost:8080/v1/health` | Health and authenticated API |
 | PostgreSQL | `localhost:5432` | Test target, database `test` |
 
