@@ -1,3 +1,6 @@
+{{- if or .Values.autoscaling.enabled (ne (int .Values.replicaCount) 1) }}
+{{- fail "SQLite supports exactly one server replica; disable autoscaling and set replicaCount=1" }}
+{{- end }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -46,7 +49,7 @@ spec:
             - configMapRef:
                 name: {{ include "chaossql-server.fullname" . }}-config
             - secretRef:
-                name: {{ include "chaossql-server.fullname" . }}-secrets
+                name: {{ .Values.secrets.existingSecret | default (printf "%s-secrets" (include "chaossql-server.fullname" .)) }}
           livenessProbe:
             {{- toYaml .Values.livenessProbe | nindent 12 }}
           readinessProbe:
@@ -54,16 +57,16 @@ spec:
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           volumeMounts:
-            {{- if .Values.persistence.enabled }}
             - name: data
               mountPath: {{ .Values.persistence.mountPath }}
-            {{- end }}
       volumes:
-        {{- if .Values.persistence.enabled }}
         - name: data
+          {{- if .Values.persistence.enabled }}
           persistentVolumeClaim:
             claimName: {{ include "chaossql-server.fullname" . }}-data
-        {{- end }}
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

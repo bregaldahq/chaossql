@@ -2,8 +2,11 @@ package cloud
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
+	"time"
 )
 
 func TestExtractPRNumber(t *testing.T) {
@@ -52,6 +55,40 @@ func TestExtractPRNumber(t *testing.T) {
 				t.Errorf("expected %d, got %d", tc.expected, actual)
 			}
 		})
+	}
+}
+
+func TestDetectCICommitTimeUsesExactSHA(t *testing.T) {
+	dir := t.TempDir()
+	git := func(args ...string) string {
+		t.Helper()
+		cmd := exec.Command("git", args...)
+		cmd.Dir = dir
+		cmd.Env = append(os.Environ(), "GIT_AUTHOR_DATE=2020-01-02T03:04:05Z", "GIT_COMMITTER_DATE=2020-01-02T03:04:05Z")
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("git: %s %v", out, err)
+		}
+		return strings.TrimSpace(string(out))
+	}
+	git("init")
+	git("-c", "user.name=Test", "-c", "user.email=test@example.com", "commit", "--allow-empty", "-m", "test")
+	sha := git("rev-parse", "HEAD")
+	t.Chdir(dir)
+	t.Setenv("GITHUB_ACTIONS", "true")
+	t.Setenv("GITHUB_SHA", sha)
+	ci := DetectCIContext()
+	expected := time.Date(2020, 1, 2, 3, 4, 5, 0, time.UTC)
+	if ci.CommitTimestamp == nil || !ci.CommitTimestamp.Equal(expected) {
+		t.Fatalf("got %v, want exact commit time", ci.CommitTimestamp)
+	}
+	t.Setenv("GITHUB_SHA", strings.Repeat("f", 40))
+	if got := DetectCIContext().CommitTimestamp; got != nil {
+		t.Fatalf("unknown SHA got timestamp %v", got)
+	}
+	t.Setenv("GITHUB_SHA", "--all")
+	if got := DetectCIContext().CommitTimestamp; got != nil {
+		t.Fatalf("invalid SHA got timestamp %v", got)
 	}
 }
 

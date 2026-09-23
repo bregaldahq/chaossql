@@ -217,10 +217,13 @@ func TestIngestTriggersWebhookOnRegression(t *testing.T) {
 		CreatedAt:  time.Now().UTC(),
 	})
 
-	router := NewRouter(RouterConfig{
-		Store:  s,
-		Engine: NewRegressionEngine(s),
-	})
+	// Explicitly supply the controlled test transport: production dispatchers
+	// reject this loopback destination through their default SSRF guard.
+	dispatcher := NewWebhookDispatcher(mockWH.Client())
+	outbox := NewOutboxDispatcher(s, dispatcher)
+	defer outbox.Stop()
+	server := &Server{cfg: RouterConfig{Store: s, Engine: NewRegressionEngine(s), PublicBaseURL: "https://cloud.example"}, dispatcher: dispatcher, outboxDispatcher: outbox}
+	router := server.authorize(RoleMember, server.handleIngestRun)
 
 	// 1. Ingest passing baseline run on main
 	passReq := cloud.RunIngestRequest{

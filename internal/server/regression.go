@@ -37,10 +37,14 @@ func (re *RegressionEngine) Evaluate(repo *Repository, sc *Scenario, run *RunRec
 	}
 
 	hasBaseline := (err == nil && baseRun != nil)
+	compatible := !hasBaseline || run.ScenarioFingerprint == baseRun.ScenarioFingerprint
 
 	// If this is on the default branch and passed, check whether it can become or update the baseline:
 	if isDefaultBranch && run.Status == "passed" {
 		canUpdate := true
+		if hasBaseline && ((!compatible && baseRun.ScenarioFingerprint != "") || (baseRun.CommitTimestamp != nil && run.CommitTimestamp == nil)) {
+			canUpdate = false
+		}
 		if hasBaseline && run.CommitTimestamp != nil && baseRun.CommitTimestamp != nil {
 			if run.CommitTimestamp.Before(*baseRun.CommitTimestamp) {
 				canUpdate = false
@@ -54,7 +58,7 @@ func (re *RegressionEngine) Evaluate(repo *Repository, sc *Scenario, run *RunRec
 		}
 
 		var comp *cloud.BaselineComparison
-		if hasBaseline {
+		if hasBaseline && compatible {
 			comp = &cloud.BaselineComparison{
 				RunID:     baseRun.ID,
 				Status:    baseRun.Status,
@@ -70,9 +74,8 @@ func (re *RegressionEngine) Evaluate(repo *Repository, sc *Scenario, run *RunRec
 		return nil, false, nil
 	}
 
-	// Scenario fingerprint check: If both run and baseline have scenario fingerprints,
-	// and they do not match, the run cannot be compared against this incompatible baseline.
-	if run.ScenarioFingerprint != "" && baseRun.ScenarioFingerprint != "" && run.ScenarioFingerprint != baseRun.ScenarioFingerprint {
+	// A missing fingerprint cannot establish compatibility with a known one.
+	if !compatible {
 		return nil, false, nil
 	}
 

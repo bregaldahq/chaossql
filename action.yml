@@ -63,6 +63,17 @@ inputs:
     default: 'true'
 
 
+outputs:
+  cloud-run-id:
+    description: 'ID of the acknowledged Cloud run'
+    value: ${{ steps.execute.outputs.cloud-run-id }}
+  cloud-run-url:
+    description: 'URL of the acknowledged Cloud run'
+    value: ${{ steps.execute.outputs.cloud-run-url }}
+  is-regression:
+    description: 'Whether Cloud identified a concurrency regression'
+    value: ${{ steps.execute.outputs.is-regression }}
+
 runs:
   using: 'composite'
   steps:
@@ -74,54 +85,64 @@ runs:
 
     - name: Build ChaosSQL Binary
       shell: bash
+      env:
+        ACTION_PATH: ${{ github.action_path }}
+        CGO_ENABLED: '0'
       run: |
-        cd "${{ github.action_path }}"
-        go build -o /tmp/chaossql ./cmd/chaossql
+        cd "$ACTION_PATH"
+        go build -o "$RUNNER_TEMP/chaossql" ./cmd/chaossql
 
     - name: Execute ChaosSQL
+      id: execute
       shell: bash
+      env:
+        SPEC_PATH: ${{ inputs.spec-path }}
+        WORKERS: ${{ inputs.workers }}
+        ITERATIONS: ${{ inputs.iterations }}
+        SEED: ${{ inputs.seed }}
+        EXPORT_HTML: ${{ inputs.export-html }}
+        EXPORT_JUNIT: ${{ inputs.export-junit }}
+        EXPORT_SUMMARY: ${{ inputs.export-summary }}
+        EXPORT_REPRO: ${{ inputs.export-repro }}
+        EXPORT_MERMAID: ${{ inputs.export-mermaid }}
+        CHAOSSQL_CLOUD_TOKEN: ${{ inputs.cloud-token }}
+        CHAOSSQL_CLOUD_URL: ${{ inputs.cloud-url }}
+        CLOUD_FAIL_FAST: ${{ inputs.cloud-fail-fast }}
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+        POST_PR_COMMENT: ${{ inputs.post-pr-comment }}
       run: |
-        ARGS=("run" "${{ inputs.spec-path }}")
-        if [ -n "${{ inputs.workers }}" ]; then
-          ARGS+=("--workers" "${{ inputs.workers }}")
+        ARGS=("run" "$SPEC_PATH")
+        if [ -n "$WORKERS" ]; then
+          ARGS+=("--workers" "$WORKERS")
         fi
-        if [ -n "${{ inputs.iterations }}" ]; then
-          ARGS+=("--iterations" "${{ inputs.iterations }}")
+        if [ -n "$ITERATIONS" ]; then
+          ARGS+=("--iterations" "$ITERATIONS")
         fi
-        if [ -n "${{ inputs.seed }}" ]; then
-          ARGS+=("--seed" "${{ inputs.seed }}")
+        if [ -n "$SEED" ]; then
+          ARGS+=("--seed" "$SEED")
         fi
-        if [ -n "${{ inputs.export-html }}" ]; then
-          ARGS+=("--export-html" "${{ inputs.export-html }}")
+        if [ -n "$EXPORT_HTML" ]; then
+          ARGS+=("--export-html" "$EXPORT_HTML")
         fi
-        if [ -n "${{ inputs.export-junit }}" ]; then
-          ARGS+=("--export-junit" "${{ inputs.export-junit }}")
+        if [ -n "$EXPORT_JUNIT" ]; then
+          ARGS+=("--export-junit" "$EXPORT_JUNIT")
         fi
-        if [ -n "${{ inputs.export-summary }}" ]; then
-          ARGS+=("--export-summary" "${{ inputs.export-summary }}")
-        elif [ -n "$GITHUB_STEP_SUMMARY" ]; then
+        if [ -n "$EXPORT_SUMMARY" ]; then
+          ARGS+=("--export-summary" "$EXPORT_SUMMARY")
+        elif [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
           ARGS+=("--export-summary" "$GITHUB_STEP_SUMMARY")
         fi
-        if [ "${{ inputs.export-repro }}" = "true" ]; then
+        if [ "$EXPORT_REPRO" = "true" ]; then
           ARGS+=("--export-repro")
         fi
-        if [ "${{ inputs.export-mermaid }}" = "true" ]; then
+        if [ "$EXPORT_MERMAID" = "true" ]; then
           ARGS+=("--export-mermaid")
         fi
-        if [ -n "${{ inputs.cloud-token }}" ]; then
-          ARGS+=("--cloud-token" "${{ inputs.cloud-token }}")
-        fi
-        if [ -n "${{ inputs.cloud-url }}" ]; then
-          ARGS+=("--cloud-url" "${{ inputs.cloud-url }}")
-        fi
-        if [ "${{ inputs.cloud-fail-fast }}" = "true" ]; then
+        if [ "$CLOUD_FAIL_FAST" = "true" ]; then
           ARGS+=("--cloud-fail-fast")
         fi
-        if [ -n "${{ inputs.github-token }}" ]; then
-          ARGS+=("--github-token" "${{ inputs.github-token }}")
-        fi
-        if [ "${{ inputs.post-pr-comment }}" = "false" ]; then
+        if [ "$POST_PR_COMMENT" = "false" ]; then
           ARGS+=("--pr-comment=false")
         fi
 
-        /tmp/chaossql "${ARGS[@]}"
+        "$RUNNER_TEMP/chaossql" "${ARGS[@]}"

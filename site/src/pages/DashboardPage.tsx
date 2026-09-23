@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useRef } from 'react';
 import {
   ShieldAlert,
   GitPullRequest,
@@ -22,6 +22,7 @@ import {
   CheckCircle2
 } from 'lucide-react';
 import styles from './DashboardPage.module.css';
+import { CloudAPI, type WebhookItem } from '../lib/cloud-api';
 
 interface InvariantViolation {
   name: string;
@@ -43,18 +44,18 @@ interface RunItem {
   branch: string;
   prNumber?: number;
   commitSHA: string;
-  status: 'passed' | 'failed';
+  status: string;
   anomalyType: string;
   anomalyName: string;
-  isRegression: boolean;
+  isRegression: boolean | null;
   baselineStatus?: string;
   driver: string;
   isolation: string;
   scenario: string;
-  schedulesCount: number;
-  failedSchedules: number;
-  seed: number;
-  durationMS: number;
+  schedulesCount: number | null;
+  failedSchedules: number | null;
+  seed: number | null;
+  durationMS: number | null;
   timestamp: string;
   failingInvariant?: InvariantViolation;
   traceSteps?: TraceStep[];
@@ -238,42 +239,6 @@ func TestReproduce_P4_LostUpdate(t *testing.T) {
   },
 ];
 
-interface WebhookItem {
-  id: string;
-  name: string;
-  target: 'discord' | 'slack' | 'generic';
-  url: string;
-  secret?: string;
-  events: string[];
-  active: boolean;
-  createdAt: string;
-}
-
-const STORAGE_KEY_WEBHOOKS = 'chaossql_dashboard_webhooks';
-
-const DEFAULT_WEBHOOKS: WebhookItem[] = [
-  {
-    id: 'wh-discord-example',
-    name: 'Discord Incident Room (exemplo)',
-    target: 'discord',
-    // Placeholder only. Never commit a real webhook URL here: this seed is
-    // bundled into the public client JS and would leak the token to visitors.
-    url: 'https://discord.com/api/webhooks/000000000000000000/SUBSTITUA_PELO_SEU_WEBHOOK',
-    events: ['concurrency_regression', 'isolation_failure'],
-    active: true,
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: 'wh-slack-example',
-    name: 'Slack SecOps (exemplo)',
-    target: 'slack',
-    url: 'https://hooks.slack.com/services/T00000000/B00000000/SUBSTITUA_PELO_SEU_WEBHOOK',
-    events: ['concurrency_regression'],
-    active: true,
-    createdAt: new Date().toISOString(),
-  },
-];
-
 interface DashboardPageProps {
   lang: 'pt' | 'en';
 }
@@ -289,235 +254,89 @@ export function DashboardPage({ lang }: DashboardPageProps) {
   const [copiedWorkflow, setCopiedWorkflow] = useState(false);
   const [copiedToken, setCopiedToken] = useState(false);
 
-  // Webhooks State
-  const [webhooksModalOpen, setWebhooksModalOpen] = useState(false);
-  const [webhooks, setWebhooks] = useState<WebhookItem[]>(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY_WEBHOOKS);
-      if (saved) {
-        return JSON.parse(saved);
-      }
-    } catch {
-      // ignore
-    }
-    return DEFAULT_WEBHOOKS;
-  });
-  const [newWhName, setNewWhName] = useState('');
-  const [newWhTarget, setNewWhTarget] = useState<'discord' | 'slack' | 'generic'>('discord');
-  const [newWhUrl, setNewWhUrl] = useState('');
-  const [testingWebhookId, setTestingWebhookId] = useState<string | null>(null);
-  const [testSuccessId, setTestSuccessId] = useState<string | null>(null);
-
-  const saveWebhooks = (updated: WebhookItem[]) => {
-    setWebhooks(updated);
-    try {
-      localStorage.setItem(STORAGE_KEY_WEBHOOKS, JSON.stringify(updated));
-    } catch {
-      // ignore
-    }
-  };
-
-  const fetchLiveWebhooks = useCallback(async (baseUrl: string) => {
-    try {
-      const cleanUrl = baseUrl.replace(/\/+$/, '');
-      const res = await fetch(`${cleanUrl}/v1/webhooks`);
-      if (res.ok) {
-        const data = await res.json();
-        if (data.webhooks && Array.isArray(data.webhooks) && data.webhooks.length > 0) {
-          const mapped: WebhookItem[] = data.webhooks.map((w: any) => ({
-            id: w.ID || w.id,
-            name: w.Name || w.name,
-            target: w.Target || w.target || 'generic',
-            url: w.URL || w.url,
-            events: w.Events || ['concurrency_regression'],
-            active: w.Active !== undefined ? w.Active : true,
-            createdAt: w.CreatedAt || new Date().toISOString(),
-          }));
-          saveWebhooks(mapped);
-        }
-      }
-    } catch {
-      // fallback
-    }
-  }, []);
-
-  const handleAddWebhook = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newWhUrl.trim()) return;
-
-    const item: WebhookItem = {
-      id: 'wh-' + Date.now().toString(36),
-      name: newWhName.trim() || `${newWhTarget.toUpperCase()} Alert Hook`,
-      target: newWhTarget,
-      url: newWhUrl.trim(),
-      events: ['concurrency_regression', 'isolation_failure'],
-      active: true,
-      createdAt: new Date().toISOString(),
-    };
-
-    if (isLiveMode && apiStatus === 'online') {
-      try {
-        const cleanUrl = apiUrl.replace(/\/+$/, '');
-        await fetch(`${cleanUrl}/v1/webhooks`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            name: item.name,
-            target: item.target,
-            url: item.url,
-            events: item.events,
-          }),
-        });
-      } catch {
-        // fallback
-      }
-    }
-
-    saveWebhooks([...webhooks, item]);
-    setNewWhName('');
-    setNewWhUrl('');
-  };
-
-  const handleDeleteWebhook = async (id: string) => {
-    if (isLiveMode && apiStatus === 'online') {
-      try {
-        const cleanUrl = apiUrl.replace(/\/+$/, '');
-        await fetch(`${cleanUrl}/v1/webhooks/${id}`, { method: 'DELETE' });
-      } catch {
-        // ignore
-      }
-    }
-    const updated = webhooks.filter((w) => w.id !== id);
-    saveWebhooks(updated);
-  };
-
-  const handleTestWebhook = async (wh: WebhookItem) => {
-    setTestingWebhookId(wh.id);
-    setTestSuccessId(null);
-
-    try {
-      if (isLiveMode && apiStatus === 'online') {
-        const cleanUrl = apiUrl.replace(/\/+$/, '');
-        await fetch(`${cleanUrl}/v1/webhooks/test`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            webhook_id: wh.id,
-            target: wh.target,
-            url: wh.url,
-          }),
-        });
-      } else {
-        let handledViaWorker = false;
-        try {
-          const workerRes = await fetch('/api/webhooks/test', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ target: wh.target, url: wh.url }),
-          });
-          if (workerRes.ok) {
-            handledViaWorker = true;
-          }
-        } catch {
-          // fallback to client direct dispatch
-        }
-
-        if (!handledViaWorker) {
-          if (wh.target === 'discord') {
-          const payload = {
-            username: 'ChaosSQL Alert Bot',
-            avatar_url: 'https://chaossql.bregalda.com/favicon.ico',
-            embeds: [
-              {
-                title: '🚨 [TEST] Concurrency Regression Detected',
-                description: 'Notificação de teste em tempo real disparada a partir do ChaosSQL Concurrency Gate.',
-                color: 0xDC2626,
-                fields: [
-                  { name: 'Repositório', value: '`acme/payments`', inline: true },
-                  { name: 'Branch / PR', value: 'PR #104 (`fix/concurrent-settlement`)', inline: true },
-                  { name: 'Anomalia', value: '**Deadlock Cycle (40P01)**', inline: true },
-                  { name: 'Engine', value: 'PostgreSQL 16 (REPEATABLE READ)', inline: true },
-                  { name: 'Status', value: '❌ FAILED (18/50 schedules abortados)', inline: true },
-                  { name: 'Dashboard', value: '[Visualizar Trace & Repro ➔](https://chaossql.bregalda.com/#/dashboard)', inline: false },
-                ],
-                footer: { text: 'ChaosSQL Concurrency Intelligence Engine • v1.5.0' },
-                timestamp: new Date().toISOString(),
-              },
-            ],
-          };
-
-          await fetch(wh.url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload),
-          });
-        } else if (wh.target === 'slack') {
-          const payload = {
-            text: '🚨 *[TEST] ChaosSQL Alert:* Concurrency regression in `acme/payments` PR #104 (Deadlock Cycle)',
-            blocks: [
-              {
-                type: 'header',
-                text: { type: 'plain_text', text: '🚨 [TEST] Concurrency Regression Detected', emoji: true },
-              },
-              {
-                type: 'section',
-                fields: [
-                  { type: 'mrkdwn', text: '*Repositório:*\n`acme/payments`' },
-                  { type: 'mrkdwn', text: '*Branch / PR:*\n`fix/concurrent-settlement` (PR #104)' },
-                  { type: 'mrkdwn', text: '*Anomalia:*\n*Deadlock Cycle (40P01)*' },
-                  { type: 'mrkdwn', text: '*Engine:*\nPostgreSQL 16' },
-                ],
-              },
-            ],
-          };
-
-          await fetch(wh.url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload),
-          });
-        } else {
-          await fetch(wh.url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              event: 'test_concurrency_alert',
-              timestamp: new Date().toISOString(),
-              message: 'Test webhook from ChaosSQL Dashboard',
-            }),
-          });
-          }
-        }
-      }
-      setTestSuccessId(wh.id);
-      setTimeout(() => setTestSuccessId(null), 3500);
-    } catch {
-      // In browsers, cross-origin webhooks to Discord may trigger CORS restriction while Discord still accepts the payload
-      setTestSuccessId(wh.id);
-      setTimeout(() => setTestSuccessId(null), 3500);
-    } finally {
-      setTestingWebhookId(null);
-    }
-  };
-
-  // Live Cloud Connection State
+  // Credentials only live in this mounted component; never persist them.
   const [isLiveMode, setIsLiveMode] = useState(false);
-  const [apiUrl, setApiUrl] = useState('http://localhost:8080');
+  const [apiUrl, setApiUrl] = useState('');
+  const [apiToken, setApiToken] = useState('');
   const [apiStatus, setApiStatus] = useState<'idle' | 'checking' | 'online' | 'offline'>('idle');
   const [liveLoading, setLiveLoading] = useState(false);
   const [liveError, setLiveError] = useState<string | null>(null);
+  const [webhooksModalOpen, setWebhooksModalOpen] = useState(false);
+  const [webhooks, setWebhooks] = useState<WebhookItem[]>([]);
+  const [newWhTarget, setNewWhTarget] = useState<WebhookItem['target']>('discord');
+  const [newWhUrl, setNewWhUrl] = useState('');
+  const [testingWebhookId, setTestingWebhookId] = useState<string | null>(null);
+  const [testSuccessId, setTestSuccessId] = useState<string | null>(null);
+  const [webhookError, setWebhookError] = useState<string | null>(null);
+  const [webhookBusy, setWebhookBusy] = useState(false);
+  const [issuedToken, setIssuedToken] = useState('');
+  const [tokenError, setTokenError] = useState<string | null>(null);
+  const [tokenBusy, setTokenBusy] = useState(false);
+  const connectionVersion = useRef(0);
+  const api = () => new CloudAPI(apiUrl, apiToken);
+  const errorMessage = (error: unknown) => error instanceof Error ? error.message : 'Request failed';
+
+  const openWebhooks = async () => {
+    setWebhooksModalOpen(true);
+    setWebhookError(null);
+    if (!isLiveMode || apiStatus !== 'online') return;
+    const version = connectionVersion.current;
+    setWebhookBusy(true);
+    try { const hooks = await api().webhooks(); if (version === connectionVersion.current) setWebhooks(hooks); }
+    catch (error) { if (version === connectionVersion.current) setWebhookError(errorMessage(error)); }
+    finally { if (version === connectionVersion.current) setWebhookBusy(false); }
+  };
+  const handleAddWebhook = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!isLiveMode || apiStatus !== 'online') return;
+    const version = connectionVersion.current;
+    setWebhookBusy(true); setWebhookError(null);
+    try {
+      const hook = await api().createWebhook(newWhTarget, newWhUrl.trim());
+      if (version === connectionVersion.current) { setWebhooks(current => [...current, hook]); setNewWhUrl(''); }
+    } catch (error) { if (version === connectionVersion.current) setWebhookError(errorMessage(error)); }
+    finally { if (version === connectionVersion.current) setWebhookBusy(false); }
+  };
+  const handleDeleteWebhook = async (id: string) => {
+    const version = connectionVersion.current;
+    setWebhookBusy(true); setWebhookError(null);
+    try { await api().deleteWebhook(id); if (version === connectionVersion.current) setWebhooks(current => current.filter(hook => hook.id !== id)); }
+    catch (error) { if (version === connectionVersion.current) setWebhookError(errorMessage(error)); }
+    finally { if (version === connectionVersion.current) setWebhookBusy(false); }
+  };
+  const handleTestWebhook = async (hook: WebhookItem) => {
+    const version = connectionVersion.current;
+    setTestingWebhookId(hook.id); setTestSuccessId(null); setWebhookError(null);
+    try { await api().testWebhook(hook.id); if (version === connectionVersion.current) setTestSuccessId(hook.id); }
+    catch (error) { if (version === connectionVersion.current) setWebhookError(errorMessage(error)); }
+    finally { if (version === connectionVersion.current) setTestingWebhookId(null); }
+  };
+  const handleCreateToken = async () => {
+    const version = connectionVersion.current;
+    setTokenBusy(true); setTokenError(null);
+    try { const result = await api().createToken(); if (version === connectionVersion.current) setIssuedToken(result.token); }
+    catch (error) { if (version === connectionVersion.current) setTokenError(errorMessage(error)); }
+    finally { if (version === connectionVersion.current) setTokenBusy(false); }
+  };
+  const resetConnection = () => {
+    connectionVersion.current += 1;
+    setRuns([]); setSelectedRun(null); setWebhooks([]); setIssuedToken('');
+    setNewWhUrl(''); setWebhookError(null); setTokenError(null);
+    setApiStatus('idle'); setLiveError(null); setLiveLoading(false);
+    setWebhookBusy(false); setTokenBusy(false); setTestingWebhookId(null); setTestSuccessId(null);
+  };
 
   const t = {
     title: lang === 'pt' ? 'Dashboard de Concorrência' : 'Concurrency Health Dashboard',
-    subtitle: lang === 'pt' 
+    subtitle: lang === 'pt'
       ? 'Observabilidade de isolamento transacional, baseline da branch principal e detecção de regressões de concorrência em tempo real.'
       : 'Transactional isolation observability, main branch baseline and real-time concurrency regression detection.',
-    healthLabel: lang === 'pt' ? 'Índice de Saúde' : 'Concurrency Health',
-    healthStatus: lang === 'pt' ? 'Estável & Protegido' : 'Stable & Protected',
-    totalRuns: lang === 'pt' ? 'Execuções (30d)' : 'Runs (30d)',
+    healthLabel: lang === 'pt' ? 'Taxa de Aprovação' : 'Pass Rate',
+    healthStatus: lang === 'pt' ? 'Nas execuções exibidas' : 'Across displayed runs',
+    totalRuns: lang === 'pt' ? 'Execuções recentes (até 50)' : 'Recent runs (up to 50)',
     totalSchedules: lang === 'pt' ? 'Schedules Testados' : 'Schedules Tested',
     regressionsCaught: lang === 'pt' ? 'Regressões Detectadas' : 'Regressions Caught',
-    openRegressions: lang === 'pt' ? 'Regressão em Aberto' : 'Open Regression',
+    openRegressions: lang === 'pt' ? 'nas execuções exibidas' : 'in displayed runs',
     allRuns: lang === 'pt' ? 'Todos os Runs' : 'All Runs',
     regressionsOnly: lang === 'pt' ? 'Regressões Apenas 🚨' : 'Regressions Only 🚨',
     prsOnly: lang === 'pt' ? 'Pull Requests' : 'Pull Requests',
@@ -548,103 +367,26 @@ export function DashboardPage({ lang }: DashboardPageProps) {
     refresh: lang === 'pt' ? 'Atualizar' : 'Refresh',
   };
 
-  // Fetch live runs from API
-  const fetchLiveCloudData = useCallback(async (baseUrl: string) => {
-    setLiveLoading(true);
-    setLiveError(null);
-    setApiStatus('checking');
-
+  const fetchLiveCloudData = async () => {
+    const version = ++connectionVersion.current;
+    setLiveLoading(true); setLiveError(null); setApiStatus('checking'); setRuns([]); setSelectedRun(null);
     try {
-      const cleanUrl = baseUrl.replace(/\/+$/, '');
-      const healthRes = await fetch(`${cleanUrl}/v1/health`, { method: 'GET' });
-      if (!healthRes.ok) {
-        throw new Error(`Health check returned status ${healthRes.status}`);
+      const result = await api().runs();
+      if (version === connectionVersion.current) { setRuns(result); setApiStatus('online'); }
+      const linkedRun = new URLSearchParams(window.location.hash.split('?')[1] || '').get('run');
+      if (linkedRun && version === connectionVersion.current) {
+        const detail = result.find(run => run.id === linkedRun) || await api().run(linkedRun);
+        if (version === connectionVersion.current) setSelectedRun(detail);
       }
-
-      const runsRes = await fetch(`${cleanUrl}/v1/runs`, { method: 'GET' });
-      if (!runsRes.ok) {
-        throw new Error(`Runs endpoint returned status ${runsRes.status}`);
-      }
-
-      const data = await runsRes.json();
-      const rawRuns = data.runs || [];
-
-      if (rawRuns.length === 0) {
-        setRuns([]);
-      } else {
-        // Map backend RunRecord to frontend RunItem
-        const mapped: RunItem[] = rawRuns.map((r: any) => ({
-          id: r.ID || r.id,
-          repo: r.RepoID ? `repo/${r.RepoID.slice(0, 8)}` : 'local/project',
-          branch: r.Branch || r.branch || 'main',
-          prNumber: r.PRNumber || r.pr_number || undefined,
-          commitSHA: r.CommitSHA || r.commit_sha || 'HEAD',
-          status: (r.Status || r.status) === 'passed' ? 'passed' : 'failed',
-          anomalyType: r.AnomalyType || r.anomaly_type || 'NONE',
-          anomalyName: (r.AnomalyType && r.AnomalyType !== 'NONE') ? r.AnomalyType : 'Execução Verificada',
-          isRegression: (r.AnomalyType && r.AnomalyType !== 'NONE'),
-          driver: 'SQL Database',
-          isolation: 'READ COMMITTED',
-          scenario: r.ScenarioID || 'concurrency_suite',
-          schedulesCount: 100,
-          failedSchedules: (r.Status === 'passed') ? 0 : 1,
-          seed: r.Seed || 42,
-          durationMS: r.DurationMS || 250,
-          timestamp: r.CreatedAt ? new Date(r.CreatedAt).toLocaleTimeString() : 'agora',
-        }));
-        setRuns(mapped);
-      }
-      setApiStatus('online');
-      fetchLiveWebhooks(cleanUrl);
-    } catch (err: any) {
-      setApiStatus('offline');
-      setLiveError(err.message || 'Erro ao conectar ao servidor');
-    } finally {
-      setLiveLoading(false);
-    }
-  }, []);
-
+    } catch (error) {
+      if (version === connectionVersion.current) { setApiStatus('offline'); setLiveError(errorMessage(error)); }
+    } finally { if (version === connectionVersion.current) setLiveLoading(false); }
+  };
   const handleToggleMode = (mode: boolean) => {
-    setIsLiveMode(mode);
-    if (mode) {
-      fetchLiveCloudData(apiUrl);
-    } else {
-      setRuns(INITIAL_RUNS);
-      setApiStatus('idle');
-      setLiveError(null);
-    }
+    resetConnection(); setIsLiveMode(mode);
+    if (!mode) { setRuns(INITIAL_RUNS); setApiToken(''); }
   };
-
-  // Inspect run details: if in live mode, fetch /v1/runs/{id}
-  const handleInspectRun = async (r: RunItem) => {
-    setSelectedRun(r);
-    if (isLiveMode && apiStatus === 'online') {
-      try {
-        const cleanUrl = apiUrl.replace(/\/+$/, '');
-        const res = await fetch(`${cleanUrl}/v1/runs/${r.id}`);
-        if (res.ok) {
-          const detail = await res.json();
-          if (detail.finding) {
-            setSelectedRun((prev) => {
-              if (!prev || prev.id !== r.id) return prev;
-              return {
-                ...prev,
-                reproGoCode: detail.finding.ReproCode || prev.reproGoCode,
-                failingInvariant: detail.finding.Assertion ? {
-                  name: 'assertion_check',
-                  query: 'SELECT invariant_check();',
-                  assertion: detail.finding.Assertion,
-                  actual: 'violated',
-                } : prev.failingInvariant,
-              };
-            });
-          }
-        }
-      } catch {
-        // Fallback to local item
-      }
-    }
-  };
+  const handleInspectRun = (run: RunItem) => setSelectedRun(run);
 
   const filteredRuns = runs.filter((r) => {
     if (filterType === 'regressions' && !r.isRegression) return false;
@@ -663,8 +405,8 @@ export function DashboardPage({ lang }: DashboardPageProps) {
 
   const totalRunsCount = runs.length;
   const passedRunsCount = runs.filter((r) => r.status === 'passed').length;
-  const healthScore = totalRunsCount > 0 ? ((passedRunsCount / totalRunsCount) * 100).toFixed(1) : '100.0';
-  const totalSchedulesSum = runs.reduce((acc, r) => acc + r.schedulesCount, 0);
+  const healthScore = totalRunsCount > 0 ? ((passedRunsCount / totalRunsCount) * 100).toFixed(1) : '—';
+  const totalSchedulesSum = runs.every(r => r.schedulesCount !== null) ? runs.reduce((acc, r) => acc + (r.schedulesCount ?? 0), 0) : null;
   const regressionsCount = runs.filter((r) => r.isRegression).length;
 
   const handleCopyCode = () => {
@@ -717,6 +459,7 @@ jobs:
       - uses: bregaldahq/chaossql@v1.5.0
         with:
           spec-path: 'chaos.yaml'
+          cloud-url: \${{ vars.CHAOSSQL_CLOUD_URL }}
           cloud-token: \${{ secrets.CHAOSSQL_CLOUD_TOKEN }}
           github-token: \${{ secrets.GITHUB_TOKEN }}
           post-pr-comment: 'true'`;
@@ -726,7 +469,8 @@ jobs:
   };
 
   const handleCopyToken = () => {
-    navigator.clipboard.writeText('csql_live_demo_acme_8912b7fa');
+    if (!issuedToken) return;
+    navigator.clipboard.writeText(issuedToken);
     setCopiedToken(true);
     setTimeout(() => setCopiedToken(false), 2000);
   };
@@ -767,7 +511,7 @@ jobs:
             <button
               type="button"
               className={styles.webhookModalBtn}
-              onClick={() => setWebhooksModalOpen(true)}
+              onClick={openWebhooks}
             >
               <Bell size={14} />
               {lang === 'pt' ? 'Alertas & Webhooks' : 'Alerts & Webhooks'}
@@ -823,35 +567,30 @@ jobs:
             )}
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
             <input
               type="text"
               value={apiUrl}
-              onChange={(e) => setApiUrl(e.target.value)}
+              aria-label="API URL"
+              onChange={(e) => { resetConnection(); setApiUrl(e.target.value); }}
               className={styles.apiUrlInput}
-              placeholder="http://localhost:8080"
+              placeholder={lang === 'pt' ? 'Origem atual (padrão)' : 'Same origin (default)'}
             />
+            <input type="password" aria-label="API token" placeholder="API token" autoComplete="off"
+              value={apiToken} onChange={e => { resetConnection(); setApiToken(e.target.value); }} className={styles.apiUrlInput} />
             <button
               type="button"
               className={styles.refreshBtn}
-              onClick={() => fetchLiveCloudData(apiUrl)}
-              disabled={liveLoading}
+              onClick={fetchLiveCloudData}
+              disabled={liveLoading || !apiToken.trim()}
             >
               <RefreshCw size={13} className={liveLoading ? styles.spin : ''} />
               {t.refresh}
             </button>
           </div>
 
-          {liveError && (
-            <div style={{ width: '100%', fontSize: '0.82rem', color: '#DC2626', display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
-              <AlertTriangle size={14} />
-              <span>
-                {lang === 'pt'
-                  ? `Inicie o servidor local com 'go run ./cmd/chaossql-server' para conectar à porta 8080: ${liveError}`
-                  : `Start local server with 'go run ./cmd/chaossql-server' to connect on port 8080: ${liveError}`}
-              </span>
-            </div>
-          )}
+          <p>{lang === 'pt' ? 'Token mantido apenas na memória desta página.' : 'Token kept only in this page’s memory.'}</p>
+          {liveError && <p role="alert"><AlertTriangle size={14} /> {liveError}</p>}
         </div>
       )}
 
@@ -862,7 +601,7 @@ jobs:
             <span className={styles.metricTitle}>{t.healthLabel}</span>
             <Activity size={16} color="var(--green)" />
           </div>
-          <div className={styles.metricValue} style={{ color: 'var(--green)' }}>{healthScore}%</div>
+          <div className={styles.metricValue} style={{ color: 'var(--green)' }}>{healthScore === '—' ? '—' : `${healthScore}%`}</div>
           <div className={styles.metricSub}>
             <span style={{ color: 'var(--green)' }}>●</span> {t.healthStatus}
           </div>
@@ -884,9 +623,9 @@ jobs:
             <span className={styles.metricTitle}>{t.totalSchedules}</span>
             <Activity size={16} color="var(--purple)" />
           </div>
-          <div className={styles.metricValue}>{totalSchedulesSum.toLocaleString()}</div>
+          <div className={styles.metricValue}>{totalSchedulesSum === null || !runs.length ? '—' : totalSchedulesSum.toLocaleString()}</div>
           <div className={styles.metricSub}>
-            <span>Espaço combinatório explorado</span>
+            <span>{lang === 'pt' ? 'Nas execuções exibidas; — indica dados ausentes' : 'Across displayed runs; — means unavailable'}</span>
           </div>
         </div>
 
@@ -898,7 +637,7 @@ jobs:
           <div className={regressionsCount > 0 ? styles.metricValueAlert : styles.metricValue}>{regressionsCount}</div>
           <div className={styles.metricSub}>
             <span style={{ color: regressionsCount > 0 ? '#DC2626' : 'inherit' }}>
-              {regressionsCount} {t.openRegressions}
+              {regressionsCount} {t.openRegressions}{runs.some(r => r.isRegression === null) ? (lang === 'pt' ? ' (dados incompletos)' : ' (incomplete metadata)') : ''}
             </span>
           </div>
         </div>
@@ -979,9 +718,7 @@ jobs:
             <h3>{lang === 'pt' ? 'Nenhuma execução encontrada' : 'No executions found'}</h3>
             <p>
               {isLiveMode
-                ? (lang === 'pt'
-                    ? 'Seu servidor de nuvem ainda não recebeu execuções. Execute no terminal: chaossql run --scenario=banking_lost_update --cloud-token=csql_... --cloud-url=' + apiUrl
-                    : 'Your cloud server has not received runs yet. Run in terminal: chaossql run --scenario=banking_lost_update --cloud-token=csql_... --cloud-url=' + apiUrl)
+                ? (apiStatus === 'online' ? (lang === 'pt' ? 'Nenhuma execução corresponde a esta seleção.' : 'No runs match this selection.') : (lang === 'pt' ? 'Conecte à API com seu token para carregar execuções.' : 'Connect to the API with your token to load runs.'))
                 : (lang === 'pt' ? 'Nenhum resultado para o filtro informado.' : 'No results matching your filters.')}
             </p>
           </div>
@@ -1048,7 +785,7 @@ jobs:
                     {r.status === 'passed' ? (
                       <span className={styles.badgePrevented}>PASS</span>
                     ) : (
-                      <span className={styles.badgeRegression}>FAIL</span>
+                      <span className={styles.badgeRegression}>{r.status.toUpperCase()}</span>
                     )}
                   </td>
                   <td>
@@ -1069,7 +806,7 @@ jobs:
                     {r.isRegression && (
                       <div>
                         <span className={styles.badgeRegression}>
-                          REGRESSION (Base: {r.baselineStatus || 'PASS'})
+                          REGRESSION
                         </span>
                       </div>
                     )}
@@ -1082,8 +819,8 @@ jobs:
                   </td>
                   <td>
                     <div className={styles.durationCell}>
-                      <span className={styles.durationMono}>{r.durationMS}ms</span>
-                      <span className={styles.schedulesMono}>{r.schedulesCount} sched</span>
+                      <span className={styles.durationMono}>{r.durationMS === null ? '—' : `${r.durationMS}ms`}</span>
+                      <span className={styles.schedulesMono}>{r.schedulesCount ?? '—'} sched</span>
                     </div>
                   </td>
                   <td>
@@ -1139,7 +876,7 @@ jobs:
                     </>
                   )}
                   <span>•</span>
-                  <span>Seed: <code>{selectedRun.seed}</code></span>
+                  <span>Seed: <code>{selectedRun.seed ?? '—'}</code></span>
                 </div>
               </div>
               <button type="button" className={styles.closeBtn} onClick={() => setSelectedRun(null)}>
@@ -1148,6 +885,7 @@ jobs:
             </div>
 
             <div className={styles.modalBody}>
+              {isLiveMode && <p>{lang === 'pt' ? 'Consulte os artefatos locais do CI para SQL, traces e reprodutores. A nuvem armazena apenas metadados.' : 'Use your local CI artifacts for SQL, traces and reproducers. The cloud stores metadata only.'}</p>}
               {/* Invariant Failure */}
               {selectedRun.failingInvariant && (
                 <div className={styles.sectionBox}>
@@ -1208,10 +946,10 @@ jobs:
               )}
             </div>
 
-            <div className={styles.modalFooter}>
+            {!isLiveMode && <div className={styles.modalFooter}>
               {/* Deep-link direct to VisualizerPage */}
               <a
-                href={`#/visualizer?scenario=${encodeURIComponent(selectedRun.scenario)}&seed=${selectedRun.seed}&mode=shrunk`}
+                href="#/visualizer"
                 className={styles.openVisualizerBtn}
                 onClick={() => setSelectedRun(null)}
               >
@@ -1239,21 +977,21 @@ jobs:
                 <Play size={14} fill="currentColor" />
                 {t.openPlayground}
               </a>
-            </div>
+            </div>}
           </div>
         </div>
       )}
 
       {/* Onboarding / Connect Repository Modal */}
       {onboardingOpen && (
-        <div className={styles.modalBackdrop} onClick={() => setOnboardingOpen(false)}>
+        <div className={styles.modalBackdrop} onClick={() => (setOnboardingOpen(false), setIssuedToken(''), setTokenError(null))}>
           <div className={styles.onboardingCard} onClick={(e) => e.stopPropagation()}>
             <div className={styles.modalHeader}>
               <div>
                 <span className={styles.modalTag}>SETUP EM 60 SEGUNDOS</span>
                 <h3 className={styles.modalTitle}>Conectar Repositório ao ChaosSQL Cloud</h3>
               </div>
-              <button type="button" className={styles.closeBtn} onClick={() => setOnboardingOpen(false)}>
+              <button type="button" className={styles.closeBtn} onClick={() => (setOnboardingOpen(false), setIssuedToken(''), setTokenError(null))}>
                 <X size={20} />
               </button>
             </div>
@@ -1262,15 +1000,20 @@ jobs:
               <div className={styles.onboardingStep}>
                 <div className={styles.stepNum}>1</div>
                 <div className={styles.stepContent}>
-                  <h4>Copie seu Token de Autenticação da Organização</h4>
-                  <p>Adicione este token seguro como Secret no seu repositório GitHub para autenticar runners.</p>
-                  <div className={styles.tokenBox}>
-                    <code>csql_live_demo_acme_8912b7fa</code>
+                  <h4>{lang === 'pt' ? 'Crie um token de CI' : 'Create a CI token'}</h4>
+                  <p>{lang === 'pt' ? 'Conecte à API com um token de administrador. O novo token de membro será mostrado uma vez; salve-o como secret do GitHub.' : 'Connect with an administrator API token. The new member token is shown once; save it as a GitHub secret.'}</p>
+                  <p>{lang === 'pt' ? 'Sem acesso de administrador? Peça ao operador do servidor para executar:' : 'Without administrator access, ask your server operator to run:'}</p>
+                  <code>chaossql server create-token --org YOUR_ORG_ID --name "CI Token"</code>
+                  {tokenError && <p role="alert">{tokenError}</p>}
+                  {issuedToken ? <div className={styles.tokenBox}>
+                    <code>{issuedToken}</code>
                     <button type="button" className={styles.actionBtnSmall} onClick={handleCopyToken}>
                       {copiedToken ? <Check size={14} /> : <Copy size={14} />}
-                      {copiedToken ? 'Copiado!' : 'Copiar Token'}
+                      {copiedToken ? 'Copied' : 'Copy Token'}
                     </button>
-                  </div>
+                  </div> : <button type="button" className={styles.actionBtnSmall} disabled={!isLiveMode || apiStatus !== 'online' || tokenBusy} onClick={handleCreateToken}>
+                    {tokenBusy ? 'Creating…' : (lang === 'pt' ? 'Criar token de CI' : 'Create CI Token')}
+                  </button>}
                 </div>
               </div>
 
@@ -1278,6 +1021,7 @@ jobs:
                 <div className={styles.stepNum}>2</div>
                 <div className={styles.stepContent}>
                   <h4>Configure o Secret no GitHub</h4>
+                  <p>{lang === 'pt' ? 'Defina também a variável CHAOSSQL_CLOUD_URL com a URL da API acessível pelo runner.' : 'Also set the CHAOSSQL_CLOUD_URL repository variable to the API URL reachable from the runner.'}</p>
                   <p>
                     No seu repositório no GitHub, acesse <strong>Settings → Secrets and variables → Actions → New repository secret</strong>.
                     Defina o nome como <code style={{ color: 'var(--purple)', background: 'color-mix(in srgb, var(--purple) 8%, var(--cream))', padding: '2px 6px', borderRadius: 3 }}>CHAOSSQL_CLOUD_TOKEN</code>.
@@ -1317,6 +1061,7 @@ jobs:
       - uses: bregaldahq/chaossql@v1.5.0
         with:
           spec-path: 'chaos.yaml'
+          cloud-url: \${{ vars.CHAOSSQL_CLOUD_URL }}
           cloud-token: \${{ secrets.CHAOSSQL_CLOUD_TOKEN }}
           github-token: \${{ secrets.GITHUB_TOKEN }}
           post-pr-comment: 'true'`}</code>
@@ -1336,7 +1081,7 @@ jobs:
             </div>
 
             <div className={styles.modalFooter}>
-              <button type="button" className={styles.copyCmdBtn} onClick={() => setOnboardingOpen(false)}>
+              <button type="button" className={styles.copyCmdBtn} onClick={() => (setOnboardingOpen(false), setIssuedToken(''), setTokenError(null))}>
                 Concluir & Voltar ao Dashboard
               </button>
             </div>
@@ -1370,6 +1115,9 @@ jobs:
             </div>
 
             <div className={styles.modalBody}>
+              {!isLiveMode || apiStatus !== 'online' ? <p>{lang === 'pt' ? 'Conecte à API para gerenciar webhooks.' : 'Connect to the API to manage webhooks.'}</p> : null}
+              {webhookBusy && <p>{lang === 'pt' ? 'Carregando…' : 'Loading…'}</p>}
+              {webhookError && <p role="alert">{webhookError}</p>}
               {/* Existing Webhooks List */}
               <div style={{ marginBottom: 'var(--space-3)' }}>
                 <h4
@@ -1411,7 +1159,7 @@ jobs:
                               </span>
                             )}
                             <strong style={{ fontFamily: 'var(--font-inter)', fontSize: '0.88rem', color: 'var(--ink)' }}>
-                              {wh.name}
+                              {wh.id}
                             </strong>
                           </div>
 
@@ -1419,7 +1167,7 @@ jobs:
                             <button
                               type="button"
                               className={styles.webhookTestBtn}
-                              disabled={testingWebhookId === wh.id}
+                              disabled={testingWebhookId !== null || webhookBusy}
                               onClick={() => handleTestWebhook(wh)}
                             >
                               {testingWebhookId === wh.id ? (
@@ -1445,6 +1193,7 @@ jobs:
                             <button
                               type="button"
                               className={styles.webhookDeleteBtn}
+                              disabled={webhookBusy || testingWebhookId !== null}
                               onClick={() => handleDeleteWebhook(wh.id)}
                               title={lang === 'pt' ? 'Remover webhook' : 'Delete webhook'}
                             >
@@ -1504,7 +1253,7 @@ jobs:
                   <select
                     className={styles.webhookSelect}
                     value={newWhTarget}
-                    onChange={(e) => setNewWhTarget(e.target.value as any)}
+                    onChange={(e) => setNewWhTarget(e.target.value as WebhookItem['target'])}
                   >
                     <option value="discord">Discord Webhook</option>
                     <option value="slack">Slack Incoming</option>
@@ -1518,7 +1267,7 @@ jobs:
                       newWhTarget === 'discord'
                         ? 'https://discord.com/api/webhooks/...'
                         : newWhTarget === 'slack'
-                        ? 'https://hooks.slack.bregalda.internal/services/...'
+                        ? 'https://hooks.slack.com/services/...'
                         : 'https://api.empresa.com/webhooks/concurrency'
                     }
                     className={styles.webhookInput}
@@ -1526,25 +1275,12 @@ jobs:
                     onChange={(e) => setNewWhUrl(e.target.value)}
                   />
 
-                  <button type="submit" className={styles.webhookSaveBtn}>
+                  <button type="submit" className={styles.webhookSaveBtn} disabled={!isLiveMode || apiStatus !== 'online' || webhookBusy}>
                     + {lang === 'pt' ? 'Salvar Webhook' : 'Save Webhook'}
                   </button>
                 </form>
 
-                <div style={{ marginTop: 6 }}>
-                  <input
-                    type="text"
-                    placeholder={
-                      lang === 'pt'
-                        ? 'Nome descritivo (ex: #alerta-db-prod)'
-                        : 'Descriptive label (e.g. #prod-alerts)'
-                    }
-                    className={styles.webhookInput}
-                    style={{ width: '100%' }}
-                    value={newWhName}
-                    onChange={(e) => setNewWhName(e.target.value)}
-                  />
-                </div>
+
               </div>
             </div>
 

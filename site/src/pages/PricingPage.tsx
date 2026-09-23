@@ -7,6 +7,7 @@ import {
   X
 } from 'lucide-react';
 import styles from './PricingPage.module.css';
+import { submitLead } from '../lib/lead-request';
 
 interface PricingPageProps {
   lang: 'pt' | 'en';
@@ -24,6 +25,8 @@ export function PricingPage({ lang }: PricingPageProps) {
     notes: '',
   });
   const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const t = {
     badge: lang === 'pt' ? 'Precificação Baseada em Repositórios' : 'Repository-Based Pricing',
@@ -48,19 +51,19 @@ export function PricingPage({ lang }: PricingPageProps) {
     devTitle: 'Cloud Developer',
     devPrice: '$0',
     devDesc: lang === 'pt' ? 'Para validar o ChaosSQL em 1 repositório privado.' : 'To evaluate ChaosSQL Cloud on 1 private repository.',
-    devCta: lang === 'pt' ? 'Começar Grátis' : 'Start Free',
+    devCta: lang === 'pt' ? 'Solicitar Acesso' : 'Request Access',
 
     teamTitle: 'Cloud Team',
     teamPriceMonthly: '$39',
     teamPriceAnnual: '$31',
     teamDesc: lang === 'pt' ? 'O padrão para equipes de produto que colocam código em produção.' : 'The standard for product engineering teams shipping to production.',
-    teamCta: lang === 'pt' ? 'Contratar Cloud Team' : 'Get Cloud Team',
+    teamCta: lang === 'pt' ? 'Solicitar Cloud Team' : 'Request Cloud Team',
 
     proTitle: 'Cloud Pro',
     proPriceMonthly: '$99',
     proPriceAnnual: '$79',
     proDesc: lang === 'pt' ? 'Para arquiteturas distribuídas, múltiplos microsserviços e alta escala.' : 'For multi-service architectures, regulated domains and scale.',
-    proCta: lang === 'pt' ? 'Contratar Cloud Pro' : 'Get Cloud Pro',
+    proCta: lang === 'pt' ? 'Solicitar Cloud Pro' : 'Request Cloud Pro',
 
     // Audit Section
     auditTag: lang === 'pt' ? 'SERVIÇO DE ENGENHARIA VIP' : 'VIP ENGINEERING ENGAGEMENT',
@@ -70,10 +73,10 @@ export function PricingPage({ lang }: PricingPageProps) {
       : 'A 1-week deep-dive investigation conducted by database concurrency experts on your most critical transactional workflows.',
     auditPrice: '$1,490',
     auditPriceNote: lang === 'pt' ? 'Taxa única por auditoria completa' : 'One-time investment per audited application',
-    auditCta: lang === 'pt' ? 'Agendar Auditoria de Concorrência' : 'Book Concurrency Audit',
+    auditCta: lang === 'pt' ? 'Solicitar Auditoria de Concorrência' : 'Request Concurrency Audit',
 
     // Modal
-    modalTitle: lang === 'pt' ? 'Ativação & Contratação' : 'Activation & Checkout',
+    modalTitle: lang === 'pt' ? 'Solicitar Contato' : 'Request Contact',
     nameLabel: lang === 'pt' ? 'Seu Nome' : 'Your Name',
     emailLabel: lang === 'pt' ? 'E-mail Corporativo' : 'Work Email',
     companyLabel: lang === 'pt' ? 'Empresa' : 'Company',
@@ -82,39 +85,35 @@ export function PricingPage({ lang }: PricingPageProps) {
     submitBtn: lang === 'pt' ? 'Confirmar Solicitação' : 'Confirm Request',
     successTitle: lang === 'pt' ? 'Solicitação Registrada!' : 'Request Registered!',
     successDesc: lang === 'pt'
-      ? 'Nossa equipe de engenharia entrará em contato em até 4 horas úteis com o seu token de acesso e instruções de setup.'
-      : 'Our engineering team will reach out within 4 business hours with your access token and setup onboarding.',
+      ? 'Recebemos sua solicitação. Nossa equipe entrará em contato para discutir acesso e configuração.'
+      : 'We received your request. Our team will contact you to discuss access and setup.',
   };
 
   const handleOpenModal = (planName: string) => {
     setSelectedPlan(planName);
     setSubmitted(false);
+    setSubmitError(null);
     setModalOpen(true);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSubmitting(true);
+    setSubmitError(null);
     try {
       const payload = {
         ...formData,
         plan: selectedPlan,
         billingCycle: annual ? 'annual' : 'monthly',
+        wantAudit: selectedPlan.includes('Audit'),
+        source: 'pricing_page',
         timestamp: new Date().toISOString(),
       };
-      // Local storage fallback + webhook
-      const existing = JSON.parse(localStorage.getItem('chaossql_leads') || '[]');
-      existing.push(payload);
-      localStorage.setItem('chaossql_leads', JSON.stringify(existing));
-
-      if (typeof window !== 'undefined' && (window as any).fetch) {
-        fetch('/api/waitlist', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        }).catch(() => {});
-      }
-    } catch (_) {}
-    setSubmitted(true);
+      await submitLead(payload);
+      setSubmitted(true);
+    } catch (error) {
+      setSubmitError(error instanceof Error ? error.message : 'Request delivery failed. Please try again.');
+    } finally { setSubmitting(false); }
   };
 
   return (
@@ -185,7 +184,7 @@ export function PricingPage({ lang }: PricingPageProps) {
             <li><Check size={16} className={styles.checkIcon} /> Sanitização estrita de credenciais</li>
             <li><Check size={16} className={styles.checkIcon} /> Usuários/devs ilimitados</li>
           </ul>
-          <button className={styles.ctaSecondary} onClick={() => handleOpenModal('Cloud Developer ($0)')}>
+          <button className={styles.ctaSecondary} onClick={() => handleOpenModal('Cloud Developer')}>
             {t.devCta}
           </button>
         </div>
@@ -214,7 +213,7 @@ export function PricingPage({ lang }: PricingPageProps) {
             <li><Check size={16} className={styles.checkIconPopular} /> Histórico de 90 dias com baseline</li>
             <li><Check size={16} className={styles.checkIconPopular} /> Reprodutores Go para download</li>
           </ul>
-          <button className={styles.ctaPrimary} onClick={() => handleOpenModal('Cloud Team ($39/mo)')}>
+          <button className={styles.ctaPrimary} onClick={() => handleOpenModal('Cloud Team')}>
             {t.teamCta}
           </button>
         </div>
@@ -242,7 +241,7 @@ export function PricingPage({ lang }: PricingPageProps) {
             <li><Check size={16} className={styles.checkIcon} /> Políticas de isolamento avançadas</li>
             <li><Check size={16} className={styles.checkIcon} /> Suporte prioritário via Slack privado</li>
           </ul>
-          <button className={styles.ctaSecondary} onClick={() => handleOpenModal('Cloud Pro ($99/mo)')}>
+          <button className={styles.ctaSecondary} onClick={() => handleOpenModal('Cloud Pro')}>
             {t.proCta}
           </button>
         </div>
@@ -308,7 +307,7 @@ export function PricingPage({ lang }: PricingPageProps) {
         </div>
       </div>
 
-      {/* Checkout / Contact Modal */}
+      {/* Contact request modal */}
       {modalOpen && (
         <div className={styles.modalBackdrop} onClick={() => setModalOpen(false)}>
           <div className={styles.modalCard} onClick={(e) => e.stopPropagation()}>
@@ -333,6 +332,8 @@ export function PricingPage({ lang }: PricingPageProps) {
               </div>
             ) : (
               <form onSubmit={handleSubmit} className={styles.formContent}>
+                <p>{lang === 'pt' ? 'Envie uma solicitação de contato. Nenhuma assinatura ou cobrança é criada aqui.' : 'Send a contact request. This form does not create a subscription or charge.'}</p>
+                {submitError && <p role="alert">{submitError}</p>}
                 <div className={styles.inputGroup}>
                   <label>{t.nameLabel}</label>
                   <input
@@ -391,8 +392,8 @@ export function PricingPage({ lang }: PricingPageProps) {
                   />
                 </div>
 
-                <button type="submit" className={styles.modalSubmitBtn}>
-                  {t.submitBtn} →
+                <button type="submit" className={styles.modalSubmitBtn} disabled={submitting}>
+                  {submitting ? (lang === 'pt' ? 'Enviando…' : 'Sending…') : t.submitBtn} →
                 </button>
               </form>
             )}

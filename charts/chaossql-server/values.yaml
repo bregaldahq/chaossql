@@ -61,7 +61,9 @@ config:
   publicUrl: "http://localhost:8080"
 
 secrets:
-  adminToken: "chaossql_enterprise_token_secret"
+  # Prefer an existing Secret with a CHAOSSQL_ADMIN_TOKEN key.
+  existingSecret: ""
+  adminToken: ""
   discordWebhookUrl: ""
 
 resources:

@@ -119,6 +119,7 @@ type WebhookRecord struct {
 
 type Store struct {
 	db *sql.DB
+	tx *sql.Tx
 }
 
 func NewStore(db *sql.DB) *Store {
@@ -225,7 +226,7 @@ func (s *Store) AutoMigrate() error {
 	}
 
 	for _, q := range queries {
-		if _, err := s.db.Exec(q); err != nil {
+		if _, err := s.queryer().Exec(q); err != nil {
 			return fmt.Errorf("migration failed for query [%s]: %w", q, err)
 		}
 	}
@@ -238,13 +239,16 @@ func (s *Store) AutoMigrate() error {
 	if err := s.purgeLegacyFindingDetails(); err != nil {
 		return err
 	}
-	return s.ensureIdempotentRunsAndOutbox()
+	if err := s.ensureIdempotentRunsAndOutbox(); err != nil {
+		return err
+	}
+	return s.ensureIngestionMetadata()
 }
 
 func (s *Store) purgeLegacyFindingDetails() error {
 	const migration = "2026-09-16-purge-hosted-finding-details"
 	var applied int
-	if err := s.db.QueryRow(`SELECT COUNT(*) FROM schema_migrations WHERE version = ?`, migration).Scan(&applied); err != nil {
+	if err := s.queryer().QueryRow(`SELECT COUNT(*) FROM schema_migrations WHERE version = ?`, migration).Scan(&applied); err != nil {
 		return fmt.Errorf("inspect finding privacy migration: %w", err)
 	}
 	if applied != 0 {
@@ -270,14 +274,14 @@ func (s *Store) purgeLegacyFindingDetails() error {
 func (s *Store) ensureIdempotentRunsAndOutbox() error {
 	const migration = "2026-09-17-idempotent-runs-and-outbox"
 	var applied int
-	if err := s.db.QueryRow(`SELECT COUNT(*) FROM schema_migrations WHERE version = ?`, migration).Scan(&applied); err != nil {
+	if err := s.queryer().QueryRow(`SELECT COUNT(*) FROM schema_migrations WHERE version = ?`, migration).Scan(&applied); err != nil {
 		return fmt.Errorf("inspect outbox migration: %w", err)
 	}
 	if applied != 0 {
 		return nil
 	}
 
-	rows, err := s.db.Query(`PRAGMA table_info(runs)`)
+	rows, err := s.queryer().Query(`PRAGMA table_info(runs)`)
 	if err != nil {
 		return fmt.Errorf("inspect runs table info: %w", err)
 	}
@@ -348,7 +352,7 @@ func (s *Store) ensureIdempotentRunsAndOutbox() error {
 }
 
 func (s *Store) ensureAPITokenRoleColumn() error {
-	rows, err := s.db.Query(`PRAGMA table_info(api_tokens)`)
+	rows, err := s.queryer().Query(`PRAGMA table_info(api_tokens)`)
 	if err != nil {
 		return fmt.Errorf("inspect api token schema: %w", err)
 	}
@@ -371,7 +375,7 @@ func (s *Store) ensureAPITokenRoleColumn() error {
 	if hasRole {
 		return nil
 	}
-	if _, err := s.db.Exec(`ALTER TABLE api_tokens ADD COLUMN role TEXT NOT NULL DEFAULT 'member'`); err != nil {
+	if _, err := s.queryer().Exec(`ALTER TABLE api_tokens ADD COLUMN role TEXT NOT NULL DEFAULT 'member'`); err != nil {
 		return fmt.Errorf("add api token role: %w", err)
 	}
 	return nil
@@ -438,13 +442,13 @@ func (s *Store) ensureTenantRepositoryUniqueness() error {
 }
 
 func (s *Store) CreateOrganization(id, name, plan string) error {
-	_, err := s.db.Exec(`INSERT INTO organizations (id, name, plan, created_at) VALUES (?, ?, ?, ?)`,
+	_, err := s.queryer().Exec(`INSERT INTO organizations (id, name, plan, created_at) VALUES (?, ?, ?, ?)`,
 		id, name, plan, time.Now().UTC())
 	return err
 }
 
 func (s *Store) EnsureOrganization(id, name, plan string) error {
-	_, err := s.db.Exec(`INSERT INTO organizations (id, name, plan, created_at) VALUES (?, ?, ?, ?)
+	_, err := s.queryer().Exec(`INSERT INTO organizations (id, name, plan, created_at) VALUES (?, ?, ?, ?)
 		ON CONFLICT(id) DO NOTHING`, id, name, plan, time.Now().UTC())
 	return err
 }
@@ -458,7 +462,7 @@ func (s *Store) CreateAPITokenWithRole(id, orgID, token, name string, role Role)
 		return fmt.Errorf("%w: %q", ErrInvalidRole, role)
 	}
 	th := hashToken(token)
-	_, err := s.db.Exec(`INSERT INTO api_tokens (id, org_id, token_hash, name, role, created_at) VALUES (?, ?, ?, ?, ?, ?)`,
+	_, err := s.queryer().Exec(`INSERT INTO api_tokens (id, org_id, token_hash, name, role, created_at) VALUES (?, ?, ?, ?, ?, ?)`,
 		id, orgID, th, name, role, time.Now().UTC())
 	return err
 }
@@ -467,7 +471,7 @@ func (s *Store) UpsertAPITokenWithRole(id, orgID, token, name string, role Role)
 	if !role.valid() {
 		return fmt.Errorf("%w: %q", ErrInvalidRole, role)
 	}
-	_, err := s.db.Exec(`INSERT INTO api_tokens (id, org_id, token_hash, name, role, created_at)
+	_, err := s.queryer().Exec(`INSERT INTO api_tokens (id, org_id, token_hash, name, role, created_at)
 		VALUES (?, ?, ?, ?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET
 			org_id = excluded.org_id,
@@ -489,7 +493,7 @@ func (s *Store) ValidateToken(token string) (string, error) {
 func (s *Store) AuthenticateToken(token string) (Principal, error) {
 	th := hashToken(token)
 	var principal Principal
-	err := s.db.QueryRow(`SELECT id, org_id, role FROM api_tokens WHERE token_hash = ?`, th).
+	err := s.queryer().QueryRow(`SELECT id, org_id, role FROM api_tokens WHERE token_hash = ?`, th).
 		Scan(&principal.TokenID, &principal.OrgID, &principal.Role)
 	if errors.Is(err, sql.ErrNoRows) {
 		return Principal{}, ErrUnauthorized
@@ -504,12 +508,22 @@ func (s *Store) AuthenticateToken(token string) (Principal, error) {
 }
 
 func (s *Store) GetOrCreateRepo(orgID, fullName, defaultBranch string) (*Repository, error) {
+	if s.tx == nil {
+		var repo *Repository
+		err := s.withTransaction(context.Background(), func(bound *Store) error {
+			var err error
+			repo, err = bound.GetOrCreateRepo(orgID, fullName, defaultBranch)
+			return err
+		})
+		return repo, err
+	}
+
 	if defaultBranch == "" {
 		defaultBranch = "main"
 	}
 
 	var repo Repository
-	err := s.db.QueryRow(`SELECT id, org_id, full_name, default_branch, created_at FROM repositories WHERE org_id = ? AND full_name = ?`, orgID, fullName).
+	err := s.queryer().QueryRow(`SELECT id, org_id, full_name, default_branch, created_at FROM repositories WHERE org_id = ? AND full_name = ?`, orgID, fullName).
 		Scan(&repo.ID, &repo.OrgID, &repo.FullName, &repo.DefaultBranch, &repo.CreatedAt)
 	if err == nil {
 		return &repo, nil
@@ -518,9 +532,16 @@ func (s *Store) GetOrCreateRepo(orgID, fullName, defaultBranch string) (*Reposit
 		return nil, err
 	}
 
+	subscription, err := s.GetOrgSubscription(orgID)
+	if err != nil {
+		return nil, err
+	}
+	if !subscription.CanAddRepository {
+		return nil, ErrPlanLimitReached
+	}
 	id := fmt.Sprintf("repo_%d", time.Now().UnixNano())
 	now := time.Now().UTC()
-	_, err = s.db.Exec(`INSERT INTO repositories (id, org_id, full_name, default_branch, created_at) VALUES (?, ?, ?, ?, ?)`,
+	_, err = s.queryer().Exec(`INSERT INTO repositories (id, org_id, full_name, default_branch, created_at) VALUES (?, ?, ?, ?, ?)`,
 		id, orgID, fullName, defaultBranch, now)
 	if err != nil {
 		return nil, err
@@ -537,7 +558,7 @@ func (s *Store) GetOrCreateRepo(orgID, fullName, defaultBranch string) (*Reposit
 
 func (s *Store) GetRepositoryByFullName(orgID, fullName string) (*Repository, error) {
 	var repo Repository
-	err := s.db.QueryRow(`SELECT id, org_id, full_name, default_branch, created_at
+	err := s.queryer().QueryRow(`SELECT id, org_id, full_name, default_branch, created_at
 		FROM repositories WHERE org_id = ? AND full_name = ?`, orgID, fullName).
 		Scan(&repo.ID, &repo.OrgID, &repo.FullName, &repo.DefaultBranch, &repo.CreatedAt)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -551,7 +572,7 @@ func (s *Store) GetRepositoryByFullName(orgID, fullName string) (*Repository, er
 
 func (s *Store) GetOrCreateScenario(repoID, name, driver string) (*Scenario, error) {
 	var sc Scenario
-	err := s.db.QueryRow(`SELECT id, repo_id, name, driver, created_at FROM scenarios WHERE repo_id = ? AND name = ?`, repoID, name).
+	err := s.queryer().QueryRow(`SELECT id, repo_id, name, driver, created_at FROM scenarios WHERE repo_id = ? AND name = ?`, repoID, name).
 		Scan(&sc.ID, &sc.RepoID, &sc.Name, &sc.Driver, &sc.CreatedAt)
 	if err == nil {
 		return &sc, nil
@@ -562,7 +583,7 @@ func (s *Store) GetOrCreateScenario(repoID, name, driver string) (*Scenario, err
 
 	id := fmt.Sprintf("sc_%d", time.Now().UnixNano())
 	now := time.Now().UTC()
-	_, err = s.db.Exec(`INSERT INTO scenarios (id, repo_id, name, driver, created_at) VALUES (?, ?, ?, ?, ?)`,
+	_, err = s.queryer().Exec(`INSERT INTO scenarios (id, repo_id, name, driver, created_at) VALUES (?, ?, ?, ?, ?)`,
 		id, repoID, name, driver, now)
 	if err != nil {
 		return nil, err
@@ -587,11 +608,15 @@ func (s *Store) SaveRunTx(ctx context.Context, run *RunRecord, finding *FindingR
 		return nil, false, errors.New("cannot save nil run")
 	}
 
-	tx, err := s.db.BeginTx(ctx, nil)
+	tx, finish, err := s.beginOperation(ctx)
 	if err != nil {
 		return nil, false, fmt.Errorf("begin save run tx: %w", err)
 	}
-	defer func() { _ = tx.Rollback() }()
+	defer func() {
+		if finish {
+			_ = tx.Rollback()
+		}
+	}()
 
 	if run.IdempotencyKey != "" {
 		var existing RunRecord
@@ -677,8 +702,10 @@ func (s *Store) SaveRunTx(ctx context.Context, run *RunRecord, finding *FindingR
 		}
 	}
 
-	if err := tx.Commit(); err != nil {
-		return nil, false, fmt.Errorf("commit save run tx: %w", err)
+	if finish {
+		if err := tx.Commit(); err != nil {
+			return nil, false, fmt.Errorf("commit save run tx: %w", err)
+		}
 	}
 
 	return run, true, nil
@@ -688,11 +715,15 @@ func (s *Store) EnqueueOutbox(ctx context.Context, items []*OutboxItem) error {
 	if len(items) == 0 {
 		return nil
 	}
-	tx, err := s.db.BeginTx(ctx, nil)
+	tx, finish, err := s.beginOperation(ctx)
 	if err != nil {
 		return err
 	}
-	defer func() { _ = tx.Rollback() }()
+	defer func() {
+		if finish {
+			_ = tx.Rollback()
+		}
+	}()
 
 	for _, item := range items {
 		if item == nil {
@@ -721,7 +752,10 @@ func (s *Store) EnqueueOutbox(ctx context.Context, items []*OutboxItem) error {
 			return fmt.Errorf("insert outbox item %s: %w", item.ID, err)
 		}
 	}
-	return tx.Commit()
+	if finish {
+		return tx.Commit()
+	}
+	return nil
 }
 
 func (s *Store) GetPendingOutboxItems(ctx context.Context, limit int) ([]*OutboxItem, error) {
@@ -729,7 +763,7 @@ func (s *Store) GetPendingOutboxItems(ctx context.Context, limit int) ([]*Outbox
 		limit = 20
 	}
 	now := time.Now().UTC()
-	rows, err := s.db.QueryContext(ctx, `SELECT id, org_id, webhook_id, event_type, payload_json, status, attempts, next_retry_at, created_at, delivered_at, last_error
+	rows, err := s.queryer().QueryContext(ctx, `SELECT id, org_id, webhook_id, event_type, payload_json, status, attempts, next_retry_at, created_at, delivered_at, last_error
 		FROM webhook_outbox
 		WHERE status = 'pending' AND next_retry_at <= ?
 		ORDER BY created_at ASC LIMIT ?`, now, limit)
@@ -756,7 +790,7 @@ func (s *Store) GetPendingOutboxItems(ctx context.Context, limit int) ([]*Outbox
 
 func (s *Store) MarkOutboxDelivered(ctx context.Context, id string) error {
 	now := time.Now().UTC()
-	_, err := s.db.ExecContext(ctx, `UPDATE webhook_outbox SET status = 'delivered', delivered_at = ?, last_error = '' WHERE id = ?`, now, id)
+	_, err := s.queryer().ExecContext(ctx, `UPDATE webhook_outbox SET status = 'delivered', delivered_at = ?, last_error = '' WHERE id = ?`, now, id)
 	return err
 }
 
@@ -766,7 +800,7 @@ func (s *Store) MarkOutboxAttemptFailed(ctx context.Context, id string, lastErr 
 	}
 	now := time.Now().UTC()
 	var currentAttempts int
-	err := s.db.QueryRowContext(ctx, `SELECT attempts FROM webhook_outbox WHERE id = ?`, id).Scan(&currentAttempts)
+	err := s.queryer().QueryRowContext(ctx, `SELECT attempts FROM webhook_outbox WHERE id = ?`, id).Scan(&currentAttempts)
 	if err != nil {
 		return err
 	}
@@ -777,7 +811,7 @@ func (s *Store) MarkOutboxAttemptFailed(ctx context.Context, id string, lastErr 
 		status = "failed"
 	}
 	nextRetry := now.Add(time.Duration(backoffSec) * time.Second)
-	_, err = s.db.ExecContext(ctx, `UPDATE webhook_outbox SET attempts = ?, status = ?, next_retry_at = ?, last_error = ? WHERE id = ?`,
+	_, err = s.queryer().ExecContext(ctx, `UPDATE webhook_outbox SET attempts = ?, status = ?, next_retry_at = ?, last_error = ? WHERE id = ?`,
 		newAttempts, status, nextRetry, lastErr, id)
 	return err
 }
@@ -785,7 +819,7 @@ func (s *Store) MarkOutboxAttemptFailed(ctx context.Context, id string, lastErr 
 func (s *Store) GetWebhookByID(ctx context.Context, orgID, webhookID string) (*WebhookRecord, error) {
 	var w WebhookRecord
 	var activeInt int
-	err := s.db.QueryRowContext(ctx, `SELECT id, org_id, target_type, url, events, active, created_at
+	err := s.queryer().QueryRowContext(ctx, `SELECT id, org_id, target_type, url, events, active, created_at
 		FROM webhooks WHERE org_id = ? AND id = ?`, orgID, webhookID).
 		Scan(&w.ID, &w.OrgID, &w.TargetType, &w.URL, &w.Events, &activeInt, &w.CreatedAt)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -802,7 +836,7 @@ func (s *Store) GetRun(runID string) (*RunRecord, *FindingRecord, error) {
 	var run RunRecord
 	var idempotencyKey, scenarioFingerprint sql.NullString
 	var commitTimestamp sql.NullTime
-	err := s.db.QueryRow(`SELECT id, repo_id, scenario_id, commit_sha, branch, pr_number, status, anomaly_type, seed, duration_ms, created_at,
+	err := s.queryer().QueryRow(`SELECT id, repo_id, scenario_id, commit_sha, branch, pr_number, status, anomaly_type, seed, duration_ms, created_at,
 		idempotency_key, scenario_fingerprint, commit_timestamp
 		FROM runs WHERE id = ?`, runID).
 		Scan(&run.ID, &run.RepoID, &run.ScenarioID, &run.CommitSHA, &run.Branch, &run.PRNumber, &run.Status, &run.AnomalyType, &run.Seed, &run.DurationMS, &run.CreatedAt,
@@ -827,7 +861,7 @@ func (s *Store) GetRun(runID string) (*RunRecord, *FindingRecord, error) {
 	}
 
 	var finding FindingRecord
-	fErr := s.db.QueryRow(`SELECT id, run_id, anomaly_type, assertion, minimal_ops, repro_code, trace_json, created_at
+	fErr := s.queryer().QueryRow(`SELECT id, run_id, anomaly_type, assertion, minimal_ops, repro_code, trace_json, created_at
 		FROM findings WHERE run_id = ?`, runID).
 		Scan(&finding.ID, &finding.RunID, &finding.AnomalyType, &finding.Assertion, &finding.MinimalOps, &finding.ReproCode, &finding.TraceJSON, &finding.CreatedAt)
 	if errors.Is(fErr, sql.ErrNoRows) {
@@ -844,7 +878,7 @@ func (s *Store) GetRunForOrg(orgID, runID string) (*RunRecord, *FindingRecord, e
 	var run RunRecord
 	var idempotencyKey, scenarioFingerprint sql.NullString
 	var commitTimestamp sql.NullTime
-	err := s.db.QueryRow(`SELECT r.id, r.repo_id, r.scenario_id, r.commit_sha, r.branch, r.pr_number,
+	err := s.queryer().QueryRow(`SELECT r.id, r.repo_id, r.scenario_id, r.commit_sha, r.branch, r.pr_number,
 		r.status, r.anomaly_type, r.seed, r.duration_ms, r.created_at,
 		r.idempotency_key, r.scenario_fingerprint, r.commit_timestamp
 		FROM runs r
@@ -876,7 +910,7 @@ func (s *Store) GetRunForOrg(orgID, runID string) (*RunRecord, *FindingRecord, e
 
 func (s *Store) findingForRun(run *RunRecord) (*RunRecord, *FindingRecord, error) {
 	var finding FindingRecord
-	err := s.db.QueryRow(`SELECT id, run_id, anomaly_type, assertion, minimal_ops, repro_code, trace_json, created_at
+	err := s.queryer().QueryRow(`SELECT id, run_id, anomaly_type, assertion, minimal_ops, repro_code, trace_json, created_at
 		FROM findings WHERE run_id = ?`, run.ID).
 		Scan(&finding.ID, &finding.RunID, &finding.AnomalyType, &finding.Assertion, &finding.MinimalOps, &finding.ReproCode, &finding.TraceJSON, &finding.CreatedAt)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -890,7 +924,7 @@ func (s *Store) findingForRun(run *RunRecord) (*RunRecord, *FindingRecord, error
 
 func (s *Store) GetLatestBaseline(repoID, scenarioID, branch string) (*RunRecord, error) {
 	var runID string
-	err := s.db.QueryRow(`SELECT run_id FROM baselines WHERE repo_id = ? AND scenario_id = ? AND branch = ?`,
+	err := s.queryer().QueryRow(`SELECT run_id FROM baselines WHERE repo_id = ? AND scenario_id = ? AND branch = ?`,
 		repoID, scenarioID, branch).Scan(&runID)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrNotFound
@@ -907,7 +941,7 @@ func (s *Store) SetBaseline(repoID, scenarioID, branch, runID string) error {
 	id := fmt.Sprintf("base_%s_%s_%s", repoID, scenarioID, branch)
 	now := time.Now().UTC()
 
-	_, err := s.db.Exec(`INSERT INTO baselines (id, repo_id, scenario_id, branch, run_id, updated_at)
+	_, err := s.queryer().Exec(`INSERT INTO baselines (id, repo_id, scenario_id, branch, run_id, updated_at)
 		VALUES (?, ?, ?, ?, ?, ?)
 		ON CONFLICT(repo_id, scenario_id, branch) DO UPDATE SET run_id = excluded.run_id, updated_at = excluded.updated_at`,
 		id, repoID, scenarioID, branch, runID, now)
@@ -918,7 +952,7 @@ func (s *Store) ListRuns(repoID string, limit, offset int) ([]*RunRecord, error)
 	if limit <= 0 {
 		limit = 20
 	}
-	rows, err := s.db.Query(`SELECT id, repo_id, scenario_id, commit_sha, branch, pr_number, status, anomaly_type, seed, duration_ms, created_at
+	rows, err := s.queryer().Query(`SELECT id, repo_id, scenario_id, commit_sha, branch, pr_number, status, anomaly_type, seed, duration_ms, created_at
 		FROM runs WHERE repo_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?`, repoID, limit, offset)
 	if err != nil {
 		return nil, err
@@ -940,7 +974,7 @@ func (s *Store) ListRecentRuns(limit, offset int) ([]*RunRecord, error) {
 	if limit <= 0 {
 		limit = 50
 	}
-	rows, err := s.db.Query(`SELECT id, repo_id, scenario_id, commit_sha, branch, pr_number, status, anomaly_type, seed, duration_ms, created_at
+	rows, err := s.queryer().Query(`SELECT id, repo_id, scenario_id, commit_sha, branch, pr_number, status, anomaly_type, seed, duration_ms, created_at
 		FROM runs ORDER BY created_at DESC LIMIT ? OFFSET ?`, limit, offset)
 	if err != nil {
 		return nil, err
@@ -962,7 +996,7 @@ func (s *Store) ListRecentRunsForOrg(orgID string, limit, offset int) ([]*RunRec
 	if limit <= 0 {
 		limit = 50
 	}
-	rows, err := s.db.Query(`SELECT r.id, r.repo_id, r.scenario_id, r.commit_sha, r.branch, r.pr_number,
+	rows, err := s.queryer().Query(`SELECT r.id, r.repo_id, r.scenario_id, r.commit_sha, r.branch, r.pr_number,
 		r.status, r.anomaly_type, r.seed, r.duration_ms, r.created_at
 		FROM runs r
 		JOIN repositories repo ON repo.id = r.repo_id
@@ -995,14 +1029,14 @@ func (s *Store) CreateWebhook(ctx context.Context, w *WebhookRecord) error {
 	}
 	query := `INSERT INTO webhooks (id, org_id, target_type, url, events, active, created_at)
 		VALUES (?, ?, ?, ?, ?, ?, ?)`
-	_, err := s.db.ExecContext(ctx, query, w.ID, w.OrgID, w.TargetType, w.URL, w.Events, activeInt, w.CreatedAt)
+	_, err := s.queryer().ExecContext(ctx, query, w.ID, w.OrgID, w.TargetType, w.URL, w.Events, activeInt, w.CreatedAt)
 	return err
 }
 
 func (s *Store) ListWebhooks(ctx context.Context, orgID string) ([]WebhookRecord, error) {
 	query := `SELECT id, org_id, target_type, url, events, active, created_at
 		FROM webhooks WHERE org_id = ? ORDER BY created_at DESC`
-	rows, err := s.db.QueryContext(ctx, query, orgID)
+	rows, err := s.queryer().QueryContext(ctx, query, orgID)
 	if err != nil {
 		return nil, err
 	}
@@ -1022,8 +1056,19 @@ func (s *Store) ListWebhooks(ctx context.Context, orgID string) ([]WebhookRecord
 }
 
 func (s *Store) DeleteWebhook(ctx context.Context, orgID, webhookID string) error {
+	if s.tx == nil {
+		return s.withTransaction(ctx, func(bound *Store) error { return bound.DeleteWebhook(ctx, orgID, webhookID) })
+	}
+	if _, err := s.GetWebhookByID(ctx, orgID, webhookID); err != nil {
+		return err
+	}
+	// A removed destination must not retain queued deliveries. Delete its
+	// dependent records in the same tenant-scoped transaction.
+	if _, err := s.tx.ExecContext(ctx, `DELETE FROM webhook_outbox WHERE webhook_id=? AND org_id=?`, webhookID, orgID); err != nil {
+		return err
+	}
 	query := `DELETE FROM webhooks WHERE id = ? AND org_id = ?`
-	result, err := s.db.ExecContext(ctx, query, webhookID, orgID)
+	result, err := s.queryer().ExecContext(ctx, query, webhookID, orgID)
 	if err != nil {
 		return err
 	}

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import styles from './VisualizerPage.module.css';
 import { RAW_TRACE_OPS, SHRUNK_TRACE_OPS, TraceOp } from '../lib/wasm-bridge';
 import { CodeBlock } from '../components/docs/CodeBlock';
@@ -8,17 +8,20 @@ interface VisualizerPageProps {
 }
 
 export const VisualizerPage: React.FC<VisualizerPageProps> = ({ lang = 'pt' }) => {
-  // Read optional deep-link params from URL hash (e.g. #/visualizer?scenario=ecommerce_double_charge&seed=184729&mode=shrunk)
-  const hash = typeof window !== 'undefined' ? window.location.hash : '';
+  // Live run links never render the bundled demonstration traces.
+  const [hash, setHash] = useState(() => typeof window !== 'undefined' ? window.location.hash : '');
+  useEffect(() => {
+    const updateHash = () => setHash(window.location.hash);
+    window.addEventListener('hashchange', updateHash);
+    return () => window.removeEventListener('hashchange', updateHash);
+  }, []);
   const queryStr = hash.includes('?') ? hash.split('?')[1] : '';
   const queryParams = new URLSearchParams(queryStr);
-  const paramScenario = queryParams.get('scenario');
-  const paramSeed = queryParams.get('seed');
   const paramMode = queryParams.get('mode') as 'raw' | 'shrunk' | null;
 
   const [mode, setMode] = useState<'raw' | 'shrunk'>(() => {
     if (paramMode === 'raw' || paramMode === 'shrunk') return paramMode;
-    return paramScenario ? 'shrunk' : 'raw';
+    return 'raw';
   });
   const [selectedWorker, setSelectedWorker] = useState<string>('all');
   const [activeOpId, setActiveOpId] = useState<string>('op_13');
@@ -74,37 +77,25 @@ export const VisualizerPage: React.FC<VisualizerPageProps> = ({ lang = 'pt' }) =
 
   const workers = [0, 1, 2, 3];
 
+  if (queryParams.has('scenario') || queryParams.has('seed') || queryParams.has('run_id') || queryParams.has('run')) {
+    return <div className={styles.pageContainer}><div className={styles.inner}>
+      <h1 className={styles.title}>{isPt ? 'Artefatos do CI' : 'CI artifacts'}</h1>
+      <p>{isPt ? 'Consulte os artefatos locais do CI para o trace e o reprodutor desta execução. A nuvem armazena apenas metadados.' : 'Use your local CI artifacts for this run’s trace and reproducer. The cloud stores metadata only.'}</p>
+      <a href="#/dashboard">{isPt ? 'Voltar ao dashboard' : 'Back to dashboard'}</a>
+      <p><a href="#/visualizer">{isPt ? 'Abrir demonstração de trace' : 'Open trace demonstration'}</a></p>
+    </div></div>;
+  }
+
   return (
     <div className={styles.pageContainer}>
       <div className={styles.inner}>
-        {paramScenario && (
-          <div className={styles.deepLinkBanner}>
-            <div className={styles.deepLinkInfo}>
-              <span className={styles.deepLinkBadge}>
-                ⚡ {isPt ? 'Inspecionando Regressão do CI' : 'Inspecting CI Finding'}
-              </span>
-              <span className={styles.deepLinkScenario}>
-                {isPt ? 'Cenário:' : 'Scenario:'} <strong>{paramScenario}</strong>
-              </span>
-              {paramSeed && (
-                <span className={styles.deepLinkSeed}>
-                  Seed: <code>{paramSeed}</code>
-                </span>
-              )}
-            </div>
-            <a href="#/dashboard" className={styles.deepLinkBackBtn}>
-              ← {isPt ? 'Voltar ao Concurrency Dashboard' : 'Back to Concurrency Dashboard'}
-            </a>
-          </div>
-        )}
-
         {/* Header */}
         <header className={styles.header}>
           <span className={styles.monoTag}>
             {isPt ? 'TERMINAL // CONCURRENCY TRACE (chaossql ui)' : 'TERMINAL // CONCURRENCY TRACE (chaossql ui)'}
           </span>
           <h1 className={styles.title}>
-            {isPt ? 'Trace Visualizer' : 'Trace Visualizer'}
+            {isPt ? 'Trace Visualizer — Demonstração' : 'Trace Visualizer — Demo'}
           </h1>
           <p className={styles.subtitle}>
             {isPt

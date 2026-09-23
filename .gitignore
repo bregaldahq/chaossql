@@ -27,6 +27,9 @@ Thumbs.db
 .idea/
 .vscode/
 .venv/
+.env
+.env.*
+!.env.example
 __pycache__/
 *.egg-info/
 .pytest_cache/

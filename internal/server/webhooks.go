@@ -37,7 +37,7 @@ type WebhookDispatcher struct {
 
 func NewWebhookDispatcher(client *http.Client) *WebhookDispatcher {
 	if client == nil {
-		client = &http.Client{Timeout: 10 * time.Second}
+		client = NewSafeHTTPClient()
 	}
 	return &WebhookDispatcher{client: client}
 }
@@ -251,7 +251,6 @@ func isInternalIP(ip net.IP) bool {
 	return false
 }
 
-
 // NewSafeHTTPClient creates an HTTP client with connection-time SSRF validation
 // and redirect blocking to internal/private IP ranges.
 func NewSafeHTTPClient() *http.Client {
@@ -262,7 +261,7 @@ func NewSafeHTTPClient() *http.Client {
 
 	transport := &http.Transport{
 		DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
-			host, _, err := net.SplitHostPort(addr)
+			host, port, err := net.SplitHostPort(addr)
 			if err != nil {
 				return nil, fmt.Errorf("invalid address %q: %w", addr, err)
 			}
@@ -281,7 +280,20 @@ func NewSafeHTTPClient() *http.Client {
 					return nil, fmt.Errorf("ssrf protection: address %s is not permitted", ip.String())
 				}
 			}
-			return dialer.DialContext(ctx, network, addr)
+			// Dial only the addresses validated above. Passing the hostname to
+			// net.Dialer would resolve it again and permit DNS rebinding.
+			var lastErr error
+			for _, ip := range addrs {
+				conn, err := dialer.DialContext(ctx, network, net.JoinHostPort(ip.String(), port))
+				if err == nil {
+					return conn, nil
+				}
+				lastErr = err
+				if ctx.Err() != nil {
+					break
+				}
+			}
+			return nil, lastErr
 		},
 		ResponseHeaderTimeout: 5 * time.Second,
 	}

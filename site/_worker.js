@@ -1,21 +1,20 @@
-// worker.ts
-var ALLOWED_WEBHOOK_HOSTS = /* @__PURE__ */ new Set([
+const ALLOWED_WEBHOOK_HOSTS = /* @__PURE__ */ new Set([
   "discord.com",
   "discordapp.com",
   "canary.discord.com",
   "ptb.discord.com",
   "hooks.slack.com"
 ]);
-var ALLOWED_ORIGINS = /* @__PURE__ */ new Set([
+const ALLOWED_ORIGINS = /* @__PURE__ */ new Set([
   "https://chaossql.bregalda.com",
   "http://localhost:5173",
   "http://127.0.0.1:5173"
 ]);
-var RATE_LIMITS = {
+const RATE_LIMITS = {
   waitlist: { max: 5, windowMs: 6e4 },
   webhookTest: { max: 10, windowMs: 6e4 }
 };
-var rateBuckets = /* @__PURE__ */ new Map();
+const rateBuckets = /* @__PURE__ */ new Map();
 function isRateLimited(key, limit) {
   const now = Date.now();
   const hits = (rateBuckets.get(key) ?? []).filter((t) => now - t < limit.windowMs);
@@ -122,7 +121,8 @@ var worker_default = {
               503
             );
           }
-          const auditText = data.wantAudit ? "\u{1F6E1}\uFE0F **SIM (VIP Advisory)**" : "N\xE3o solicitado";
+          const wantAudit = data.wantAudit === true || data.plan?.toLowerCase() === "audit";
+          const auditText = wantAudit ? "\u{1F6E1}\uFE0F **SIM (VIP Advisory)**" : "N\xE3o solicitado";
           const sourceText = data.source === "pricing_page" ? "\u{1F3F7}\uFE0F P\xE1gina de Pricing" : "\u{1F680} Landing Page";
           const discordPayload = {
             username: "ChaosSQL Lead Bot",
@@ -139,6 +139,8 @@ var worker_default = {
                   { name: "\u{1F3E2} Empresa / Repo", value: data.company?.trim() || "N\xE3o informada", inline: true },
                   { name: "\u{1F5C4}\uFE0F Banco Principal", value: data.database || "PostgreSQL", inline: true },
                   { name: "\u{1F6E1}\uFE0F Concurrency Audit", value: auditText, inline: true },
+                  { name: "Plan", value: data.plan?.trim().slice(0, 128) || "Not selected", inline: true },
+                  { name: "Billing cycle", value: data.billingCycle?.trim().slice(0, 32) || "Not selected", inline: true },
                   { name: "\u{1F4CD} Origem", value: sourceText, inline: true },
                   { name: "\u{1F4DD} Desafio / Caso de Uso", value: data.notes?.trim() || "Nenhum detalhe adicional informado.", inline: false }
                 ],
@@ -183,7 +185,7 @@ var worker_default = {
               lead: {
                 name: data.name.trim(),
                 email: data.email.trim(),
-                wantAudit: Boolean(data.wantAudit),
+                wantAudit,
                 dispatched
               }
             },

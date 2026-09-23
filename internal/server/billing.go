@@ -95,7 +95,7 @@ var ErrPlanLimitReached = errors.New("repository plan limit reached")
 
 func (s *Store) GetOrgSubscription(orgID string) (*OrgSubscription, error) {
 	var orgName, planID string
-	err := s.db.QueryRow(`SELECT name, plan FROM organizations WHERE id = ?`, orgID).Scan(&orgName, &planID)
+	err := s.queryer().QueryRow(`SELECT name, plan FROM organizations WHERE id = ?`, orgID).Scan(&orgName, &planID)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrNotFound
 	}
@@ -104,7 +104,7 @@ func (s *Store) GetOrgSubscription(orgID string) (*OrgSubscription, error) {
 	}
 
 	var count int
-	err = s.db.QueryRow(`SELECT count(*) FROM repositories WHERE org_id = ?`, orgID).Scan(&count)
+	err = s.queryer().QueryRow(`SELECT count(*) FROM repositories WHERE org_id = ?`, orgID).Scan(&count)
 	if err != nil {
 		return nil, fmt.Errorf("failed to count repositories: %w", err)
 	}

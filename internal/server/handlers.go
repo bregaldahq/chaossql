@@ -1,12 +1,12 @@
 package server
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -29,7 +29,7 @@ func corsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, Idempotency-Key")
 		if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusNoContent)
 			return
@@ -79,12 +79,14 @@ func newRouter(cfg RouterConfig, local bool) http.Handler {
 	mux.HandleFunc("GET /v1/runs/{id}", protect(RoleMember, s.handleGetRun))
 	mux.HandleFunc("GET /v1/repositories/{owner}/{name}/runs", protect(RoleMember, s.handleListRuns))
 	mux.HandleFunc("GET /v1/organizations/{id}/subscription", protect(RoleMember, s.handleGetSubscription))
+	mux.HandleFunc("POST /v1/organizations/{id}/tokens", protect(RoleAdmin, s.handleCreateMemberToken))
 
 	// Webhooks management API
 	mux.HandleFunc("GET /v1/organizations/{id}/webhooks", protect(RoleAdmin, s.handleListWebhooks))
 	mux.HandleFunc("POST /v1/organizations/{id}/webhooks", protect(RoleAdmin, s.handleCreateWebhook))
 	mux.HandleFunc("DELETE /v1/organizations/{id}/webhooks/{wh_id}", protect(RoleAdmin, s.handleDeleteWebhook))
 	mux.HandleFunc("POST /v1/organizations/{id}/webhooks/test", protect(RoleAdmin, s.handleTestWebhook))
+	mux.HandleFunc("POST /v1/organizations/{id}/webhooks/{wh_id}/test", protect(RoleAdmin, s.handleTestSavedWebhook))
 
 	if local {
 		mux.HandleFunc("GET /v1/webhooks", s.assumeLocalOwner(s.handleListWebhooks))
@@ -199,200 +201,31 @@ func (s *Server) handleIngestRun(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	repoFullName := "local/chaossql-project"
-	branch := "main"
-	defaultBranch := "main"
-	commitSHA := "unknown"
-	prNumber := 0
-
-	if req.CI != nil {
-		if req.CI.Repository != "" {
-			repoFullName = req.CI.Repository
-		}
-		if req.CI.Branch != "" {
-			branch = req.CI.Branch
-		}
-		if req.CI.BaseBranch != "" {
-			defaultBranch = req.CI.BaseBranch
-		}
-		commitSHA = req.CI.CommitSHA
-		prNumber = req.CI.PullRequestNumber
-	}
-
-	scenarioName := req.Scenario.Name
-	if scenarioName == "" {
-		scenarioName = "default"
-	}
-	driver := req.Scenario.Driver
-	if driver == "" {
-		driver = "sqlite"
-	}
-
-	repo, err := s.cfg.Store.GetOrCreateRepo(orgID, repoFullName, defaultBranch)
+	key, err := ingestionKey(r.Header.Get("Idempotency-Key"), req.IdempotencyKey)
 	if err != nil {
-		http.Error(w, fmt.Sprintf(`{"error":"failed to resolve repo: %s"}`, err.Error()), http.StatusInternalServerError)
+		http.Error(w, fmt.Sprintf(`{"error":%q}`, err.Error()), http.StatusBadRequest)
 		return
 	}
-
-	sc, err := s.cfg.Store.GetOrCreateScenario(repo.ID, scenarioName, driver)
-	if err != nil {
-		http.Error(w, fmt.Sprintf(`{"error":"failed to resolve scenario: %s"}`, err.Error()), http.StatusInternalServerError)
+	var measurements ingestionMeasurements
+	if err := json.Unmarshal(payload, &measurements); err != nil {
+		http.Error(w, `{"error":"invalid measurements"}`, http.StatusBadRequest)
 		return
 	}
-
-	runID := fmt.Sprintf("run_%d", time.Now().UnixNano())
-	now := time.Now().UTC()
-	var commitTimestamp *time.Time
-	if !req.Timestamp.IsZero() {
-		t := req.Timestamp.UTC()
-		commitTimestamp = &t
-	}
-
-	idempotencyKey := strings.TrimSpace(r.Header.Get("Idempotency-Key"))
-	if idempotencyKey == "" && req.CI != nil {
-		if req.CI.RunID != "" {
-			idempotencyKey = strings.TrimSpace(req.CI.RunID)
-		}
-	}
-
-	run := &RunRecord{
-		ID:                  runID,
-		RepoID:              repo.ID,
-		ScenarioID:          sc.ID,
-		CommitSHA:           commitSHA,
-		Branch:              branch,
-		PRNumber:            prNumber,
-		Status:              req.Result.Status,
-		AnomalyType:         req.Result.AnomalyType,
-		Seed:                req.Scenario.Seed,
-		DurationMS:          req.Result.DurationMS,
-		CreatedAt:           now,
-		IdempotencyKey:      idempotencyKey,
-		ScenarioFingerprint: req.Scenario.Fingerprint,
-		CommitTimestamp:     commitTimestamp,
-	}
-
-	var finding *FindingRecord
-	if req.Result.ViolationDetected || req.Reproduction != nil {
-		var traceJSON string
-		var reproCode string
-		minimalOps := 0
-		if req.Reproduction != nil {
-			minimalOps = req.Reproduction.MinimalOperationsCount
-			reproCode = req.Reproduction.ReproGoCode
-			if len(req.Reproduction.SanitizedMinimalTrace) > 0 {
-				data, _ := json.Marshal(req.Reproduction.SanitizedMinimalTrace)
-				traceJSON = string(data)
-			}
-		}
-
-		assertion := ""
-		if req.Result.FailingInvariant != nil {
-			assertion = req.Result.FailingInvariant.Name
-		}
-
-		finding = &FindingRecord{
-			ID:          fmt.Sprintf("find_%d", time.Now().UnixNano()),
-			RunID:       runID,
-			AnomalyType: req.Result.AnomalyType,
-			Assertion:   assertion,
-			MinimalOps:  minimalOps,
-			ReproCode:   reproCode,
-			TraceJSON:   traceJSON,
-			CreatedAt:   now,
-		}
-	}
-
-	savedRun, created, err := s.cfg.Store.SaveRunTx(r.Context(), run, finding, nil)
+	resp, created, err := s.cfg.Store.ingest(r.Context(), orgID, key, s.cfg.PublicBaseURL, req, measurements)
 	if err != nil {
-		http.Error(w, fmt.Sprintf(`{"error":"failed to save run: %s"}`, err.Error()), http.StatusInternalServerError)
+		status := http.StatusInternalServerError
+		if errors.Is(err, ErrIdempotencyConflict) {
+			status = http.StatusConflict
+		}
+		if errors.Is(err, ErrPlanLimitReached) {
+			status = http.StatusForbidden
+		}
+		http.Error(w, fmt.Sprintf(`{"error":%q}`, err.Error()), status)
 		return
 	}
-
-	comp, isReg, err := s.cfg.Engine.Evaluate(repo, sc, savedRun)
-	if err != nil {
-		http.Error(w, fmt.Sprintf(`{"error":"failed to evaluate regression: %s"}`, err.Error()), http.StatusInternalServerError)
-		return
+	if created && s.outboxDispatcher != nil {
+		s.outboxDispatcher.Trigger()
 	}
-
-	if created && (isReg || savedRun.Status != "passed") {
-		eventType := "regression"
-		if !isReg {
-			eventType = "failure"
-		}
-
-		ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
-		webhooks, err := s.cfg.Store.GetActiveWebhooksForEvent(ctx, repo.OrgID, eventType)
-		cancel()
-		if err == nil && len(webhooks) > 0 {
-			baseStatus := "PASS"
-			if comp != nil && comp.Status != "" {
-				baseStatus = comp.Status
-			}
-
-			anomalyName := savedRun.AnomalyType
-			if req.Result.ViolationDetected && req.Result.AnomalyType != "" {
-				anomalyName = req.Result.AnomalyType
-			}
-
-			alert := &RegressionAlert{
-				RepoFullName:   repo.FullName,
-				Branch:         savedRun.Branch,
-				PRNumber:       savedRun.PRNumber,
-				CommitSHA:      savedRun.CommitSHA,
-				AnomalyType:    savedRun.AnomalyType,
-				AnomalyName:    anomalyName,
-				Driver:         sc.Driver,
-				Isolation:      "READ COMMITTED",
-				Scenario:       sc.Name,
-				Seed:           savedRun.Seed,
-				DurationMS:     savedRun.DurationMS,
-				BaselineStatus: baseStatus,
-				RunURL:         fmt.Sprintf("%s/#/visualizer?scenario=%s&seed=%d", s.cfg.PublicBaseURL, sc.Name, savedRun.Seed),
-				IsRegression:   isReg,
-			}
-
-			alertData, _ := json.Marshal(alert)
-			var outboxItems []*OutboxItem
-			for i, wh := range webhooks {
-				outboxItems = append(outboxItems, &OutboxItem{
-					ID:          fmt.Sprintf("outbox_%d_%d", time.Now().UnixNano(), i),
-					OrgID:       repo.OrgID,
-					WebhookID:   wh.ID,
-					EventType:   eventType,
-					PayloadJSON: string(alertData),
-					Status:      "pending",
-					NextRetryAt: now,
-					CreatedAt:   now,
-				})
-			}
-			_ = s.cfg.Store.EnqueueOutbox(r.Context(), outboxItems)
-			if s.outboxDispatcher != nil {
-				s.outboxDispatcher.Trigger()
-			}
-		}
-	}
-
-	msg := "Execution passed successfully."
-	if isReg {
-		baseBranch := defaultBranch
-		if comp != nil && comp.Branch != "" {
-			baseBranch = comp.Branch
-		}
-		msg = fmt.Sprintf("Regression detected! Anomaly %s broke baseline on %s", savedRun.AnomalyType, baseBranch)
-	} else if savedRun.Status != "passed" {
-		msg = fmt.Sprintf("Execution finished with status %s.", savedRun.Status)
-	}
-
-	resp := cloud.RunIngestResponse{
-		Success:      true,
-		RunID:        savedRun.ID,
-		URL:          fmt.Sprintf("%s/runs/%s", s.cfg.PublicBaseURL, savedRun.ID),
-		IsRegression: isReg,
-		Baseline:     comp,
-		Message:      msg,
-	}
-
 	w.Header().Set("Content-Type", "application/json")
 	if created {
 		w.WriteHeader(http.StatusCreated)
@@ -420,26 +253,37 @@ func (s *Server) handleGetRun(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	public := publicRun(run)
+	if err := s.cfg.Store.populatePublicRuns(r.Context(), public); err != nil {
+		http.Error(w, `{"error":"failed to read run metadata"}`, http.StatusInternalServerError)
+		return
+	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	_ = json.NewEncoder(w).Encode(map[string]interface{}{
-		"run":     publicRun(run),
+		"run":     public,
 		"finding": publicFinding(finding),
 	})
 }
 
 type publicRunRecord struct {
-	ID          string    `json:"id"`
-	RepoID      string    `json:"repo_id"`
-	ScenarioID  string    `json:"scenario_id"`
-	CommitSHA   string    `json:"commit_sha"`
-	Branch      string    `json:"branch"`
-	PRNumber    int       `json:"pr_number"`
-	Status      string    `json:"status"`
-	AnomalyType string    `json:"anomaly_type"`
-	Seed        uint64    `json:"seed"`
-	DurationMS  int64     `json:"duration_ms"`
-	CreatedAt   time.Time `json:"created_at"`
+	RepoFullName    string    `json:"repo_full_name,omitempty"`
+	ScenarioName    string    `json:"scenario_name,omitempty"`
+	Driver          string    `json:"driver,omitempty"`
+	IsRegression    *bool     `json:"is_regression"`
+	TotalSchedules  *int      `json:"total_schedules"`
+	FailedSchedules *int      `json:"failed_schedules"`
+	ID              string    `json:"id"`
+	RepoID          string    `json:"repo_id"`
+	ScenarioID      string    `json:"scenario_id"`
+	CommitSHA       string    `json:"commit_sha"`
+	Branch          string    `json:"branch"`
+	PRNumber        int       `json:"pr_number"`
+	Status          string    `json:"status"`
+	AnomalyType     string    `json:"anomaly_type"`
+	Seed            uint64    `json:"seed"`
+	DurationMS      int64     `json:"duration_ms"`
+	CreatedAt       time.Time `json:"created_at"`
 }
 
 func publicRun(run *RunRecord) *publicRunRecord {
@@ -537,11 +381,16 @@ func (s *Server) handleListRuns(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	public := publicRuns(runs)
+	if err := s.cfg.Store.populatePublicRuns(r.Context(), public...); err != nil {
+		http.Error(w, `{"error":"failed to read run metadata"}`, http.StatusInternalServerError)
+		return
+	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	_ = json.NewEncoder(w).Encode(map[string]interface{}{
 		"repository": fullName,
-		"runs":       publicRuns(runs),
+		"runs":       public,
 	})
 }
 
@@ -574,10 +423,15 @@ func (s *Server) handleListAllRuns(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	public := publicRuns(runs)
+	if err := s.cfg.Store.populatePublicRuns(r.Context(), public...); err != nil {
+		http.Error(w, `{"error":"failed to read run metadata"}`, http.StatusInternalServerError)
+		return
+	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	_ = json.NewEncoder(w).Encode(map[string]interface{}{
-		"runs":  publicRuns(runs),
+		"runs":  public,
 		"count": len(runs),
 	})
 }
@@ -607,6 +461,9 @@ func (s *Server) handleListWebhooks(w http.ResponseWriter, r *http.Request) {
 	}
 	if webhooks == nil {
 		webhooks = []WebhookRecord{}
+	}
+	for i := range webhooks {
+		webhooks[i].URL = redactedWebhookURL(webhooks[i].URL)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -661,7 +518,16 @@ func (s *Server) handleCreateWebhook(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
+	wh.URL = redactedWebhookURL(wh.URL)
 	_ = json.NewEncoder(w).Encode(wh)
+}
+
+func redactedWebhookURL(raw string) string {
+	parsed, err := url.Parse(raw)
+	if err != nil || parsed.Hostname() == "" {
+		return ""
+	}
+	return parsed.Scheme + "://" + parsed.Host + "/…"
 }
 
 func (s *Server) handleDeleteWebhook(w http.ResponseWriter, r *http.Request) {
@@ -700,6 +566,31 @@ func (s *Server) handleTestWebhook(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf(`{"error":%q}`, err.Error()), http.StatusBadRequest)
 		return
 	}
+	s.dispatchTestWebhook(w, r, WebhookRecord{ID: "test", TargetType: req.TargetType, URL: req.URL})
+}
+
+func (s *Server) handleTestSavedWebhook(w http.ResponseWriter, r *http.Request) {
+	orgID, ok := organizationForRequest(w, r)
+	if !ok {
+		return
+	}
+	hook, err := s.cfg.Store.GetWebhookByID(r.Context(), orgID, r.PathValue("wh_id"))
+	if errors.Is(err, ErrNotFound) {
+		http.Error(w, `{"error":"webhook not found"}`, http.StatusNotFound)
+		return
+	}
+	if err != nil {
+		http.Error(w, `{"error":"failed to resolve webhook"}`, http.StatusInternalServerError)
+		return
+	}
+	if err := ValidateWebhookTarget(hook.URL); err != nil {
+		http.Error(w, `{"error":"saved webhook destination is not allowed"}`, http.StatusBadRequest)
+		return
+	}
+	s.dispatchTestWebhook(w, r, *hook)
+}
+
+func (s *Server) dispatchTestWebhook(w http.ResponseWriter, r *http.Request, wh WebhookRecord) {
 
 	testAlert := &RegressionAlert{
 		RepoFullName:   "acme/payments",
@@ -718,14 +609,8 @@ func (s *Server) handleTestWebhook(w http.ResponseWriter, r *http.Request) {
 		IsRegression:   true,
 	}
 
-	wh := WebhookRecord{
-		ID:         "test",
-		TargetType: req.TargetType,
-		URL:        req.URL,
-	}
-
 	if err := s.dispatcher.DispatchAlert(r.Context(), wh, testAlert); err != nil {
-		http.Error(w, fmt.Sprintf(`{"error":"webhook dispatch failed: %s"}`, err.Error()), http.StatusBadRequest)
+		http.Error(w, `{"error":"webhook dispatch failed"}`, http.StatusBadRequest)
 		return
 	}
 
