@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Menu, X } from 'lucide-react';
 import styles from './SiteNav.module.css';
+import { track } from '../../lib/analytics';
 
 export interface SiteNavProps {
   currentRoute: string;
@@ -19,7 +20,7 @@ export function SiteNav({
 
   const navItems = [
     { id: 'landing', labelPt: 'Início', labelEn: 'Home', path: '/' },
-    { id: 'dashboard', labelPt: 'Cloud Dashboard ●', labelEn: 'Cloud Dashboard ●', path: '/dashboard' },
+    { id: 'dashboard', labelPt: 'Cloud Dashboard', labelEn: 'Cloud Dashboard', path: '/dashboard' },
     { id: 'docs', labelPt: 'Documentação', labelEn: 'Docs', path: '/docs' },
     { id: 'scenarios', labelPt: 'Cenários (9)', labelEn: 'Scenarios (9)', path: '/scenarios' },
     { id: 'visualizer', labelPt: 'Trace Visualizer', labelEn: 'Trace Visualizer', path: '/visualizer' },
@@ -43,7 +44,7 @@ export function SiteNav({
             handleNavClick('landing');
           }}
           className={styles.brandGroup}
-          aria-label="ChaosSQL by Studio Bregalda — Início"
+          aria-label={lang === 'pt' ? 'ChaosSQL by Studio Bregalda, início' : 'ChaosSQL by Studio Bregalda, home'}
         >
           <div className={styles.wordmark}>
             <img
@@ -56,7 +57,7 @@ export function SiteNav({
           <span className={styles.productTag}>ChaosSQL v1.4</span>
         </a>
 
-        <nav aria-label="Navegação principal" className={styles.desktopLinks}>
+        <nav aria-label={lang === 'pt' ? 'Navegação principal' : 'Main navigation'} className={styles.desktopLinks}>
           {navItems.map((item) => {
             const isActive = currentRoute === item.id;
             return (
@@ -77,11 +78,14 @@ export function SiteNav({
         </nav>
 
         <div className={styles.actionsGroup}>
-          <div className={styles.langSwitch} role="group" aria-label="Seletor de idioma">
+          <div className={styles.langSwitch} role="group" aria-label={lang === 'pt' ? 'Seletor de idioma' : 'Language selector'}>
             <button
               type="button"
               className={`${styles.langBtn} ${lang === 'pt' ? styles.langBtnActive : ''}`}
-              onClick={() => onLanguageChange('pt')}
+              onClick={() => {
+                onLanguageChange('pt');
+                track('lang_switch', 'pt');
+              }}
               aria-pressed={lang === 'pt'}
             >
               PT
@@ -89,7 +93,10 @@ export function SiteNav({
             <button
               type="button"
               className={`${styles.langBtn} ${lang === 'en' ? styles.langBtnActive : ''}`}
-              onClick={() => onLanguageChange('en')}
+              onClick={() => {
+                onLanguageChange('en');
+                track('lang_switch', 'en');
+              }}
               aria-pressed={lang === 'en'}
             >
               EN
@@ -101,6 +108,7 @@ export function SiteNav({
             target="_blank"
             rel="noreferrer"
             className={styles.navCta}
+            onClick={() => track('outbound_click', 'github_nav')}
           >
             GitHub
             <span aria-hidden="true">↗</span>
@@ -110,7 +118,11 @@ export function SiteNav({
             type="button"
             className={styles.mobileMenuToggle}
             onClick={() => setMobileOpen(!mobileOpen)}
-            aria-label={mobileOpen ? 'Fechar menu de navegação' : 'Abrir menu de navegação'}
+            aria-label={
+              lang === 'pt'
+                ? mobileOpen ? 'Fechar menu de navegação' : 'Abrir menu de navegação'
+                : mobileOpen ? 'Close navigation menu' : 'Open navigation menu'
+            }
             aria-expanded={mobileOpen}
           >
             {mobileOpen ? <X size={20} /> : <Menu size={20} />}
@@ -120,7 +132,7 @@ export function SiteNav({
 
       {mobileOpen && (
         <div className={styles.mobileDrawerOpen} data-surface="light">
-          <nav aria-label="Navegação mobile">
+          <nav aria-label={lang === 'pt' ? 'Navegação mobile' : 'Mobile navigation'}>
             {navItems.map((item) => {
               const isActive = currentRoute === item.id;
               return (
@@ -144,6 +156,7 @@ export function SiteNav({
             target="_blank"
             rel="noreferrer"
             className={styles.mobileCta}
+            onClick={() => track('outbound_click', 'github_nav_mobile')}
           >
             GitHub Repository
             <span aria-hidden="true">↗</span>

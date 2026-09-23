@@ -9,7 +9,7 @@ export interface DocsPageProps {
   lang?: 'pt' | 'en';
 }
 
-export function DocsPage({ lang = 'pt' }: DocsPageProps) {
+export function DocsPage({ lang = 'en' }: DocsPageProps) {
   const [activeChapterId, setActiveChapterId] = useState<ChapterId>('getting-started');
 
   const chapterParam = useSearchParams().get('chapter');

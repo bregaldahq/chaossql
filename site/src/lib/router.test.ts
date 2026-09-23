@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { pathFromLegacyHash, routeFromPath, ROUTE_PATHS } from './router';
 import { ROUTE_META } from './route-meta';
+import { SITE_EVENTS } from './analytics';
 import sitemap from '../../sitemap.xml?raw';
 import publicSitemap from '../../public/sitemap.xml?raw';
 import workerJs from '../../_worker.js?raw';
@@ -66,5 +67,11 @@ describe('worker route metadata', () => {
 describe('wrangler.toml', () => {
   it('binds static assets as env.ASSETS for worker.ts', () => {
     expect(wranglerToml).toMatch(/^\[assets\][^[]*^binding = "ASSETS"$/m);
+  });
+});
+
+describe('site analytics', () => {
+  it('worker.ts accepts exactly the events the app sends', () => {
+    for (const event of SITE_EVENTS) expect(workerTs).toContain(`'${event}',`);
   });
 });

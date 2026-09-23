@@ -95,46 +95,46 @@ function parseWebhookTarget(raw) {
 // server-side. Keep in sync with worker.ts and site/src/lib/route-meta.ts.
 const SITE_ORIGIN = "https://chaossql.bregalda.com";
 const ROUTE_META = {
-  "/docs": {
-    title: "Documentação — ChaosSQL SQL Concurrency Fuzzer",
+  '/docs': {
+    title: "Documentation | ChaosSQL",
     description:
-      "Guia do ChaosSQL: instalação, especificação chaos.yaml, invariantes, níveis de isolamento, classificação de anomalias de Adya e minimização por delta-debugging.",
+      "ChaosSQL guide: installation, the chaos.yaml spec, SQL invariants, isolation levels, Adya anomaly classification and delta-debugging minimization.",
     indexable: true,
   },
-  "/scenarios": {
-    title: "Cenários de Anomalias de Concorrência — ChaosSQL",
+  '/scenarios': {
+    title: "SQL Concurrency Anomaly Scenarios | ChaosSQL",
     description:
-      "Cenários canônicos de anomalias de concorrência SQL: lost update, write skew, G2, deadlock e mais, com invariantes e reprodução determinística.",
+      "Canonical SQL concurrency anomalies (lost update, write skew, G2, deadlock and more) with invariants and deterministic, seed-based reproduction.",
     indexable: true,
   },
-  "/visualizer": {
-    title: "Trace Visualizer — ChaosSQL",
+  '/visualizer': {
+    title: "Trace Visualizer | ChaosSQL",
     description:
-      "Visualize interleavings de transações concorrentes, timings por worker e o trace minimizado por delta-debugging de uma anomalia SQL.",
+      "Inspect interleaved concurrent transactions, per-worker timings and the delta-debugged minimal trace behind a SQL anomaly.",
     indexable: true,
   },
-  "/matrix": {
-    title: "Matriz Hermitage de Níveis de Isolamento — ChaosSQL",
+  '/matrix': {
+    title: "Hermitage Isolation Level Matrix | ChaosSQL",
     description:
-      "Matriz de anomalias por nível de isolamento em PostgreSQL, MySQL e SQLite, inspirada no projeto Hermitage.",
+      "Which concurrency anomalies each isolation level allows in PostgreSQL, MySQL and SQLite, inspired by the Hermitage project.",
     indexable: true,
   },
-  "/playground": {
-    title: "Playground WASM — Teste Concorrência SQL no Navegador | ChaosSQL",
+  '/playground': {
+    title: "WASM Playground: Test SQL Concurrency in Your Browser | ChaosSQL",
     description:
-      "Execute o fuzzer de concorrência ChaosSQL direto no navegador via WebAssembly e reproduza lost update, write skew e deadlocks sem instalar nada.",
+      "Run the ChaosSQL concurrency fuzzer in your browser with WebAssembly and reproduce lost updates, write skew and deadlocks without installing anything.",
     indexable: true,
   },
-  "/pricing": {
-    title: "Planos e Preços — ChaosSQL Cloud",
+  '/pricing': {
+    title: "Pricing | ChaosSQL Cloud and Concurrency Audits",
     description:
-      "Planos do ChaosSQL Cloud e auditorias de concorrência de banco de dados pelo Studio Bregalda.",
+      "ChaosSQL Cloud plans for CI concurrency regression testing, plus one-week database concurrency audits by Studio Bregalda.",
     indexable: true,
   },
-  "/dashboard": {
-    title: "Cloud Dashboard — ChaosSQL",
+  '/dashboard': {
+    title: "Cloud Dashboard | ChaosSQL",
     description:
-      "Painel do ChaosSQL Cloud para acompanhar execuções de CI, regressões de concorrência e alertas.",
+      "ChaosSQL Cloud dashboard for CI runs, concurrency regressions and alerts.",
     indexable: false,
   },
 };

@@ -1,12 +1,12 @@
 <!DOCTYPE html>
-<html lang="pt-BR" data-surface="light">
+<html lang="en" data-surface="light">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>ChaosSQL — SQL Concurrency Fuzzer | Testes Determinísticos de Concorrência e Isolamento</title>
+    <title>ChaosSQL | Deterministic SQL Concurrency Fuzzer for PostgreSQL, MySQL and SQLite</title>
     <meta
       name="description"
-      content="ChaosSQL é um fuzzer open source (MIT) de concorrência SQL para PostgreSQL, MySQL e SQLite: detecta lost update, write skew e anomalias de isolamento de Adya com execuções determinísticas e delta-debugging."
+      content="Open-source (MIT) fuzzer that forces races between SQL transactions, detects lost updates, write skew and Adya isolation anomalies, and shrinks each failure to a minimal Go test."
     />
     <link rel="canonical" href="https://chaossql.bregalda.com/" />
     <meta name="robots" content="index, follow, max-image-preview:large" />
@@ -15,8 +15,8 @@
     <meta name="theme-color" content="#4B2E83" />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="ChaosSQL" />
-    <meta property="og:locale" content="pt_BR" />
-    <meta property="og:locale:alternate" content="en_US" />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:locale:alternate" content="pt_BR" />
     <meta property="og:url" content="https://chaossql.bregalda.com/" />
     <meta property="og:title" content="ChaosSQL — Deterministic SQL Concurrency Fuzzer" />
     <meta property="og:description" content="Catch database concurrency bugs before production does. Open-source fuzzer for PostgreSQL, MySQL and SQLite with Adya anomaly classification and delta-debugging." />
@@ -38,7 +38,7 @@
         "operatingSystem": "Linux, macOS, Windows",
         "programmingLanguage": "Go",
         "license": "https://opensource.org/licenses/MIT",
-        "softwareVersion": "1.4.0",
+        "softwareVersion": "1.6.0",
         "codeRepository": "https://github.com/bregaldahq/chaossql",
         "sameAs": ["https://github.com/bregaldahq/chaossql"],
         "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
@@ -52,21 +52,21 @@
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap"
       rel="stylesheet"
     />
-    <script type="module" crossorigin src="/assets/main-CjvNOY-R.js"></script>
+    <script type="module" crossorigin src="/assets/main-KHJ-j_V-.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/main-D5kQ8l8h.css">
   </head>
   <body>
     <div id="root">
       <main>
-        <h1>ChaosSQL — Deterministic SQL Concurrency &amp; Isolation Fuzzer</h1>
+        <h1>ChaosSQL: Deterministic SQL Concurrency &amp; Isolation Fuzzer</h1>
         <p>Catch database concurrency bugs before production does. ChaosSQL is an open-source (MIT) Go tool that stress-tests PostgreSQL, MySQL and SQLite with deterministic, seed-reproducible interleavings, detects lost updates, write skew, G2 and other Adya isolation anomalies, and shrinks every failing trace to a 1-minimal counterexample with delta-debugging.</p>
         <p>ChaosSQL é um fuzzer open source de concorrência SQL: execuções determinísticas por seed, classificação formal de anomalias de isolamento de Adya e delta-debugging causal para PostgreSQL, MySQL e SQLite.</p>
         <ul>
           <li><a href="https://github.com/bregaldahq/chaossql">Source code on GitHub</a></li>
           <li><a href="https://github.com/bregaldahq/chaossql/releases">Releases</a></li>
-          <li><a href="/#/docs">Documentation</a></li>
-          <li><a href="/#/scenarios">Anomaly scenarios</a></li>
-          <li><a href="/#/playground">Interactive WASM playground</a></li>
+          <li><a href="/docs">Documentation</a></li>
+          <li><a href="/scenarios">Anomaly scenarios</a></li>
+          <li><a href="/playground">Interactive WASM playground</a></li>
         </ul>
       </main>
     </div>

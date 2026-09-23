@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { CheckCircle2, ShieldAlert, Sparkles, Loader2, Send } from 'lucide-react';
 import styles from './CloudWaitlistSection.module.css';
 import { submitLead } from '../../lib/lead-request';
+import { track } from '../../lib/analytics';
 
 export interface CloudWaitlistSectionProps {
   lang?: 'pt' | 'en';
@@ -16,7 +17,7 @@ interface FormData {
   notes: string;
 }
 
-export function CloudWaitlistSection({ lang = 'pt' }: CloudWaitlistSectionProps) {
+export function CloudWaitlistSection({ lang = 'en' }: CloudWaitlistSectionProps) {
   const [formData, setFormData] = useState<FormData>({
     name: '',
     email: '',
@@ -48,6 +49,7 @@ export function CloudWaitlistSection({ lang = 'pt' }: CloudWaitlistSectionProps)
           timestamp: new Date().toISOString(),
       });
 
+      track('lead_submit', formData.wantAudit ? 'waitlist_audit' : 'waitlist');
       setStatus('success');
     } catch (err) {
         setStatus('error');
@@ -105,7 +107,7 @@ export function CloudWaitlistSection({ lang = 'pt' }: CloudWaitlistSectionProps)
               </p>
               {formData.wantAudit && (
                 <div className={styles.successDetails}>
-                  🛡️ {lang === 'pt' ? 'Priorizado para análise de Concurrency Audit' : 'Prioritized for Concurrency Audit review'}
+                  {lang === 'pt' ? 'Priorizado para análise de Concurrency Audit' : 'Prioritized for Concurrency Audit review'}
                 </div>
               )}
               <div>
@@ -246,7 +248,7 @@ export function CloudWaitlistSection({ lang = 'pt' }: CloudWaitlistSectionProps)
                 </button>
 
                 <div className={styles.privacyNotice}>
-                  🔒 {lang === 'pt'
+                  {lang === 'pt'
                     ? 'Seus dados permanecem estritamente confidenciais. Zero spam. Sem cartão de crédito.'
                     : 'Your details remain strictly confidential. Zero spam. No credit card required.'}
                 </div>

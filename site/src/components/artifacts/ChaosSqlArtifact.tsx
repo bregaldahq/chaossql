@@ -19,7 +19,12 @@ const STEPS_RAW = [
   { step: '06', tx: 'T2', op: 'UPDATE balance = 900', balance: '$900' },
 ];
 
-export function ChaosSqlArtifact() {
+export interface ChaosSqlArtifactProps {
+  lang?: 'pt' | 'en';
+}
+
+export function ChaosSqlArtifact({ lang = 'en' }: ChaosSqlArtifactProps) {
+  const pt = lang === 'pt';
   const [activeMode, setActiveMode] = useState<'shrunk' | 'raw'>('shrunk');
 
   const steps = activeMode === 'shrunk' ? STEPS_SHRUNK : STEPS_RAW;
@@ -78,14 +83,14 @@ export function ChaosSqlArtifact() {
 
         <table
           className={styles.traceTable}
-          aria-label="Tabela de intercalação de concorrência"
+          aria-label={pt ? 'Tabela de intercalação de concorrência' : 'Concurrency interleaving table'}
         >
           <thead>
             <tr>
-              <th scope="col">Passo</th>
+              <th scope="col">{pt ? 'Passo' : 'Step'}</th>
               <th scope="col">Tx</th>
-              <th scope="col">Operação</th>
-              <th scope="col">Saldo</th>
+              <th scope="col">{pt ? 'Operação' : 'Operation'}</th>
+              <th scope="col">{pt ? 'Saldo' : 'Balance'}</th>
             </tr>
           </thead>
           <tbody>
@@ -116,22 +121,26 @@ export function ChaosSqlArtifact() {
           <code>actual_balance == expected_balance</code>
           <dl className={styles.metricGrid}>
             <div className={styles.metricItem}>
-              <dt>Saldo Atual</dt>
+              <dt>{pt ? 'Saldo Atual' : 'Actual Balance'}</dt>
               <dd style={{ color: 'var(--yellow)' }}>$900</dd>
             </div>
             <div className={styles.metricItem}>
-              <dt>Esperado pelo Ledger</dt>
+              <dt>{pt ? 'Esperado pelo Ledger' : 'Ledger Expected'}</dt>
               <dd style={{ color: 'var(--green)' }}>$850</dd>
             </div>
           </dl>
           <p className={styles.caption}>
             {activeMode === 'shrunk'
-              ? 'O algoritmo ddmin reduziu o rastro para as 4 operações estritamente necessárias para reproduzir o bug.'
-              : 'Rastro bruto com ruído de transações paralelas antes da redução causal delta-debugging.'}
+              ? pt
+                ? 'O algoritmo ddmin reduziu o rastro para as 4 operações estritamente necessárias para reproduzir o bug.'
+                : 'ddmin reduced the trace to the 4 operations strictly required to reproduce the bug.'
+              : pt
+                ? 'Rastro bruto com ruído de transações paralelas antes da redução causal delta-debugging.'
+                : 'Raw trace with noise from parallel transactions, before causal delta-debugging.'}
           </p>
         </div>
 
-        <ol className={styles.reproduction} aria-label="Sequência de redução de falha">
+        <ol className={styles.reproduction} aria-label={pt ? 'Sequência de redução de falha' : 'Failure reduction sequence'}>
           <li>
             <span>Trace ({activeMode === 'raw' ? '20 ops' : '6 ops'})</span>
             <MoveRight size={14} aria-hidden="true" />

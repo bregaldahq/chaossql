@@ -178,9 +178,9 @@ it('pricing reports delivery failures and preserves the requested plan and audit
   });
   render(<PricingPage lang="en" />);
   fireEvent.click(screen.getByRole('button', { name: /Concurrency Audit/i }));
-  fireEvent.change(screen.getByPlaceholderText('Ricardo Bregalda'), { target: { value: 'Test Person' } });
-  fireEvent.change(screen.getByPlaceholderText('ricardo@empresa.com'), { target: { value: 'test@example.com' } });
-  fireEvent.change(screen.getByPlaceholderText('Acme Fintech'), { target: { value: 'Team' } });
+  fireEvent.change(screen.getByLabelText(/Your Name/), { target: { value: 'Test Person' } });
+  fireEvent.change(screen.getByLabelText(/Work Email/), { target: { value: 'test@example.com' } });
+  fireEvent.change(screen.getByLabelText(/^Company$/), { target: { value: 'Team' } });
   fireEvent.submit(screen.getByRole('button', { name: /Confirm Request/ }).closest('form')!);
   await waitFor(() => expect(screen.getByRole('alert')).toBeTruthy());
   expect(screen.queryByText('Request Registered!')).toBeNull();
