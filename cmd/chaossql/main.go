@@ -450,10 +450,15 @@ func executeChaos(specPath string, seedOverride ...bool) error {
 		if runResult.Error != nil {
 			output["error"] = runResult.Error.Error()
 		}
+		var cloudErr error
 		if cloudTokenFlag != "" {
-			cloudResp, _ := publishToCloud(ctx, *spec, runResult, shrinkResult, minimalTrace, anomaly, reproCode, mermaidCode)
+			var cloudResp *cloud.RunIngestResponse
+			cloudResp, cloudErr = publishToCloud(ctx, *spec, runResult, shrinkResult, minimalTrace, anomaly, reproCode, mermaidCode)
 			if cloudResp != nil {
 				output["cloud"] = cloudResp
+			}
+			if cloudErr != nil {
+				output["cloud_error"] = cloudErr.Error()
 			}
 		}
 
@@ -462,6 +467,9 @@ func executeChaos(specPath string, seedOverride ...bool) error {
 		if err := enc.Encode(output); err != nil {
 			return err
 		}
+		if cloudFailFastFlag {
+			return errors.Join(unreliableRunError(runResult), cloudErr)
+		}
 		return unreliableRunError(runResult)
 	}
 
@@ -469,7 +477,7 @@ func executeChaos(specPath string, seedOverride ...bool) error {
 
 	if cloudTokenFlag != "" {
 		if _, err := publishToCloud(ctx, *spec, runResult, shrinkResult, minimalTrace, anomaly, reproCode, mermaidCode); err != nil && cloudFailFastFlag {
-			return err
+			return errors.Join(unreliableRunError(runResult), err)
 		}
 	}
 
@@ -517,9 +525,17 @@ func publishToCloud(
 	anomaly domain.AnomalyType,
 	reproCode, mermaidCode string,
 ) (*cloud.RunIngestResponse, error) {
+	fingerprint, err := cloud.ScenarioFingerprint(spec)
+	if err != nil {
+		return nil, fmt.Errorf("fingerprint cloud scenario: %w", err)
+	}
 	status := "passed"
 	if !runResult.Success {
 		status = "failed"
+	}
+	failedSchedules := 0
+	if runResult.ViolationDetected {
+		failedSchedules = 1
 	}
 
 	var failingInv *cloud.InvariantSummary
@@ -553,11 +569,12 @@ func publishToCloud(
 		Timestamp: time.Now().UTC(),
 		CI:        cloud.DetectCIContext(),
 		Scenario: cloud.ScenarioMetadata{
-			Name:       spec.Name,
-			Driver:     spec.Database.Driver,
-			Workers:    spec.Engine.Workers,
-			Iterations: spec.Engine.Iterations,
-			Seed:       runResult.Seed,
+			Fingerprint: fingerprint,
+			Name:        spec.Name,
+			Driver:      spec.Database.Driver,
+			Workers:     spec.Engine.Workers,
+			Iterations:  spec.Engine.Iterations,
+			Seed:        runResult.Seed,
 		},
 		Schedule: &runResult.Schedule,
 		Result: cloud.ExecutionSummary{
@@ -567,7 +584,8 @@ func publishToCloud(
 			ViolationDetected: runResult.ViolationDetected,
 			AnomalyType:       string(anomaly),
 			DurationMS:        runResult.Duration.Milliseconds(),
-			TotalSchedules:    spec.Engine.Iterations,
+			TotalSchedules:    1,
+			FailedSchedules:   failedSchedules,
 			FailingInvariant:  failingInv,
 		},
 		Reproduction: reproData,
@@ -597,8 +615,15 @@ func publishToCloud(
 	if !jsonFlag {
 		fmt.Printf("  [✓] Run recorded: %s\n", resp.URL)
 		if resp.IsRegression {
-			fmt.Printf("  🚨 CONCURRENCY REGRESSION DETECTED against baseline (Branch: %s)\n", resp.Baseline.Branch)
+			if resp.Baseline != nil {
+				fmt.Printf("  🚨 CONCURRENCY REGRESSION DETECTED against baseline (Branch: %s)\n", resp.Baseline.Branch)
+			} else {
+				fmt.Println("  🚨 CONCURRENCY REGRESSION DETECTED")
+			}
 		}
+	}
+	if err := cloud.WriteActionOutputs("", resp); err != nil {
+		return resp, fmt.Errorf("write cloud action outputs: %w", err)
 	}
 
 	// Generate and dispatch Pull Request Markdown report

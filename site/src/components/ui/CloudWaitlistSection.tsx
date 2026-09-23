@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { CheckCircle2, ShieldAlert, Sparkles, Loader2, Send } from 'lucide-react';
 import styles from './CloudWaitlistSection.module.css';
+import { submitLead } from '../../lib/lead-request';
 
 export interface CloudWaitlistSectionProps {
   lang?: 'pt' | 'en';
@@ -41,37 +42,20 @@ export function CloudWaitlistSection({ lang = 'pt' }: CloudWaitlistSectionProps)
     setErrorMessage('');
 
     try {
-      const res = await fetch('/api/waitlist', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      await submitLead({
           ...formData,
           source: 'landing_page',
           timestamp: new Date().toISOString(),
-        }),
       });
-
-      if (!res.ok) {
-        throw new Error(`Server returned ${res.status}`);
-      }
 
       setStatus('success');
     } catch (err) {
-      // Fallback: save to localStorage so no lead is lost offline or during local development
-      try {
-        const stored = JSON.parse(localStorage.getItem('chaossql_waitlist_leads') || '[]');
-        stored.push({ ...formData, timestamp: new Date().toISOString(), localOnly: true });
-        localStorage.setItem('chaossql_waitlist_leads', JSON.stringify(stored));
-        // Still treat as successful for the user so their experience isn't broken
-        setStatus('success');
-      } catch {
         setStatus('error');
         setErrorMessage(
           lang === 'pt'
             ? 'Não foi possível enviar no momento. Por favor, tente novamente.'
             : 'Unable to submit at this moment. Please try again.'
         );
-      }
     }
   };
 
@@ -132,7 +116,7 @@ export function CloudWaitlistSection({ lang = 'pt' }: CloudWaitlistSectionProps)
             </div>
           ) : (
             <form onSubmit={handleSubmit}>
-              {status === 'error' && <div className={styles.errorBanner}>{errorMessage}</div>}
+              {status === 'error' && <div role="alert" className={styles.errorBanner}>{errorMessage}</div>}
 
               <div className={styles.formGrid}>
                 <div className={styles.formGridTwoCol}>

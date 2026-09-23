@@ -1,0 +1,17 @@
+.git
+.worktrees
+.claude
+.superpowers
+internal_docs
+**/node_modules
+**/.verify-dist
+**/dist
+bin
+.env
+.env.*
+!.env.example
+.dev.vars*
+*.db
+*.db-*
+*.sqlite*
+*.log

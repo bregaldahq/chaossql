@@ -18,22 +18,24 @@ var ErrUnsafeMetadata = errors.New("cloud metadata contains an unsafe identifier
 var metadataIdentifierPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._/+:-]*$`)
 
 type metadataPayload struct {
-	Version      string                       `json:"version"`
-	Timestamp    time.Time                    `json:"timestamp"`
-	CI           *metadataCI                  `json:"ci,omitempty"`
-	Scenario     metadataScenario             `json:"scenario"`
-	Result       metadataExecutionSummary     `json:"result"`
-	Reproduction *metadataReproductionSummary `json:"reproduction,omitempty"`
+	IdempotencyKey string                       `json:"idempotency_key,omitempty"`
+	Version        string                       `json:"version"`
+	Timestamp      time.Time                    `json:"timestamp"`
+	CI             *metadataCI                  `json:"ci,omitempty"`
+	Scenario       metadataScenario             `json:"scenario"`
+	Result         metadataExecutionSummary     `json:"result"`
+	Reproduction   *metadataReproductionSummary `json:"reproduction,omitempty"`
 }
 
 type metadataCI struct {
-	Provider          string `json:"provider"`
-	Repository        string `json:"repository"`
-	CommitSHA         string `json:"commit_sha"`
-	Branch            string `json:"branch"`
-	BaseBranch        string `json:"base_branch,omitempty"`
-	PullRequestNumber int    `json:"pull_request_number,omitempty"`
-	RunID             string `json:"run_id,omitempty"`
+	CommitTimestamp   *time.Time `json:"commit_timestamp,omitempty"`
+	Provider          string     `json:"provider"`
+	Repository        string     `json:"repository"`
+	CommitSHA         string     `json:"commit_sha"`
+	Branch            string     `json:"branch"`
+	BaseBranch        string     `json:"base_branch,omitempty"`
+	PullRequestNumber int        `json:"pull_request_number,omitempty"`
+	RunID             string     `json:"run_id,omitempty"`
 }
 
 type metadataScenario struct {
@@ -78,8 +80,9 @@ func projectMetadataPayload(req *RunIngestRequest, now time.Time) metadataPayloa
 	}
 
 	payload := metadataPayload{
-		Version:   version,
-		Timestamp: timestamp,
+		IdempotencyKey: req.IdempotencyKey,
+		Version:        version,
+		Timestamp:      timestamp,
 		Scenario: metadataScenario{
 			Name:          req.Scenario.Name,
 			Fingerprint:   req.Scenario.Fingerprint,
@@ -102,6 +105,7 @@ func projectMetadataPayload(req *RunIngestRequest, now time.Time) metadataPayloa
 	}
 	if req.CI != nil {
 		payload.CI = &metadataCI{
+			CommitTimestamp:   req.CI.CommitTimestamp,
 			Provider:          req.CI.Provider,
 			Repository:        req.CI.Repository,
 			CommitSHA:         req.CI.CommitSHA,
@@ -130,6 +134,7 @@ func validateMetadataPayload(payload *metadataPayload) error {
 		limit int
 	}{
 		{"version", payload.Version, 16},
+		{"idempotency_key", payload.IdempotencyKey, 128},
 		{"scenario.name", payload.Scenario.Name, 128},
 		{"scenario.fingerprint", payload.Scenario.Fingerprint, 128},
 		{"scenario.driver", payload.Scenario.Driver, 32},
@@ -257,8 +262,9 @@ func DecodeMetadataOnlyRequest(data []byte) (*RunIngestRequest, error) {
 	}
 
 	req := &RunIngestRequest{
-		Version:   payload.Version,
-		Timestamp: payload.Timestamp,
+		IdempotencyKey: payload.IdempotencyKey,
+		Version:        payload.Version,
+		Timestamp:      payload.Timestamp,
 		Scenario: ScenarioMetadata{
 			Name:          payload.Scenario.Name,
 			Fingerprint:   payload.Scenario.Fingerprint,
@@ -281,6 +287,7 @@ func DecodeMetadataOnlyRequest(data []byte) (*RunIngestRequest, error) {
 	}
 	if payload.CI != nil {
 		req.CI = &CIContext{
+			CommitTimestamp:   payload.CI.CommitTimestamp,
 			Provider:          payload.CI.Provider,
 			Repository:        payload.CI.Repository,
 			CommitSHA:         payload.CI.CommitSHA,

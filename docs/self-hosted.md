@@ -1,223 +1,182 @@
-# ChaosSQL Enterprise: Self-Hosted & On-Premise Deployment Guide
+# Self-hosted deployment
 
-This guide details how to deploy, configure, and operate the **ChaosSQL SaaS Control Plane & Concurrency Gate** in your private cloud, on-premise infrastructure, or air-gapped data centers.
+The control plane receives execution metadata, maintains baselines, and queues
+regression alerts. Tests run in the CLI against your own target database. SQL,
+parameter values, schemas, and local reproduction artifacts stay with the runner.
+The dashboard displays stored summaries; inspect a local trace or reproduction
+artifact to investigate the actual operations.
 
----
+The API uses organization-scoped bearer tokens. The configured bootstrap token
+owns the default organization and can create member tokens for CI. Authentication
+is token based; the pricing form requests contact and does not activate a paid
+subscription. Plan limits in the API are separate from payment processing.
 
-## 1. Architectural Overview
+## Docker Compose
 
-ChaosSQL Enterprise is designed as a lightweight, high-performance concurrency observability engine:
-
-- **ChaosSQL Server (`chaossql-server` / `chaossql server`):** Core API service written in Go. Handles execution ingestion, regression evaluation, baseline diffing, real-time alert dispatching (Discord, Slack, Datadog), and token authentication.
-- **ChaosSQL Web Dashboard:** Modern React/Vite dashboard providing interactive causal trace inspection, SQL step timelines, Delta-Debugging visualization, and webhook management.
-- **Storage Layer:** Embedded SQLite with WAL mode by default for zero-ops durability and single-binary portability; supports external volume mounting and automated snapshots.
-- **Worker Execution:** ChaosSQL CLI runs in your CI/CD pipelines (GitHub Actions, GitLab CI, CircleCI) and securely publishes execution metadata to your private server.
-
-```
-┌────────────────────────────────────────────────────────┐
-│                   CI / CD Pipelines                    │
-│   (GitHub Actions / GitLab CI: chaossql run --spec)   │
-└──────────────────────────┬─────────────────────────────┘
-                           │ POST /v1/runs (Metadata only)
-                           ▼
-┌────────────────────────────────────────────────────────┐
-│              ChaosSQL Control Plane Server             │
-│        (Regressions Engine + Baselines Store)          │
-└──────────────┬──────────────────────────┬──────────────┘
-               │                          │
-               ▼                          ▼
-┌────────────────────────────┐ ┌─────────────────────────┐
-│     Incident Webhooks      │ │   Internal Dashboard    │
-│ (Slack / Discord / Alerts) │ │ (Interleaving Viewer)   │
-└────────────────────────────┘ └─────────────────────────┘
-```
-
----
-
-## 2. Fast-Track: Single-Node with Docker Compose
-
-Deploy the complete enterprise stack (PostgreSQL 16 test target + ChaosSQL Control Plane + Web Dashboard) in 30 seconds:
-
-### Step 1: Clone and Configure Environment
+From the repository root, create independent credentials in a private file:
 
 ```bash
-git clone https://github.com/bregaldahq/chaossql.git
-cd chaossql
-
+umask 077
 cp .env.example .env
-```
-
-### Step 2: Launch the Stack
-
-```bash
-docker compose up -d
-```
-
-### Step 3: Verify Container Health
-
-```bash
+python3 - <<'PY'
+from pathlib import Path
+import secrets
+path = Path('.env')
+text = path.read_text()
+for key in ('CHAOSSQL_ADMIN_TOKEN', 'POSTGRES_PASSWORD'):
+    text = text.replace(key + '=\n', key + '=' + secrets.token_hex(32) + '\n')
+path.write_text(text)
+PY
+docker compose up --build -d
 docker compose ps
 ```
 
-Expected output:
+Compose refuses to start without both credentials. The server also rejects known
+example tokens. Keep `.env` private and out of source control. Avoid printing
+resolved Compose configuration because it contains credentials.
+
+Default listeners bind only to localhost:
+
+| Service | Address | Purpose |
+| --- | --- | --- |
+| Dashboard | `http://localhost:3000/#/dashboard` | Token login and metadata summaries |
+| API | `http://localhost:8080/v1/health` | Health and authenticated API |
+| PostgreSQL | `localhost:5432` | Test target, database `test` |
+
+The dashboard proxies `/v1/` to the server on the private Compose network. Set
+`PUBLIC_URL` to the dashboard's externally reachable origin when placing a TLS
+reverse proxy in front of it. Adjust `PORT`, `DASHBOARD_PORT`, and `POSTGRES_PORT`
+in `.env` if those host ports are occupied. The API image runs as UID 10001 and
+nginx as UID 101 on container port 8080; `/wasm/` assets are included.
+
+Enter the owner token in the dashboard, then generate a member token for CI in
+onboarding. The browser retains credentials only in memory; reloading requires
+authentication again. Member tokens can publish runs but cannot administer tokens
+or webhooks. Save the issued token in your CI secret store.
+Rotating `CHAOSSQL_ADMIN_TOKEN` and recreating the server revokes the previous
+bootstrap token; separately issued member tokens remain valid.
+
+The default data volumes remain `chaossql_enterprise_data` and
+`chaossql_postgres_data` for existing installations. Override
+`CHAOSSQL_DATA_VOLUME` and `POSTGRES_DATA_VOLUME` for isolated installations. Do
+not use `docker compose down -v` when retaining data.
+
+## SQLite storage, backup, and restore
+
+Run exactly one server instance per SQLite database. The Helm chart rejects
+multiple replicas and autoscaling; multiple independent database files do not
+provide shared state. Keep `/data/chaossql-cloud.db` on persistent local storage.
+No automatic snapshot schedule or recovery-time guarantee is provided.
+
+For an online backup, use SQLite's backup API from a host or maintenance image
+with SQLite tooling and access to the data volume. The API runtime image does not
+include the `sqlite3` utility. Do not copy a live database file directly. For
+example, when the volume is available at `/srv/chaossql` on the maintenance host:
+
+```bash
+sqlite3 /srv/chaossql/chaossql-cloud.db ".backup '/srv/backups/chaossql.db'"
+sqlite3 /srv/backups/chaossql.db 'PRAGMA integrity_check;'
 ```
-NAME                         IMAGE               STATUS                    PORTS
-chaossql-server             chaossql-server     Up (healthy) 8080->8080/tcp
-chaossql-dashboard          chaossql-dashboard  Up (healthy) 3000->80/tcp
-chaossql-postgres-target    postgres:16-alpine  Up (healthy) 5432->5432/tcp
+
+Restore first into a separate empty data directory or volume. Stop the server,
+retain the original volume, copy the validated backup as `chaossql-cloud.db`, and
+give UID/GID 10001 read/write access to the directory and file. Point
+`CHAOSSQL_DATA_VOLUME` at the restored volume, restart the server, and verify both
+health and authenticated run history. Restore the matching private environment
+configuration as well. Test this procedure before relying on a backup.
+
+## Kubernetes
+
+`charts/chaossql-server` deploys the API and its SQLite volume. It does not deploy
+the dashboard or a target database. Build and push the API image from this checkout
+to your own registry; set the repository and tag to an image you have verified.
+
+Create a namespace and an existing Secret from a protected environment file whose
+`CHAOSSQL_ADMIN_TOKEN` value is unique:
+
+```bash
+kubectl create namespace chaossql
+kubectl -n chaossql create secret generic chaossql-credentials \
+  --from-env-file=/secure/chaossql-server.env
+helm upgrade --install chaossql-server ./charts/chaossql-server \
+  --namespace chaossql \
+  --set secrets.existingSecret=chaossql-credentials \
+  --values /secure/chaossql-values.yaml
+kubectl -n chaossql get pods,pvc,svc
 ```
 
-### Step 4: Access the Services
-- **Web Dashboard:** `http://localhost:3000/#/dashboard`
-- **Control Plane API:** `http://localhost:8080/v1/health`
-- **PostgreSQL Database:** `localhost:5432` (User: `postgres`, Pass: `postgres`, DB: `test`)
-
----
-
-## 3. Kubernetes Deployment with Helm
-
-ChaosSQL provides an official Helm chart located in `charts/chaossql-server/`.
-
-### Step 1: Review Chart Values
-
-Inspect `charts/chaossql-server/values.yaml`:
+Example non-secret values (replace the image and URL for your deployment):
 
 ```yaml
 replicaCount: 1
-
 image:
-  repository: ghcr.io/bregaldahq/chaossql-server
-  tag: "1.5.0"
-  pullPolicy: IfNotPresent
-
+  repository: registry.example.com/chaossql-server
+  tag: reviewed-build
+config:
+  publicUrl: https://chaossql.example.com
 persistence:
   enabled: true
   size: 10Gi
-  storageClass: "gp3" # or standard
-
-secrets:
-  adminToken: "your_strong_enterprise_secret_token"
-  discordWebhookUrl: ""
+autoscaling:
+  enabled: false
 ```
 
-### Step 2: Install via Helm
+Use a dashboard reverse proxy for both static content and `/v1/`. `publicUrl` must
+point to that dashboard for run links to work. Configure ingress/TLS for the
+deployment's network. `persistence.enabled=false` uses an ephemeral `emptyDir`
+and loses data when the pod is removed. Updates use the `Recreate` strategy to
+avoid simultaneous SQLite writers.
+
+## Standalone server and CI
+
+Build with Go 1.25 or newer and CGO disabled:
 
 ```bash
-# From the repository root
-helm upgrade --install chaossql-server ./charts/chaossql-server \
-  --namespace chaossql \
-  --create-namespace \
-  --set secrets.adminToken="super_secret_admin_token"
+make build
+export CHAOSSQL_ADMIN_TOKEN="$(openssl rand -hex 32)"
+./bin/chaossql server start --db=/var/data/chaossql.db \
+  --public-url=http://localhost:8080 --static-dir=site
 ```
 
-### Step 3: Verify Pod and Service Status
+Build the site first (`cd site && npm ci && npm run build`) when using
+`--static-dir`. Ensure the database directory exists and is writable. Persist the
+owner token privately before restarting. The separate `chaossql-server start`
+entrypoint uses the same owner bootstrap rules.
+
+An operator with direct database access can also create a member token:
 
 ```bash
-kubectl get pods -n chaossql
-kubectl get svc -n chaossql
+./bin/chaossql server create-token --db=/var/data/chaossql.db \
+  --org=org_default --name='CI publisher'
 ```
 
-### Step 4: Expose via Ingress (Optional)
-
-Enable ingress in `values.yaml` or set via command line:
+That command prints the newly issued token once; do not run it in a public CI log.
+Configure CI with `CHAOSSQL_CLOUD_URL` and `CHAOSSQL_CLOUD_TOKEN` (the member token),
+then run your scenario normally:
 
 ```bash
-helm upgrade chaossql-server ./charts/chaossql-server \
-  --namespace chaossql \
-  --set ingress.enabled=true \
-  --set ingress.hosts[0].host=chaossql.internal.mycompany.com
+./bin/chaossql run chaos.yaml --cloud-fail-fast
 ```
 
----
+The repository's composite GitHub Action accepts `cloud-url` and `cloud-token`
+and emits `run-url` and `is-regression` after successful publication. Pin the
+Action to the reviewed revision you deploy. Retain local CLI artifacts separately;
+the hosted summary never includes their SQL or reproduction code.
 
-## 4. Standalone CLI Server Mode
+## Air-gapped installations
 
-For local developers, staging environments, or air-gapped workstations, the `chaossql` binary can run the server directly with zero external dependencies:
-
-### Start the Server
+Build images on a connected machine from the reviewed checkout, then transfer
+the archives using your normal trusted process:
 
 ```bash
-# Start server on port 8080 using a local SQLite file
-chaossql server start --port=8080 --db=/var/data/chaossql.db --token=my_secret_token
+docker build -t chaossql-server:reviewed-build .
+docker build -f Dockerfile.dashboard -t chaossql-dashboard:reviewed-build .
+docker save -o chaossql-images.tar \
+  chaossql-server:reviewed-build chaossql-dashboard:reviewed-build
+# On the destination:
+docker load -i chaossql-images.tar
 ```
 
-### Generate Organization CI Tokens
-
-```bash
-chaossql server create-token --db=/var/data/chaossql.db --org=payments-team --name="Payments CI Token"
-```
-
-Output:
-```
-=== ChaosSQL API Token Created ===
-Organization: payments-team
-Token Name:   Payments CI Token
-API Token:    csql_8f9a2b1c4e7d0f3a6b8e2c5d
-===================================
-```
-
----
-
-## 5. Enterprise Hardening & Best Practices
-
-### Non-Root Execution
-The production Docker container runs under UID `10001` (`chaossql`) with `allowPrivilegeEscalation: false` and all Linux capabilities dropped.
-
-### Storage & Backups
-SQLite database data resides in `/data/chaossql-cloud.db`. To take an online hot-backup without stopping the service:
-
-```bash
-# Using SQLite backup API or CLI
-sqlite3 /data/chaossql-cloud.db ".backup '/backups/chaossql-backup-$(date +%Y%m%d%H%M%S).db'"
-```
-
-### Air-Gapped Environments
-For offline environments without internet access:
-1. Mirror the images:
-   ```bash
-   docker pull ghcr.io/bregaldahq/chaossql-server:1.5.0
-   docker save ghcr.io/bregaldahq/chaossql-server:1.5.0 -o chaossql-server.tar
-   ```
-2. Load images into your private container registry (Harbor, AWS ECR, Artifactory).
-3. Set `image.repository` in `values.yaml`.
-
----
-
-## 6. CI/CD Pipeline Integration
-
-Configure your CI pipelines to point to your self-hosted server:
-
-### GitHub Actions
-
-```yaml
-name: Concurrency Gate
-
-on:
-  pull_request:
-    branches: [ main ]
-
-jobs:
-  concurrency-gate:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: bregaldahq/chaossql@v1.5.0
-        with:
-          spec-path: 'chaos.yaml'
-          cloud-url: 'https://chaossql.internal.mycompany.com'
-          cloud-token: ${{ secrets.CHAOSSQL_SELFHOSTED_TOKEN }}
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          post-pr-comment: 'true'
-```
-
-### GitLab CI
-
-```yaml
-concurrency_test:
-  stage: test
-  image: ghcr.io/bregaldahq/chaossql:1.5.0
-  script:
-    - chaossql run chaos.yaml \
-        --cloud-url="https://chaossql.internal.mycompany.com" \
-        --cloud-token="$CHAOSSQL_SELFHOSTED_TOKEN"
-```
+Supply any target database image separately. Configure your deployment to use
+these loaded images without a build or pull. External alert destinations require
+outbound access; leave them unconfigured when that access is unavailable.

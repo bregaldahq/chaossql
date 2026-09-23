@@ -3,7 +3,7 @@ GO ?= $(shell which /usr/local/go/bin/go go 2>/dev/null | head -n 1)
 .PHONY: help bootstrap test lint verify check-harness build wasm build-wasm-test demo bench matrix diff replay serve-site stress-wasm test-wasm-stress test-python test-typescript test-frontend test-sdks
 
 help:
-	@echo "ChaosSQL (Go 1.23+) Harness Commands:"
+	@echo "ChaosSQL (Go 1.25+) Harness Commands:"
 	@echo "  make bootstrap     - Download and verify all Go dependencies"
 	@echo "  make test          - Run unit and integration test suite (-race)"
 	@echo "  make lint          - Run go vet and static analysis"
@@ -102,6 +102,7 @@ test-frontend:
 test-sdks: test-python test-typescript
 
 verify: check-harness lint test test-sdks test-frontend stress-wasm
+	@node --test tools/test_waitlist.mjs tools/test_english_purity.test.cjs
 	@node tools/test_english_purity.js && node tools/test_wasm_worker.js && node tools/test_playground_ui.js && node tools/test_wasm_bench.js
 	@echo ""
 	@echo "✔ Verification gate completed successfully!"

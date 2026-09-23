@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 # Stage 1: Build binary
-FROM golang:1.24-alpine AS builder
+FROM golang:1.25-alpine AS builder
 
 RUN apk add --no-cache git ca-certificates tzdata
 
@@ -37,7 +37,6 @@ VOLUME ["/data"]
 
 ENV PORT=8080 \
     DB_PATH=/data/chaossql-cloud.db \
-    CHAOSSQL_ADMIN_TOKEN=chaossql_prod_secret \
     PUBLIC_URL=http://localhost:8080
 
 EXPOSE 8080

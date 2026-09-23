@@ -8,14 +8,15 @@ import (
 
 // CIContext contains metadata extracted from the CI/CD environment
 type CIContext struct {
-	Provider          string `json:"provider"`
-	Repository        string `json:"repository"`
-	CommitSHA         string `json:"commit_sha"`
-	Branch            string `json:"branch"`
-	BaseBranch        string `json:"base_branch,omitempty"`
-	PullRequestNumber int    `json:"pull_request_number,omitempty"`
-	RunID             string `json:"run_id,omitempty"`
-	Actor             string `json:"actor,omitempty"`
+	CommitTimestamp   *time.Time `json:"commit_timestamp,omitempty"`
+	Provider          string     `json:"provider"`
+	Repository        string     `json:"repository"`
+	CommitSHA         string     `json:"commit_sha"`
+	Branch            string     `json:"branch"`
+	BaseBranch        string     `json:"base_branch,omitempty"`
+	PullRequestNumber int        `json:"pull_request_number,omitempty"`
+	RunID             string     `json:"run_id,omitempty"`
+	Actor             string     `json:"actor,omitempty"`
 }
 
 // ScenarioMetadata captures parameters of the chaos.yaml specification
@@ -72,13 +73,14 @@ type ReproductionData struct {
 
 // RunIngestRequest is the root JSON payload sent to POST /v1/runs
 type RunIngestRequest struct {
-	Version      string               `json:"version"`
-	Timestamp    time.Time            `json:"timestamp"`
-	CI           *CIContext           `json:"ci,omitempty"`
-	Scenario     ScenarioMetadata     `json:"scenario"`
-	Schedule     *domain.SchedulePlan `json:"schedule,omitempty"`
-	Result       ExecutionSummary     `json:"result"`
-	Reproduction *ReproductionData    `json:"reproduction,omitempty"`
+	IdempotencyKey string               `json:"idempotency_key,omitempty"`
+	Version        string               `json:"version"`
+	Timestamp      time.Time            `json:"timestamp"`
+	CI             *CIContext           `json:"ci,omitempty"`
+	Scenario       ScenarioMetadata     `json:"scenario"`
+	Schedule       *domain.SchedulePlan `json:"schedule,omitempty"`
+	Result         ExecutionSummary     `json:"result"`
+	Reproduction   *ReproductionData    `json:"reproduction,omitempty"`
 }
 
 // BaselineComparison describes whether this run represents a regression

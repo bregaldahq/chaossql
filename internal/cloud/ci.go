@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 )
 
 var (
@@ -28,7 +29,7 @@ func DetectCIContext() *CIContext {
 			branch = os.Getenv("GITHUB_REF_NAME")
 		}
 
-		return &CIContext{
+		return withCommitTimestamp(&CIContext{
 			Provider:          "github-actions",
 			Repository:        os.Getenv("GITHUB_REPOSITORY"),
 			CommitSHA:         os.Getenv("GITHUB_SHA"),
@@ -37,13 +38,13 @@ func DetectCIContext() *CIContext {
 			PullRequestNumber: prNumber,
 			RunID:             os.Getenv("GITHUB_RUN_ID"),
 			Actor:             os.Getenv("GITHUB_ACTOR"),
-		}
+		})
 	}
 
 	// 2. GitLab CI
 	if os.Getenv("GITLAB_CI") == "true" {
 		prNum, _ := strconv.Atoi(os.Getenv("CI_MERGE_REQUEST_IID"))
-		return &CIContext{
+		return withCommitTimestamp(&CIContext{
 			Provider:          "gitlab-ci",
 			Repository:        os.Getenv("CI_PROJECT_PATH"),
 			CommitSHA:         os.Getenv("CI_COMMIT_SHA"),
@@ -52,18 +53,37 @@ func DetectCIContext() *CIContext {
 			PullRequestNumber: prNum,
 			RunID:             os.Getenv("CI_PIPELINE_ID"),
 			Actor:             os.Getenv("GITLAB_USER_LOGIN"),
-		}
+		})
 	}
 
 	// 3. Local Git Fallback
 	commitSHA, branch := detectLocalGit()
-	return &CIContext{
+	return withCommitTimestamp(&CIContext{
 		Provider:   "local",
 		Repository: detectLocalRepo(),
 		CommitSHA:  commitSHA,
 		Branch:     branch,
 		Actor:      os.Getenv("USER"),
+	})
+}
+
+var commitSHAPattern = regexp.MustCompile(`^[A-Fa-f0-9]{7,64}$`)
+
+func withCommitTimestamp(ci *CIContext) *CIContext {
+	// Resolve the advertised commit, never HEAD or upload time for a missing SHA.
+	if !commitSHAPattern.MatchString(ci.CommitSHA) {
+		return ci
 	}
+	out, err := exec.Command("git", "show", "-s", "--format=%cI", ci.CommitSHA+"^{commit}", "--").Output()
+	if err != nil {
+		return ci
+	}
+	timestamp, err := time.Parse(time.RFC3339, strings.TrimSpace(string(out)))
+	if err == nil {
+		timestamp = timestamp.UTC()
+		ci.CommitTimestamp = &timestamp
+	}
+	return ci
 }
 
 // ExtractPRNumber attempts to parse the PR number from GITHUB_REF or GITHUB_EVENT_PATH

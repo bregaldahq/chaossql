@@ -11,7 +11,6 @@ import (
 	"os"
 	"os/signal"
 	"strconv"
-	"strings"
 	"syscall"
 	"time"
 
@@ -74,10 +73,14 @@ func main() {
 			if orgFlag == "" {
 				orgFlag = "org_default"
 			}
-			_ = store.CreateOrganization(orgFlag, "Default Org", "pro")
+			if err := store.EnsureOrganization(orgFlag, "Default Org", "pro"); err != nil {
+				return fmt.Errorf("failed to configure organization: %w", err)
+			}
 
 			tokenBytes := make([]byte, 24)
-			_, _ = rand.Read(tokenBytes)
+			if _, err := rand.Read(tokenBytes); err != nil {
+				return fmt.Errorf("failed to generate token: %w", err)
+			}
 			rawToken := "csql_" + hex.EncodeToString(tokenBytes)
 			tokenID := fmt.Sprintf("tok_%d", time.Now().UnixNano())
 
@@ -108,8 +111,8 @@ func main() {
 }
 
 func runServer() error {
-	if strings.TrimSpace(tokenFlag) == "" {
-		return fmt.Errorf("CHAOSSQL_ADMIN_TOKEN or --token is required")
+	if err := server.ValidateBootstrapToken(tokenFlag); err != nil {
+		return err
 	}
 	log.Printf("[ChaosSQL Cloud] Initializing database at %s...", dbPathFlag)
 	db, err := sql.Open("sqlite", dbPathFlag)
@@ -144,10 +147,10 @@ func runServer() error {
 	}
 
 	idleConnsClosed := make(chan struct{})
+	shutdownContext, stopSignals := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stopSignals()
 	go func() {
-		sigChan := make(chan os.Signal, 1)
-		signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
-		<-sigChan
+		<-shutdownContext.Done()
 
 		log.Println("[ChaosSQL Cloud] Shutting down gracefully...")
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -169,16 +172,7 @@ func runServer() error {
 }
 
 func configureBootstrapOwner(store *server.Store, token string) error {
-	if strings.TrimSpace(token) == "" {
-		return fmt.Errorf("CHAOSSQL_ADMIN_TOKEN or --token is required")
-	}
-	if err := store.EnsureOrganization("org_default", "Default Organization", "pro"); err != nil {
-		return fmt.Errorf("failed to configure bootstrap organization: %w", err)
-	}
-	if err := store.UpsertAPITokenWithRole("tok_admin", "org_default", token, "Initial Admin Token", server.RoleOwner); err != nil {
-		return fmt.Errorf("failed to configure bootstrap owner token: %w", err)
-	}
-	return nil
+	return server.ConfigureBootstrapOwner(store, token)
 }
 
 func getEnv(key, defaultVal string) string {

@@ -23,6 +23,6 @@
   curl http://localhost:8080/v1/health
 
 3. ChaosSQL CI/CD Integration:
-  Export your token and configure your CI pipeline:
+  Create a member CI token through the dashboard or the server create-token command.
+  Store it in your CI secret manager. The owner token is never printed here.
   export CHAOSSQL_CLOUD_URL="http://{{ include "chaossql-server.fullname" . }}.{{ .Release.Namespace }}.svc.cluster.local:8080"
-  export CHAOSSQL_CLOUD_TOKEN="{{ .Values.secrets.adminToken }}"

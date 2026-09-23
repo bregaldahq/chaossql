@@ -10,6 +10,8 @@ interface WaitlistPayload {
   company?: string;
   database?: string;
   wantAudit?: boolean;
+  plan?: string;
+  billingCycle?: string;
   notes?: string;
   source?: string;
   timestamp?: string;
@@ -90,7 +92,8 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
       );
     }
 
-    const auditText = data.wantAudit ? '🛡️ **SIM (VIP Advisory)**' : 'Não solicitado';
+    const wantAudit = data.wantAudit === true || data.plan?.toLowerCase() === 'audit';
+    const auditText = wantAudit ? '🛡️ **SIM (VIP Advisory)**' : 'Não solicitado';
     const sourceText = data.source === 'pricing_page' ? '🏷️ Página de Pricing' : '🚀 Landing Page';
 
     const discordPayload = {
@@ -107,6 +110,8 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
             { name: '🏢 Empresa / Repo', value: data.company?.trim() || 'Não informada', inline: true },
             { name: '🗄️ Banco Principal', value: data.database || 'PostgreSQL', inline: true },
             { name: '🛡️ Concurrency Audit', value: auditText, inline: true },
+            { name: 'Plan', value: data.plan?.trim().slice(0, 128) || 'Not selected', inline: true },
+            { name: 'Billing cycle', value: data.billingCycle?.trim().slice(0, 32) || 'Not selected', inline: true },
             { name: '📍 Origem', value: sourceText, inline: true },
             { name: '📝 Desafio / Caso de Uso', value: data.notes?.trim() || 'Nenhum detalhe adicional informado.', inline: false },
           ],
@@ -156,7 +161,7 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
         lead: {
           name: data.name.trim(),
           email: data.email.trim(),
-          wantAudit: Boolean(data.wantAudit),
+          wantAudit,
           dispatched,
         },
       },

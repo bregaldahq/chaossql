@@ -17,8 +17,7 @@ const TARGET_DIRS = [
   'cmd',
   'internal',
   'pkg',
-  'tools',
-  'internal_docs'
+  'tools'
 ];
 
 // Target root-level files to audit
@@ -194,6 +193,7 @@ function main() {
   console.log('\nExclusions applied:');
   console.log('  - .git/');
   console.log('  - .superpowers/ & docs/superpowers/ (historical plans)');
+  console.log('  - internal_docs/ (ignored confidential local plans)');
   console.log('  - node_modules/');
   console.log('  - site/ (legitimate Portuguese i18n dictionaries)');
   console.log('  - tools/test_playground_ui.js (bilingual UI toggle test)');

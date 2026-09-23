@@ -41,7 +41,7 @@ real-time multi-channel alerts (Discord, Slack, Generic Webhooks), and serves th
 
 	serverCmd.PersistentFlags().IntVarP(&serverPortFlag, "port", "p", getServerEnvInt("PORT", 8080), "HTTP port to listen on")
 	serverCmd.PersistentFlags().StringVar(&serverDBPathFlag, "db", getServerEnv("DB_PATH", "chaossql-cloud.db"), "Path to SQLite database file")
-	serverCmd.PersistentFlags().StringVar(&serverTokenFlag, "token", getServerEnv("CHAOSSQL_ADMIN_TOKEN", "chaossql_dev_token"), "Admin/Default CI API token to seed")
+	serverCmd.PersistentFlags().StringVar(&serverTokenFlag, "token", getServerEnv("CHAOSSQL_ADMIN_TOKEN", ""), "Required initial owner API token")
 	serverCmd.PersistentFlags().StringVar(&serverPublicURLFlag, "public-url", getServerEnv("PUBLIC_URL", "http://localhost:8080"), "Public URL for dashboard links")
 	serverCmd.PersistentFlags().StringVar(&serverStaticDirFlag, "static-dir", getServerEnv("STATIC_DIR", ""), "Path to static directory to serve dashboard web assets")
 
@@ -73,10 +73,14 @@ real-time multi-channel alerts (Discord, Slack, Generic Webhooks), and serves th
 			if orgFlag == "" {
 				orgFlag = "org_default"
 			}
-			_ = store.CreateOrganization(orgFlag, "Default Org", "pro")
+			if err := store.EnsureOrganization(orgFlag, "Default Org", "pro"); err != nil {
+				return fmt.Errorf("failed to configure organization: %w", err)
+			}
 
 			tokenBytes := make([]byte, 24)
-			_, _ = rand.Read(tokenBytes)
+			if _, err := rand.Read(tokenBytes); err != nil {
+				return fmt.Errorf("failed to generate token: %w", err)
+			}
 			rawToken := "csql_" + hex.EncodeToString(tokenBytes)
 			tokenID := fmt.Sprintf("tok_%d", time.Now().UnixNano())
 
@@ -101,6 +105,9 @@ real-time multi-channel alerts (Discord, Slack, Generic Webhooks), and serves th
 }
 
 func runControlPlaneServer(out any) error {
+	if err := server.ValidateBootstrapToken(serverTokenFlag); err != nil {
+		return err
+	}
 	log.Printf("[ChaosSQL Cloud] Initializing database at %s...", serverDBPathFlag)
 	db, err := sql.Open("sqlite", serverDBPathFlag)
 	if err != nil {
@@ -113,11 +120,10 @@ func runControlPlaneServer(out any) error {
 		return fmt.Errorf("failed to execute migrations: %w", err)
 	}
 
-	if serverTokenFlag != "" {
-		_ = store.CreateOrganization("org_default", "Default Organization", "pro")
-		_ = store.CreateAPIToken("tok_admin", "org_default", serverTokenFlag, "Initial Admin Token")
-		log.Printf("[ChaosSQL Cloud] Admin token configured.")
+	if err := server.ConfigureBootstrapOwner(store, serverTokenFlag); err != nil {
+		return err
 	}
+	log.Printf("[ChaosSQL Cloud] Admin token configured.")
 
 	engine := server.NewRegressionEngine(store)
 	router := server.NewRouter(server.RouterConfig{
@@ -149,10 +155,10 @@ func runControlPlaneServer(out any) error {
 	}
 
 	idleConnsClosed := make(chan struct{})
+	shutdownContext, stopSignals := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stopSignals()
 	go func() {
-		sigChan := make(chan os.Signal, 1)
-		signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
-		<-sigChan
+		<-shutdownContext.Done()
 
 		log.Println("[ChaosSQL Cloud] Shutting down gracefully...")
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
