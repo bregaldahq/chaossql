@@ -30,7 +30,7 @@ local artifacts.
 
 ## 1. Create a CI token
 
-1. Open <https://api.chaossql.bregalda.com/#/dashboard>.
+1. Open <https://api.chaossql.bregalda.com/dashboard>.
 2. Paste the owner token and connect. The token stays in the browser tab's
    memory only.
 3. Issue a **member** token named after the repository, for example
