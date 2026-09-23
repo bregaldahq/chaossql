@@ -454,6 +454,14 @@ func TestGenerateStandaloneTypeScriptRepro(t *testing.T) {
 				{SQL: "UPDATE doctors SET on_call = 0 WHERE id = 1;"},
 			},
 		},
+		{
+			ID:   2,
+			Name: "bob_leaves",
+			Steps: []domain.StepConfig{
+				{SQL: "SELECT count(*) as cnt FROM doctors WHERE on_call = 1;", Capture: "active"},
+				{SQL: "UPDATE doctors SET on_call = 0 WHERE id = 2;"},
+			},
+		},
 	}
 
 	failingInv := &domain.InvariantResult{
@@ -479,10 +487,28 @@ func TestGenerateStandaloneTypeScriptRepro(t *testing.T) {
 		t.Fatalf("generated typescript/node code failed check: %v\nOutput: %s\nCode:\n%s", err, string(out), tsCode)
 	}
 
+	// Without a SQLite driver the repro must fail loudly on every Node.js
+	// version instead of reporting success against a no-op database.
+	noDriver := exec.Command("node", "-e", `const Module = require('node:module');
+const load = Module._load;
+Module._load = function (request, ...rest) {
+  if (request === 'node:sqlite' || request === 'better-sqlite3') throw new Error('driver unavailable');
+  return load.call(this, request, ...rest);
+};
+require(process.argv[1]);`, tmpJs)
+	if out, err := noDriver.CombinedOutput(); err == nil || !strings.Contains(string(out), "requires a SQLite driver") {
+		t.Fatalf("repro without a SQLite driver did not fail loudly: err=%v\nOutput: %s", err, string(out))
+	}
+
+	if out, err := exec.Command("node", "-e", "require('node:sqlite')").CombinedOutput(); err != nil {
+		t.Skipf("node:sqlite unavailable (requires Node.js >= 22.5); skipping real execution: %s", strings.TrimSpace(string(out)))
+	}
 	runCmd := exec.Command("node", tmpJs)
-	if out, err := runCmd.CombinedOutput(); err != nil {
+	out, err := runCmd.CombinedOutput()
+	if err != nil {
 		t.Fatalf("executing generated typescript/node repro failed: %v\nOutput: %s\nCode:\n%s", err, string(out), tsCode)
-	} else if !strings.Contains(string(out), "ChaosSQL Reproduction executed successfully") {
-		t.Fatalf("expected node repro execution to succeed, got:\n%s", string(out))
+	}
+	if !strings.Contains(string(out), "ChaosSQL Reproduction executed successfully") || !strings.Contains(string(out), "active: 0") {
+		t.Fatalf("expected node repro to reproduce the write skew (active: 0), got:\n%s", string(out))
 	}
 }
