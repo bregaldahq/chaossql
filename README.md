@@ -113,7 +113,6 @@ jobs:
           cloud-token: ${{ secrets.CHAOSSQL_CLOUD_TOKEN }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
           post-pr-comment: 'true'
-          export-summary: true
 ```
 
 When an invariant fails, the action blocks the pull request, publishes a metadata-only GitHub Step Summary, and can synthesize a local `repro_test.go` artifact. SQL, invariant values, and reproduction source are not included in the remote summary or PR comment.
