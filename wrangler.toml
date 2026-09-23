@@ -8,6 +8,9 @@ routes = [
 
 [assets]
 directory = "./site"
+# Exposes the assets to worker.ts as env.ASSETS. Without it every path the
+# worker handles (run_worker_first routes, robots.txt fallbacks) throws.
+binding = "ASSETS"
 not_found_handling = "single-page-application"
 # Section URLs must reach the worker so it can inject per-route <title>,
 # description and canonical into the app shell (see ROUTE_META in worker.ts).

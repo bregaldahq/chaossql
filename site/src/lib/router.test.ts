@@ -6,6 +6,7 @@ import sitemap from '../../sitemap.xml?raw';
 import publicSitemap from '../../public/sitemap.xml?raw';
 import workerJs from '../../_worker.js?raw';
 import workerTs from '../../../worker.ts?raw';
+import wranglerToml from '../../../wrangler.toml?raw';
 
 describe('routeFromPath', () => {
   it.each([
@@ -59,5 +60,11 @@ describe('worker route metadata', () => {
       expect(source).toContain(JSON.stringify(meta.title));
       expect(source).toContain(JSON.stringify(meta.description));
     }
+  });
+});
+
+describe('wrangler.toml', () => {
+  it('binds static assets as env.ASSETS for worker.ts', () => {
+    expect(wranglerToml).toMatch(/^\[assets\][^[]*^binding = "ASSETS"$/m);
   });
 });
