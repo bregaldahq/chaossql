@@ -207,6 +207,9 @@ the hosted summary never includes their SQL or reproduction code.
 
 ## Air-gapped installations
 
+The dashboard makes no third-party requests on self-hosted installations: the
+public site's web analytics beacon loads only on `chaossql.bregalda.com`.
+
 Build images on a connected machine from the reviewed checkout, then transfer
 the archives using your normal trusted process:
 
