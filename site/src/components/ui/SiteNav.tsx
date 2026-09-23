@@ -18,19 +18,18 @@ export function SiteNav({
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const navItems = [
-    { id: 'landing', labelPt: 'Início', labelEn: 'Home', path: '#/' },
-    { id: 'dashboard', labelPt: 'Cloud Dashboard ●', labelEn: 'Cloud Dashboard ●', path: '#/dashboard' },
-    { id: 'docs', labelPt: 'Documentação', labelEn: 'Docs', path: '#/docs' },
-    { id: 'scenarios', labelPt: 'Cenários (9)', labelEn: 'Scenarios (9)', path: '#/scenarios' },
-    { id: 'visualizer', labelPt: 'Trace Visualizer', labelEn: 'Trace Visualizer', path: '#/visualizer' },
-    { id: 'matrix', labelPt: 'Matriz Hermitage', labelEn: 'Hermitage Matrix', path: '#/matrix' },
-    { id: 'playground', labelPt: 'Playground WASM', labelEn: 'WASM Playground', path: '#/playground' },
-    { id: 'pricing', labelPt: 'Preços', labelEn: 'Pricing', path: '#/pricing' },
+    { id: 'landing', labelPt: 'Início', labelEn: 'Home', path: '/' },
+    { id: 'dashboard', labelPt: 'Cloud Dashboard ●', labelEn: 'Cloud Dashboard ●', path: '/dashboard' },
+    { id: 'docs', labelPt: 'Documentação', labelEn: 'Docs', path: '/docs' },
+    { id: 'scenarios', labelPt: 'Cenários (9)', labelEn: 'Scenarios (9)', path: '/scenarios' },
+    { id: 'visualizer', labelPt: 'Trace Visualizer', labelEn: 'Trace Visualizer', path: '/visualizer' },
+    { id: 'matrix', labelPt: 'Matriz Hermitage', labelEn: 'Hermitage Matrix', path: '/matrix' },
+    { id: 'playground', labelPt: 'Playground WASM', labelEn: 'WASM Playground', path: '/playground' },
+    { id: 'pricing', labelPt: 'Preços', labelEn: 'Pricing', path: '/pricing' },
   ];
 
-  const handleNavClick = (id: string, path: string) => {
+  const handleNavClick = (id: string) => {
     onRouteChange(id);
-    window.location.hash = path;
     setMobileOpen(false);
   };
 
@@ -38,10 +37,10 @@ export function SiteNav({
     <>
       <header className={styles.nav} data-nav data-surface="light">
         <a
-          href="#/"
+          href="/"
           onClick={(e) => {
             e.preventDefault();
-            handleNavClick('landing', '#/');
+            handleNavClick('landing');
           }}
           className={styles.brandGroup}
           aria-label="ChaosSQL by Studio Bregalda — Início"
@@ -66,7 +65,7 @@ export function SiteNav({
                 href={item.path}
                 onClick={(e) => {
                   e.preventDefault();
-                  handleNavClick(item.id, item.path);
+                  handleNavClick(item.id);
                 }}
                 className={`${styles.navLink} ${isActive ? styles.navLinkActive : ''}`}
                 aria-current={isActive ? 'page' : undefined}
@@ -130,7 +129,7 @@ export function SiteNav({
                   href={item.path}
                   onClick={(e) => {
                     e.preventDefault();
-                    handleNavClick(item.id, item.path);
+                    handleNavClick(item.id);
                   }}
                   className={`${styles.mobileNavLink} ${isActive ? styles.mobileNavLinkActive : ''}`}
                 >

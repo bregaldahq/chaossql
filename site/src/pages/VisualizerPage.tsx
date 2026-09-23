@@ -1,7 +1,8 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import styles from './VisualizerPage.module.css';
 import { RAW_TRACE_OPS, SHRUNK_TRACE_OPS, TraceOp } from '../lib/wasm-bridge';
 import { CodeBlock } from '../components/docs/CodeBlock';
+import { useSearchParams } from '../lib/router';
 
 interface VisualizerPageProps {
   lang?: 'pt' | 'en';
@@ -9,14 +10,7 @@ interface VisualizerPageProps {
 
 export const VisualizerPage: React.FC<VisualizerPageProps> = ({ lang = 'pt' }) => {
   // Live run links never render the bundled demonstration traces.
-  const [hash, setHash] = useState(() => typeof window !== 'undefined' ? window.location.hash : '');
-  useEffect(() => {
-    const updateHash = () => setHash(window.location.hash);
-    window.addEventListener('hashchange', updateHash);
-    return () => window.removeEventListener('hashchange', updateHash);
-  }, []);
-  const queryStr = hash.includes('?') ? hash.split('?')[1] : '';
-  const queryParams = new URLSearchParams(queryStr);
+  const queryParams = useSearchParams();
   const paramMode = queryParams.get('mode') as 'raw' | 'shrunk' | null;
 
   const [mode, setMode] = useState<'raw' | 'shrunk'>(() => {
@@ -81,8 +75,8 @@ export const VisualizerPage: React.FC<VisualizerPageProps> = ({ lang = 'pt' }) =
     return <div className={styles.pageContainer}><div className={styles.inner}>
       <h1 className={styles.title}>{isPt ? 'Artefatos do CI' : 'CI artifacts'}</h1>
       <p>{isPt ? 'Consulte os artefatos locais do CI para o trace e o reprodutor desta execução. A nuvem armazena apenas metadados.' : 'Use your local CI artifacts for this run’s trace and reproducer. The cloud stores metadata only.'}</p>
-      <a href="#/dashboard">{isPt ? 'Voltar ao dashboard' : 'Back to dashboard'}</a>
-      <p><a href="#/visualizer">{isPt ? 'Abrir demonstração de trace' : 'Open trace demonstration'}</a></p>
+      <a href="/dashboard">{isPt ? 'Voltar ao dashboard' : 'Back to dashboard'}</a>
+      <p><a href="/visualizer">{isPt ? 'Abrir demonstração de trace' : 'Open trace demonstration'}</a></p>
     </div></div>;
   }
 

@@ -107,7 +107,7 @@ func TestDispatcherSendDiscordAlert(t *testing.T) {
 		Seed:           184729,
 		DurationMS:     340,
 		BaselineStatus: "PASS",
-		RunURL:         "https://chaossql.bregalda.com/#/visualizer?scenario=wallet_transfer&seed=184729",
+		RunURL:         "https://chaossql.bregalda.com/visualizer?scenario=wallet_transfer&seed=184729",
 		IsRegression:   true,
 	}
 
@@ -165,7 +165,7 @@ func TestDispatcherSendSlackAlert(t *testing.T) {
 		Seed:           42,
 		DurationMS:     210,
 		BaselineStatus: "PASS",
-		RunURL:         "https://chaossql.bregalda.com/#/dashboard",
+		RunURL:         "https://chaossql.bregalda.com/dashboard",
 		IsRegression:   true,
 	}
 

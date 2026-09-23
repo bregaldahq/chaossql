@@ -1,12 +1,13 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { DashboardPage } from './DashboardPage';
 import { PricingPage } from './PricingPage';
 import { VisualizerPage } from './VisualizerPage';
 import { CloudWaitlistSection } from '../components/ui/CloudWaitlistSection';
+import { navigate } from '../lib/router';
 
-afterEach(() => { cleanup(); vi.unstubAllGlobals(); window.location.hash = ''; });
+afterEach(() => { cleanup(); vi.unstubAllGlobals(); window.history.replaceState(null, '', '/'); });
 
 const run = { id: 'run-real', repo_id: 'repo-1', repo_full_name: 'team/service', scenario_id: 'scenario-1', scenario_name: 'actual_scenario', branch: 'feature', commit_sha: 'abcdef123', pr_number: 8, status: 'failed', anomaly_type: 'P4', is_regression: false, driver: 'postgres', seed: 0, duration_ms: 0, created_at: '2026-09-17T10:00:00Z' };
 
@@ -113,7 +114,7 @@ describe('live dashboard', () => {
   });
 
   it('opens a linked run using authenticated metadata even when outside the recent list', async () => {
-    window.location.hash = '#/dashboard?run=older-run';
+    window.history.replaceState(null, '', '/dashboard?run=older-run');
     const requests: string[] = [];
     vi.stubGlobal('fetch', async (url: string, init: RequestInit) => {
       requests.push(url);
@@ -142,7 +143,7 @@ it.each(['network', 'unacknowledged', 'HTTP'])('waitlist does not fake success o
 });
 
 it('refuses to present a static trace as a linked CI finding', () => {
-  window.location.hash = '#/visualizer?scenario=private-scenario&seed=999';
+  window.history.replaceState(null, '', '/visualizer?scenario=private-scenario&seed=999');
   render(<VisualizerPage lang="en" />);
   expect(screen.getByText(/local CI artifacts/i)).toBeTruthy();
   expect(screen.queryByText('Inspecting CI Finding')).toBeNull();
@@ -152,11 +153,9 @@ it('refuses to present a static trace as a linked CI finding', () => {
 it('reacts to CI links and demo links while the visualizer remains mounted', async () => {
   render(<VisualizerPage lang="en" />);
   expect(screen.getByRole('button', { name: 'Raw Trace (20 ops)' })).toBeTruthy();
-  window.location.hash = '#/visualizer?run_id=real-run';
-  fireEvent(window, new HashChangeEvent('hashchange'));
+  act(() => navigate('/visualizer?run_id=real-run'));
   expect(await screen.findByText(/local CI artifacts/i)).toBeTruthy();
-  window.location.hash = '#/visualizer';
-  fireEvent(window, new HashChangeEvent('hashchange'));
+  act(() => navigate('/visualizer'));
   expect(await screen.findByRole('button', { name: 'Raw Trace (20 ops)' })).toBeTruthy();
 });
 

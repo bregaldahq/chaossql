@@ -25,7 +25,7 @@
   - `ChaosSQL_Cancel()`
   - `ChaosSQL_GetVersion() string`
 
-## 4. In-Browser Playground UI (`site/#/playground`)
+## 4. In-Browser Playground UI (`/playground`)
 - Interactive studio integrated into the vanilla JS single-page portal:
   - **Preset Catalog**: 1-click loading of the 10 canonical scenarios (Banking Lost Update, Inventory Oversell, Hospital Write Skew, Financial Audit Read Skew, Foreign Key Cascade Deadlock, etc.).
   - **Editable Scenario & Config**: Real-time YAML editor with sliders for workers (1–8), iterations (5–50), and micro-jitter (0–50ms).

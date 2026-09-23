@@ -30,7 +30,7 @@ const SCENARIOS: ScenarioData[] = [
       en: 'Two concurrent transactions read balance ($2,000) simultaneously under READ COMMITTED. Both apply valid debits, but T2 overwrites T1, silently dropping $50 from the financial balance.',
     },
     cliCmd: 'chaossql run examples/banking_lost_update/chaos.yaml',
-    playgroundQuery: '#/playground',
+    playgroundQuery: '/playground',
     steps: [
       { worker: 'T1', sql: 'SELECT balance FROM accounts WHERE id = 1  -- reads 2000' },
       { worker: 'T2', sql: 'SELECT balance FROM accounts WHERE id = 1  -- reads 2000' },
@@ -58,7 +58,7 @@ const SCENARIOS: ScenarioData[] = [
       en: 'Two on-call doctors simultaneously request leave under REPEATABLE READ. Both check active count (count = 2, min required >= 1). Both commit absence, leaving 0 doctors on duty.',
     },
     cliCmd: 'chaossql run examples/hospital_write_skew/chaos.yaml',
-    playgroundQuery: '#/playground',
+    playgroundQuery: '/playground',
     steps: [
       { worker: 'T1', sql: 'SELECT COUNT(*) FROM on_call WHERE active = true  -- returns 2' },
       { worker: 'T2', sql: 'SELECT COUNT(*) FROM on_call WHERE active = true  -- returns 2' },
@@ -86,7 +86,7 @@ const SCENARIOS: ScenarioData[] = [
       en: 'Worker 1 locks Record A and requests Record B. Simultaneously, Worker 2 locks B and requests A. Both workers block indefinitely until query timeout or engine abort.',
     },
     cliCmd: 'chaossql run examples/deadlock_cycle/chaos.yaml',
-    playgroundQuery: '#/playground',
+    playgroundQuery: '/playground',
     steps: [
       { worker: 'T1', sql: 'UPDATE accounts SET balance = balance - 10 WHERE id = 1;' },
       { worker: 'T2', sql: 'UPDATE accounts SET balance = balance - 20 WHERE id = 2;' },

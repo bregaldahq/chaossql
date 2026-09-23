@@ -198,7 +198,7 @@ func (s *Store) ingest(ctx context.Context, orgID, key, baseURL string, req *clo
 		} else if run.Status != "passed" {
 			message = fmt.Sprintf("Execution finished with status %s.", run.Status)
 		}
-		response = cloud.RunIngestResponse{Success: true, RunID: run.ID, URL: fmt.Sprintf("%s/#/dashboard?run=%s", baseURL, run.ID), IsRegression: regression, Baseline: comparison, Message: message}
+		response = cloud.RunIngestResponse{Success: true, RunID: run.ID, URL: fmt.Sprintf("%s/dashboard?run=%s", baseURL, run.ID), IsRegression: regression, Baseline: comparison, Message: message}
 		encodedResponse, err := json.Marshal(response)
 		if err != nil {
 			return err

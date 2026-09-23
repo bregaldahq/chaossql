@@ -20,7 +20,7 @@
 
 <p align="center">
   <a href="https://chaossql.bregalda.com">🌐 Official Portal</a> •
-  <a href="https://chaossql.bregalda.com/#/playground">🧪 Interactive WASM Playground</a> •
+  <a href="https://chaossql.bregalda.com/playground">🧪 Interactive WASM Playground</a> •
   <a href="#-quickstart-in-30-seconds">🚀 Quickstart</a> •
   <a href="#-3-flagship-concurrency-demos">🔬 3 Key Demos</a> •
   <a href="#️-chaossql-cloud--concurrency-audit">☁️ Cloud Early Access</a>
@@ -80,9 +80,9 @@ Explore classic race conditions with pre-packaged scenarios, or test them 100% i
 
 | Scenario | Anomaly & Impact | Test in Browser | CLI Command |
 | :--- | :--- | :---: | :--- |
-| **🏦 Banking Transfer** | **Lost Update ($P4$):** Concurrent debits overwrite balance changes under `READ COMMITTED`. | [Launch Playground](https://chaossql.bregalda.com/#/playground) | `chaossql run examples/banking_lost_update/chaos.yaml` |
-| **🏥 Hospital Shift** | **Write Skew ($A5B$):** Two doctors concurrently drop shift, leaving 0 on duty under `REPEATABLE READ`. | [Launch Playground](https://chaossql.bregalda.com/#/playground) | `chaossql run examples/hospital_write_skew/chaos.yaml` |
-| **🔒 Deadlock Cycle** | **Resource Deadlock ($G	ext{-DL}$):** Inverted key lock acquisitions lock worker goroutines permanently. | [Launch Playground](https://chaossql.bregalda.com/#/playground) | `chaossql run examples/deadlock_cycle/chaos.yaml` |
+| **🏦 Banking Transfer** | **Lost Update ($P4$):** Concurrent debits overwrite balance changes under `READ COMMITTED`. | [Launch Playground](https://chaossql.bregalda.com/playground) | `chaossql run examples/banking_lost_update/chaos.yaml` |
+| **🏥 Hospital Shift** | **Write Skew ($A5B$):** Two doctors concurrently drop shift, leaving 0 on duty under `REPEATABLE READ`. | [Launch Playground](https://chaossql.bregalda.com/playground) | `chaossql run examples/hospital_write_skew/chaos.yaml` |
+| **🔒 Deadlock Cycle** | **Resource Deadlock ($G	ext{-DL}$):** Inverted key lock acquisitions lock worker goroutines permanently. | [Launch Playground](https://chaossql.bregalda.com/playground) | `chaossql run examples/deadlock_cycle/chaos.yaml` |
 
 ---
 
@@ -127,7 +127,7 @@ When an invariant fails, the action blocks the pull request, publishes a metadat
 * **Pull Request Comments:** Reports the failing invariant name, structural operation categories, and anomaly classification ($P4$, $A5B$, etc.) without SQL or result values.
 * **Metadata-Only Uploads:** SQL, schemas, parameters, query results, invariant values, schedules, traces, and generated reproductions stay in your runner. The hosted API receives repository/revision identifiers, scenario configuration, aggregate status, anomaly type, invariant name, and numeric reduction metrics. Payloads are limited to 64 KiB and detailed uploads are rejected.
 
-👉 **[Explore Cloud Dashboard](https://chaossql.bregalda.com/#/dashboard)** • **[View Plans & Pricing](https://chaossql.bregalda.com/#/pricing)** • **[Join Early Access](https://chaossql.bregalda.com/#waitlist)**
+👉 **[Explore Cloud Dashboard](https://chaossql.bregalda.com/dashboard)** • **[View Plans & Pricing](https://chaossql.bregalda.com/pricing)** • **[Join Early Access](https://chaossql.bregalda.com/#waitlist)**
 
 ### 2. ChaosSQL Concurrency Audit
 Preparing a major launch, financial ledger, or high-throughput reservation engine? Studio Bregalda provides dedicated **Database Concurrency Audits** ($500 – $2,000):

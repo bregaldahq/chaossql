@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 import { SiteNav } from './components/ui/SiteNav';
 import { SiteFooter } from './components/ui/SiteFooter';
 import { LandingPage } from './pages/LandingPage';
@@ -10,36 +10,22 @@ import { MatrixPage } from './pages/MatrixPage';
 import { VisualizerPage } from './pages/VisualizerPage';
 import { PlaygroundPage } from './pages/PlaygroundPage';
 import { useI18n } from './lib/i18n';
-
-export function routeFromHash(hash: string): string {
-  if (hash.startsWith('#/dashboard')) return 'dashboard';
-  if (hash.startsWith('#/docs')) return 'docs';
-  if (hash.startsWith('#/scenarios')) return 'scenarios';
-  if (hash.startsWith('#/visualizer')) return 'visualizer';
-  if (hash.startsWith('#/matrix')) return 'matrix';
-  if (hash.startsWith('#/playground')) return 'playground';
-  if (hash.startsWith('#/pricing')) return 'pricing';
-  return 'landing';
-}
-
-function parseRoute(): string {
-  if (typeof window === 'undefined') return 'landing';
-  return routeFromHash(window.location.hash || '');
-}
+import { interceptLinkClick, navigate, routeFromPath, ROUTE_PATHS, RouteId, useLocation } from './lib/router';
+import { applyRouteMeta } from './lib/route-meta';
 
 export default function App() {
   const { lang, setLang } = useI18n();
-  const [route, setRoute] = useState<string>(parseRoute);
+  const { pathname } = useLocation();
+  const route = routeFromPath(pathname);
 
   useEffect(() => {
-    const handleHashChange = () => {
-      const nextRoute = parseRoute();
-      setRoute(nextRoute);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    };
+    applyRouteMeta(route, pathname);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [route, pathname]);
 
-    window.addEventListener('hashchange', handleHashChange);
-    return () => window.removeEventListener('hashchange', handleHashChange);
+  useEffect(() => {
+    document.addEventListener('click', interceptLinkClick);
+    return () => document.removeEventListener('click', interceptLinkClick);
   }, []);
 
   return (
@@ -48,10 +34,7 @@ export default function App() {
         currentRoute={route}
         lang={lang}
         onLanguageChange={setLang}
-        onRouteChange={(r) => {
-          setRoute(r);
-          window.scrollTo({ top: 0, behavior: 'smooth' });
-        }}
+        onRouteChange={(r) => navigate(ROUTE_PATHS[r as RouteId])}
       />
 
       <main style={{ flexGrow: 1 }}>

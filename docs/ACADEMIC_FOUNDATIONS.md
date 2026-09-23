@@ -74,7 +74,7 @@ ChaosSQL implements **Causal Delta-Debugging**:
 
 ## 5. Client-Side In-Browser Formal Verification (WASM Architecture)
 
-Traditionally, formal verification of concurrent schedules and anomaly detection in relational databases requires complex backend infrastructure orchestration (PostgreSQL/MySQL daemons in Docker containers, instrumented proxies, and monitoring agents on remote servers). ChaosSQL introduces an innovative theoretical foundation: **deterministic formal verification executed entirely client-side** in a WebAssembly (WASM) environment, interactively accessible at [`chaossql.bregalda.com/#/playground`](https://chaossql.bregalda.com/#/playground).
+Traditionally, formal verification of concurrent schedules and anomaly detection in relational databases requires complex backend infrastructure orchestration (PostgreSQL/MySQL daemons in Docker containers, instrumented proxies, and monitoring agents on remote servers). ChaosSQL introduces an innovative theoretical foundation: **deterministic formal verification executed entirely client-side** in a WebAssembly (WASM) environment, interactively accessible at [`chaossql.bregalda.com/playground`](https://chaossql.bregalda.com/playground).
 
 ### 5.1 Theoretical Rationale for the WASM Web Worker Architecture
 Executing probabilistic concurrency testing algorithms (Burckhardt PCT), dependency cycle classification (Adya Direct Serialization Graph - DSG), and causal fault minimization (Zeller $ddmin$) inside the browser rests on three formal pillars:
@@ -113,7 +113,7 @@ The WebAssembly Playground formalizes the verification of principal isolation mo
 
 ### 5.3 Interactive Playground Access
 The complete implementation of this architecture is available and can be explored interactively at:
-👉 **[https://chaossql.bregalda.com/#/playground](https://chaossql.bregalda.com/#/playground)**
+👉 **[https://chaossql.bregalda.com/playground](https://chaossql.bregalda.com/playground)**
 
 ---
 
