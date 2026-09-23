@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -43,23 +44,39 @@ func TestServerCmd_CreateToken(t *testing.T) {
 	tmpDir := t.TempDir()
 	dbPath := filepath.Join(tmpDir, "test-cloud.db")
 
-	cmd := newRootCmd()
-	outBuf := new(bytes.Buffer)
-	cmd.SetOut(outBuf)
-	cmd.SetErr(outBuf)
-	cmd.SetArgs([]string{"server", "create-token", "--db", dbPath, "--org", "org_enterprise", "--name", "Production CI"})
+	execute := func(args ...string) (string, error) {
+		cmd := newRootCmd()
+		outBuf := new(bytes.Buffer)
+		cmd.SetOut(outBuf)
+		cmd.SetErr(outBuf)
+		cmd.SetArgs(args)
+		err := cmd.Execute()
+		return outBuf.String(), err
+	}
 
-	err := cmd.Execute()
+	// A mistyped organization must fail instead of provisioning a new tenant.
+	if out, err := execute("server", "create-token", "--db", dbPath, "--org", "org_enterprise", "--name", "Production CI"); err == nil {
+		t.Fatalf("expected create-token to reject an unknown organization, got:\n%s", out)
+	}
+
+	out, err := execute("server", "org", "create", "--db", dbPath, "--name", "Enterprise", "--plan", "enterprise")
+	if err != nil {
+		t.Fatalf("expected no error executing org create, got: %v\n%s", err, out)
+	}
+	match := regexp.MustCompile(`Organization: (org_[0-9a-f]+)`).FindStringSubmatch(out)
+	if match == nil {
+		t.Fatalf("expected organization ID in output, got: %s", out)
+	}
+
+	out, err = execute("server", "create-token", "--db", dbPath, "--org", match[1], "--name", "Production CI")
 	if err != nil {
 		t.Fatalf("expected no error executing create-token, got: %v", err)
 	}
-
-	out := outBuf.String()
 	if !strings.Contains(out, "ChaosSQL API Token Created") {
 		t.Errorf("expected output to indicate token creation, got: %s", out)
 	}
-	if !strings.Contains(out, "org_enterprise") {
-		t.Errorf("expected output to contain org_enterprise, got: %s", out)
+	if !strings.Contains(out, match[1]) {
+		t.Errorf("expected output to contain %s, got: %s", match[1], out)
 	}
 	if !strings.Contains(out, "csql_") {
 		t.Errorf("expected output to contain raw token with prefix csql_, got: %s", out)

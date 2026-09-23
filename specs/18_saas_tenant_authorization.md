@@ -31,6 +31,15 @@ Normative for the hosted HTTP control plane. The local CLI and engine remain ind
 6. Webhook deletion MUST include organization ID in the mutation and report a missing owned row as `404`.
 7. Repository names are unique within an organization. Different organizations MAY store the same full name as separate records.
 
+## Organization provisioning
+
+1. Organizations are provisioned by an operator with direct database access (`server org create`). There is no public sign-up endpoint.
+2. Provisioning MUST create the organization and its first `owner` token in one transaction. A failure leaves neither record.
+3. Organization and token identifiers MUST be random; the raw token is printed once and only its hash is stored.
+4. Plans MUST be one of `developer`, `team`, `pro`, or `enterprise`. Unknown plans are rejected on creation and on `server org set-plan`.
+5. Issuing a token (`server create-token`) MUST require an existing organization. An unknown organization ID fails and MUST NOT create a tenant.
+6. Operator listings (`server org list`) report plan, repository count, and token count, and MUST NOT print credentials or token hashes.
+
 ## Router modes
 
 1. `NewRouter` is the hosted router and MUST enforce this matrix on every tenant route.
@@ -40,4 +49,4 @@ Normative for the hosted HTTP control plane. The local CLI and engine remain ind
 
 ## Verification
 
-Tests MUST use at least two organizations and prove absence of cross-tenant reads and writes for runs, repositories, subscriptions, and webhooks. Tests MUST also cover every route without credentials and member attempts to invoke administrative operations.
+Tests MUST use at least two organizations and prove absence of cross-tenant reads and writes for runs, repositories, subscriptions, and webhooks. Tests MUST also cover every route without credentials and member attempts to invoke administrative operations. Provisioning tests MUST prove that two provisioned organizations on one instance cannot read each other's runs, repositories, or subscriptions.
