@@ -80,11 +80,13 @@ fly logs --app chaossql-cloud
 
 ## 4. Domain
 
-Point the public name (default `cloud.chaossql.bregalda.com`) at the app and
-issue a certificate:
+Point the public name at the app and issue a certificate. Use
+`api.chaossql.bregalda.com`: it is the default `cloud-url` of the GitHub Action
+and the CLI, so customers need no extra configuration. The same origin also
+serves the dashboard.
 
 ```bash
-fly certs add cloud.chaossql.bregalda.com --app chaossql-cloud
+fly certs add api.chaossql.bregalda.com --app chaossql-cloud
 ```
 
 Create the DNS records that command prints (a `CNAME` to
@@ -93,7 +95,7 @@ Create the DNS records that command prints (a `CNAME` to
 Then verify:
 
 ```bash
-curl -fsS https://cloud.chaossql.bregalda.com/v1/health
+curl -fsS https://api.chaossql.bregalda.com/v1/health
 ```
 
 ## 5. Onboard an organization
@@ -107,7 +109,7 @@ access runs as root, and the wrapper switches to the service user so SQLite
 never creates root-owned `-wal` or `-shm` files the server cannot open.
 
 The command prints the organization ID and its owner token once. Send the token
-privately. The owner opens `https://cloud.chaossql.bregalda.com/#/dashboard`,
+privately. The owner opens `https://api.chaossql.bregalda.com/#/dashboard`,
 connects with that token, and issues member tokens for CI.
 
 ## 6. Monitoring

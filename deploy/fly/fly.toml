@@ -13,7 +13,7 @@ kill_signal = "SIGTERM"
 kill_timeout = "30s"
 
 [env]
-  PUBLIC_URL = "https://cloud.chaossql.bregalda.com"
+  PUBLIC_URL = "https://api.chaossql.bregalda.com"
   CHAOSSQL_ENFORCE_RETENTION = "true"
 
 # SQLite supports exactly one writer: one machine, one volume.
