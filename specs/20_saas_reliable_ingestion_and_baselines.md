@@ -52,6 +52,16 @@ Normative for hosted run ingestion, baseline regression evaluation, and transact
    - Production dispatchers MUST use the guarded HTTP client by default. The dialer MUST connect to the validated literal IP address instead of resolving the original hostname again.
 6. The outbox record MUST store delivery status (`pending`, `delivered`, `failed`), retry count, error details, and delivery timestamps.
 
+## Plan Retention
+
+1. Retention enforcement MUST be opt-in (`--enforce-retention` or `CHAOSSQL_ENFORCE_RETENTION=true`). Without it, no history is deleted.
+2. When enabled, a pass MUST run at startup and then hourly. The clock MUST be injectable for tests.
+3. For each organization with a finite `RetentionDays`, a pass MUST delete runs created before `now - RetentionDays`, with their findings and `run_ingestions` rows, in one transaction per organization.
+4. A run referenced by any current baseline MUST NOT be deleted, regardless of age.
+5. Only `delivered` or `failed` outbox alerts older than the window are deleted. `pending` alerts MUST be kept.
+6. Repositories, scenarios, webhooks, tokens, and organizations are configuration and MUST NOT be deleted by retention.
+7. A repeated pass with the same clock MUST delete nothing further.
+
 ## Verification
 
 Tests MUST verify:
@@ -63,3 +73,4 @@ Tests MUST verify:
 - The one-time commit-timestamp provenance migration, including preservation of interim corrected rows and restarts.
 - Concurrent repository quota enforcement, member-token authorization, and tenant-scoped saved webhook management.
 - Persistent outbox queueing, worker retry, default SSRF blocking, and connection-time DNS pinning.
+- Plan retention windows per organization, baseline preservation, pending-alert preservation, and idempotent repeated passes.
