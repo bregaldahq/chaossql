@@ -1,0 +1,12 @@
+# Continuous replication of the control-plane database to S3-compatible storage
+# (Cloudflare R2, AWS S3, Tigris, MinIO). Values come from the environment;
+# credentials are read from LITESTREAM_ACCESS_KEY_ID / LITESTREAM_SECRET_ACCESS_KEY.
+dbs:
+  - path: ${DB_PATH}
+    replica:
+      type: s3
+      bucket: ${LITESTREAM_BUCKET}
+      path: ${LITESTREAM_PATH}
+      endpoint: ${LITESTREAM_ENDPOINT}
+      region: auto
+      force-path-style: true

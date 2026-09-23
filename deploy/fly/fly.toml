@@ -1,0 +1,41 @@
+# Fly.io configuration for the managed ChaosSQL Cloud control plane.
+# See docs/managed-deployment.md before the first deploy. Deploy from the
+# repository root so the build context contains the whole checkout:
+#   fly deploy . --config deploy/fly/fly.toml --dockerfile deploy/fly/Dockerfile --ha=false
+#
+# Secrets (never commit them), set with `fly secrets set`:
+#   CHAOSSQL_ADMIN_TOKEN, LITESTREAM_BUCKET, LITESTREAM_ENDPOINT,
+#   LITESTREAM_ACCESS_KEY_ID, LITESTREAM_SECRET_ACCESS_KEY
+
+app = "chaossql-cloud"
+primary_region = "gru"
+kill_signal = "SIGTERM"
+kill_timeout = "30s"
+
+[env]
+  PUBLIC_URL = "https://cloud.chaossql.bregalda.com"
+  CHAOSSQL_ENFORCE_RETENTION = "true"
+
+# SQLite supports exactly one writer: one machine, one volume.
+[[mounts]]
+  source = "chaossql_data"
+  destination = "/data"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  # The outbox dispatcher and retention loop run in-process; keep the machine up.
+  auto_stop_machines = "off"
+  auto_start_machines = false
+  min_machines_running = 1
+
+  [[http_service.checks]]
+    interval = "15s"
+    timeout = "3s"
+    grace_period = "20s"
+    method = "GET"
+    path = "/v1/health"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"
