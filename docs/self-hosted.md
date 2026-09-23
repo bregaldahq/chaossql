@@ -200,7 +200,8 @@ then run your scenario normally:
 ```
 
 The repository's composite GitHub Action accepts `cloud-url` and `cloud-token`
-and emits `run-url` and `is-regression` after successful publication. Pin the
+and emits `cloud-run-id`, `cloud-run-url`, and `is-regression` after successful
+publication. Pin the
 Action to the reviewed revision you deploy. Retain local CLI artifacts separately;
 the hosted summary never includes their SQL or reproduction code.
 
