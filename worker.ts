@@ -356,7 +356,13 @@ export default {
       return new Response('Method Not Allowed', { status: 405, headers: corsHeaders(request) });
     }
 
-    // Default: Serve static assets via Cloudflare Assets binding
-    return env.ASSETS.fetch(request);
+    // Default: Serve static assets via Cloudflare Assets binding. A thrown
+    // asset lookup must never surface as a 5xx: crawlers treat a failing
+    // robots.txt as "do not crawl" and drop the whole site from search.
+    try {
+      return await env.ASSETS.fetch(request);
+    } catch {
+      return new Response('Not Found', { status: 404, headers: { 'Content-Type': 'text/plain' } });
+    }
   },
 };

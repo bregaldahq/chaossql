@@ -280,7 +280,11 @@ var worker_default = {
       }
       return new Response("Method Not Allowed", { status: 405, headers: corsHeaders(request) });
     }
-    return env.ASSETS.fetch(request);
+    try {
+      return await env.ASSETS.fetch(request);
+    } catch {
+      return new Response("Not Found", { status: 404, headers: { "Content-Type": "text/plain" } });
+    }
   }
 };
 export {
