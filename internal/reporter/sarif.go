@@ -8,6 +8,7 @@ import (
 
 	"github.com/bregaldahq/chaossql/internal/analyzer"
 	"github.com/bregaldahq/chaossql/internal/domain"
+	"github.com/bregaldahq/chaossql/internal/version"
 )
 
 // OASIS SARIF 2.1.0 Constants
@@ -15,7 +16,7 @@ const (
 	SarifSchemaURI = "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json"
 	SarifVersion   = "2.1.0"
 	ToolName       = "ChaosSQL"
-	ToolVersion    = "1.2.0"
+	ToolVersion    = version.Version
 	ToolInfoURI    = "https://chaossql.bregalda.com"
 )
 

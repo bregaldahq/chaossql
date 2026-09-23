@@ -14,6 +14,7 @@ import (
 
 	"github.com/bregaldahq/chaossql/internal/server"
 	"github.com/bregaldahq/chaossql/internal/serveradmin"
+	"github.com/bregaldahq/chaossql/internal/version"
 	"github.com/spf13/cobra"
 	_ "modernc.org/sqlite"
 )
@@ -28,8 +29,9 @@ var (
 
 func main() {
 	rootCmd := &cobra.Command{
-		Use:   "chaossql-server",
-		Short: "ChaosSQL SaaS Control Plane & Regression Detection API",
+		Use:     "chaossql-server",
+		Short:   "ChaosSQL SaaS Control Plane & Regression Detection API",
+		Version: version.Version,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runServer()
 		},

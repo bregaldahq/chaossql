@@ -456,7 +456,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: bregaldahq/chaossql@v1.5.0
+      - uses: bregaldahq/chaossql@v1.6.0
         with:
           spec-path: 'chaos.yaml'
           cloud-url: \${{ vars.CHAOSSQL_CLOUD_URL }}
@@ -1058,7 +1058,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: bregaldahq/chaossql@v1.5.0
+      - uses: bregaldahq/chaossql@v1.6.0
         with:
           spec-path: 'chaos.yaml'
           cloud-url: \${{ vars.CHAOSSQL_CLOUD_URL }}

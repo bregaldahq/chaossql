@@ -109,7 +109,7 @@ access runs as root, and the wrapper switches to the service user so SQLite
 never creates root-owned `-wal` or `-shm` files the server cannot open.
 
 The command prints the organization ID and its owner token once. Send the token
-privately. The owner opens `https://api.chaossql.bregalda.com/#/dashboard`,
+privately. The owner opens `https://api.chaossql.bregalda.com/dashboard`,
 connects with that token, and issues member tokens for CI.
 
 ## 6. Monitoring

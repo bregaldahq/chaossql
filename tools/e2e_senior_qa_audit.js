@@ -65,7 +65,7 @@ async function runE2EWasmAudit() {
 
   const version = sandbox.globalThis.ChaosSQL_GetVersion();
   console.log("  * ChaosSQL WASM Engine Version Export:", version);
-  if (!version.includes("1.4.0") && !version.includes("1.3.0")) throw new Error("Bad version: " + version);
+  if (!/^\d+\.\d+\.\d+-wasm$/.test(version)) throw new Error("Bad version: " + version);
 
   console.log("\n[PHASE 3] Loading Presets from site/app.js & Testing Fuzzer Matrix...");
   const appJsCode = fs.readFileSync(path.resolve(__dirname, "../site/app.js"), "utf8");

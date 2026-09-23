@@ -370,7 +370,7 @@ export default {
                     { name: 'Dashboard', value: '[Visualizar Trace & Repro ➔](https://chaossql.bregalda.com/dashboard)', inline: false },
                   ],
                   footer: {
-                    text: 'ChaosSQL Concurrency Intelligence Engine • v1.5.0',
+                    text: 'ChaosSQL Concurrency Intelligence Engine • v1.6.0',
                     icon_url: 'https://chaossql.bregalda.com/brand/icone_bregalda.svg',
                   },
                   timestamp: new Date().toISOString(),
