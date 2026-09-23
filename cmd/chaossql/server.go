@@ -2,9 +2,7 @@ package main
 
 import (
 	"context"
-	"crypto/rand"
 	"database/sql"
-	"encoding/hex"
 	"fmt"
 	"log"
 	"net/http"
@@ -15,6 +13,7 @@ import (
 	"time"
 
 	"github.com/bregaldahq/chaossql/internal/server"
+	"github.com/bregaldahq/chaossql/internal/serveradmin"
 	"github.com/spf13/cobra"
 	_ "modernc.org/sqlite"
 )
@@ -53,54 +52,7 @@ real-time multi-channel alerts (Discord, Slack, Generic Webhooks), and serves th
 		},
 	}
 
-	var orgFlag string
-	var nameFlag string
-	tokenCmd := &cobra.Command{
-		Use:   "create-token",
-		Short: "Generate a new CI API token for an organization",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			db, err := sql.Open("sqlite", serverDBPathFlag)
-			if err != nil {
-				return fmt.Errorf("failed to open database: %w", err)
-			}
-			defer db.Close()
-
-			store := server.NewStore(db)
-			if err := store.AutoMigrate(); err != nil {
-				return fmt.Errorf("failed to migrate database: %w", err)
-			}
-
-			if orgFlag == "" {
-				orgFlag = "org_default"
-			}
-			if err := store.EnsureOrganization(orgFlag, "Default Org", "pro"); err != nil {
-				return fmt.Errorf("failed to configure organization: %w", err)
-			}
-
-			tokenBytes := make([]byte, 24)
-			if _, err := rand.Read(tokenBytes); err != nil {
-				return fmt.Errorf("failed to generate token: %w", err)
-			}
-			rawToken := "csql_" + hex.EncodeToString(tokenBytes)
-			tokenID := fmt.Sprintf("tok_%d", time.Now().UnixNano())
-
-			if err := store.CreateAPIToken(tokenID, orgFlag, rawToken, nameFlag); err != nil {
-				return fmt.Errorf("failed to store token: %w", err)
-			}
-
-			out := cmd.OutOrStdout()
-			fmt.Fprintln(out, "=== ChaosSQL API Token Created ===")
-			fmt.Fprintf(out, "Organization: %s\n", orgFlag)
-			fmt.Fprintf(out, "Token Name:   %s\n", nameFlag)
-			fmt.Fprintf(out, "API Token:    %s\n", rawToken)
-			fmt.Fprintln(out, "===================================")
-			return nil
-		},
-	}
-	tokenCmd.Flags().StringVar(&orgFlag, "org", "org_default", "Organization ID")
-	tokenCmd.Flags().StringVar(&nameFlag, "name", "CI Token", "Token descriptive name")
-
-	serverCmd.AddCommand(startCmd, tokenCmd)
+	serverCmd.AddCommand(startCmd, serveradmin.NewCreateTokenCommand(&serverDBPathFlag), serveradmin.NewOrgCommand(&serverDBPathFlag))
 	return serverCmd
 }
 

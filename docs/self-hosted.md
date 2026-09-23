@@ -151,6 +151,32 @@ An operator with direct database access can also create a member token:
 ```
 
 That command prints the newly issued token once; do not run it in a public CI log.
+It only issues tokens for organizations that already exist; a mistyped `--org`
+fails instead of creating a new tenant. Use `--role=admin` or `--role=owner` for
+administrative tokens.
+
+### Multiple organizations
+
+One installation can host several isolated organizations (tenants). Each
+organization has its own repositories, runs, baselines, webhooks, tokens, and
+plan limits. The bootstrap owner token always belongs to `org_default`.
+
+```bash
+./bin/chaossql server org create --db=/var/data/chaossql.db \
+  --name='Acme Payments' --plan=team
+./bin/chaossql server org list --db=/var/data/chaossql.db
+./bin/chaossql server org set-plan --db=/var/data/chaossql.db <org-id> pro
+```
+
+`org create` prints the new organization ID and its initial owner token once.
+Deliver that token to the organization privately; the owner can then issue member
+tokens from the dashboard. Plans are `developer`, `team`, `pro`, and
+`enterprise`. `org list` shows plan, repository count, and token count without
+credentials. The `chaossql-server` entrypoint provides the same `org` and
+`create-token` commands.
+
+With Docker Compose, run them inside the server container, where `DB_PATH` is
+already set: `docker compose exec chaossql-server chaossql-server org list`.
 Configure CI with `CHAOSSQL_CLOUD_URL` and `CHAOSSQL_CLOUD_TOKEN` (the member token),
 then run your scenario normally:
 
