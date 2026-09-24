@@ -8,14 +8,20 @@
 
 [![Documentation Portal](https://img.shields.io/badge/Docs-chaossql.bregalda.com-4B2E83?style=for-the-badge&logo=cloudflare&logoColor=white)](https://chaossql.bregalda.com)
 [![Release Version](https://img.shields.io/badge/Release-v1.6.0-F5C400?style=for-the-badge&logo=github&labelColor=2A2140)](https://github.com/bregaldahq/chaossql/releases/tag/v1.6.0)
-[![Go Version](https://img.shields.io/badge/Go-1.22+-00ADD8?style=for-the-badge&logo=go&logoColor=white)](https://golang.org)
+[![Go Version](https://img.shields.io/badge/Go-1.25+-00ADD8?style=for-the-badge&logo=go&logoColor=white)](https://go.dev)
+[![Go Reference](https://img.shields.io/badge/Go_Reference-pkg.go.dev-00ADD8?style=for-the-badge&logo=go&logoColor=white)](https://pkg.go.dev/github.com/bregaldahq/chaossql)
 [![Zero CGO](https://img.shields.io/badge/CGO-Disabled_(Pure_Go)-22C55E?style=for-the-badge)](https://modernc.org/sqlite)
-[![CI Pipeline](https://img.shields.io/badge/CI-Passing-22C55E?style=for-the-badge&logo=githubactions&logoColor=white)](https://github.com/bregaldahq/chaossql/actions)
+[![CI Pipeline](https://img.shields.io/github/actions/workflow/status/bregaldahq/chaossql/ci.yml?branch=main&style=for-the-badge&logo=githubactions&logoColor=white&label=CI)](https://github.com/bregaldahq/chaossql/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](LICENSE)
 
 <p align="center">
   <b>Deterministic Concurrency & Invariant Testing for PostgreSQL, MySQL, and SQLite.</b><br />
   Stop silent data corruption, write skew, and lost updates in CI/CD before they reach production.
+</p>
+
+<p align="center">
+  ChaosSQL is an open-source Go CLI and library that fuzzes concurrent SQL transactions with seed-reproducible schedules,
+  classifies isolation anomalies with Adya's dependency graphs, and shrinks every failure to a minimal reproducible test.
 </p>
 
 <p align="center">
@@ -54,7 +60,7 @@ Minimal Reproduction:       4 operations synthesized in repro_test.go (< 200ms)
 Install the standalone CLI binary with zero CGO dependencies:
 
 ```bash
-# Install CLI via Go (Go 1.22+)
+# Install CLI via Go (Go 1.25+)
 go install github.com/bregaldahq/chaossql/cmd/chaossql@latest
 
 # Run the flagship banking lost-update scenario
@@ -82,7 +88,7 @@ Explore classic race conditions with pre-packaged scenarios, or test them 100% i
 | :--- | :--- | :---: | :--- |
 | **🏦 Banking Transfer** | **Lost Update ($P4$):** Concurrent debits overwrite balance changes under `READ COMMITTED`. | [Launch Playground](https://chaossql.bregalda.com/playground) | `chaossql run examples/banking_lost_update/chaos.yaml` |
 | **🏥 Hospital Shift** | **Write Skew ($A5B$):** Two doctors concurrently drop shift, leaving 0 on duty under `REPEATABLE READ`. | [Launch Playground](https://chaossql.bregalda.com/playground) | `chaossql run examples/hospital_write_skew/chaos.yaml` |
-| **🔒 Deadlock Cycle** | **Resource Deadlock ($G	ext{-DL}$):** Inverted key lock acquisitions lock worker goroutines permanently. | [Launch Playground](https://chaossql.bregalda.com/playground) | `chaossql run examples/deadlock_cycle/chaos.yaml` |
+| **🔒 Deadlock Cycle** | **Resource Deadlock ($G\text{-DL}$):** Inverted key lock acquisitions lock worker goroutines permanently. | [Launch Playground](https://chaossql.bregalda.com/playground) | `chaossql run examples/deadlock_cycle/chaos.yaml` |
 
 ---
 
