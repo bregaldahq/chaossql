@@ -8,6 +8,9 @@ on:
 
 permissions:
   contents: read
+  # Lets codecov-action authenticate with a GitHub OIDC token instead of a
+  # stored CODECOV_TOKEN secret.
+  id-token: write
 
 jobs:
   test:
@@ -69,7 +72,15 @@ jobs:
         python -m pip install -e './sdks/python[test]'
 
     - name: Run Unified Quality Gate
-      run: make verify
+      run: make verify COVERPROFILE=coverage.out
+
+    # Fork PRs cannot mint an OIDC token, so an upload failure must not fail CI.
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v5
+      with:
+        files: ./coverage.out
+        use_oidc: true
+        fail_ci_if_error: false
 
     - name: Run Interactive Demo Battery
       run: make demo
