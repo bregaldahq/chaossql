@@ -1,0 +1,23 @@
+# Codecov configuration: https://docs.codecov.com/docs/codecov-yaml
+coverage:
+  status:
+    # Report coverage on PRs without blocking merges; `make verify` is the gate.
+    project:
+      default:
+        informational: true
+    patch:
+      default:
+        informational: true
+
+ignore:
+  # The WebAssembly entry point only builds for GOOS=js and is exercised by
+  # the headless worker stress harness, not by `go test`.
+  - "cmd/chaossql-wasm"
+  - "examples"
+  - "sdks"
+  - "site"
+  - "tools"
+
+comment:
+  layout: "condensed_header, condensed_files, condensed_footer"
+  require_changes: true

@@ -31,8 +31,12 @@ check-harness:
 bootstrap:
 	@$(GO) mod tidy
 
+# Set COVERPROFILE=coverage.out to also write a coverage profile (used by CI
+# for the Codecov upload).
+COVERPROFILE ?=
+
 test:
-	@$(GO) test -v -race ./internal/... ./cmd/... ./pkg/...
+	@$(GO) test -v -race $(if $(COVERPROFILE),-covermode=atomic -coverprofile=$(COVERPROFILE)) ./internal/... ./cmd/... ./pkg/...
 
 lint:
 	@$(GO) vet ./...

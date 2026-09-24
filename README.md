@@ -10,6 +10,7 @@
 [![Release Version](https://img.shields.io/badge/Release-v1.6.0-F5C400?style=for-the-badge&logo=github&labelColor=2A2140)](https://github.com/bregaldahq/chaossql/releases/tag/v1.6.0)
 [![Go Version](https://img.shields.io/badge/Go-1.22+-00ADD8?style=for-the-badge&logo=go&logoColor=white)](https://golang.org)
 [![Zero CGO](https://img.shields.io/badge/CGO-Disabled_(Pure_Go)-22C55E?style=for-the-badge)](https://modernc.org/sqlite)
+[![Coverage](https://img.shields.io/codecov/c/github/bregaldahq/chaossql?style=for-the-badge&logo=codecov&logoColor=white)](https://app.codecov.io/gh/bregaldahq/chaossql)
 [![CI Pipeline](https://img.shields.io/badge/CI-Passing-22C55E?style=for-the-badge&logo=githubactions&logoColor=white)](https://github.com/bregaldahq/chaossql/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](LICENSE)
 
