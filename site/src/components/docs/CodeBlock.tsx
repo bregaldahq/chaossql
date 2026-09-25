@@ -6,9 +6,11 @@ export interface CodeBlockProps {
   code: string;
   language?: string;
   filename?: string;
+  lang?: 'pt' | 'en';
 }
 
-export function CodeBlock({ code, language = 'bash', filename }: CodeBlockProps) {
+export function CodeBlock({ code, language = 'bash', filename, lang = 'en' }: CodeBlockProps) {
+  const pt = lang === 'pt';
   const [copied, setCopied] = useState(false);
 
   const handleCopy = () => {
@@ -25,15 +27,15 @@ export function CodeBlock({ code, language = 'bash', filename }: CodeBlockProps)
           type="button"
           className={styles.copyBtn}
           onClick={handleCopy}
-          aria-label="Copiar código"
+          aria-label={pt ? 'Copiar código' : 'Copy code'}
         >
           {copied ? (
             <>
-              <Check size={12} /> Copiado
+              <Check size={12} /> {pt ? 'Copiado' : 'Copied'}
             </>
           ) : (
             <>
-              <Copy size={12} /> Copiar
+              <Copy size={12} /> {pt ? 'Copiar' : 'Copy'}
             </>
           )}
         </button>

@@ -23,6 +23,7 @@ export interface ProjectCycleProps {
   technologies: readonly string[];
   evidence: readonly EvidenceItem[];
   artifact: ReactNode;
+  lang?: 'pt' | 'en';
 }
 
 export function ProjectCycle({
@@ -36,6 +37,7 @@ export function ProjectCycle({
   technologies,
   evidence,
   artifact,
+  lang = 'en',
 }: ProjectCycleProps) {
   return (
     <article
@@ -100,7 +102,7 @@ export function ProjectCycle({
 
       {/* Tags de Tecnologias */}
       <div className={styles.chapterFoot}>
-        <ul aria-label={`${name} tecnologias`} className={styles.techList}>
+        <ul aria-label={lang === 'pt' ? `Tecnologias do ${name}` : `${name} technologies`} className={styles.techList}>
           {technologies.map((tech) => (
             <li key={tech}>{tech}</li>
           ))}

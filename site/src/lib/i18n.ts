@@ -4,47 +4,62 @@ export type Language = 'pt' | 'en';
 
 const STORAGE_KEY = 'chaossql_lang';
 
+// English is the canonical language (global audience). Portuguese is used when
+// the visitor chose it before, or when the browser prefers Portuguese.
+export const DEFAULT_LANGUAGE: Language = 'en';
+
+function isLanguage(value: unknown): value is Language {
+  return value === 'pt' || value === 'en';
+}
+
+function browserLanguage(): Language {
+  if (typeof navigator === 'undefined') return DEFAULT_LANGUAGE;
+  const preferred = navigator.languages?.length ? navigator.languages : [navigator.language];
+  return preferred.some((l) => typeof l === 'string' && l.toLowerCase().startsWith('pt')) ? 'pt' : DEFAULT_LANGUAGE;
+}
+
 export function getStoredLanguage(): Language {
-  if (typeof window === 'undefined') return 'pt';
+  if (typeof window === 'undefined') return DEFAULT_LANGUAGE;
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved === 'pt' || saved === 'en') return saved;
+    if (isLanguage(saved)) return saved;
   } catch (_) {
     // ignore
   }
-  return 'pt';
+  return browserLanguage();
 }
 
 export function setStoredLanguage(lang: Language): void {
   if (typeof window === 'undefined') return;
   try {
     localStorage.setItem(STORAGE_KEY, lang);
-    window.dispatchEvent(new CustomEvent('languagechange', { detail: lang }));
   } catch (_) {
     // ignore
   }
+  window.dispatchEvent(new CustomEvent('languagechange', { detail: lang }));
 }
 
 export function useI18n() {
   const [lang, setLangState] = useState<Language>(getStoredLanguage);
 
   useEffect(() => {
+    document.documentElement.lang = lang === 'pt' ? 'pt-BR' : 'en';
+  }, [lang]);
+
+  useEffect(() => {
     const handleLangChange = (e: Event) => {
-      const customEvent = e as CustomEvent<Language>;
-      if (customEvent.detail && (customEvent.detail === 'pt' || customEvent.detail === 'en')) {
-        setLangState(customEvent.detail);
-      }
+      const detail = (e as CustomEvent<Language>).detail;
+      if (isLanguage(detail)) setLangState(detail);
+    };
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === STORAGE_KEY && isLanguage(e.newValue)) setLangState(e.newValue);
     };
 
     window.addEventListener('languagechange', handleLangChange);
-    window.addEventListener('storage', (e) => {
-      if (e.key === STORAGE_KEY && (e.newValue === 'pt' || e.newValue === 'en')) {
-        setLangState(e.newValue as Language);
-      }
-    });
-
+    window.addEventListener('storage', handleStorage);
     return () => {
       window.removeEventListener('languagechange', handleLangChange);
+      window.removeEventListener('storage', handleStorage);
     };
   }, []);
 

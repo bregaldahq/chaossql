@@ -14,7 +14,7 @@ export function DocsSidebar({
   chapters,
   activeChapterId,
   onSelectChapter,
-  lang = 'pt',
+  lang = 'en',
 }: DocsSidebarProps) {
   const [query, setQuery] = useState('');
 
@@ -36,7 +36,7 @@ export function DocsSidebar({
   });
 
   return (
-    <aside className={styles.sidebar} aria-label="Navegação da documentação">
+    <aside className={styles.sidebar} aria-label={lang === 'pt' ? 'Navegação da documentação' : 'Documentation navigation'}>
       <div className={styles.searchBox}>
         <input
           type="text"

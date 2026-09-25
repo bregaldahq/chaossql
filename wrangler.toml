@@ -15,6 +15,7 @@ not_found_handling = "single-page-application"
 # Section URLs must reach the worker so it can inject per-route <title>,
 # description and canonical into the app shell (see ROUTE_META in worker.ts).
 run_worker_first = [
+  "/",
   "/dashboard", "/dashboard/",
   "/docs", "/docs/",
   "/scenarios", "/scenarios/",
@@ -23,6 +24,19 @@ run_worker_first = [
   "/playground", "/playground/",
   "/pricing", "/pricing/",
 ]
+
+# Cookieless site events posted to /api/event (see site/src/lib/analytics.ts).
+# Query them with the Analytics Engine SQL API: SELECT blob1 AS event, blob2 AS
+# label, SUM(_sample_interval) AS n FROM chaossql_site_events GROUP BY event, label
+[[analytics_engine_datasets]]
+binding = "SITE_EVENTS"
+dataset = "chaossql_site_events"
+
+# Cloudflare Web Analytics (cookieless page views). The site token is public by
+# design (it ships in the page HTML); fill it in from Cloudflare dashboard >
+# Analytics & Logs > Web Analytics > chaossql.bregalda.com. Empty = no beacon.
+[vars]
+CF_WEB_ANALYTICS_TOKEN = ""
 
 # DISCORD_WEBHOOK_URL is intentionally NOT declared here.
 # [vars] values are stored in plaintext and are visible in the Cloudflare

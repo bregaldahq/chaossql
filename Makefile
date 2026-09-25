@@ -107,7 +107,7 @@ test-frontend:
 test-sdks: test-python test-typescript
 
 verify: check-harness lint test test-sdks test-frontend stress-wasm
-	@node --test tools/test_waitlist.mjs tools/test_english_purity.test.cjs
+	@node --test tools/test_waitlist.mjs tools/test_site_events.mjs tools/test_english_purity.test.cjs
 	@node tools/test_english_purity.js && node tools/test_wasm_worker.js && node tools/test_playground_ui.js && node tools/test_wasm_bench.js
 	@echo ""
 	@echo "✔ Verification gate completed successfully!"

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import styles from './PlaygroundPage.module.css';
+import { Activity, Settings } from 'lucide-react';
 import {
   PLAYGROUND_PRESETS,
   getWasmBridge,
@@ -15,7 +16,7 @@ interface PlaygroundPageProps {
   lang?: 'pt' | 'en';
 }
 
-export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({ lang = 'pt' }) => {
+export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({ lang = 'en' }) => {
   const isPt = lang === 'pt';
 
   const [selectedPresetId, setSelectedPresetId] = useState<string>('hospital');
@@ -262,7 +263,7 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({ lang = 'pt' }) =
           <div className={styles.playgroundPanel}>
             <div className={styles.panelHeader}>
               <div className={styles.panelTitleGroup}>
-                <span className={styles.panelIcon}>⚙</span>
+                <span className={styles.panelIcon} aria-hidden="true"><Settings size={16} /></span>
                 <h3 className={styles.panelTitle}>
                   {isPt ? 'Configuração & Cenário' : 'Configuration & Scenario'}
                 </h3>
@@ -442,7 +443,7 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({ lang = 'pt' }) =
           <div className={styles.playgroundPanel}>
             <div className={styles.panelHeader}>
               <div className={styles.panelTitleGroup}>
-                <span className={styles.panelIcon}>📊</span>
+                <span className={styles.panelIcon} aria-hidden="true"><Activity size={16} /></span>
                 <h3 className={styles.panelTitle}>
                   {isPt ? 'Observabilidade em Tempo Real' : 'Real-Time Observability'}
                 </h3>

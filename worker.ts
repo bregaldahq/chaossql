@@ -4,6 +4,11 @@ interface Env {
   };
   DISCORD_WEBHOOK_URL?: string;
   WAITLIST_WEBHOOK_URL?: string;
+  // Workers Analytics Engine dataset for cookieless site events (/api/event).
+  SITE_EVENTS?: { writeDataPoint: (point: { blobs?: string[]; doubles?: number[]; indexes?: string[] }) => void };
+  // Public Cloudflare Web Analytics site token; the beacon is injected into HTML
+  // pages only when it is set.
+  CF_WEB_ANALYTICS_TOKEN?: string;
 }
 
 interface WaitlistPayload {
@@ -39,6 +44,7 @@ const ALLOWED_ORIGINS = new Set([
 const RATE_LIMITS = {
   waitlist: { max: 5, windowMs: 60_000 },
   webhookTest: { max: 10, windowMs: 60_000 },
+  siteEvent: { max: 60, windowMs: 60_000 },
 };
 
 // Best-effort throttle. Workers isolates are per-colo and short lived, so this
@@ -148,48 +154,122 @@ function parseWebhookTarget(raw: unknown): { url: string } | { error: string } {
 const SITE_ORIGIN = 'https://chaossql.bregalda.com';
 const ROUTE_META: Record<string, { title: string; description: string; indexable: boolean }> = {
   '/docs': {
-    title: "Documentação — ChaosSQL SQL Concurrency Fuzzer",
+    title: "Documentation | ChaosSQL",
     description:
-      "Guia do ChaosSQL: instalação, especificação chaos.yaml, invariantes, níveis de isolamento, classificação de anomalias de Adya e minimização por delta-debugging.",
+      "ChaosSQL guide: installation, the chaos.yaml spec, SQL invariants, isolation levels, Adya anomaly classification and delta-debugging minimization.",
     indexable: true,
   },
   '/scenarios': {
-    title: "Cenários de Anomalias de Concorrência — ChaosSQL",
+    title: "SQL Concurrency Anomaly Scenarios | ChaosSQL",
     description:
-      "Cenários canônicos de anomalias de concorrência SQL: lost update, write skew, G2, deadlock e mais, com invariantes e reprodução determinística.",
+      "Canonical SQL concurrency anomalies (lost update, write skew, G2, deadlock and more) with invariants and deterministic, seed-based reproduction.",
     indexable: true,
   },
   '/visualizer': {
-    title: "Trace Visualizer — ChaosSQL",
+    title: "Trace Visualizer | ChaosSQL",
     description:
-      "Visualize interleavings de transações concorrentes, timings por worker e o trace minimizado por delta-debugging de uma anomalia SQL.",
+      "Inspect interleaved concurrent transactions, per-worker timings and the delta-debugged minimal trace behind a SQL anomaly.",
     indexable: true,
   },
   '/matrix': {
-    title: "Matriz Hermitage de Níveis de Isolamento — ChaosSQL",
+    title: "Hermitage Isolation Level Matrix | ChaosSQL",
     description:
-      "Matriz de anomalias por nível de isolamento em PostgreSQL, MySQL e SQLite, inspirada no projeto Hermitage.",
+      "Which concurrency anomalies each isolation level allows in PostgreSQL, MySQL and SQLite, inspired by the Hermitage project.",
     indexable: true,
   },
   '/playground': {
-    title: "Playground WASM — Teste Concorrência SQL no Navegador | ChaosSQL",
+    title: "WASM Playground: Test SQL Concurrency in Your Browser | ChaosSQL",
     description:
-      "Execute o fuzzer de concorrência ChaosSQL direto no navegador via WebAssembly e reproduza lost update, write skew e deadlocks sem instalar nada.",
+      "Run the ChaosSQL concurrency fuzzer in your browser with WebAssembly and reproduce lost updates, write skew and deadlocks without installing anything.",
     indexable: true,
   },
   '/pricing': {
-    title: "Planos e Preços — ChaosSQL Cloud",
+    title: "Pricing | ChaosSQL Cloud and Concurrency Audits",
     description:
-      "Planos do ChaosSQL Cloud e auditorias de concorrência de banco de dados pelo Studio Bregalda.",
+      "ChaosSQL Cloud plans for CI concurrency regression testing, plus one-week database concurrency audits by Studio Bregalda.",
     indexable: true,
   },
   '/dashboard': {
-    title: "Cloud Dashboard — ChaosSQL",
+    title: "Cloud Dashboard | ChaosSQL",
     description:
-      "Painel do ChaosSQL Cloud para acompanhar execuções de CI, regressões de concorrência e alertas.",
+      "ChaosSQL Cloud dashboard for CI runs, concurrency regressions and alerts.",
     indexable: false,
   },
 };
+
+// Keep in sync with SITE_EVENTS in site/src/lib/analytics.ts.
+const SITE_EVENTS = new Set([
+  'cta_click',
+  'install_copy',
+  'command_copy',
+  'scenario_view',
+  'lead_submit',
+  'plan_select',
+  'pricing_toggle',
+  'outbound_click',
+  'lang_switch',
+]);
+const EVENT_LABEL = /^[a-z0-9_:.-]{0,64}$/;
+const EVENT_PATH = /^\/[\w\-/.]{0,127}$/;
+const EVENT_REF = /^[a-z0-9.-]{0,64}$/;
+const MAX_EVENT_BYTES = 1024;
+
+/**
+ * Records one cookieless site event. Only allowlisted, shape-checked fields are
+ * stored: no IP, no user agent, no identifiers. Always answers 204 for
+ * well-formed requests so the client never retries or surfaces errors.
+ */
+async function handleSiteEvent(request: Request, env: Env): Promise<Response> {
+  if (!isAllowedOrigin(request)) {
+    return jsonResponse(request, { error: 'Origin not allowed' }, 403);
+  }
+  const raw = await request.text();
+  if (raw.length > MAX_EVENT_BYTES) {
+    return jsonResponse(request, { error: 'Payload too large' }, 413);
+  }
+  let data: Record<string, unknown>;
+  try {
+    data = JSON.parse(raw);
+  } catch {
+    return jsonResponse(request, { error: 'Invalid JSON body' }, 400);
+  }
+  const event = typeof data.event === 'string' ? data.event : '';
+  const label = typeof data.label === 'string' ? data.label : '';
+  const path = typeof data.path === 'string' ? data.path : '/';
+  const ref = typeof data.ref === 'string' ? data.ref.toLowerCase() : '';
+  const lang = data.lang === 'pt' ? 'pt' : 'en';
+  if (!SITE_EVENTS.has(event) || !EVENT_LABEL.test(label) || !EVENT_PATH.test(path) || !EVENT_REF.test(ref)) {
+    return jsonResponse(request, { error: 'Invalid event' }, 400);
+  }
+  if (isRateLimited(clientKey(request, 'site-event'), RATE_LIMITS.siteEvent)) {
+    return new Response(null, { status: 204, headers: corsHeaders(request) });
+  }
+  const country = (request as Request & { cf?: { country?: string } }).cf?.country ?? '';
+  try {
+    env.SITE_EVENTS?.writeDataPoint({
+      indexes: [event],
+      blobs: [event, label, path, lang, ref, country],
+      doubles: [1],
+    });
+  } catch {
+    console.error('Failed to write site event');
+  }
+  return new Response(null, { status: 204, headers: corsHeaders(request) });
+}
+
+const CF_BEACON_TOKEN = /^[a-f0-9]{32}$/;
+
+// Appends the Cloudflare Web Analytics beacon (cookieless page views) to an HTML
+// response. A missing or malformed token leaves the page untouched.
+function withWebAnalytics(response: Response, env: Env): Response {
+  const token = env.CF_WEB_ANALYTICS_TOKEN?.trim();
+  const isHtml = (response.headers.get('Content-Type') || '').includes('text/html');
+  if (!token || !CF_BEACON_TOKEN.test(token) || !isHtml) return response;
+  const beacon = `<script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='${JSON.stringify({ token, spa: true })}'></script>`;
+  return new HTMLRewriter()
+    .on('body', { element: (el) => { el.append(beacon, { html: true }); } })
+    .transform(response);
+}
 
 async function serveAppShell(request: Request, env: Env, pathname: string): Promise<Response> {
   const meta = ROUTE_META[pathname];
@@ -207,9 +287,19 @@ async function serveAppShell(request: Request, env: Env, pathname: string): Prom
     .transform(shell);
 }
 
+async function serveLanding(request: Request, env: Env): Promise<Response> {
+  return withWebAnalytics(await env.ASSETS.fetch(request), env);
+}
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
+
+    if (url.pathname === '/api/event') {
+      if (request.method === 'OPTIONS') return preflight(request);
+      if (request.method === 'POST') return handleSiteEvent(request, env);
+      return new Response('Method Not Allowed', { status: 405, headers: corsHeaders(request) });
+    }
 
     if (url.pathname === '/api/waitlist') {
       if (request.method === 'OPTIONS') return preflight(request);
@@ -427,9 +517,16 @@ export default {
       if (trimmed !== url.pathname && ROUTE_META[trimmed]) {
         return Response.redirect(`${url.origin}${trimmed}${url.search}`, 301);
       }
+      if (url.pathname === '/') {
+        try {
+          return await serveLanding(request, env);
+        } catch {
+          return new Response('Service Unavailable', { status: 503, headers: { 'Content-Type': 'text/plain' } });
+        }
+      }
       if (ROUTE_META[url.pathname]) {
         try {
-          return await serveAppShell(request, env, url.pathname);
+          return withWebAnalytics(await serveAppShell(request, env, url.pathname), env);
         } catch {
           return new Response('Service Unavailable', { status: 503, headers: { 'Content-Type': 'text/plain' } });
         }

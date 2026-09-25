@@ -4,7 +4,7 @@ export interface SiteFooterProps {
   lang?: 'pt' | 'en';
 }
 
-export function SiteFooter({ lang = 'pt' }: SiteFooterProps) {
+export function SiteFooter({ lang = 'en' }: SiteFooterProps) {
   return (
     <footer className={styles.footer} data-surface="light">
       <div className={styles.footerInner}>
@@ -16,7 +16,7 @@ export function SiteFooter({ lang = 'pt' }: SiteFooterProps) {
           />
         </div>
 
-        <nav aria-label="Links de rodapé" className={styles.metaLinks}>
+        <nav aria-label={lang === 'pt' ? 'Links de rodapé' : 'Footer links'} className={styles.metaLinks}>
           <a href="/docs">{lang === 'pt' ? 'Documentação' : 'Documentation'}</a>
           <a href="/scenarios">{lang === 'pt' ? 'Cenários' : 'Scenarios'}</a>
           <a href="/playground">Playground WASM</a>
