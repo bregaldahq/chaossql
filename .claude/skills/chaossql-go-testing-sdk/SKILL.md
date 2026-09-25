@@ -28,7 +28,9 @@ chaostest.New(t).
     AssertNoAnomalies(ctx, 4 /*workers*/, 50 /*iterations*/, 42 /*seed*/)
 ```
 
-- Steps accept the inline capture suffix `-> var` / `=> var`.
+- Steps accept the inline capture suffix `-> var` / `=> var` (`parseSteps`
+  splits on the first `->`, else the first `=>`); `AddOperation` delegates to
+  `AddOperationWithParams` with nil params.
 - `Run(ctx, workers, iterations, seed)` returns
   `(*ExecutionResult, *ShrinkResult, error)`.
 
@@ -41,7 +43,8 @@ chaostest.New(t).
 3. `runner.Run`. Statuses other than passed/violation → error.
 4. On violation: shrink + verify (`chaossql-ddmin-shrinker`). On shrink failure
    or non-reproducing minimal ops it returns a fallback `ShrinkResult` with the
-   original ops and 0% reduction instead of an error; cancellation is returned.
+   original ops and 0% reduction (`unshrunkResult`, keeping the attempt's
+   iterations and trials) instead of an error; cancellation is returned.
 
 ## `AssertNoAnomalies`
 
@@ -60,12 +63,13 @@ class, failing invariant and minimal ops (plus reporter output).
 
 ## Tests
 
-- `pkg/chaostest/chaostest_test.go`
+- `pkg/chaostest/chaostest_test.go`, `pkg/chaostest/parse_steps_test.go`
 
 ## Source map
 
 - `pkg/chaostest/chaostest.go`
 - `pkg/chaostest/chaostest_test.go`
+- `pkg/chaostest/parse_steps_test.go`
 - `specs/11_version_1_1_developer_sdk_and_smart_generators.md`
 
 ## Related skills

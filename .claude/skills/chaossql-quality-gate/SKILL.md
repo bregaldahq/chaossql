@@ -18,7 +18,7 @@ description: The unified quality gate (make verify) and every stage behind it â€
 | `test-typescript` | `make build`, `cd sdks/typescript && npm ci && npm run build && npm test` | Node |
 | `test-frontend` | `cd site && npm ci && npm run verify` | Node |
 | `stress-wasm` | build `bin/chaossql-test.wasm`, `node tools/headless_worker_stress.js` | Node |
-| node tests | `node --test tools/test_waitlist.mjs tools/test_english_purity.test.cjs` | `site/node_modules` (esbuild) from `test-frontend` |
+| node tests | `node --test tools/test_waitlist.mjs tools/test_site_events.mjs tools/test_english_purity.test.cjs` | `site/node_modules` (esbuild) from `test-frontend` |
 | node scripts | `node tools/test_english_purity.js && node tools/test_wasm_worker.js && node tools/test_playground_ui.js && node tools/test_wasm_bench.js` | â€” |
 
 `tools/harness_check.py` is a legacy subset and is not used by the Makefile.
@@ -77,6 +77,7 @@ Other workflows: `concurrency-ci.yml` and `swarm.yml`
 - `tools/test_english_purity.js`
 - `tools/test_english_purity.test.cjs`
 - `tools/test_waitlist.mjs`
+- `tools/test_site_events.mjs`
 - `tools/headless_worker_stress.js`
 - `tools/test_playground_ui.js`
 - `tools/harness_check.py`

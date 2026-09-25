@@ -5,8 +5,8 @@ description: The chaossql.bregalda.com portal in site/ — React 19 + Vite app w
 
 # Website Portal (`site/`)
 
-The portal is the only place where Portuguese is allowed (it is bilingual
-and defaults to `pt`); the English purity gate skips `site/`.
+The portal is the only place where Portuguese is allowed (it is bilingual;
+English is canonical); the English purity gate skips `site/`.
 
 ## When to use
 
@@ -29,8 +29,17 @@ and defaults to `pt`); the English purity gate skips `site/`.
   `site/brand`, `site/public/brand`, `site/assets`).
 - Content data: `src/data/docs.json` + `docs-content.ts`,
   `src/data/scenarios.json` + `scenarios-data.ts`.
-- i18n (`src/lib/i18n.ts`): `pt | en`, default `pt`, persisted in
-  `localStorage["chaossql_lang"]`, broadcast with a `languagechange` event.
+- i18n (`src/lib/i18n.ts`): `pt | en`. A stored choice in
+  `localStorage["chaossql_lang"]` wins; otherwise `pt` when any browser
+  language starts with `pt`, else `DEFAULT_LANGUAGE = 'en'`. Changes are
+  broadcast with a `languagechange` event, synced across tabs via `storage`,
+  and set `<html lang>` (`pt-BR` / `en`).
+- Analytics (`src/lib/analytics.ts`): `track(event, label)` sends cookieless
+  events (`cta_click`, `install_copy`, `command_copy`, `scenario_view`,
+  `lead_submit`, `plan_select`, `pricing_toggle`, `outbound_click`,
+  `lang_switch`) to `/api/event` with `navigator.sendBeacon`, falling back to
+  `fetch(..., keepalive)`. The event list must match `SITE_EVENTS` in
+  `worker.ts` (`chaossql-edge-worker`).
 - Playground: `src/lib/wasm-bridge.ts` → WASM worker (`chaossql-wasm-playground`).
 - Dashboard (`DashboardPage.tsx` + `src/lib/cloud-api.ts`): the user enters an
   API base URL and token; `CloudAPI` calls `/v1/runs`, `/v1/runs/{id}`,
@@ -69,6 +78,7 @@ vanilla portal) are required by `make check-harness` and exercised by
 - `make test-frontend` → `cd site && npm ci && npm run verify`
   (typecheck, build into `.verify-dist`, `vitest run`).
 - Tests: `src/lib/router.test.ts`, `src/lib/cloud-api.test.ts`,
+  `src/lib/analytics.test.ts`,
   `src/pages/CloudFlows.test.tsx`; plus `node tools/test_playground_ui.js`.
 - Local: `cd site && npm run dev`; `make serve-site` serves `site/` statically on 8080.
 
@@ -89,6 +99,7 @@ vanilla portal) are required by `make check-harness` and exercised by
 - `site/src/lib/router.ts`
 - `site/src/lib/route-meta.ts`
 - `site/src/lib/i18n.ts`
+- `site/src/lib/analytics.ts`
 - `site/src/lib/cloud-api.ts`
 - `site/src/lib/lead-request.ts`
 - `site/src/pages/DashboardPage.tsx`

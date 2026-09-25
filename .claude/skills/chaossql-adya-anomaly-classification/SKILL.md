@@ -64,9 +64,13 @@ produced by `ClassifyCycle` (the register checker emits G1b/fractured reads).
 
 ### 5. Choosing one label per run (caller-specific!)
 
-Callers iterate cycles and pick by priority, and the priorities differ:
-- `cmd/chaossql/main.go` (full trace): G1a > G0 > G1c > G2 > A5B > A5A, P4 kept
-  as fallback while scanning; minimal trace uses G1a > G0 > G1c > G2 > A5A > A5B.
+Callers iterate cycles and pick a label, and the rules differ:
+- `cmd/chaossql/main.go` uses `dominantAnomaly(cycles, fallback)`: the **first**
+  cycle (in cycle order) classified as G1a, G0, G1c, G2, A5B or A5A wins
+  immediately; P4 only replaces the fallback while scanning continues; with an
+  unknown fallback and cycles present, `cycles[0]` decides. For the minimal
+  trace the full-trace label is the fallback, so it survives when the minimal
+  trace has no cycles.
 - `cmd/chaossql/engine.go`: first non-unknown cycle.
 - `pkg/chaostest`, `internal/swarm`, `internal/reporter/html.go`/`ui.go`/
   `sarif.go`, `cmd/chaossql-wasm/bridge.go`: their own loops or `cycles[0]`.
@@ -92,7 +96,8 @@ used only by its tests; no command feeds it.
   `specs/05_advanced_anomaly_taxonomy.md`.
 - Changing extraction also changes the live proxy (it has its own extractor in
   `pkg/proxy/parser.go` — keep semantics aligned).
-- Consider centralizing the priority loop instead of adding another copy.
+- Consider reusing `dominantAnomaly` (today private to `cmd/chaossql`) instead
+  of adding another priority loop.
 
 ## Tests
 
@@ -107,6 +112,7 @@ used only by its tests; no command feeds it.
 - `internal/analyzer/register_test.go`
 - `internal/domain/types.go`
 - `cmd/chaossql/main.go`
+- `internal/analyzer/adya_paths_test.go`
 - `specs/05_advanced_anomaly_taxonomy.md`
 - `docs/THEORY.md`
 

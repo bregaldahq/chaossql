@@ -49,7 +49,7 @@ Flags (persistent): `--scenarios-dir ./examples`, `--drivers sqlite,mock`,
 2. `swarm.ExecuteDifferentialMatrix`: pre-generate one schedule per scenario
    from its own seed; fan out (scenario, driver) tasks over `concurrency`
    goroutines.
-3. `executeDriverRun`: DSN = spec DSN if the spec's driver matches, else env:
+3. `executeDriverRun` → `resolveDSN`: spec DSN if the spec's driver matches, else env:
    PostgreSQL `DATABASE_URL` (must start with `postgres`) or `POSTGRES_DSN`;
    MySQL `MYSQL_DSN` or `DATABASE_URL` starting with `mysql`. Each run has a
    15 s timeout; errors are recorded per driver instead of failing the swarm.
@@ -86,7 +86,7 @@ Flags (persistent): `--scenarios-dir ./examples`, `--drivers sqlite,mock`,
 
 - `internal/engine/diff_test.go`, `internal/swarm/diff_runner_test.go`,
   `cmd/chaossql/diff_matrix_test.go`, `cmd/chaossql/swarm_test.go`,
-  `internal/reporter/swarm_summary_test.go`
+  `internal/swarm/diff_runner_internal_test.go`, `internal/reporter/swarm_summary_test.go`
 
 ## Source map
 

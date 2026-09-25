@@ -1,6 +1,6 @@
 ---
 name: chaossql-edge-worker
-description: The Cloudflare edge code for the portal — worker.ts (Workers deploy via root wrangler.toml), its compiled twin site/_worker.js (Pages advanced mode), and the Pages Function waitlist.ts duplicated in functions/ and site/functions/ — covering /api/waitlist lead capture, the /api/webhooks/test relay with host allow-list, origin checks, best-effort rate limits, secrets, and server-side route metadata injection. Use when changing any of these files or portal deployment.
+description: The Cloudflare edge code for the portal — worker.ts (Workers deploy via root wrangler.toml), its compiled twin site/_worker.js (Pages advanced mode), and the Pages Function waitlist.ts duplicated in functions/ and site/functions/ — covering /api/waitlist lead capture, /api/event cookieless analytics and the Web Analytics beacon, the /api/webhooks/test relay with host allow-list, origin checks, best-effort rate limits, secrets, and server-side route metadata injection. Use when changing any of these files or portal deployment.
 ---
 
 # Edge Worker and Waitlist Function
@@ -39,13 +39,32 @@ Any behavior change must be applied to all applicable copies;
 - Section URLs (`/docs`, `/playground`, ...): `serveAppShell` fetches the SPA
   shell from `ASSETS` and injects the route's `<title>`, description,
   canonical URL and robots directive from `ROUTE_META`; trailing slashes are
-  normalized.
+  normalized, then the Web Analytics beacon is appended (below).
+- `POST /api/event` (+ `OPTIONS`): cookieless site events. Origin must be
+  allowed (403); body ≤ 1024 bytes (413); `event` must be in `SITE_EVENTS`
+  (keep in sync with `site/src/lib/analytics.ts`), `label`/`path`/`ref` must
+  match their patterns, `lang` is coerced to `pt|en` (400 otherwise). Over the
+  60/min limit it silently answers 204. Writes one Analytics Engine data
+  point `{indexes: [event], blobs: [event, label, path, lang, ref, country], doubles: [1]}`
+  to the `SITE_EVENTS` binding (dataset `chaossql_site_events`); no IP, user
+  agent or identifiers are stored. Always 204 for well-formed requests.
+- `/` → `serveLanding` (static landing + beacon); 503 on asset failure.
 - Everything else → static assets.
+
+`withWebAnalytics` appends the Cloudflare Web Analytics beacon
+(`static.cloudflareinsights.com/beacon.min.js`, `spa: true`) to HTML responses
+of `/` and the section shells when `CF_WEB_ANALYTICS_TOKEN` is 32 lowercase
+hex characters; otherwise the page is untouched.
 
 ## Secrets and config
 
 - `DISCORD_WEBHOOK_URL` must be an encrypted secret
   (`npx wrangler secret put DISCORD_WEBHOOK_URL`), never a `[vars]` entry.
+- `CF_WEB_ANALYTICS_TOKEN` is a public site token set in `[vars]` of the
+  root `wrangler.toml` (it ships in page HTML by design).
+- `[[analytics_engine_datasets]]` binds `SITE_EVENTS`; query it with the
+  Analytics Engine SQL API (example query in `wrangler.toml`).
+- `run_worker_first` includes `/` so the landing page gets the beacon.
 - Local dev reads `.dev.vars` (gitignored).
 
 ## Gotchas
@@ -53,12 +72,15 @@ Any behavior change must be applied to all applicable copies;
 - Rate limiting is per-isolate memory — best effort, not global.
 - This relay is unrelated to the control plane's webhooks
   (`chaossql-webhooks-outbox`), which have their own SSRF protection.
-- `site/_worker.js` drifts silently if you edit only `worker.ts`; the tests
-  above are the safety net.
+- `site/_worker.js` drifts silently if you edit only `worker.ts`. It has
+  already drifted: it has no `/api/event` endpoint and no analytics beacon, so
+  a Pages deployment of `site/` loses site events and page-view analytics.
+  Only the waitlist and route-metadata tests cover both copies.
 
 ## Tests
 
-- `node --test tools/test_waitlist.mjs` (part of `make verify`)
+- `node --test tools/test_waitlist.mjs tools/test_site_events.mjs` (part of
+  `make verify`; `test_site_events.mjs` covers `worker.ts` only)
 - `cd site && npx vitest run src/lib/router.test.ts`
 
 ## Source map
@@ -71,6 +93,8 @@ Any behavior change must be applied to all applicable copies;
 - `site/wrangler.toml`
 - `site/_redirects`
 - `tools/test_waitlist.mjs`
+- `tools/test_site_events.mjs`
+- `site/src/lib/analytics.ts`
 - `.github/workflows/deploy-pages.yml`
 - `.github/workflows/static-pages.yml`
 

@@ -50,17 +50,20 @@ is tried from the CWD, then from the repository root found by walking up to
 
 ## Pipeline (`executeChaos`)
 
-1. `signal.NotifyContext` (SIGINT/SIGTERM) → `ctx`.
+1. `executeChaos(cmd.Context(), ...)` wraps the command context with
+   `signal.NotifyContext` (SIGINT/SIGTERM) → `ctx` (tests cancel via the parent).
 2. `domain.LoadSpec`; apply seed/workers/iterations overrides.
 3. `drivers.GetDriver(driver, dsn)`, `Open`, deferred `Close`.
 4. `runner.Run(ctx, spec)`; `preserveRunResult` keeps a non-nil result even
    when an error accompanied it (cancellation), else returns the error.
-5. Classify the **full** trace (`chaossql-adya-anomaly-classification`).
+5. Classify the **full** trace with `dominantAnomaly`
+   (`chaossql-adya-anomaly-classification`).
    Classification runs for every status — a `passed` run can still carry an
    `anomaly_type` label.
 6. If `ViolationDetected`: build the failure signature, `shrinker.Shrink`, re-run
    the minimal ops; only if it reproduces, adopt `minimalOps`/`minimalTrace`
-   and reclassify on the minimal trace. Cancellation aborts the command.
+   and reclassify on the minimal trace (`dominantAnomaly(minCycles, previous)`).
+   Cancellation aborts the command.
 7. Exports in this order, all using the minimal ops/trace when available:
    result artifact → Go repro (also when `--json`) → Mermaid (also when
    `--json`) → HTML (also when `--json`) → OTLP (also when `--json`) → JUnit →
@@ -93,7 +96,7 @@ Cloud errors are joined into the returned error.
 - `--export-repro`/`--export-mermaid` ignore any path; they always write to CWD.
 - `--json` embeds full HTML/OTLP/repro strings — outputs can be large.
 - Exports are written with mode `0644` except the replay artifact (`0600`, atomic).
-- `--ui` blocks until interrupted; do not use in CI.
+- `--ui` blocks until interrupted or the command context is cancelled; do not use in CI.
 - `matrix`, `swarm`, `diff` do **not** use this pipeline (no shrink, no exports).
 
 ## Change checklist (new flag or export)
@@ -113,6 +116,7 @@ Cloud errors are joined into the returned error.
 - `cmd/chaossql/demo_test.go`
 - `cmd/chaossql/sarif_cli_test.go`
 - `cmd/chaossql/cloud_integration_test.go`
+- `cmd/chaossql/run_paths_test.go`
 - `README.md`
 
 ## Related skills
