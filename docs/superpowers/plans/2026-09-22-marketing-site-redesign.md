@@ -241,15 +241,19 @@ Cada fase é um PR independente, com `make verify` verde e screenshot antes/depo
 - [ ] Coletar a baseline de conversão (depende do deploy e do token do Web Analytics em `wrangler.toml`).
 
 ### Fase 1: Design system (3–4 dias)
-- [ ] Tokens novos em `tokens.css` (papéis de cor, regra de raios, escala tipográfica, tema).
-- [ ] Fontes self-hosted.
-- [ ] Componentes base: `Button` (3 variantes), `Section`, `CodeBlock`/`Terminal` único, `Badge`, `Tabs` acessível.
-- [ ] Extração do i18n para dicionários com teste de paridade.
+- [x] Tokens novos em `tokens.css` (papéis de cor, regra de raios, escala tipográfica, tema `data-theme="lab"`).
+- [x] Fontes self-hosted (Geist + JetBrains Mono via `@fontsource-variable`; Google Fonts removido).
+- [x] Componentes base em `site/src/components/system/`: `Button` (3 variantes), `Section`/`SectionHeader`, `Terminal` (o `CodeBlock` dos docs passou a usá-lo), `Badge`, `Tabs` acessível. Preview em `npm run dev` → `/design-preview.html`.
+- [x] Dicionários tipados em `site/src/i18n/` (EN canônico, PT com o mesmo tipo) + teste de paridade. Migrados nav, footer e textos comuns; os textos da landing e do pricing entram direto nos dicionários na reescrita das Fases 2 e 4.
 
 ### Fase 2: Copy (2–3 dias, em paralelo com a Fase 1)
 - [ ] `site/COPY.md` (guia de voz).
 - [ ] Texto final PT/EN de todas as seções da §3 + FAQ + planos.
 - [ ] Revisão técnica das afirmações e números contra `evals/`.
+
+### Observações da Fase 1
+- A navegação atual quebra em duas linhas no desktop (8 itens); resolver na Fase 4 junto com a nova nav (§3.1).
+- O bundle JS continua em ~179 KB gzip; tratar na Fase 6.
 
 ### Fase 3: Assets reais (2 dias)
 - [ ] Exportar traces JSON com seeds fixas dos 10 exemplos (script em `tools/` para regenerar).

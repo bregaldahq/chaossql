@@ -1,0 +1,57 @@
+.section {
+  padding-inline: var(--gutter);
+}
+
+.default {
+  padding-block: var(--section-y);
+}
+
+.tight {
+  padding-block: clamp(1.5rem, 1rem + 2vw, 2.5rem);
+}
+
+.inner {
+  margin-inline: auto;
+  min-width: 0;
+}
+
+.content {
+  max-width: var(--container);
+}
+
+.wide {
+  max-width: var(--container-wide);
+}
+
+.header {
+  display: grid;
+  gap: 1rem;
+  max-width: 48rem;
+  margin-bottom: clamp(2rem, 1.5rem + 2vw, 3.5rem);
+}
+
+.center {
+  margin-inline: auto;
+  text-align: center;
+}
+
+.title {
+  font-size: var(--fs-3xl);
+  font-weight: 600;
+  line-height: var(--lh-tight);
+  letter-spacing: var(--tracking-tight);
+  color: var(--text-strong);
+  text-wrap: balance;
+}
+
+.lead {
+  max-width: var(--measure);
+  font-size: var(--fs-lg);
+  line-height: var(--lh-body);
+  color: var(--text-body);
+  text-wrap: pretty;
+}
+
+.center .lead {
+  margin-inline: auto;
+}

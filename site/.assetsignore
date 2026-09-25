@@ -25,3 +25,6 @@ _routes.json
 # Legacy files no longer referenced by index.html
 app.js
 docs-data.js
+
+# Dev-only design system preview (served by `npm run dev`, never deployed)
+design-preview.html

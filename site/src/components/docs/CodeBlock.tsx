@@ -1,5 +1,4 @@
-import { useState } from 'react';
-import { Check, Copy } from 'lucide-react';
+import { Terminal } from '../system/Terminal';
 import styles from './CodeBlock.module.css';
 
 export interface CodeBlockProps {
@@ -9,40 +8,7 @@ export interface CodeBlockProps {
   lang?: 'pt' | 'en';
 }
 
+/** Docs-flavored code block: the shared Terminal with document spacing. */
 export function CodeBlock({ code, language = 'bash', filename, lang = 'en' }: CodeBlockProps) {
-  const pt = lang === 'pt';
-  const [copied, setCopied] = useState(false);
-
-  const handleCopy = () => {
-    navigator.clipboard.writeText(code);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  return (
-    <div className={styles.container} data-surface="dark">
-      <div className={styles.header}>
-        <span>{filename || language}</span>
-        <button
-          type="button"
-          className={styles.copyBtn}
-          onClick={handleCopy}
-          aria-label={pt ? 'Copiar código' : 'Copy code'}
-        >
-          {copied ? (
-            <>
-              <Check size={12} /> {pt ? 'Copiado' : 'Copied'}
-            </>
-          ) : (
-            <>
-              <Copy size={12} /> {pt ? 'Copiar' : 'Copy'}
-            </>
-          )}
-        </button>
-      </div>
-      <pre className={styles.codeArea}>
-        <code>{code}</code>
-      </pre>
-    </div>
-  );
+  return <Terminal className={styles.container} code={code} language={language} title={filename} lang={lang} />;
 }
