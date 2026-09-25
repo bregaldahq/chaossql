@@ -36,7 +36,7 @@ dataset = "chaossql_site_events"
 # design (it ships in the page HTML); fill it in from Cloudflare dashboard >
 # Analytics & Logs > Web Analytics > chaossql.bregalda.com. Empty = no beacon.
 [vars]
-CF_WEB_ANALYTICS_TOKEN = ""
+CF_WEB_ANALYTICS_TOKEN = "50a8ee7b1e1047c7951cf92911c0422e"
 
 # DISCORD_WEBHOOK_URL is intentionally NOT declared here.
 # [vars] values are stored in plaintext and are visible in the Cloudflare
