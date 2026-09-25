@@ -94,7 +94,7 @@ Quick routing:
 - `CLAUDE.md` — agent rules and skill index
 - `docs/harness/flow-map.md` — flow → skill → paths
 - `cmd/chaossql/root.go` — command tree
-- `go.mod` — module `github.com/bregaldahq/chaossql`, Go 1.25
+- `go.mod` — module github.com/bregaldahq/chaossql, Go 1.25
 
 ## Related skills
 
