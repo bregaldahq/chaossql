@@ -48,4 +48,6 @@ internal_docs/
 
 # Local commercialization assessment
 /docs/superpowers/plans/2026-09-10-saas-commercialization-assessment.md
-.claude/
+# Agent state stays local; project skills are versioned.
+.claude/*
+!.claude/skills/
