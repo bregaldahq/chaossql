@@ -1,0 +1,39 @@
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.2rem 0.6rem;
+  border: 1px solid transparent;
+  border-radius: var(--r-pill);
+  font-family: var(--font-jetbrains-mono);
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  letter-spacing: var(--tracking-mono);
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.neutral {
+  color: var(--text-body);
+  border-color: var(--line);
+}
+
+.brand {
+  color: var(--brand-text);
+  background: color-mix(in srgb, var(--brand) 22%, transparent);
+}
+
+.signal {
+  color: var(--signal);
+  background: var(--signal-soft);
+}
+
+.ok {
+  color: var(--ok);
+  background: var(--ok-soft);
+}
+
+.danger {
+  color: var(--danger);
+  background: var(--danger-soft);
+}

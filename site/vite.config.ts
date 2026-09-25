@@ -7,7 +7,12 @@ function templateHtmlRewrite(): Plugin {
     name: 'template-html-rewrite',
     configureServer(server) {
       server.middlewares.use((req, _res, next) => {
-        if (req.url === '/' || req.url === '/index.html') {
+        // Serve the source template for every app route (/, /docs, /pricing...).
+        // Without this, deep links fall back to the committed, prebuilt index.html
+        // and dev shows a stale bundle.
+        const path = (req.url ?? '').split('?')[0];
+        const isAppRoute = path === '/index.html' || (!path.includes('.') && !path.startsWith('/@') && !path.startsWith('/src/') && !path.startsWith('/node_modules/'));
+        if (isAppRoute) {
           req.url = '/template.html';
         }
         next();
