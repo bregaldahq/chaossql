@@ -82,8 +82,9 @@ requiring a single line of application source code modification.`,
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 
-			stopCh := make(chan os.Signal, 1)
-			signal.Notify(stopCh, os.Interrupt, syscall.SIGTERM)
+			// Stop on Ctrl+C/SIGTERM or when the command context is cancelled.
+			stopCtx, stopSignals := signal.NotifyContext(cmd.Context(), os.Interrupt, syscall.SIGTERM)
+			defer stopSignals()
 
 			go func() {
 				if err := server.Start(ctx); err != nil {
@@ -109,7 +110,7 @@ requiring a single line of application source code modification.`,
 
 			printProxyBanner(cfg, uiServerURL)
 
-			<-stopCh
+			<-stopCtx.Done()
 			fmt.Println("\n\nShutting down ChaosSQL Transparent Proxy...")
 
 			shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 3*time.Second)
