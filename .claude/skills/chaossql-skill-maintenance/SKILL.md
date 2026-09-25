@@ -76,8 +76,8 @@ skill over letting it cover unrelated flows.
 
 ## Writing rules
 
-- English only (the purity gate does not scan `.claude/`, but `CLAUDE.md`
-  requires it).
+- English only: `tools/test_english_purity.js` scans `.claude/skills/` and
+  `CLAUDE.md` (part of `make verify`).
 - Name concrete functions, flags, env vars, file formats and defaults.
 - State defaults exactly as the code does (for example "workers default to 4
   in the runner but 2 in `chaossql engine`").
@@ -90,6 +90,7 @@ skill over letting it cover unrelated flows.
 - `docs/harness/flow-map.md`
 - `CLAUDE.md`
 - `tools/harness_check.go`
+- `tools/test_english_purity.js`
 - `Makefile`
 
 ## Related skills

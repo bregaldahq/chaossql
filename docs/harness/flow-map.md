@@ -59,7 +59,7 @@ the `chaossql-skill-maintenance` skill.
 | :--- | :--- | :--- |
 | `chaossql-engine-ipc` | `chaossql engine` JSON stdin/stdout protocol used by SDKs | `cmd/chaossql/engine.go` |
 | `chaossql-go-testing-sdk` | `pkg/chaostest` fluent Go testing API | `pkg/chaostest/chaostest.go` |
-| `chaossql-sdk-python` | `chaossql-py` harness, binary discovery, pytest plugin | `sdks/python/` |
+| `chaossql-sdk-python` | chaossql-py harness, binary discovery, pytest plugin | `sdks/python/` |
 | `chaossql-sdk-typescript` | `@chaossql/test` harness and IPC client | `sdks/typescript/` |
 | `chaossql-transparent-proxy` | Layer-7 PostgreSQL/MySQL proxy, PCT jitter, live shadow graph, SARIF, live UI | `pkg/proxy/`, `cmd/chaossql/proxy.go` |
 | `chaossql-wasm-playground` | Go → WASM engine, JS worker protocol, browser bridge, headless stress tests | `cmd/chaossql-wasm/`, `site/assets/wasm-worker.js`, `site/src/lib/wasm-bridge.ts` |
