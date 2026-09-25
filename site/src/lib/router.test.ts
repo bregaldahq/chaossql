@@ -68,6 +68,11 @@ describe('wrangler.toml', () => {
   it('binds static assets as env.ASSETS for worker.ts', () => {
     expect(wranglerToml).toMatch(/^\[assets\][^[]*^binding = "ASSETS"$/m);
   });
+
+  it('routes API calls to the worker before the assets layer', () => {
+    const runWorkerFirst = wranglerToml.match(/^run_worker_first = \[([^\]]*)\]/m)?.[1] ?? '';
+    expect(runWorkerFirst).toContain('"/api/*"');
+  });
 });
 
 describe('site analytics', () => {
