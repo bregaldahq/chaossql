@@ -297,9 +297,10 @@ Cada fase é um PR independente, com `make verify` verde e screenshot antes/depo
 - Corrigido no caminho: a página de cenários lia campos que não existem mais em `scenarios.json` (a correção quebrava e a invariante mostrava `SELECT 1;`). O tipo agora vem do JSON, sem cast.
 
 ### Fase 7: Lançamento e iteração (contínuo)
-- [ ] Comparar o funil com a baseline após 2–4 semanas.
-- [ ] Teste A/B da headline (2 variantes) via Worker, se o volume permitir.
-- [ ] Post técnico + vídeo do hero para distribuição.
+- [ ] Comparar o funil com a baseline após 2–4 semanas. Ferramenta pronta: `node tools/site_funnel.mjs 28` (token da Cloudflare com Account Analytics: Read) imprime visitas, cada etapa do funil, eventos por idioma e principais referrers.
+- [ ] Teste A/B da headline (2 variantes) via Worker. Só vale com volume: com poucas centenas de visitas por semana, a diferença entre variantes não é mensurável. Decidir depois da primeira leitura do funil.
+- [x] Animação para distribuição: `docs/media/lost-update.gif` (104 KB, gerada do trace real com `npm run gif`), já no topo do README.
+- [ ] Post técnico. Precisa de um achado real (rodar o ChaosSQL em um projeto open source com PostgreSQL e documentar o bug encontrado); não publicar nada inventado.
 
 **Estimativa total:** cerca de 4 semanas de trabalho focado (Fases 0–6).
 

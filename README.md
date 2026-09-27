@@ -13,7 +13,6 @@
 [![Zero CGO](https://img.shields.io/badge/CGO-Disabled_(Pure_Go)-22C55E?style=for-the-badge)](https://modernc.org/sqlite)
 [![CI Pipeline](https://img.shields.io/github/actions/workflow/status/bregaldahq/chaossql/ci.yml?branch=main&style=for-the-badge&logo=githubactions&logoColor=white&label=CI)](https://github.com/bregaldahq/chaossql/actions/workflows/ci.yml)
 [![Coverage](https://img.shields.io/codecov/c/github/bregaldahq/chaossql?style=for-the-badge&logo=codecov&logoColor=white)](https://app.codecov.io/gh/bregaldahq/chaossql)
-[![CI Pipeline](https://img.shields.io/badge/CI-Passing-22C55E?style=for-the-badge&logo=githubactions&logoColor=white)](https://github.com/bregaldahq/chaossql/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](LICENSE)
 
 <p align="center">
@@ -24,6 +23,12 @@
 <p align="center">
   ChaosSQL is an open-source Go CLI and library that fuzzes concurrent SQL transactions with seed-reproducible schedules,
   classifies isolation anomalies with Adya's dependency graphs, and shrinks every failure to a minimal reproducible test.
+</p>
+
+<p align="center">
+  <img src="docs/media/lost-update.gif" width="720" alt="A recorded ChaosSQL run: two withdrawals read the same balance of $1,000, the second write overwrites the first, and the invariant fails with $989 instead of $970." />
+  <br />
+  <sub>A real run of <code>examples/banking_lost_update</code> (seed 42): the second write erases the first and the ledger invariant fails. ChaosSQL shrinks the 20-transaction run to these 2.</sub>
 </p>
 
 <p align="center">
