@@ -247,18 +247,27 @@ Cada fase é um PR independente, com `make verify` verde e screenshot antes/depo
 - [x] Dicionários tipados em `site/src/i18n/` (EN canônico, PT com o mesmo tipo) + teste de paridade. Migrados nav, footer e textos comuns; os textos da landing e do pricing entram direto nos dicionários na reescrita das Fases 2 e 4.
 
 ### Fase 2: Copy (2–3 dias, em paralelo com a Fase 1)
-- [ ] `site/COPY.md` (guia de voz).
-- [ ] Texto final PT/EN de todas as seções da §3 + FAQ + planos.
-- [ ] Revisão técnica das afirmações e números contra `evals/`.
+- [x] `site/COPY.md`: guia de voz, um rótulo por intenção e registro de afirmações (cada número ou promessa com a fonte).
+- [x] Texto final EN/PT de todas as seções da §3 + FAQ (7 perguntas) + planos, em `site/src/i18n/`. Os números da história vêm do trace gravado (`src/data/story.ts`).
+- [x] Revisão técnica das afirmações e números contra `evals/` e o código. Correções já aplicadas na landing atual:
+  - "CI bloqueia o merge" era falso: a Action termina verde numa violação, e comentário no PR e `is-regression` exigem o Cloud;
+  - o card do hero tinha seed e saldos inventados; agora usa os valores da execução gravada;
+  - "4 ops em < 200ms" e "em milissegundos" foram removidos (o real são 2 transações, ~0,3 s).
 
 ### Observações da Fase 1
 - A navegação atual quebra em duas linhas no desktop (8 itens); resolver na Fase 4 junto com a nova nav (§3.1).
 - O bundle JS continua em ~179 KB gzip; tratar na Fase 6.
 
 ### Fase 3: Assets reais (2 dias)
-- [ ] Exportar traces JSON com seeds fixas dos 10 exemplos (script em `tools/` para regenerar).
-- [ ] Screenshots do `chaossql ui` e do comentário de PR da Action.
-- [ ] OG images por página.
+- [x] Traces reais com seed fixa (`tools/export_site_traces.mjs` → `site/src/data/traces/`). Só 3 dos 10 exemplos entram, de propósito:
+  - no SQLite padrão quase todos passam, então os traces usam READ_UNCOMMITTED;
+  - `read_skew_financial_audit` muda de rótulo entre execuções (P4/A5A);
+  - `ticket_booking_anti_dependency` falha até em execução serial (falso positivo documentado);
+  - G0, G1a, G1c e os deadlocks não reproduzem no SQLite; dependem de PostgreSQL/MySQL (a gravar depois, com banco dedicado).
+- [x] Recortes reais do relatório HTML (redução ddmin e timeline) em `site/src/media/`.
+- [ ] Screenshot do comentário de PR: ainda não existe nenhum comentário real (ele só é publicado com o Cloud). Gerar num PR de demonstração com Cloud antes da Fase 4, ou mostrar o YAML da Action + o resumo do job.
+- Encontrado: o relatório HTML rotula o cenário bancário como `A5A_READ_SKEW` (usa o grafo da execução completa), enquanto o JSON diz `P4_LOST_UPDATE`. Bug do exportador, fora do escopo do site; por isso a seção do grafo não é usada.
+- [x] OG cards 1200x630 por página (`npm run og` → `site/og/`), com a swimlane do trace real, ligados por rota no app e nos dois workers.
 
 ### Fase 4: Landing nova (5–7 dias)
 - [ ] Hero com `TraceAnimation` (dados reais).

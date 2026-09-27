@@ -152,48 +152,55 @@ function parseWebhookTarget(raw: unknown): { url: string } | { error: string } {
 // section as a distinct page without executing JavaScript. Keep in sync with
 // site/src/lib/route-meta.ts.
 const SITE_ORIGIN = 'https://chaossql.bregalda.com';
-const ROUTE_META: Record<string, { title: string; description: string; indexable: boolean }> = {
+const ROUTE_META: Record<string, { title: string; description: string; indexable: boolean; image: string }> = {
   '/docs': {
     title: "Documentation | ChaosSQL",
     description:
       "ChaosSQL guide: installation, the chaos.yaml spec, SQL invariants, isolation levels, Adya anomaly classification and delta-debugging minimization.",
     indexable: true,
+    image: '/og/docs.png',
   },
   '/scenarios': {
     title: "SQL Concurrency Anomaly Scenarios | ChaosSQL",
     description:
       "Canonical SQL concurrency anomalies (lost update, write skew, G2, deadlock and more) with invariants and deterministic, seed-based reproduction.",
     indexable: true,
+    image: '/og/scenarios.png',
   },
   '/visualizer': {
     title: "Trace Visualizer | ChaosSQL",
     description:
       "Inspect interleaved concurrent transactions, per-worker timings and the delta-debugged minimal trace behind a SQL anomaly.",
     indexable: true,
+    image: '/og/scenarios.png',
   },
   '/matrix': {
     title: "Hermitage Isolation Level Matrix | ChaosSQL",
     description:
       "Which concurrency anomalies each isolation level allows in PostgreSQL, MySQL and SQLite, inspired by the Hermitage project.",
     indexable: true,
+    image: '/og/scenarios.png',
   },
   '/playground': {
     title: "WASM Playground: Test SQL Concurrency in Your Browser | ChaosSQL",
     description:
       "Run the ChaosSQL concurrency fuzzer in your browser with WebAssembly and reproduce lost updates, write skew and deadlocks without installing anything.",
     indexable: true,
+    image: '/og/playground.png',
   },
   '/pricing': {
     title: "Pricing | ChaosSQL Cloud and Concurrency Audits",
     description:
       "ChaosSQL Cloud plans for CI concurrency regression testing, plus one-week database concurrency audits by Studio Bregalda.",
     indexable: true,
+    image: '/og/pricing.png',
   },
   '/dashboard': {
     title: "Cloud Dashboard | ChaosSQL",
     description:
       "ChaosSQL Cloud dashboard for CI runs, concurrency regressions and alerts.",
     indexable: false,
+    image: '/og/home.png',
   },
 };
 
@@ -284,6 +291,8 @@ async function serveAppShell(request: Request, env: Env, pathname: string): Prom
     })
     .on('link[rel="canonical"]', { element: (el) => { el.setAttribute('href', canonical); } })
     .on('meta[property="og:url"]', { element: (el) => { el.setAttribute('content', canonical); } })
+    .on('meta[property="og:image"]', { element: (el) => { el.setAttribute('content', `${SITE_ORIGIN}${meta.image}`); } })
+    .on('meta[name="twitter:image"]', { element: (el) => { el.setAttribute('content', `${SITE_ORIGIN}${meta.image}`); } })
     .transform(shell);
 }
 

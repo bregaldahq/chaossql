@@ -1,0 +1,225 @@
+{
+  "scenario": "inventory_oversell",
+  "source": "examples/inventory_oversell/chaos.yaml",
+  "engineVersion": "1.6.0",
+  "driver": "sqlite",
+  "isolation": "READ_UNCOMMITTED",
+  "seed": 101,
+  "status": "violation",
+  "anomalyType": "P4_LOST_UPDATE",
+  "invariant": {
+    "name": "stock_never_negative_and_consistent",
+    "expression": "current_stock + total_sold == 10 and current_stock >= 0 and total_sold <= 10",
+    "actual": {
+      "current_stock": 2,
+      "total_sold": 30
+    }
+  },
+  "shrink": {
+    "originalOps": 30,
+    "minimalOps": 2,
+    "reductionPct": 93.3,
+    "trials": 9,
+    "durationMs": 424
+  },
+  "rawOps": [
+    {
+      "id": 1,
+      "worker": 1
+    },
+    {
+      "id": 2,
+      "worker": 2
+    },
+    {
+      "id": 3,
+      "worker": 3
+    },
+    {
+      "id": 4,
+      "worker": 4
+    },
+    {
+      "id": 5,
+      "worker": 5
+    },
+    {
+      "id": 6,
+      "worker": 6
+    },
+    {
+      "id": 7,
+      "worker": 1
+    },
+    {
+      "id": 8,
+      "worker": 2
+    },
+    {
+      "id": 9,
+      "worker": 3
+    },
+    {
+      "id": 10,
+      "worker": 4
+    },
+    {
+      "id": 11,
+      "worker": 5
+    },
+    {
+      "id": 12,
+      "worker": 6
+    },
+    {
+      "id": 13,
+      "worker": 1
+    },
+    {
+      "id": 14,
+      "worker": 2
+    },
+    {
+      "id": 15,
+      "worker": 3
+    },
+    {
+      "id": 16,
+      "worker": 4
+    },
+    {
+      "id": 17,
+      "worker": 5
+    },
+    {
+      "id": 18,
+      "worker": 6
+    },
+    {
+      "id": 19,
+      "worker": 1
+    },
+    {
+      "id": 20,
+      "worker": 2
+    },
+    {
+      "id": 21,
+      "worker": 3
+    },
+    {
+      "id": 22,
+      "worker": 4
+    },
+    {
+      "id": 23,
+      "worker": 5
+    },
+    {
+      "id": 24,
+      "worker": 6
+    },
+    {
+      "id": 25,
+      "worker": 1
+    },
+    {
+      "id": 26,
+      "worker": 2
+    },
+    {
+      "id": 27,
+      "worker": 3
+    },
+    {
+      "id": 28,
+      "worker": 4
+    },
+    {
+      "id": 29,
+      "worker": 5
+    },
+    {
+      "id": 30,
+      "worker": 6
+    }
+  ],
+  "minimalOps": [
+    {
+      "id": 28,
+      "name": "purchase_item",
+      "params": {
+        "user_id": "687"
+      }
+    },
+    {
+      "id": 29,
+      "name": "purchase_item",
+      "params": {
+        "user_id": "743"
+      }
+    }
+  ],
+  "minimalTrace": [
+    {
+      "worker": 4,
+      "op": 28,
+      "type": "BEGIN",
+      "sql": "BEGIN"
+    },
+    {
+      "worker": 5,
+      "op": 29,
+      "type": "BEGIN",
+      "sql": "BEGIN"
+    },
+    {
+      "worker": 4,
+      "op": 28,
+      "type": "EXEC",
+      "sql": "SELECT stock FROM products WHERE id = 1;"
+    },
+    {
+      "worker": 5,
+      "op": 29,
+      "type": "EXEC",
+      "sql": "SELECT stock FROM products WHERE id = 1;"
+    },
+    {
+      "worker": 4,
+      "op": 28,
+      "type": "EXEC",
+      "sql": "INSERT INTO orders (product_id, user_id, quantity) VALUES (1, 687, 1);"
+    },
+    {
+      "worker": 4,
+      "op": 28,
+      "type": "EXEC",
+      "sql": "UPDATE products SET stock = 9 WHERE id = 1;"
+    },
+    {
+      "worker": 4,
+      "op": 28,
+      "type": "COMMIT",
+      "sql": "COMMIT"
+    },
+    {
+      "worker": 5,
+      "op": 29,
+      "type": "EXEC",
+      "sql": "INSERT INTO orders (product_id, user_id, quantity) VALUES (1, 743, 1);"
+    },
+    {
+      "worker": 5,
+      "op": 29,
+      "type": "EXEC",
+      "sql": "UPDATE products SET stock = 9 WHERE id = 1;"
+    },
+    {
+      "worker": 5,
+      "op": 29,
+      "type": "COMMIT",
+      "sql": "COMMIT"
+    }
+  ]
+}

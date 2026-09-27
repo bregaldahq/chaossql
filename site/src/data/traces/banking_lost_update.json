@@ -1,0 +1,185 @@
+{
+  "scenario": "banking_lost_update",
+  "source": "examples/banking_lost_update/chaos.yaml",
+  "engineVersion": "1.6.0",
+  "driver": "sqlite",
+  "isolation": "READ_UNCOMMITTED",
+  "seed": 42,
+  "status": "violation",
+  "anomalyType": "P4_LOST_UPDATE",
+  "invariant": {
+    "name": "ledger_balance_consistency",
+    "expression": "actual_balance == expected_balance and actual_balance >= 0",
+    "actual": {
+      "actual_balance": 903,
+      "expected_balance": 672
+    }
+  },
+  "shrink": {
+    "originalOps": 20,
+    "minimalOps": 2,
+    "reductionPct": 90,
+    "trials": 7,
+    "durationMs": 285
+  },
+  "rawOps": [
+    {
+      "id": 1,
+      "worker": 1
+    },
+    {
+      "id": 2,
+      "worker": 2
+    },
+    {
+      "id": 3,
+      "worker": 3
+    },
+    {
+      "id": 4,
+      "worker": 4
+    },
+    {
+      "id": 5,
+      "worker": 1
+    },
+    {
+      "id": 6,
+      "worker": 2
+    },
+    {
+      "id": 7,
+      "worker": 3
+    },
+    {
+      "id": 8,
+      "worker": 4
+    },
+    {
+      "id": 9,
+      "worker": 1
+    },
+    {
+      "id": 10,
+      "worker": 2
+    },
+    {
+      "id": 11,
+      "worker": 3
+    },
+    {
+      "id": 12,
+      "worker": 4
+    },
+    {
+      "id": 13,
+      "worker": 1
+    },
+    {
+      "id": 14,
+      "worker": 2
+    },
+    {
+      "id": 15,
+      "worker": 3
+    },
+    {
+      "id": 16,
+      "worker": 4
+    },
+    {
+      "id": 17,
+      "worker": 1
+    },
+    {
+      "id": 18,
+      "worker": 2
+    },
+    {
+      "id": 19,
+      "worker": 3
+    },
+    {
+      "id": 20,
+      "worker": 4
+    }
+  ],
+  "minimalOps": [
+    {
+      "id": 19,
+      "name": "withdraw_vulnerable",
+      "params": {
+        "amount": "11"
+      }
+    },
+    {
+      "id": 20,
+      "name": "withdraw_vulnerable",
+      "params": {
+        "amount": "19"
+      }
+    }
+  ],
+  "minimalTrace": [
+    {
+      "worker": 4,
+      "op": 20,
+      "type": "BEGIN",
+      "sql": "BEGIN"
+    },
+    {
+      "worker": 3,
+      "op": 19,
+      "type": "BEGIN",
+      "sql": "BEGIN"
+    },
+    {
+      "worker": 4,
+      "op": 20,
+      "type": "EXEC",
+      "sql": "SELECT balance FROM accounts WHERE id = 1;"
+    },
+    {
+      "worker": 3,
+      "op": 19,
+      "type": "EXEC",
+      "sql": "SELECT balance FROM accounts WHERE id = 1;"
+    },
+    {
+      "worker": 4,
+      "op": 20,
+      "type": "EXEC",
+      "sql": "UPDATE accounts SET balance = 981 WHERE id = 1;"
+    },
+    {
+      "worker": 4,
+      "op": 20,
+      "type": "EXEC",
+      "sql": "INSERT INTO ledger (account_id, amount, type) VALUES (1, 19, 'DEBIT');"
+    },
+    {
+      "worker": 4,
+      "op": 20,
+      "type": "COMMIT",
+      "sql": "COMMIT"
+    },
+    {
+      "worker": 3,
+      "op": 19,
+      "type": "EXEC",
+      "sql": "UPDATE accounts SET balance = 989 WHERE id = 1;"
+    },
+    {
+      "worker": 3,
+      "op": 19,
+      "type": "EXEC",
+      "sql": "INSERT INTO ledger (account_id, amount, type) VALUES (1, 11, 'DEBIT');"
+    },
+    {
+      "worker": 3,
+      "op": 19,
+      "type": "COMMIT",
+      "sql": "COMMIT"
+    }
+  ]
+}
