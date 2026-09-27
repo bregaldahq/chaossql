@@ -487,9 +487,7 @@ func TestTenantAuthorizationMatrix(t *testing.T) {
 		t.Fatalf("tenant-scoped run list status=%d body=%s", listResponse.Code, listResponse.Body.String())
 	}
 
-	originalLookup := lookupIP
-	lookupIP = func(string) ([]net.IP, error) { return []net.IP{net.ParseIP("203.0.113.9")}, nil }
-	defer func() { lookupIP = originalLookup }()
+	stubLookupIP(t, func(string) ([]net.IP, error) { return []net.IP{net.ParseIP("203.0.113.9")}, nil })
 	adminCreate := httptest.NewRequest(http.MethodPost, "/v1/organizations/me/webhooks", strings.NewReader(`{"url":"https://hooks.example.com/a","target_type":"generic","events":"all"}`))
 	adminCreate.Header.Set("Authorization", "Bearer admin-a")
 	adminResponse := httptest.NewRecorder()
