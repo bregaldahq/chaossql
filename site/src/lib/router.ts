@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react';
+import { localizePath, splitLocale } from './seo';
 
 // Path-based routing (/docs, /playground, ...) so every section is a real,
-// crawlable URL. Hash URLs (#/docs) from older links are migrated on load.
+// crawlable URL. English lives at the root and Portuguese under /pt, so each
+// language is its own indexable page. Hash URLs (#/docs) from older links are
+// migrated on load.
 
 export const ROUTE_PATHS = {
   landing: '/',
@@ -18,8 +21,16 @@ export type RouteId = keyof typeof ROUTE_PATHS;
 
 const LOCATION_CHANGE = 'chaossql:locationchange';
 
+export { localizePath, splitLocale } from './seo';
+
+/** Scenario slug from "/scenarios/lost-update" (any language), or null. */
+export function scenarioSlugFromPath(pathname: string): string | null {
+  const match = /^\/scenarios\/([a-z0-9-]+)\/?$/.exec(splitLocale(pathname).path);
+  return match ? match[1] : null;
+}
+
 export function routeFromPath(pathname: string): RouteId {
-  const segment = pathname.replace(/\/+$/, '').split('/')[1] || '';
+  const segment = splitLocale(pathname).path.replace(/\/+$/, '').split('/')[1] || '';
   const match = (Object.keys(ROUTE_PATHS) as RouteId[]).find(
     (id) => id !== 'landing' && ROUTE_PATHS[id] === `/${segment}`
   );
@@ -68,10 +79,14 @@ function snapshot() {
   return { pathname: window.location.pathname, search: window.location.search };
 }
 
+// Location used while prerendering on the server, where there is no window.
+let serverLocation = { pathname: '/', search: '' };
+export function setServerLocation(pathname: string, search = ''): void {
+  serverLocation = { pathname, search };
+}
+
 export function useLocation(): { pathname: string; search: string } {
-  const [location, setLocation] = useState(() =>
-    typeof window === 'undefined' ? { pathname: '/', search: '' } : snapshot()
-  );
+  const [location, setLocation] = useState(() => (typeof window === 'undefined' ? serverLocation : snapshot()));
   useEffect(() => {
     const update = () => setLocation(snapshot());
     window.addEventListener('popstate', update);
@@ -98,7 +113,14 @@ export function interceptLinkClick(event: MouseEvent): void {
   const href = anchor.getAttribute('href');
   if (!href || !href.startsWith('/') || href.startsWith('//')) return;
   const url = new URL(href, window.location.origin);
-  if (routeFromPath(url.pathname) === 'landing' && url.pathname !== '/') return;
+  const { path } = splitLocale(url.pathname);
+  if (routeFromPath(url.pathname) === 'landing' && path !== '/') return;
   event.preventDefault();
-  navigate(url.pathname + url.search + url.hash);
+  // Unprefixed links from a Portuguese page stay in Portuguese; explicit
+  // language switches carry data-lang and are left alone.
+  const current = splitLocale(window.location.pathname).lang;
+  const unprefixed = splitLocale(url.pathname).lang === 'en';
+  const target = current === 'pt' && unprefixed && !anchor.hasAttribute('data-lang') ? localizePath(href, 'pt') : href;
+  const resolved = new URL(target, window.location.origin);
+  navigate(resolved.pathname + resolved.search + resolved.hash);
 }

@@ -1,10 +1,16 @@
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
 import { test } from 'node:test';
-import { transform } from '../site/node_modules/esbuild/lib/main.js';
+import { build } from '../site/node_modules/esbuild/lib/main.js';
 
-const raw = await readFile(new URL('../worker.ts', import.meta.url), 'utf8');
-const { code } = await transform(raw, { loader: 'ts', format: 'esm' });
+// Bundle like wrangler does: worker.ts imports the shared SEO module from site/.
+const bundled = await build({
+  entryPoints: [new URL('../worker.ts', import.meta.url).pathname],
+  bundle: true,
+  format: 'esm',
+  platform: 'neutral',
+  write: false,
+});
+const code = bundled.outputFiles[0].text;
 const worker = (await import(`data:text/javascript;base64,${Buffer.from(code).toString('base64')}`)).default;
 
 let ipCounter = 0;

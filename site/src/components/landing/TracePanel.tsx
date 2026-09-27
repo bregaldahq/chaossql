@@ -36,7 +36,9 @@ export function TracePanel({ lang, active: controlled, footer, className }: Trac
   const visible = useInView(ref);
   const reduce = usePrefersReducedMotion();
   const [paused, setPaused] = useState(false);
-  const [tick, setTick] = useState(-1);
+  // Start on the final state: it is what the prerendered HTML and no-JS
+  // readers see; the loop then replays from the first event.
+  const [tick, setTick] = useState(BEATS.end);
   const autoplay = controlled === undefined;
   const running = autoplay && !reduce && !paused && visible;
 

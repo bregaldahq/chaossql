@@ -1,54 +1,29 @@
 import scenariosJson from './scenarios.json';
 
+type Localized<T = string> = { pt: T; en: T };
+
+/** Shape of src/data/scenarios.json. Typed without a cast so drift fails tsc. */
 export interface ScenarioItem {
   id: string;
-  name: {
-    pt: string;
-    en: string;
-  };
+  name: Localized;
   code: string;
-  description: {
-    pt: string;
-    en: string;
-  };
-  summary: {
-    pt: string;
-    en: string;
-  };
+  description: Localized;
+  summary: Localized;
+  /** Why the invariant breaks, in plain words. */
+  analysis: Localized;
   schema: string;
   chaos: string;
-  invariant?: {
-    name: string;
-    query: string;
-    assert: string;
-    explanation?: {
-      pt: string;
-      en: string;
-    };
+  fix: Localized<{ title: string; explanation: string; code: string; driverNotes: string }> & {
+    engines: string[];
   };
-  adyaGraph?: {
-    nodes: string[];
-    edges: { from: string; to: string; type: string }[];
-    cycleDescription?: {
-      pt: string;
-      en: string;
-    };
-  };
-  fix?: {
-    recommendation: {
-      pt: string;
-      en: string;
-    };
-    sql: string;
-    validatedEngines: string[];
-    driverNotes?: {
-      pt: string;
-      en: string;
-    };
+  reduction: {
+    cycle: string;
+    originalOps: number;
+    minimalOps: number;
   };
 }
 
-export const SCENARIOS_DATA = scenariosJson as unknown as ScenarioItem[];
+export const SCENARIOS_DATA: ScenarioItem[] = scenariosJson;
 
 export interface MatrixRow {
   code: string;
@@ -173,3 +148,25 @@ export const HERMITAGE_MATRIX: MatrixRow[] = [
     cliCommand: 'chaossql demo deadlock',
   },
 ];
+
+/**
+ * Public URL slug of each scenario (/scenarios/<slug>). Named after the anomaly
+ * people search for, not the internal id. Changing one breaks indexed URLs.
+ */
+export const SCENARIO_SLUGS: Record<string, string> = {
+  banking: 'lost-update',
+  inventory: 'inventory-oversell',
+  hospital: 'write-skew',
+  financial: 'read-skew',
+  auction: 'dirty-write',
+  crypto: 'circular-information-flow',
+  flashcrash: 'dirty-read',
+  ticket: 'anti-dependency-cycle',
+  deadlock: 'deadlock',
+  fk_cascade: 'foreign-key-cascade-deadlock',
+};
+
+export function scenarioBySlug(slug: string | null): ScenarioItem | undefined {
+  if (!slug) return undefined;
+  return SCENARIOS_DATA.find((s) => SCENARIO_SLUGS[s.id] === slug);
+}

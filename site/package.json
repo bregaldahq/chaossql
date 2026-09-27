@@ -5,12 +5,13 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc --noEmit && vite build && cp dist/template.html index.html && cp -rf dist/assets/* assets/ && rm -rf dist && node scripts/prune-assets.mjs",
+    "build": "tsc --noEmit && vite build && cp dist/template.html index.html && cp -rf dist/assets/* assets/ && vite build --ssr src/entry-server.tsx --outDir dist-ssr && node scripts/prerender.mjs && rm -rf dist dist-ssr && node scripts/prune-assets.mjs && node scripts/build-pages-worker.mjs",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "verify": "npm run typecheck && vite build --outDir .verify-dist && npm test",
-    "og": "node scripts/render-og.mjs"
+    "og": "node scripts/render-og.mjs",
+    "preview:static": "node scripts/serve-static.mjs 4173"
   },
   "dependencies": {
     "@fontsource-variable/geist": "^5.3.0",

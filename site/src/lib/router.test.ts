@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { pathFromLegacyHash, routeFromPath, ROUTE_PATHS } from './router';
+import { localizePath, pathFromLegacyHash, routeFromPath, scenarioSlugFromPath, splitLocale } from './router';
+import { pageMeta } from './seo';
+import { SCENARIO_SLUGS, SCENARIOS_DATA } from '../data/scenarios-data';
+// @ts-expect-error plain ESM build script without type declarations
+import { buildPagesWorker } from '../../scripts/build-pages-worker.mjs';
 import { ROUTE_META } from './route-meta';
 import { SITE_EVENTS } from './analytics';
 import sitemap from '../../sitemap.xml?raw';
@@ -21,6 +25,10 @@ describe('routeFromPath', () => {
     ['/playground', 'playground'],
     ['/pricing', 'pricing'],
     ['/unknown', 'landing'],
+    ['/pt', 'landing'],
+    ['/pt/pricing', 'pricing'],
+    ['/scenarios/lost-update', 'scenarios'],
+    ['/pt/scenarios/write-skew', 'scenarios'],
   ])('maps %s to %s', (path, expected) => {
     expect(routeFromPath(path)).toBe(expected);
   });
@@ -38,30 +46,80 @@ describe('pathFromLegacyHash', () => {
   });
 });
 
+describe('language URLs', () => {
+  it.each([
+    ['/', 'en', '/'],
+    ['/pricing', 'en', '/pricing'],
+    ['/pt', 'pt', '/'],
+    ['/pt/pricing', 'pt', '/pricing'],
+    ['/ptx', 'en', '/ptx'],
+  ])('splits %s', (pathname, lang, path) => {
+    expect(splitLocale(pathname)).toEqual({ lang, path });
+  });
+
+  it.each([
+    ['/', 'pt', '/pt'],
+    ['/#story', 'pt', '/pt#story'],
+    ['/pricing#audit', 'pt', '/pt/pricing#audit'],
+    ['/playground?scenario=banking', 'pt', '/pt/playground?scenario=banking'],
+    ['/pt/pricing', 'en', '/pricing'],
+    ['/pt', 'en', '/'],
+    ['/pt/docs', 'pt', '/pt/docs'],
+  ])('localizes %s for %s', (href, lang, expected) => {
+    expect(localizePath(href, lang as 'en' | 'pt')).toBe(expected);
+  });
+
+  it('reads scenario slugs in both languages', () => {
+    expect(scenarioSlugFromPath('/scenarios/lost-update')).toBe('lost-update');
+    expect(scenarioSlugFromPath('/pt/scenarios/write-skew')).toBe('write-skew');
+    expect(scenarioSlugFromPath('/scenarios')).toBeNull();
+  });
+
+  it('gives every page reciprocal hreflang alternates with an English x-default', () => {
+    const meta = pageMeta('pricing', 'pt', '/pricing');
+    expect(meta.canonical).toBe('https://chaossql.bregalda.com/pt/pricing');
+    expect(meta.alternates).toEqual({
+      en: 'https://chaossql.bregalda.com/pricing',
+      'pt-BR': 'https://chaossql.bregalda.com/pt/pricing',
+      'x-default': 'https://chaossql.bregalda.com/pricing',
+    });
+    expect(pageMeta('landing', 'pt', '/').canonical).toBe('https://chaossql.bregalda.com/pt');
+  });
+
+  it('has a unique slug per scenario', () => {
+    const slugs = SCENARIOS_DATA.map((s) => SCENARIO_SLUGS[s.id]);
+    expect(slugs.every(Boolean)).toBe(true);
+    expect(new Set(slugs).size).toBe(slugs.length);
+  });
+});
+
 describe('sitemap.xml', () => {
   it('matches the public/ copy', () => {
     expect(publicSitemap).toBe(sitemap);
   });
 
-  it.each(Object.keys(ROUTE_PATHS) as (keyof typeof ROUTE_PATHS)[])('lists %s only when indexable', (route) => {
-    const loc = `<loc>https://chaossql.bregalda.com${ROUTE_PATHS[route]}</loc>`;
-    expect(sitemap.includes(loc)).toBe(ROUTE_META[route].indexable);
+  it.each(Object.entries(ROUTE_META))('lists %s in both languages only when indexable', (_route, meta) => {
+    for (const lang of ['en', 'pt'] as const) {
+      const loc = `<loc>https://chaossql.bregalda.com${localizePath(meta.path, lang)}</loc>`;
+      expect(sitemap.includes(loc)).toBe(meta.indexable);
+    }
+  });
+
+  it('lists every scenario page with its alternate', () => {
+    for (const slug of Object.values(SCENARIO_SLUGS)) {
+      expect(sitemap).toContain(`<loc>https://chaossql.bregalda.com/scenarios/${slug}</loc>`);
+      expect(sitemap).toContain(`hreflang="pt-BR" href="https://chaossql.bregalda.com/pt/scenarios/${slug}"`);
+    }
   });
 });
 
-describe('worker route metadata', () => {
-  it.each([
-    ['worker.ts', workerTs],
-    ['site/_worker.js', workerJs],
-  ])('%s injects the same metadata as the app', (_name, source) => {
-    for (const [route, meta] of Object.entries(ROUTE_META)) {
-      if (route === 'landing') continue;
-      const path = ROUTE_PATHS[route as keyof typeof ROUTE_PATHS];
-      expect(source.includes(`'${path}':`) || source.includes(`"${path}":`)).toBe(true);
-      expect(source).toContain(JSON.stringify(meta.title));
-      expect(source).toContain(JSON.stringify(meta.description));
-      expect(source).toContain(`image: '${meta.image}'`);
-    }
+describe('edge worker', () => {
+  it('reads page metadata from the shared SEO module', () => {
+    expect(workerTs).toContain("from './site/src/lib/seo'");
+  });
+
+  it('site/_worker.js is the current build of worker.ts', () => {
+    expect(workerJs).toBe(buildPagesWorker());
   });
 });
 

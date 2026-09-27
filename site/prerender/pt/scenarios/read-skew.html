@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-surface="light">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Distorção de Leitura Financeira (Read Skew) (A5A) | Cenários | ChaosSQL</title>
+    <meta
+      name="description"
+      content="Uma consulta de auditoria observa uma transferência parcialmente aplicada, detectando uma discrepância espúria no patrimônio total."
+    />
+    <link rel="canonical" href="https://chaossql.bregalda.com/pt/scenarios/read-skew" />
+    <link rel="alternate" hreflang="en" href="https://chaossql.bregalda.com/scenarios/read-skew" />
+    <link rel="alternate" hreflang="pt-BR" href="https://chaossql.bregalda.com/pt/scenarios/read-skew" />
+    <link rel="alternate" hreflang="x-default" href="https://chaossql.bregalda.com/scenarios/read-skew" />
+    <meta name="robots" content="index, follow, max-image-preview:large" />
+    <meta name="keywords" content="ChaosSQL, SQL concurrency testing, database fuzzer, isolation levels, lost update, write skew, Adya anomalies, delta debugging, PostgreSQL, MySQL, SQLite, Go" />
+    <meta name="author" content="Ricardo Bregalda — Studio Bregalda" />
+    <meta name="theme-color" content="#4B2E83" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="ChaosSQL" />
+    <meta property="og:locale" content="pt_BR" />
+    <meta property="og:locale:alternate" content="en_US" />
+    <meta property="og:url" content="https://chaossql.bregalda.com/pt/scenarios/read-skew" />
+    <meta property="og:title" content="Distorção de Leitura Financeira (Read Skew) (A5A) | Cenários | ChaosSQL" />
+    <meta property="og:description" content="Uma consulta de auditoria observa uma transferência parcialmente aplicada, detectando uma discrepância espúria no patrimônio total." />
+    <meta property="og:image" content="https://chaossql.bregalda.com/og/scenarios.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Distorção de Leitura Financeira (Read Skew) (A5A) | Cenários | ChaosSQL" />
+    <meta name="twitter:description" content="Uma consulta de auditoria observa uma transferência parcialmente aplicada, detectando uma discrepância espúria no patrimônio total." />
+    <meta name="twitter:image" content="https://chaossql.bregalda.com/og/scenarios.png" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "ChaosSQL",
+        "url": "https://chaossql.bregalda.com/",
+        "description": "Deterministic concurrency and isolation fuzzer for SQL databases with causal delta-debugging and Adya cycle classification.",
+        "applicationCategory": "DeveloperApplication",
+        "operatingSystem": "Linux, macOS, Windows",
+        "programmingLanguage": "Go",
+        "license": "https://opensource.org/licenses/MIT",
+        "softwareVersion": "1.6.0",
+        "codeRepository": "https://github.com/bregaldahq/chaossql",
+        "sameAs": ["https://github.com/bregaldahq/chaossql"],
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+        "author": { "@type": "Person", "name": "Ricardo Bregalda" }
+      }
+    </script>
+    <link rel="icon" type="image/svg+xml" href="/brand/icone_bregalda.svg" />
+    <script type="module" crossorigin src="/assets/main-DEFI-GWg.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/main-DsdD8E9B.css">
+      <link rel="preload" as="font" type="font/woff2" crossorigin href="/assets/geist-latin-wght-normal-BgDaEnEv.woff2">
+    <link rel="preload" as="font" type="font/woff2" crossorigin href="/assets/jetbrains-mono-latin-wght-normal-B9CIFXIH.woff2">
+      <link rel="stylesheet" crossorigin href="/assets/ScenariosPage-CUUpK5xB.css">
+    <link rel="stylesheet" crossorigin href="/assets/CodeBlock-BKGVx9in.css">
+    <link rel="modulepreload" crossorigin href="/assets/ScenariosPage-_2cQVHgX.js">
+    <link rel="modulepreload" crossorigin href="/assets/CodeBlock-CPOojBcB.js">
+  </head>
+  <body>
+    <div id="root" data-prerendered><link rel="preload" as="image" href="/brand/icone_bregalda.svg"/><div style="min-height:100vh;display:flex;flex-direction:column"><a class="skip-link" href="#main">Pular para o conteúdo</a><header class="_nav_19ps6_2" data-nav="true"><a href="/pt" class="_brand_19ps6_17" aria-label="ChaosSQL by Studio Bregalda, início"><img src="/brand/icone_bregalda.svg" alt="" width="28" height="28"/><span>ChaosSQL</span></a><nav aria-label="Navegação principal" class="_links_19ps6_33"><a href="/pt#story" class="_link_19ps6_33">Como funciona</a><a href="/pt/scenarios" class="_link_19ps6_33" aria-current="page">Cenários</a><a href="/pt/playground" class="_link_19ps6_33">Playground WASM</a><a href="/pt/docs" class="_link_19ps6_33">Documentação</a><a href="/pt/pricing" class="_link_19ps6_33">Preços</a></nav><div class="_actions_19ps6_59"><div class="_lang_19ps6_66" role="group" aria-label="Seletor de idioma"><button type="button" aria-pressed="false">EN</button><button type="button" aria-pressed="true">PT</button></div><a href="https://github.com/bregaldahq/chaossql" target="_blank" rel="noreferrer" class="_github_19ps6_90">GitHub <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-up-right" aria-hidden="true"><path d="M7 7h10v10"></path><path d="M7 17 17 7"></path></svg></a><a href="/pt#story" class="_button_soy8p_1 _primary_soy8p_44 _md_soy8p_32 _cta_19ps6_146"><span>Ver o bug acontecer</span></a><button type="button" class="_menuToggle_19ps6_104" aria-expanded="false" aria-controls="mobile-nav" aria-label="Abrir menu de navegação"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-menu" aria-hidden="true"><path d="M4 5h16"></path><path d="M4 12h16"></path><path d="M4 19h16"></path></svg></button></div></header><main id="main" style="flex-grow:1"><!--$--><div class="_pageContainer_13d3t_1" data-surface="light"><div class="_header_13d3t_7"><p class="technical-label" style="color:var(--purple)">Catálogo de Concorrência</p><p style="font-size:var(--type-h3);font-weight:500;letter-spacing:-0.04em;color:var(--ink)">Cenários Canônicos &amp; Mitigações</p><p style="color:var(--text-secondary);font-size:var(--type-body-lg);max-width:42rem">Explore 10 cenários de falhas de concorrência baseados em pesquisas acadêmicas de isolamento e casos reais de sistemas financeiros e distribuídos.</p></div><div class="_layout_13d3t_11"><aside class="_scenariosNav_13d3t_17" aria-label="Lista de cenários"><a href="/pt/scenarios/lost-update" class="_scenarioBtn_13d3t_28 "><span><span class="technical-label" style="font-size:0.68rem;margin-right:0.5rem;color:var(--text-secondary)">0<!-- -->1</span>Lost Update Bancário</span><span class="_anomalyBadge_13d3t_60">P4</span></a><a href="/pt/scenarios/inventory-oversell" class="_scenarioBtn_13d3t_28 "><span><span class="technical-label" style="font-size:0.68rem;margin-right:0.5rem;color:var(--text-secondary)">0<!-- -->2</span>Venda Excessiva de Inventário (Oversell)</span><span class="_anomalyBadge_13d3t_60">A3</span></a><a href="/pt/scenarios/write-skew" class="_scenarioBtn_13d3t_28 "><span><span class="technical-label" style="font-size:0.68rem;margin-right:0.5rem;color:var(--text-secondary)">0<!-- -->3</span>Desvio de Escrita Hospitalar (Write Skew)</span><span class="_anomalyBadge_13d3t_60">A5B</span></a><a href="/pt/scenarios/read-skew" class="_scenarioBtn_13d3t_28 _scenarioBtnActive_13d3t_47" aria-current="page"><span><span class="technical-label" style="font-size:0.68rem;margin-right:0.5rem;color:var(--text-secondary)">0<!-- -->4</span>Distorção de Leitura Financeira (Read Skew)</span><span class="_anomalyBadge_13d3t_60">A5A</span></a><a href="/pt/scenarios/dirty-write" class="_scenarioBtn_13d3t_28 "><span><span class="technical-label" style="font-size:0.68rem;margin-right:0.5rem;color:var(--text-secondary)">0<!-- -->5</span>Escrita Suja em Leilão (Dirty Write)</span><span class="_anomalyBadge_13d3t_60">G0</span></a><a href="/pt/scenarios/circular-information-flow" class="_scenarioBtn_13d3t_28 "><span><span class="technical-label" style="font-size:0.68rem;margin-right:0.5rem;color:var(--text-secondary)">0<!-- -->6</span>Informação Circular em Arbitragem Cripto</span><span class="_anomalyBadge_13d3t_60">G1c</span></a><a href="/pt/scenarios/dirty-read" class="_scenarioBtn_13d3t_28 "><span><span class="technical-label" style="font-size:0.68rem;margin-right:0.5rem;color:var(--text-secondary)">0<!-- -->7</span>Leitura Suja em Flash Crash (Dirty Read)</span><span class="_anomalyBadge_13d3t_60">G1a</span></a><a href="/pt/scenarios/anti-dependency-cycle" class="_scenarioBtn_13d3t_28 "><span><span class="technical-label" style="font-size:0.68rem;margin-right:0.5rem;color:var(--text-secondary)">0<!-- -->8</span>Ciclo de Anti-Dependência em Bilheteria (G2)</span><span class="_anomalyBadge_13d3t_60">G2</span></a><a href="/pt/scenarios/deadlock" class="_scenarioBtn_13d3t_28 "><span><span class="technical-label" style="font-size:0.68rem;margin-right:0.5rem;color:var(--text-secondary)">0<!-- -->9</span>Ciclo de Deadlock &amp; Recuperação</span><span class="_anomalyBadge_13d3t_60">G-DL</span></a><a href="/pt/scenarios/foreign-key-cascade-deadlock" class="_scenarioBtn_13d3t_28 "><span><span class="technical-label" style="font-size:0.68rem;margin-right:0.5rem;color:var(--text-secondary)">0<!-- -->10</span>Deadlock em Deleção em Cascata de Foreign Key</span><span class="_anomalyBadge_13d3t_60">G-DL</span></a></aside><div class="_stagePane_13d3t_54"><div><span class="_anomalyBadge_13d3t_60">A5A</span><h1 class="_stageTitle_13d3t_72">Distorção de Leitura Financeira (Read Skew)</h1><p class="_summary_13d3t_80">Uma consulta de auditoria observa uma transferência parcialmente aplicada, detectando uma discrepância espúria no patrimônio total.</p><p class="_summary_13d3t_80">Uma consulta de auditoria observa uma transferência parcialmente aplicada, detectando uma discrepância espúria no patrimônio total.</p></div><section class="_section_13d3t_158" aria-labelledby="scenario-schema"><h2 id="scenario-schema" class="_sectionTitle_13d3t_164">Schema e dados iniciais</h2><div data-theme="lab" class="_terminal_1gxq6_1 _container_16h2s_1"><div class="_header_1gxq6_11"><span class="_title_1gxq6_22">schema.sql &amp; seed.sql</span><button type="button" class="_copy_1gxq6_31" aria-label="Copiar: schema.sql &amp; seed.sql"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-copy" aria-hidden="true"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path></svg><span aria-live="polite">Copiar</span></button></div><pre class="_body_1gxq6_53" data-language="sql"><code>-- Schema
+CREATE TABLE accounts (
+    id INT PRIMARY KEY,
+    balance INT NOT NULL
+);
+
+-- Seed
+INSERT INTO accounts VALUES (1, 1000), (2, 1000);</code></pre></div></section><section class="_section_13d3t_158" aria-labelledby="scenario-workload"><h2 id="scenario-workload" class="_sectionTitle_13d3t_164">Carga concorrente (chaos.yaml)</h2><div data-theme="lab" class="_terminal_1gxq6_1 _container_16h2s_1"><div class="_header_1gxq6_11"><span class="_title_1gxq6_22">chaos.yaml</span><button type="button" class="_copy_1gxq6_31" aria-label="Copiar: chaos.yaml"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-copy" aria-hidden="true"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path></svg><span aria-live="polite">Copiar</span></button></div><pre class="_body_1gxq6_53" data-language="yaml"><code>version: &quot;1.0&quot;
+name: &quot;financial_read_skew&quot;
+operations:
+  - name: &quot;transfer_100&quot;
+    steps:
+      - &quot;UPDATE accounts SET balance = balance - 100 WHERE id = 1&quot;
+      - &quot;UPDATE accounts SET balance = balance + 100 WHERE id = 2&quot;
+  - name: &quot;audit_total&quot;
+    steps:
+      - &quot;SELECT balance FROM accounts WHERE id = 1 -&gt; b1&quot;
+      - &quot;SELECT balance FROM accounts WHERE id = 2 -&gt; b2&quot;
+invariants:
+  - name: &quot;total_wealth_preserved&quot;
+    query: &quot;SELECT sum(balance) AS total FROM accounts;&quot;
+    assert: &quot;total == 2000&quot;</code></pre></div></section><section class="_section_13d3t_158" aria-labelledby="scenario-analysis"><h2 id="scenario-analysis" class="_sectionTitle_13d3t_164">Por que a invariante quebra</h2><p class="_summary_13d3t_80">Sob READ COMMITTED, cada SELECT na transação de auditoria tira um snapshot isolado. A auditoria lê a conta 1 antes da transferência (-$100), mas lê a conta 2 após a transferência (+$100), observando $1000 + $1100 = $2100.</p><div class="_infoBox_13d3t_117" style="border-left-color:var(--yellow)"><code style="display:block;font-size:0.95rem;color:var(--purple)">T1 ──(rw)──► T2 ──(wr)──► T1</code><p style="margin:0.4rem 0 0;font-size:0.9rem;color:var(--text-secondary)">Delta debugging reduz 25 operações às 3 que causam a falha.</p></div></section><section class="_section_13d3t_158" aria-labelledby="scenario-fix"><h2 id="scenario-fix" class="_sectionTitle_13d3t_164">Correção em produção</h2><div class="_infoBox_13d3t_117" style="border-left-color:var(--green)"><p style="margin:0;font-weight:600">Isolamento REPEATABLE READ / SNAPSHOT para Transações de Auditoria</p><p style="margin:0.4rem 0 0">Sob READ COMMITTED, cada instrução SELECT cria uma nova fotografia temporal (snapshot). Se uma transação de transferência comitar entre a leitura da conta 1 e da conta 2, o relatório financeiro observará o estado de contas em momentos díspares do tempo. Ao elevar a transação de leitura para REPEATABLE READ (ou SNAPSHOT ISOLATION), o banco congela um único Point-in-Time Snapshot imutável no primeiro SELECT, garantindo consistência estrita de leitura sem necessidade de bloqueios.</p><div class="_enginesTagList_13d3t_127"><span class="_engineTag_13d3t_134">✓ <!-- -->PostgreSQL</span><span class="_engineTag_13d3t_134">✓ <!-- -->MySQL (InnoDB)</span><span class="_engineTag_13d3t_134">✓ <!-- -->SQLite (WAL)</span></div><p style="margin:0.6rem 0 0;font-size:0.85rem;color:var(--text-secondary)">PostgreSQL, MySQL (InnoDB), SQLite (WAL)</p></div><div data-theme="lab" class="_terminal_1gxq6_1 _container_16h2s_1"><div class="_header_1gxq6_11"><span class="_title_1gxq6_22">remediation_fix.sql</span><button type="button" class="_copy_1gxq6_31" aria-label="Copiar: remediation_fix.sql"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-copy" aria-hidden="true"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path></svg><span aria-live="polite">Copiar</span></button></div><pre class="_body_1gxq6_53" data-language="sql"><code>-- Transação de Auditoria em REPEATABLE READ
+SET TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+
+BEGIN;
+-- Todas as consultas subsequentes leem a mesma fotografia temporal do banco:
+SELECT balance AS bal1 FROM accounts WHERE id = 1;
+-- Mesmo que a transferência ocorra e comite aqui no meio...
+SELECT balance AS bal2 FROM accounts WHERE id = 2;
+-- bal1 + bal2 sempre somará exatamente 2000!
+COMMIT;</code></pre></div></section></div></div></div><!--/$--></main><footer class="_footer_ldgol_1"><div class="_inner_ldgol_8"><div class="_brand_ldgol_16"><a href="/pt" class="_logo_ldgol_24"><img src="/brand/icone_bregalda.svg" alt="" width="28" height="28"/><span>ChaosSQL</span></a><p>Feito pelo Studio Bregalda.</p></div><nav aria-label="Links de rodapé" class="_groups_ldgol_37"><div><h2 class="_groupTitle_ldgol_43">Produto</h2><ul><li><a href="/pt#story">Como funciona</a></li><li><a href="/pt/scenarios">Cenários</a></li><li><a href="/pt/pricing">Preços</a></li></ul></div><div><h2 class="_groupTitle_ldgol_43">Ferramentas</h2><ul><li><a href="/pt/playground">Playground WASM</a></li><li><a href="/pt/visualizer">Trace Visualizer</a></li><li><a href="/pt/matrix">Matriz Hermitage</a></li><li><a href="/pt/dashboard">Cloud Dashboard</a></li></ul></div><div><h2 class="_groupTitle_ldgol_43">Recursos</h2><ul><li><a href="/pt/docs">Documentação</a></li><li><a href="https://github.com/bregaldahq/chaossql" target="_blank" rel="noreferrer">GitHub</a></li><li><a href="https://github.com/bregaldahq/chaossql/releases" target="_blank" rel="noreferrer">Releases</a></li></ul></div></nav><p class="_copyright_ldgol_69"><span>© <!-- -->2026</span> Studio Bregalda. <!-- -->Todos os direitos reservados.</p></div></footer></div></div>
+  </body>
+</html>

@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { cleanup, render, screen } from '@testing-library/react';
 import { LandingPage } from './LandingPage';
 import { messages } from '../i18n';
+import { localizePath } from '../lib/router';
 
 afterEach(cleanup);
 
@@ -13,7 +14,7 @@ describe.each(['en', 'pt'] as const)('LandingPage (%s)', (lang) => {
     render(<LandingPage lang={lang} />);
     expect(screen.getByRole('heading', { level: 1, name: m.hero.title })).toBeTruthy();
     const primary = screen.getAllByRole('link', { name: m.cta.primary });
-    expect(primary[0].getAttribute('href')).toBe('/#story');
+    expect(primary[0].getAttribute('href')).toBe(localizePath('/#story', lang));
     expect(screen.getAllByRole('button', { name: new RegExp(m.landingUi.installTitle) }).length).toBeGreaterThan(0);
   });
 
@@ -32,8 +33,8 @@ describe.each(['en', 'pt'] as const)('LandingPage (%s)', (lang) => {
 
   it('links every scenario to the playground preset and every audit CTA to pricing', () => {
     render(<LandingPage lang={lang} />);
-    expect(screen.getByRole('link', { name: m.cta.playground }).getAttribute('href')).toBe('/playground?scenario=banking');
-    expect(screen.getByRole('link', { name: m.cta.audit }).getAttribute('href')).toBe('/pricing#audit');
+    expect(screen.getByRole('link', { name: m.cta.playground }).getAttribute('href')).toBe(localizePath('/playground?scenario=banking', lang));
+    expect(screen.getByRole('link', { name: m.cta.audit }).getAttribute('href')).toBe(localizePath('/pricing#audit', lang));
   });
 
   it('answers every FAQ entry', () => {

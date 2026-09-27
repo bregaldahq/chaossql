@@ -1,6 +1,7 @@
 import { useRef } from 'react';
 import { ArrowRight, ArrowUpRight, Play, Star } from 'lucide-react';
 import { track } from '../lib/analytics';
+import { localizePath } from '../lib/router';
 import { RECORDED_RUNS, type RecordedRun } from '../data/traces';
 import { format, messages, type Language } from '../i18n';
 import { Badge } from '../components/system/Badge';
@@ -72,6 +73,7 @@ function traceText(run: RecordedRun): string {
 
 export function LandingPage({ lang = 'en' }: LandingPageProps) {
   const m = messages[lang];
+  const L = (href: string) => localizePath(href, lang);
   const stars = useGitHubStars();
   const banking = RECORDED_RUNS.banking;
   const anomalyName = (type: string) => (type.startsWith('A5B') ? m.landingUi.anomalyA5B : m.landingUi.anomalyP4);
@@ -87,7 +89,7 @@ export function LandingPage({ lang = 'en' }: LandingPageProps) {
             </h1>
             <p className={styles.heroLead}>{m.hero.lead}</p>
             <div className={styles.actions}>
-              <Button href="/#story" size="lg" icon={<Play />} onClick={() => track('cta_click', 'hero_story')}>
+              <Button href={L('/#story')} size="lg" icon={<Play />} onClick={() => track('cta_click', 'hero_story')}>
                 {m.cta.primary}
               </Button>
               <InstallButton lang={lang} placement="hero" />
@@ -147,7 +149,7 @@ export function LandingPage({ lang = 'en' }: LandingPageProps) {
                         <p className={styles.scenarioInvariant}>{copy.invariant}</p>
                       </div>
                       <Button
-                        href={`/playground?scenario=${id}`}
+                        href={L(`/playground?scenario=${id}`)}
                         variant="secondary"
                         trailingIcon={<ArrowRight />}
                         onClick={() => track('cta_click', `scenario_playground:${id}`)}
@@ -171,7 +173,7 @@ export function LandingPage({ lang = 'en' }: LandingPageProps) {
             })}
           />
           <p className={styles.more}>
-            <a href="/scenarios">
+            <a href={L('/scenarios')}>
               {m.cta.allScenarios} <ArrowRight size={14} aria-hidden="true" />
             </a>
           </p>
@@ -251,7 +253,7 @@ export function LandingPage({ lang = 'en' }: LandingPageProps) {
               <h3>{m.plans.cloud.name}</h3>
               <p className={styles.price}>{format(m.plans.cloud.price, { price: CLOUD_FROM_PRICE })}</p>
               <p>{m.plans.cloud.body}</p>
-              <Button href="/#waitlist" variant="secondary" size="lg" onClick={() => track('cta_click', 'plans_waitlist')}>
+              <Button href={L('/#waitlist')} variant="secondary" size="lg" onClick={() => track('cta_click', 'plans_waitlist')}>
                 {m.cta.waitlist}
               </Button>
             </div>
@@ -259,13 +261,13 @@ export function LandingPage({ lang = 'en' }: LandingPageProps) {
               <h3>{m.plans.audit.name}</h3>
               <p className={styles.price}>{format(m.plans.audit.price, { price: AUDIT_PRICE })}</p>
               <p>{m.plans.audit.body}</p>
-              <Button href="/pricing#audit" size="lg" onClick={() => track('cta_click', 'plans_audit')}>
+              <Button href={L('/pricing#audit')} size="lg" onClick={() => track('cta_click', 'plans_audit')}>
                 {m.cta.audit}
               </Button>
             </div>
           </div>
           <p className={styles.more}>
-            <a href="/pricing">
+            <a href={L('/pricing')}>
               {m.plans.compare} <ArrowRight size={14} aria-hidden="true" />
             </a>
           </p>
@@ -302,7 +304,7 @@ export function LandingPage({ lang = 'en' }: LandingPageProps) {
             <WaitlistForm lang={lang} source="landing_page" />
           </div>
           <p className={styles.auditLink}>
-            <a href="/pricing#audit" onClick={() => track('cta_click', 'final_audit')}>
+            <a href={L('/pricing#audit')} onClick={() => track('cta_click', 'final_audit')}>
               {m.landingUi.auditCta} <ArrowRight size={14} aria-hidden="true" />
             </a>
           </p>

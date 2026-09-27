@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en" data-surface="light">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Ticket Anti-Dependency Cycle (G2) | Scenarios | ChaosSQL</title>
+    <meta
+      name="description"
+      content="Concert ticket reservations generate phantom conflicts across seat range predicates under Snapshot Isolation."
+    />
+    <link rel="canonical" href="https://chaossql.bregalda.com/scenarios/anti-dependency-cycle" />
+    <link rel="alternate" hreflang="en" href="https://chaossql.bregalda.com/scenarios/anti-dependency-cycle" />
+    <link rel="alternate" hreflang="pt-BR" href="https://chaossql.bregalda.com/pt/scenarios/anti-dependency-cycle" />
+    <link rel="alternate" hreflang="x-default" href="https://chaossql.bregalda.com/scenarios/anti-dependency-cycle" />
+    <meta name="robots" content="index, follow, max-image-preview:large" />
+    <meta name="keywords" content="ChaosSQL, SQL concurrency testing, database fuzzer, isolation levels, lost update, write skew, Adya anomalies, delta debugging, PostgreSQL, MySQL, SQLite, Go" />
+    <meta name="author" content="Ricardo Bregalda — Studio Bregalda" />
+    <meta name="theme-color" content="#4B2E83" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="ChaosSQL" />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:locale:alternate" content="pt_BR" />
+    <meta property="og:url" content="https://chaossql.bregalda.com/scenarios/anti-dependency-cycle" />
+    <meta property="og:title" content="Ticket Anti-Dependency Cycle (G2) | Scenarios | ChaosSQL" />
+    <meta property="og:description" content="Concert ticket reservations generate phantom conflicts across seat range predicates under Snapshot Isolation." />
+    <meta property="og:image" content="https://chaossql.bregalda.com/og/scenarios.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Ticket Anti-Dependency Cycle (G2) | Scenarios | ChaosSQL" />
+    <meta name="twitter:description" content="Concert ticket reservations generate phantom conflicts across seat range predicates under Snapshot Isolation." />
+    <meta name="twitter:image" content="https://chaossql.bregalda.com/og/scenarios.png" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "ChaosSQL",
+        "url": "https://chaossql.bregalda.com/",
+        "description": "Deterministic concurrency and isolation fuzzer for SQL databases with causal delta-debugging and Adya cycle classification.",
+        "applicationCategory": "DeveloperApplication",
+        "operatingSystem": "Linux, macOS, Windows",
+        "programmingLanguage": "Go",
+        "license": "https://opensource.org/licenses/MIT",
+        "softwareVersion": "1.6.0",
+        "codeRepository": "https://github.com/bregaldahq/chaossql",
+        "sameAs": ["https://github.com/bregaldahq/chaossql"],
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+        "author": { "@type": "Person", "name": "Ricardo Bregalda" }
+      }
+    </script>
+    <link rel="icon" type="image/svg+xml" href="/brand/icone_bregalda.svg" />
+    <script type="module" crossorigin src="/assets/main-DEFI-GWg.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/main-DsdD8E9B.css">
+      <link rel="preload" as="font" type="font/woff2" crossorigin href="/assets/geist-latin-wght-normal-BgDaEnEv.woff2">
+    <link rel="preload" as="font" type="font/woff2" crossorigin href="/assets/jetbrains-mono-latin-wght-normal-B9CIFXIH.woff2">
+      <link rel="stylesheet" crossorigin href="/assets/ScenariosPage-CUUpK5xB.css">
+    <link rel="stylesheet" crossorigin href="/assets/CodeBlock-BKGVx9in.css">
+    <link rel="modulepreload" crossorigin href="/assets/ScenariosPage-_2cQVHgX.js">
+    <link rel="modulepreload" crossorigin href="/assets/CodeBlock-CPOojBcB.js">
+  </head>
+  <body>
+    <div id="root" data-prerendered><link rel="preload" as="image" href="/brand/icone_bregalda.svg"/><div style="min-height:100vh;display:flex;flex-direction:column"><a class="skip-link" href="#main">Skip to content</a><header class="_nav_19ps6_2" data-nav="true"><a href="/" class="_brand_19ps6_17" aria-label="ChaosSQL by Studio Bregalda, home"><img src="/brand/icone_bregalda.svg" alt="" width="28" height="28"/><span>ChaosSQL</span></a><nav aria-label="Main navigation" class="_links_19ps6_33"><a href="/#story" class="_link_19ps6_33">How it works</a><a href="/scenarios" class="_link_19ps6_33" aria-current="page">Scenarios</a><a href="/playground" class="_link_19ps6_33">WASM Playground</a><a href="/docs" class="_link_19ps6_33">Docs</a><a href="/pricing" class="_link_19ps6_33">Pricing</a></nav><div class="_actions_19ps6_59"><div class="_lang_19ps6_66" role="group" aria-label="Language selector"><button type="button" aria-pressed="true">EN</button><button type="button" aria-pressed="false">PT</button></div><a href="https://github.com/bregaldahq/chaossql" target="_blank" rel="noreferrer" class="_github_19ps6_90">GitHub <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-up-right" aria-hidden="true"><path d="M7 7h10v10"></path><path d="M7 17 17 7"></path></svg></a><a href="/#story" class="_button_soy8p_1 _primary_soy8p_44 _md_soy8p_32 _cta_19ps6_146"><span>See the bug happen</span></a><button type="button" class="_menuToggle_19ps6_104" aria-expanded="false" aria-controls="mobile-nav" aria-label="Open navigation menu"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-menu" aria-hidden="true"><path d="M4 5h16"></path><path d="M4 12h16"></path><path d="M4 19h16"></path></svg></button></div></header><main id="main" style="flex-grow:1"><!--$--><div class="_pageContainer_13d3t_1" data-surface="light"><div class="_header_13d3t_7"><p class="technical-label" style="color:var(--purple)">Concurrency Catalog</p><p style="font-size:var(--type-h3);font-weight:500;letter-spacing:-0.04em;color:var(--ink)">Canonical Scenarios &amp; Fixes</p><p style="color:var(--text-secondary);font-size:var(--type-body-lg);max-width:42rem">Inspect 10 concurrency failure scenarios based on academic isolation literature and real-world financial/distributed systems.</p></div><div class="_layout_13d3t_11"><aside class="_scenariosNav_13d3t_17" aria-label="Scenario list"><a href="/scenarios/lost-update" class="_scenarioBtn_13d3t_28 "><span><span class="technical-label" style="font-size:0.68rem;margin-right:0.5rem;color:var(--text-secondary)">0<!-- -->1</span>Banking Lost Update</span><span class="_anomalyBadge_13d3t_60">P4</span></a><a href="/scenarios/inventory-oversell" class="_scenarioBtn_13d3t_28 "><span><span class="technical-label" style="font-size:0.68rem;margin-right:0.5rem;color:var(--text-secondary)">0<!-- -->2</span>Inventory Oversell</span><span class="_anomalyBadge_13d3t_60">A3</span></a><a href="/scenarios/write-skew" class="_scenarioBtn_13d3t_28 "><span><span class="technical-label" style="font-size:0.68rem;margin-right:0.5rem;color:var(--text-secondary)">0<!-- -->3</span>Hospital Write Skew</span><span class="_anomalyBadge_13d3t_60">A5B</span></a><a href="/scenarios/read-skew" class="_scenarioBtn_13d3t_28 "><span><span class="technical-label" style="font-size:0.68rem;margin-right:0.5rem;color:var(--text-secondary)">0<!-- -->4</span>Financial Read Skew</span><span class="_anomalyBadge_13d3t_60">A5A</span></a><a href="/scenarios/dirty-write" class="_scenarioBtn_13d3t_28 "><span><span class="technical-label" style="font-size:0.68rem;margin-right:0.5rem;color:var(--text-secondary)">0<!-- -->5</span>Auction Dirty Write</span><span class="_anomalyBadge_13d3t_60">G0</span></a><a href="/scenarios/circular-information-flow" class="_scenarioBtn_13d3t_28 "><span><span class="technical-label" style="font-size:0.68rem;margin-right:0.5rem;color:var(--text-secondary)">0<!-- -->6</span>Crypto Arbitrage Circular Info</span><span class="_anomalyBadge_13d3t_60">G1c</span></a><a href="/scenarios/dirty-read" class="_scenarioBtn_13d3t_28 "><span><span class="technical-label" style="font-size:0.68rem;margin-right:0.5rem;color:var(--text-secondary)">0<!-- -->7</span>Flash Crash Dirty Read</span><span class="_anomalyBadge_13d3t_60">G1a</span></a><a href="/scenarios/anti-dependency-cycle" class="_scenarioBtn_13d3t_28 _scenarioBtnActive_13d3t_47" aria-current="page"><span><span class="technical-label" style="font-size:0.68rem;margin-right:0.5rem;color:var(--text-secondary)">0<!-- -->8</span>Ticket Anti-Dependency Cycle</span><span class="_anomalyBadge_13d3t_60">G2</span></a><a href="/scenarios/deadlock" class="_scenarioBtn_13d3t_28 "><span><span class="technical-label" style="font-size:0.68rem;margin-right:0.5rem;color:var(--text-secondary)">0<!-- -->9</span>Deadlock Cycle &amp; Recovery</span><span class="_anomalyBadge_13d3t_60">G-DL</span></a><a href="/scenarios/foreign-key-cascade-deadlock" class="_scenarioBtn_13d3t_28 "><span><span class="technical-label" style="font-size:0.68rem;margin-right:0.5rem;color:var(--text-secondary)">0<!-- -->10</span>Foreign Key Cascade Deadlock</span><span class="_anomalyBadge_13d3t_60">G-DL</span></a></aside><div class="_stagePane_13d3t_54"><div><span class="_anomalyBadge_13d3t_60">G2</span><h1 class="_stageTitle_13d3t_72">Ticket Anti-Dependency Cycle</h1><p class="_summary_13d3t_80">Concert ticket reservations generate phantom conflicts across seat range predicates under Snapshot Isolation.</p><p class="_summary_13d3t_80">Concert ticket reservations generate phantom conflicts across seat range predicates under Snapshot Isolation.</p></div><section class="_section_13d3t_158" aria-labelledby="scenario-schema"><h2 id="scenario-schema" class="_sectionTitle_13d3t_164">Schema and seed data</h2><div data-theme="lab" class="_terminal_1gxq6_1 _container_16h2s_1"><div class="_header_1gxq6_11"><span class="_title_1gxq6_22">schema.sql &amp; seed.sql</span><button type="button" class="_copy_1gxq6_31" aria-label="Copy: schema.sql &amp; seed.sql"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-copy" aria-hidden="true"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path></svg><span aria-live="polite">Copy</span></button></div><pre class="_body_1gxq6_53" data-language="sql"><code>-- Schema
+CREATE TABLE seats (
+    id INT PRIMARY KEY,
+    section TEXT NOT NULL,
+    seat_no INT NOT NULL,
+    reserved_by TEXT
+);
+
+-- Seed
+INSERT INTO seats VALUES (1, &#x27;VIP&#x27;, 101, NULL), (2, &#x27;VIP&#x27;, 102, NULL);</code></pre></div></section><section class="_section_13d3t_158" aria-labelledby="scenario-workload"><h2 id="scenario-workload" class="_sectionTitle_13d3t_164">Concurrent workload (chaos.yaml)</h2><div data-theme="lab" class="_terminal_1gxq6_1 _container_16h2s_1"><div class="_header_1gxq6_11"><span class="_title_1gxq6_22">chaos.yaml</span><button type="button" class="_copy_1gxq6_31" aria-label="Copy: chaos.yaml"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-copy" aria-hidden="true"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path></svg><span aria-live="polite">Copy</span></button></div><pre class="_body_1gxq6_53" data-language="yaml"><code>version: &quot;1.0&quot;
+name: &quot;ticket_anti_dependency_g2&quot;
+operations:
+  - name: &quot;book_adjacent_left&quot;
+    steps:
+      - &quot;SELECT count(*) AS reserved FROM seats WHERE section = &#x27;VIP&#x27; AND reserved_by IS NOT NULL -&gt; c&quot;
+      - &quot;UPDATE seats SET reserved_by = &#x27;Fan_A&#x27; WHERE id = 1 AND {c == 0}&quot;
+  - name: &quot;book_adjacent_right&quot;
+    steps:
+      - &quot;SELECT count(*) AS reserved FROM seats WHERE section = &#x27;VIP&#x27; AND reserved_by IS NOT NULL -&gt; c&quot;
+      - &quot;UPDATE seats SET reserved_by = &#x27;Fan_B&#x27; WHERE id = 2 AND {c == 0}&quot;
+invariants:
+  - name: &quot;max_one_seat_rule&quot;
+    query: &quot;SELECT count(*) AS reserved FROM seats WHERE section = &#x27;VIP&#x27; AND reserved_by IS NOT NULL;&quot;
+    assert: &quot;reserved &lt;= 1&quot;</code></pre></div></section><section class="_section_13d3t_158" aria-labelledby="scenario-analysis"><h2 id="scenario-analysis" class="_sectionTitle_13d3t_164">Why the invariant breaks</h2><p class="_summary_13d3t_80">Predicate anti-dependency cycle: T1 checks if any VIP seat is booked (finds 0) and books seat 1. T2 simultaneously checks if any VIP seat is booked (finds 0) and books seat 2. Both commit, violating VIP exclusivity.</p><div class="_infoBox_13d3t_117" style="border-left-color:var(--yellow)"><code style="display:block;font-size:0.95rem;color:var(--purple)">T1 ──(rw)──► T2 ──(rw)──► T1</code><p style="margin:0.4rem 0 0;font-size:0.9rem;color:var(--text-secondary)">Delta debugging reduces 20 operations to the 2 that cause the failure.</p></div></section><section class="_section_13d3t_158" aria-labelledby="scenario-fix"><h2 id="scenario-fix" class="_sectionTitle_13d3t_164">Production fix</h2><div class="_infoBox_13d3t_117" style="border-left-color:var(--green)"><p style="margin:0;font-weight:600">Structural Unique Constraints and Serializable Predicate Locks</p><p style="margin:0.4rem 0 0">G2 cycles manifest when aggregate queries or range checks inspect row existence via predicates (COUNT(*) WHERE ...). Under Snapshot Isolation, queries do not lock non-existent keys. Introducing a schema-level UNIQUE constraint converts silent race conditions into deterministic index integrity violations, while SELECT ... FOR UPDATE or SSI serializes reservations safely.</p><div class="_enginesTagList_13d3t_127"><span class="_engineTag_13d3t_134">✓ <!-- -->PostgreSQL</span><span class="_engineTag_13d3t_134">✓ <!-- -->MySQL</span><span class="_engineTag_13d3t_134">✓ <!-- -->SQLite</span></div><p style="margin:0.6rem 0 0;font-size:0.85rem;color:var(--text-secondary)">PostgreSQL, MySQL, SQLite</p></div><div data-theme="lab" class="_terminal_1gxq6_1 _container_16h2s_1"><div class="_header_1gxq6_11"><span class="_title_1gxq6_22">remediation_fix.sql</span><button type="button" class="_copy_1gxq6_31" aria-label="Copy: remediation_fix.sql"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-copy" aria-hidden="true"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path></svg><span aria-live="polite">Copy</span></button></div><pre class="_body_1gxq6_53" data-language="sql"><code>-- 1. Composite Unique Constraint for Index-Level Atomicity
+ALTER TABLE seats 
+ADD CONSTRAINT uq_section_reservation UNIQUE (section, seat_no);
+
+-- 2. Predicate Lock via SELECT FOR UPDATE or SSI
+BEGIN;
+SELECT id FROM seats 
+WHERE section = &#x27;VIP&#x27; AND reserved_by IS NULL 
+LIMIT 1 FOR UPDATE;
+
+UPDATE seats SET reserved_by = &#x27;Fan_A&#x27; WHERE id = :seat_id;
+COMMIT;</code></pre></div></section></div></div></div><!--/$--></main><footer class="_footer_ldgol_1"><div class="_inner_ldgol_8"><div class="_brand_ldgol_16"><a href="/" class="_logo_ldgol_24"><img src="/brand/icone_bregalda.svg" alt="" width="28" height="28"/><span>ChaosSQL</span></a><p>Built by Studio Bregalda.</p></div><nav aria-label="Footer links" class="_groups_ldgol_37"><div><h2 class="_groupTitle_ldgol_43">Product</h2><ul><li><a href="/#story">How it works</a></li><li><a href="/scenarios">Scenarios</a></li><li><a href="/pricing">Pricing</a></li></ul></div><div><h2 class="_groupTitle_ldgol_43">Tools</h2><ul><li><a href="/playground">WASM Playground</a></li><li><a href="/visualizer">Trace Visualizer</a></li><li><a href="/matrix">Hermitage Matrix</a></li><li><a href="/dashboard">Cloud Dashboard</a></li></ul></div><div><h2 class="_groupTitle_ldgol_43">Resources</h2><ul><li><a href="/docs">Documentation</a></li><li><a href="https://github.com/bregaldahq/chaossql" target="_blank" rel="noreferrer">GitHub</a></li><li><a href="https://github.com/bregaldahq/chaossql/releases" target="_blank" rel="noreferrer">Releases</a></li></ul></div></nav><p class="_copyright_ldgol_69"><span>© <!-- -->2026</span> Studio Bregalda. <!-- -->All rights reserved.</p></div></footer></div></div>
+  </body>
+</html>
