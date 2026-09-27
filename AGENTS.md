@@ -28,6 +28,8 @@ This document formalizes the operational rules, architectural boundaries, and st
 | Component | Location | Responsibility |
 | :--- | :--- | :--- |
 | **Operational Rules** | `AGENTS.md` | Working contract for agents and contributors |
+| **Agent Instructions** | `CLAUDE.md` | Agent rules, skill index, and the mandatory skill-sync clause |
+| **Agent Skills** | `.claude/skills/`, `docs/harness/flow-map.md` | One detailed skill per flow, mapped to its source paths |
 | **Boundaries & Design** | `ARCHITECTURE.md` | Formal definition of layers, ports, and state guarantees |
 | **Architectural Decisions** | `docs/adrs/` | Immutable records of technical decisions (ADRs) |
 | **Formal Specifications** | `specs/` | Formal requirements per system capability (01-15) |
