@@ -1,3 +1,5 @@
+import { pageMeta, seoRouteForPath, splitLocale, type Lang } from './site/src/lib/seo';
+
 interface Env {
   ASSETS: {
     fetch: (request: Request) => Promise<Response>;
@@ -148,62 +150,39 @@ function parseWebhookTarget(raw: unknown): { url: string } | { error: string } {
   return { url: parsed.toString() };
 }
 
-// Section URLs served by the single-page app. Each one gets the app shell with
-// its own <title>, description and canonical injected, so crawlers index every
-// section as a distinct page without executing JavaScript. Keep in sync with
-// site/src/lib/route-meta.ts.
-const SITE_ORIGIN = 'https://chaossql.bregalda.com';
-const ROUTE_META: Record<string, { title: string; description: string; indexable: boolean; image: string }> = {
-  '/docs': {
-    title: "Documentation | ChaosSQL",
-    description:
-      "ChaosSQL guide: installation, the chaos.yaml spec, SQL invariants, isolation levels, Adya anomaly classification and delta-debugging minimization.",
-    indexable: true,
-    image: '/og/docs.png',
-  },
-  '/scenarios': {
-    title: "SQL Concurrency Anomaly Scenarios | ChaosSQL",
-    description:
-      "Canonical SQL concurrency anomalies (lost update, write skew, G2, deadlock and more) with invariants and deterministic, seed-based reproduction.",
-    indexable: true,
-    image: '/og/scenarios.png',
-  },
-  '/visualizer': {
-    title: "Trace Visualizer | ChaosSQL",
-    description:
-      "Inspect interleaved concurrent transactions, per-worker timings and the delta-debugged minimal trace behind a SQL anomaly.",
-    indexable: true,
-    image: '/og/scenarios.png',
-  },
-  '/matrix': {
-    title: "Hermitage Isolation Level Matrix | ChaosSQL",
-    description:
-      "Which concurrency anomalies each isolation level allows in PostgreSQL, MySQL and SQLite, inspired by the Hermitage project.",
-    indexable: true,
-    image: '/og/scenarios.png',
-  },
-  '/playground': {
-    title: "WASM Playground: Test SQL Concurrency in Your Browser | ChaosSQL",
-    description:
-      "Run the ChaosSQL concurrency fuzzer in your browser with WebAssembly and reproduce lost updates, write skew and deadlocks without installing anything.",
-    indexable: true,
-    image: '/og/playground.png',
-  },
-  '/pricing': {
-    title: "Pricing | ChaosSQL Cloud and Concurrency Audits",
-    description:
-      "ChaosSQL Cloud plans for CI concurrency regression testing, plus one-week database concurrency audits by Studio Bregalda.",
-    indexable: true,
-    image: '/og/pricing.png',
-  },
-  '/dashboard': {
-    title: "Cloud Dashboard | ChaosSQL",
-    description:
-      "ChaosSQL Cloud dashboard for CI runs, concurrency regressions and alerts.",
-    indexable: false,
-    image: '/og/home.png',
-  },
-};
+// Page metadata and language URLs come from the same module the app uses, so
+// what crawlers see cannot drift from what the app sets. Pages prerendered at
+// build time live in site/prerender/ (listed in /prerender/manifest.json) and
+// are served at their canonical URL; every other section gets the app shell
+// (index.html) with its metadata injected. index.html stays a plain shell
+// because the dashboard and self-hosted servers use it as their SPA fallback.
+const SCENARIO_PATH = /^\/scenarios\/[a-z0-9-]+$/;
+
+/** Unprefixed app path this request maps to, or null when it is not an app page. */
+function appPath(pathname: string): { lang: Lang; path: string } | null {
+  const { lang, path } = splitLocale(pathname);
+  if (path === '/' || seoRouteForPath(path) !== null || SCENARIO_PATH.test(path)) return { lang, path };
+  return null;
+}
+
+let prerendered: Promise<Set<string>> | null = null;
+
+/** Asset path of a prerendered page: "/" → "/prerender/home", "/pt/pricing" → "/prerender/pt/pricing". */
+function prerenderAsset(pathname: string): string {
+  return `/prerender${pathname === '/' ? '/home' : pathname}`;
+}
+
+/** Paths with a prerendered HTML file, read once per isolate from the build manifest. */
+function prerenderedPaths(request: Request, env: Env): Promise<Set<string>> {
+  prerendered ??= env.ASSETS.fetch(new Request(new URL('/prerender/manifest.json', request.url)))
+    .then((res) => (res.ok ? res.json() : []))
+    .then((paths: unknown) => new Set(Array.isArray(paths) ? paths.filter((p): p is string => typeof p === 'string') : []))
+    .catch(() => {
+      prerendered = null;
+      return new Set<string>();
+    });
+  return prerendered;
+}
 
 // Keep in sync with SITE_EVENTS in site/src/lib/analytics.ts.
 const SITE_EVENTS = new Set([
@@ -279,27 +258,41 @@ function withWebAnalytics(response: Response, env: Env): Response {
     .transform(response);
 }
 
-async function serveAppShell(request: Request, env: Env, pathname: string): Promise<Response> {
-  const meta = ROUTE_META[pathname];
-  const canonical = `${SITE_ORIGIN}${pathname}`;
+async function serveAppShell(request: Request, env: Env, lang: Lang, path: string): Promise<Response> {
+  const scenarioPage = SCENARIO_PATH.test(path);
+  const route = scenarioPage ? 'scenarios' : seoRouteForPath(path) ?? 'landing';
+  const meta = pageMeta(route, lang, path);
   const shell = await env.ASSETS.fetch(new Request(new URL('/', request.url), request));
   if (!shell.ok) return shell;
-  return new HTMLRewriter()
+  const rewritten = new HTMLRewriter()
+    .on('html', { element: (el) => { el.setAttribute('lang', meta.htmlLang); } })
     .on('title', { element: (el) => { el.setInnerContent(meta.title); } })
     .on('meta[name="description"]', { element: (el) => { el.setAttribute('content', meta.description); } })
     .on('meta[name="robots"]', {
-      element: (el) => { el.setAttribute('content', meta.indexable ? 'index, follow, max-image-preview:large' : 'noindex, follow'); },
+      // An unknown scenario slug is a 404 and must not be indexed.
+      element: (el) => { el.setAttribute('content', scenarioPage ? 'noindex, follow' : meta.robots); },
     })
-    .on('link[rel="canonical"]', { element: (el) => { el.setAttribute('href', canonical); } })
-    .on('meta[property="og:url"]', { element: (el) => { el.setAttribute('content', canonical); } })
-    .on('meta[property="og:image"]', { element: (el) => { el.setAttribute('content', `${SITE_ORIGIN}${meta.image}`); } })
-    .on('meta[name="twitter:image"]', { element: (el) => { el.setAttribute('content', `${SITE_ORIGIN}${meta.image}`); } })
+    .on('link[rel="canonical"]', { element: (el) => { el.setAttribute('href', meta.canonical); } })
+    .on('meta[property="og:url"]', { element: (el) => { el.setAttribute('content', meta.canonical); } })
+    .on('meta[property="og:title"]', { element: (el) => { el.setAttribute('content', meta.title); } })
+    .on('meta[property="og:description"]', { element: (el) => { el.setAttribute('content', meta.description); } })
+    .on('meta[property="og:locale"]', { element: (el) => { el.setAttribute('content', meta.ogLocale); } })
+    .on('meta[property="og:locale:alternate"]', { element: (el) => { el.setAttribute('content', meta.ogLocaleAlternate); } })
+    .on('meta[property="og:image"]', { element: (el) => { el.setAttribute('content', meta.image); } })
+    .on('meta[name="twitter:title"]', { element: (el) => { el.setAttribute('content', meta.title); } })
+    .on('meta[name="twitter:description"]', { element: (el) => { el.setAttribute('content', meta.description); } })
+    .on('meta[name="twitter:image"]', { element: (el) => { el.setAttribute('content', meta.image); } })
+    .on('link[rel="alternate"][hreflang]', {
+      element: (el) => {
+        const href = meta.alternates[el.getAttribute('hreflang') as keyof typeof meta.alternates];
+        if (href) el.setAttribute('href', href);
+      },
+    })
     .transform(shell);
+  if (!scenarioPage) return rewritten;
+  return new Response(rewritten.body, { status: 404, headers: rewritten.headers });
 }
 
-async function serveLanding(request: Request, env: Env): Promise<Response> {
-  return withWebAnalytics(await env.ASSETS.fetch(request), env);
-}
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
@@ -526,19 +519,17 @@ export default {
 
     if (request.method === 'GET' || request.method === 'HEAD') {
       const trimmed = url.pathname.replace(/\/+$/, '');
-      if (trimmed !== url.pathname && ROUTE_META[trimmed]) {
+      if (trimmed && trimmed !== url.pathname && appPath(trimmed)) {
         return Response.redirect(`${url.origin}${trimmed}${url.search}`, 301);
       }
-      if (url.pathname === '/') {
+      const page = appPath(url.pathname);
+      if (page) {
         try {
-          return await serveLanding(request, env);
-        } catch {
-          return new Response('Service Unavailable', { status: 503, headers: { 'Content-Type': 'text/plain' } });
-        }
-      }
-      if (ROUTE_META[url.pathname]) {
-        try {
-          return withWebAnalytics(await serveAppShell(request, env, url.pathname), env);
+          if ((await prerenderedPaths(request, env)).has(url.pathname)) {
+            const asset = await env.ASSETS.fetch(new Request(new URL(prerenderAsset(url.pathname), request.url), request));
+            if (asset.ok) return withWebAnalytics(asset, env);
+          }
+          return withWebAnalytics(await serveAppShell(request, env, page.lang, page.path), env);
         } catch {
           return new Response('Service Unavailable', { status: 503, headers: { 'Content-Type': 'text/plain' } });
         }

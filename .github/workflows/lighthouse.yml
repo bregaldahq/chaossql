@@ -1,0 +1,45 @@
+name: Lighthouse
+
+# Budgets for the public site (site/lighthouserc.json): performance >= 90,
+# accessibility, best practices and SEO >= 95, CLS <= 0.1 on the landing (both
+# languages), pricing and a scenario page. The committed build is served by
+# site/scripts/serve-static.mjs, which mirrors the edge worker's routing.
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'site/**'
+      - 'worker.ts'
+      - '.github/workflows/lighthouse.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'site/**'
+      - 'worker.ts'
+      - '.github/workflows/lighthouse.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  lighthouse:
+    name: Lighthouse budgets
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: site
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Run Lighthouse CI
+        run: npx --yes @lhci/cli@0.14.0 autorun --config=lighthouserc.json
+      - name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lighthouse-reports
+          path: site/.lighthouseci
+          if-no-files-found: ignore

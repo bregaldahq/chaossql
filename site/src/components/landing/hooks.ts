@@ -1,12 +1,16 @@
 import { useEffect, useState, type RefObject } from 'react';
 
+// Hooks below start from the same value on the server and in the browser and
+// read browser state in effects, so prerendered HTML hydrates without mismatch.
+
 export function usePrefersReducedMotion(): boolean {
   const query = '(prefers-reduced-motion: reduce)';
-  const [reduce, setReduce] = useState(() => typeof window !== 'undefined' && !!window.matchMedia?.(query).matches);
+  const [reduce, setReduce] = useState(false);
   useEffect(() => {
     const mql = window.matchMedia?.(query);
     if (!mql) return;
     const update = () => setReduce(mql.matches);
+    update();
     mql.addEventListener('change', update);
     return () => mql.removeEventListener('change', update);
   }, []);
@@ -44,16 +48,18 @@ const STARS_TTL_MS = 6 * 60 * 60 * 1000;
 
 /** GitHub star count, cached per visitor for 6 hours. Null until known or on any failure. */
 export function useGitHubStars(repo = 'bregaldahq/chaossql'): number | null {
-  const [stars, setStars] = useState<number | null>(() => {
+  const [stars, setStars] = useState<number | null>(null);
+  useEffect(() => {
     try {
       const cached = JSON.parse(localStorage.getItem(STARS_KEY) ?? 'null');
-      return cached && Date.now() - cached.at < STARS_TTL_MS ? cached.stars : null;
+      if (cached && Date.now() - cached.at < STARS_TTL_MS && typeof cached.stars === 'number') {
+        setStars(cached.stars);
+        return;
+      }
     } catch {
-      return null;
+      // Unreadable cache: fetch again.
     }
-  });
-  useEffect(() => {
-    if (stars !== null || typeof fetch === 'undefined') return;
+    if (typeof fetch === 'undefined') return;
     const controller = new AbortController();
     fetch(`https://api.github.com/repos/${repo}`, { signal: controller.signal, credentials: 'omit' })
       .then((res) => (res.ok ? res.json() : null))
@@ -68,6 +74,6 @@ export function useGitHubStars(repo = 'bregaldahq/chaossql'): number | null {
       })
       .catch(() => {});
     return () => controller.abort();
-  }, [repo, stars]);
+  }, [repo]);
   return stars;
 }

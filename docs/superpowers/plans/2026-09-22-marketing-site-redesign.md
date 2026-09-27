@@ -289,10 +289,12 @@ Cada fase é um PR independente, com `make verify` verde e screenshot antes/depo
 - [x] Estados revisados: validação antes do envio, erro inline e sucesso só depois da confirmação do Worker. Textos livres truncados no Worker, porque o Discord recusa campos com mais de 1024 caracteres e o lead se perdia.
 
 ### Fase 6: SEO e performance (3–4 dias)
-- [ ] SSG da landing, do pricing e das páginas de cenário.
-- [ ] EN na raiz, rotas `/pt/…`, `hreflang` + `x-default`, redirects das URLs antigas se necessário.
-- [ ] Páginas `/scenarios/:slug` indexáveis + sitemap atualizado.
-- [ ] Lighthouse CI com os budgets da §8.
+- [x] SSG: landing, pricing, cenários (índice e as 10 páginas por slug), docs e matriz são pré-renderizados em EN e PT (30 páginas) com React `prerender` e hidratados no cliente, sem erros de hidratação. O `index.html` continua sendo o shell, porque o dashboard (nginx) e o servidor Go o usam como fallback. As páginas prontas ficam em `site/prerender/` e o Worker as serve nas URLs canônicas.
+- [x] EN na raiz e PT em `/pt/…`, com `hreflang` recíproco e `x-default`. O idioma vem da URL; ao navegador em PT só é sugerida a versão PT, sem redirecionamento.
+- [x] `/scenarios/:slug` indexáveis (`lost-update`, `write-skew`, …) com título e descrição próprios. As seções foram empilhadas (antes só a aba ativa era renderizada). Sitemap gerado no build com alternates.
+- [x] Metadados em um só módulo (`site/src/lib/seo.ts`), importado pelo app, pela pré-renderização e pelo Worker. O `site/_worker.js` passou a ser gerado a partir do `worker.ts` (estava desatualizado e sem `/api/event`).
+- [x] Lighthouse CI (`.github/workflows/lighthouse.yml`) com metas: performance >= 90, acessibilidade/boas práticas/SEO >= 95, CLS <= 0,1. Medido localmente no perfil mobile: 98–99 / 100 / 100 / 100, LCP ~2 s, CLS 0.
+- Corrigido no caminho: a página de cenários lia campos que não existem mais em `scenarios.json` (a correção quebrava e a invariante mostrava `SELECT 1;`). O tipo agora vem do JSON, sem cast.
 
 ### Fase 7: Lançamento e iteração (contínuo)
 - [ ] Comparar o funil com a baseline após 2–4 semanas.

@@ -24,10 +24,14 @@
   align-content: center;
   padding-left: 1.5rem;
   border-left: 2px solid var(--line);
-  opacity: 0.45;
-  transition:
-    opacity var(--dur-slow) var(--ease-out),
-    border-color var(--dur-slow) var(--ease-out);
+  transition: border-color var(--dur-slow) var(--ease-out);
+}
+
+/* Inactive steps are dimmed with the muted text color (6:1), not opacity,
+   so every step keeps WCAG AA contrast. */
+.step:not(.active) .stepTitle,
+.step:not(.active) .stepBody {
+  color: var(--text-muted);
 }
 
 .step:first-child {
@@ -40,7 +44,6 @@
 }
 
 .active {
-  opacity: 1;
   border-left-color: var(--text-strong);
 }
 
@@ -75,15 +78,18 @@
   border-radius: var(--r-control);
   color: var(--text-muted);
   font-size: var(--fs-sm);
-  opacity: 0.35;
   transition:
-    opacity var(--dur-slow) var(--ease-out),
     border-color var(--dur-slow) var(--ease-out),
     color var(--dur-slow) var(--ease-out);
 }
 
+/* Not revealed yet: muted colors (6:1), never opacity, to keep AA contrast. */
 .repro code {
   font-family: var(--font-jetbrains-mono);
+  color: var(--text-muted);
+}
+
+.reproShown code {
   color: var(--text-strong);
 }
 

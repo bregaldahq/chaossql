@@ -14,7 +14,14 @@ const HASHED = /^[\w.-]+-[\w-]{8}\.(js|css|woff2|webp|png|svg)(\.map)?$/;
 const REF = /[\w.-]+-[\w-]{8}\.(?:js|css|woff2|webp|png|svg)/g;
 
 const reachable = new Set();
-const queue = [join(SITE, 'index.html')];
+const prerendered = join(SITE, 'prerender');
+const pages = (dir) =>
+  existsSync(dir)
+    ? readdirSync(dir, { withFileTypes: true }).flatMap((e) =>
+        e.isDirectory() ? pages(join(dir, e.name)) : e.name.endsWith('.html') ? [join(dir, e.name)] : []
+      )
+    : [];
+const queue = [join(SITE, 'index.html'), ...pages(prerendered)];
 while (queue.length) {
   const text = readFileSync(queue.pop(), 'utf8');
   for (const name of text.match(REF) ?? []) {

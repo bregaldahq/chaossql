@@ -34,3 +34,10 @@ scripts
 
 # Contributor docs
 COPY.md
+
+# SSR build output (removed after prerendering)
+dist-ssr
+
+# Lighthouse CI config and reports (CI only)
+lighthouserc.json
+.lighthouseci

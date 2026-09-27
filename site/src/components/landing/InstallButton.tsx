@@ -31,7 +31,7 @@ export function InstallButton({ lang, placement }: { lang: Language; placement: 
       size="lg"
       onClick={copy}
       title={INSTALL_CMD}
-      aria-label={`${m.landingUi.installTitle}: ${INSTALL_CMD}`}
+      aria-label={`${copied ? m.cta.installed : m.cta.install}. ${m.landingUi.installTitle}: ${INSTALL_CMD}`}
       icon={copied ? <Check /> : <Copy />}
     >
       <span aria-live="polite">{copied ? m.cta.installed : m.cta.install}</span>

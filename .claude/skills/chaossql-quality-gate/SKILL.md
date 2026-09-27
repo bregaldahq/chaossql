@@ -18,7 +18,7 @@ description: The unified quality gate (make verify) and every stage behind it â€
 | `test-typescript` | `make build`, `cd sdks/typescript && npm ci && npm run build && npm test` | Node |
 | `test-frontend` | `cd site && npm ci && npm run verify` | Node |
 | `stress-wasm` | build `bin/chaossql-test.wasm`, `node tools/headless_worker_stress.js` | Node |
-| node tests | `node --test tools/test_waitlist.mjs tools/test_site_events.mjs tools/test_english_purity.test.cjs` | `site/node_modules` (esbuild) from `test-frontend` |
+| node tests | `node --test tools/test_waitlist.mjs tools/test_site_events.mjs tools/test_worker_routes.mjs tools/test_english_purity.test.cjs` | `site/node_modules` (esbuild) from `test-frontend` |
 | node scripts | `node tools/test_english_purity.js && node tools/test_wasm_worker.js && node tools/test_playground_ui.js && node tools/test_wasm_bench.js` | â€” |
 
 `tools/harness_check.py` is a legacy subset and is not used by the Makefile.
@@ -60,7 +60,12 @@ COVERPROFILE=coverage.out`; Codecov upload via OIDC (`codecov.yml`); then
 `make demo` (each demo ends with `|| true`, so demos never fail CI).
 Other workflows: `concurrency-ci.yml` and `swarm.yml`
 (`chaossql-github-action`), `deploy-pages.yml` and `static-pages.yml`
-(`chaossql-edge-worker`).
+(`chaossql-edge-worker`), and `lighthouse.yml`: on changes to `site/**` or
+`worker.ts` it serves the committed build with `site/scripts/serve-static.mjs`
+and runs `@lhci/cli autorun` with `site/lighthouserc.json` (performance >= 90,
+accessibility/best practices/SEO >= 95, CLS <= 0.1; reports uploaded as an
+artifact). Reproduce locally with `cd site && npx @lhci/cli@0.14.0 autorun
+--config=lighthouserc.json` (set `CHROME_PATH` if Chrome is not installed).
 
 ## Gotchas
 
@@ -82,6 +87,7 @@ Other workflows: `concurrency-ci.yml` and `swarm.yml`
 - `tools/test_playground_ui.js`
 - `tools/harness_check.py`
 - `.github/workflows/ci.yml`
+- `.github/workflows/lighthouse.yml`
 - `codecov.yml`
 - `CONTRIBUTING.md`
 

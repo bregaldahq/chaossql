@@ -1,25 +1,26 @@
-import { useState } from 'react';
-import { SCENARIOS_DATA, ScenarioItem } from '../data/scenarios-data';
+import { SCENARIOS_DATA, SCENARIO_SLUGS, ScenarioItem, scenarioBySlug } from '../data/scenarios-data';
 import { CodeBlock } from '../components/docs/CodeBlock';
+import { localizePath, scenarioSlugFromPath, useLocation } from '../lib/router';
 import styles from './ScenariosPage.module.css';
 
 export interface ScenariosPageProps {
   lang?: 'pt' | 'en';
 }
 
+/**
+ * Scenario catalog. /scenarios shows the first scenario; /scenarios/<slug>
+ * is an indexable page per anomaly, with every section rendered (no tabs) so
+ * search engines and readers see the whole write-up.
+ */
 export function ScenariosPage({ lang = 'en' }: ScenariosPageProps) {
-  const [selectedId, setSelectedId] = useState<string>(SCENARIOS_DATA[0]?.id || 'banking');
-  const [activeTab, setActiveTab] = useState<'schema' | 'chaos' | 'invariant' | 'fix'>('schema');
-
-  const currentScenario: ScenarioItem =
-    SCENARIOS_DATA.find((s) => s.id === selectedId) || SCENARIOS_DATA[0];
-
-  const tabs = [
-    { id: 'schema', labelPt: 'Schema & Seed SQL', labelEn: 'Schema & Seed SQL' },
-    { id: 'chaos', labelPt: 'Carga de Caos (YAML)', labelEn: 'Chaos Workload (YAML)' },
-    { id: 'invariant', labelPt: 'Invariante & Teoria', labelEn: 'Invariant & Theory' },
-    { id: 'fix', labelPt: 'Mitigação em Produção', labelEn: 'Production Fix' },
-  ];
+  const { pathname } = useLocation();
+  const fromUrl = scenarioBySlug(scenarioSlugFromPath(pathname));
+  const currentScenario: ScenarioItem = fromUrl ?? SCENARIOS_DATA[0];
+  const isDetail = fromUrl !== undefined;
+  const pt = lang === 'pt';
+  const name = currentScenario.name[lang] || currentScenario.name.pt;
+  // Section headings sit one level below the page's scenario title.
+  const SectionHeading = isDetail ? 'h2' : 'h3';
 
   return (
     <div className={styles.pageContainer} data-surface="light">
@@ -27,9 +28,15 @@ export function ScenariosPage({ lang = 'en' }: ScenariosPageProps) {
         <p className="technical-label" style={{ color: 'var(--purple)' }}>
           {lang === 'pt' ? 'Catálogo de Concorrência' : 'Concurrency Catalog'}
         </p>
-        <h1 style={{ fontSize: 'var(--type-h2)', fontWeight: 500, letterSpacing: '-0.05em' }}>
-          {lang === 'pt' ? 'Cenários Canônicos & Mitigações' : 'Canonical Scenarios & Fixes'}
-        </h1>
+        {isDetail ? (
+          <p style={{ fontSize: 'var(--type-h3)', fontWeight: 500, letterSpacing: '-0.04em', color: 'var(--ink)' }}>
+            {pt ? 'Cenários Canônicos & Mitigações' : 'Canonical Scenarios & Fixes'}
+          </p>
+        ) : (
+          <h1 style={{ fontSize: 'var(--type-h2)', fontWeight: 500, letterSpacing: '-0.05em' }}>
+            {pt ? 'Cenários Canônicos & Mitigações' : 'Canonical Scenarios & Fixes'}
+          </h1>
+        )}
         <p style={{ color: 'var(--text-secondary)', fontSize: 'var(--type-body-lg)', maxWidth: '42rem' }}>
           {lang === 'pt'
             ? 'Explore 10 cenários de falhas de concorrência baseados em pesquisas acadêmicas de isolamento e casos reais de sistemas financeiros e distribuídos.'
@@ -41,13 +48,13 @@ export function ScenariosPage({ lang = 'en' }: ScenariosPageProps) {
         {/* Navegação de Cenários à Esquerda */}
         <aside className={styles.scenariosNav} aria-label={lang === 'pt' ? 'Lista de cenários' : 'Scenario list'}>
           {SCENARIOS_DATA.map((sc, idx) => {
-            const isActive = sc.id === selectedId;
+            const isActive = sc.id === currentScenario.id;
             return (
-              <button
+              <a
                 key={sc.id}
-                type="button"
+                href={localizePath(`/scenarios/${SCENARIO_SLUGS[sc.id]}`, lang)}
                 className={`${styles.scenarioBtn} ${isActive ? styles.scenarioBtnActive : ''}`}
-                onClick={() => setSelectedId(sc.id)}
+                aria-current={isActive ? 'page' : undefined}
               >
                 <span>
                   <span className="technical-label" style={{ fontSize: '0.68rem', marginRight: '0.5rem', color: 'var(--text-secondary)' }}>
@@ -56,7 +63,7 @@ export function ScenariosPage({ lang = 'en' }: ScenariosPageProps) {
                   {sc.name[lang] || sc.name.pt}
                 </span>
                 <span className={styles.anomalyBadge}>{sc.code}</span>
-              </button>
+              </a>
             );
           })}
         </aside>
@@ -64,110 +71,51 @@ export function ScenariosPage({ lang = 'en' }: ScenariosPageProps) {
         {/* Palco do Cenário Selecionado */}
         <div className={styles.stagePane}>
           <div>
-            <span className={styles.anomalyBadge}>Adya {currentScenario.code}</span>
-            <h2 className={styles.stageTitle}>
-              {currentScenario.name[lang] || currentScenario.name.pt}
-            </h2>
-            <p className={styles.summary}>
-              {currentScenario.summary[lang] || currentScenario.summary.pt}
-            </p>
+            <span className={styles.anomalyBadge}>{currentScenario.code}</span>
+            {isDetail ? <h1 className={styles.stageTitle}>{name}</h1> : <h2 className={styles.stageTitle}>{name}</h2>}
+            <p className={styles.summary}>{currentScenario.summary[lang] || currentScenario.summary.pt}</p>
+            <p className={styles.summary}>{currentScenario.description[lang] || currentScenario.description.pt}</p>
           </div>
 
-          {/* Abas do Cenário */}
-          <div className={styles.tabsBar}>
-            {tabs.map((tab) => (
-              <button
-                key={tab.id}
-                type="button"
-                className={`${styles.tabBtn} ${activeTab === tab.id ? styles.tabBtnActive : ''}`}
-                onClick={() => setActiveTab(tab.id as typeof activeTab)}
-              >
-                {lang === 'pt' ? tab.labelPt : tab.labelEn}
-              </button>
-            ))}
-          </div>
+          <section className={styles.section} aria-labelledby="scenario-schema">
+            <SectionHeading id="scenario-schema" className={styles.sectionTitle}>{pt ? 'Schema e dados iniciais' : 'Schema and seed data'}</SectionHeading>
+            <CodeBlock lang={lang} code={currentScenario.schema} language="sql" filename="schema.sql & seed.sql" />
+          </section>
 
-          {/* Conteúdo da Aba Ativa */}
-          {activeTab === 'schema' && (
-            <div>
-              <CodeBlock
-                lang={lang}
-                code={currentScenario.schema}
-                language="sql"
-                filename="schema.sql & seed.sql"
-              />
+          <section className={styles.section} aria-labelledby="scenario-workload">
+            <SectionHeading id="scenario-workload" className={styles.sectionTitle}>{pt ? 'Carga concorrente (chaos.yaml)' : 'Concurrent workload (chaos.yaml)'}</SectionHeading>
+            <CodeBlock lang={lang} code={currentScenario.chaos} language="yaml" filename="chaos.yaml" />
+          </section>
+
+          <section className={styles.section} aria-labelledby="scenario-analysis">
+            <SectionHeading id="scenario-analysis" className={styles.sectionTitle}>{pt ? 'Por que a invariante quebra' : 'Why the invariant breaks'}</SectionHeading>
+            <p className={styles.summary}>{currentScenario.analysis[lang]}</p>
+            <div className={styles.infoBox} style={{ borderLeftColor: 'var(--yellow)' }}>
+              <code style={{ display: 'block', fontSize: '0.95rem', color: 'var(--purple)' }}>{currentScenario.reduction.cycle}</code>
+              <p style={{ margin: '0.4rem 0 0', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
+                {pt
+                  ? `Delta debugging reduz ${currentScenario.reduction.originalOps} operações às ${currentScenario.reduction.minimalOps} que causam a falha.`
+                  : `Delta debugging reduces ${currentScenario.reduction.originalOps} operations to the ${currentScenario.reduction.minimalOps} that cause the failure.`}
+              </p>
             </div>
-          )}
+          </section>
 
-          {activeTab === 'chaos' && (
-            <div>
-              <CodeBlock
-                lang={lang}
-                code={currentScenario.chaos}
-                language="yaml"
-                filename="chaos.yaml"
-              />
-            </div>
-          )}
-
-          {activeTab === 'invariant' && (
-            <div>
-              <div className={styles.infoBox}>
-                <p className="technical-label">{lang === 'pt' ? 'Asserção de Consistência' : 'Consistency Assertion'}</p>
-                <code style={{ fontSize: '1rem', color: 'var(--purple)', display: 'block', marginBlock: '0.4rem' }}>
-                  {currentScenario.invariant?.assert || 'total_completed >= 0'}
-                </code>
-                <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
-                  Query: <code>{currentScenario.invariant?.query || 'SELECT 1;'}</code>
-                </p>
+          <section className={styles.section} aria-labelledby="scenario-fix">
+            <SectionHeading id="scenario-fix" className={styles.sectionTitle}>{pt ? 'Correção em produção' : 'Production fix'}</SectionHeading>
+            <div className={styles.infoBox} style={{ borderLeftColor: 'var(--green)' }}>
+              <p style={{ margin: 0, fontWeight: 600 }}>{currentScenario.fix[lang].title}</p>
+              <p style={{ margin: '0.4rem 0 0' }}>{currentScenario.fix[lang].explanation}</p>
+              <div className={styles.enginesTagList}>
+                {currentScenario.fix.engines.map((eng) => (
+                  <span key={eng} className={styles.engineTag}>
+                    ✓ {eng}
+                  </span>
+                ))}
               </div>
-
-              {currentScenario.adyaGraph?.cycleDescription && (
-                <div className={styles.infoBox} style={{ borderLeftColor: 'var(--yellow)' }}>
-                  <p className="technical-label" style={{ color: 'var(--yellow)' }}>
-                    {lang === 'pt' ? 'Ciclo de Conflito de Adya' : 'Adya Conflict Cycle'}
-                  </p>
-                  <p style={{ margin: 0 }}>
-                    {currentScenario.adyaGraph.cycleDescription[lang] ||
-                      currentScenario.adyaGraph.cycleDescription.pt}
-                  </p>
-                </div>
-              )}
+              <p style={{ margin: '0.6rem 0 0', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{currentScenario.fix[lang].driverNotes}</p>
             </div>
-          )}
-
-          {activeTab === 'fix' && (
-            <div>
-              <div className={styles.infoBox} style={{ borderLeftColor: 'var(--green)' }}>
-                <p className="technical-label" style={{ color: 'var(--green)' }}>
-                  {lang === 'pt' ? 'Recomendação de Produção' : 'Production Recommendation'}
-                </p>
-                <p style={{ margin: 0 }}>
-                  {currentScenario.fix?.recommendation[lang] ||
-                    currentScenario.fix?.recommendation.pt ||
-                    'Elevar o nível de isolamento para SERIALIZABLE ou utilizar locks pessimistas.'}
-                </p>
-                {currentScenario.fix?.validatedEngines && (
-                  <div className={styles.enginesTagList}>
-                    {currentScenario.fix.validatedEngines.map((eng) => (
-                      <span key={eng} className={styles.engineTag}>
-                        ✓ {eng}
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {currentScenario.fix?.sql && (
-                <CodeBlock
-                lang={lang}
-                  code={currentScenario.fix.sql}
-                  language="sql"
-                  filename="remediation_fix.sql"
-                />
-              )}
-            </div>
-          )}
+            <CodeBlock lang={lang} code={currentScenario.fix[lang].code} language="sql" filename="remediation_fix.sql" />
+          </section>
         </div>
       </div>
     </div>

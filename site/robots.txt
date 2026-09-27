@@ -1,5 +1,7 @@
 User-agent: *
 Allow: /
 Disallow: /api/
+# Build output served by the worker at canonical URLs (/pricing, /pt, ...).
+Disallow: /prerender/
 
 Sitemap: https://chaossql.bregalda.com/sitemap.xml

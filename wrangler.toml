@@ -12,8 +12,9 @@ directory = "./site"
 # worker handles (run_worker_first routes, robots.txt fallbacks) throws.
 binding = "ASSETS"
 not_found_handling = "single-page-application"
-# Section URLs must reach the worker so it can inject per-route <title>,
-# description and canonical into the app shell (see ROUTE_META in worker.ts).
+# Page URLs must reach the worker: it serves prerendered HTML when the build
+# produced it (/prerendered.json) and otherwise injects per-route metadata from
+# site/src/lib/seo.ts into the app shell (/shell).
 run_worker_first = [
   # API routes must reach the worker: otherwise the assets layer answers every
   # POST (waitlist leads, site events) with a bare 405.
@@ -21,11 +22,14 @@ run_worker_first = [
   "/",
   "/dashboard", "/dashboard/",
   "/docs", "/docs/",
-  "/scenarios", "/scenarios/",
+  "/scenarios", "/scenarios/*",
   "/visualizer", "/visualizer/",
   "/matrix", "/matrix/",
   "/playground", "/playground/",
   "/pricing", "/pricing/",
+  # Portuguese pages (/pt, /pt/pricing, ...): prerendered files or the shell
+  # with Portuguese metadata, chosen by the worker.
+  "/pt", "/pt/*",
 ]
 
 # Cookieless site events posted to /api/event (see site/src/lib/analytics.ts).

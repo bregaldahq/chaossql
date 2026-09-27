@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ArrowUpRight, Menu, X } from 'lucide-react';
 import { track } from '../../lib/analytics';
+import { localizePath } from '../../lib/router';
 import { messages, type Language } from '../../i18n';
 import { Button } from '../system/Button';
 import styles from './SiteNav.module.css';
@@ -22,13 +23,14 @@ export function SiteNav({ currentRoute, lang, onLanguageChange }: SiteNavProps) 
   const m = messages[lang];
   const t = m.nav;
   const [open, setOpen] = useState(false);
+  const L = (href: string) => localizePath(href, lang);
 
   const links = [
-    { id: 'how', href: '/#story', label: t.howItWorks },
-    { id: 'scenarios', href: '/scenarios', label: t.items.scenarios },
-    { id: 'playground', href: '/playground', label: t.items.playground },
-    { id: 'docs', href: '/docs', label: t.items.docs },
-    { id: 'pricing', href: '/pricing', label: t.items.pricing },
+    { id: 'how', href: L('/#story'), label: t.howItWorks },
+    { id: 'scenarios', href: L('/scenarios'), label: t.items.scenarios },
+    { id: 'playground', href: L('/playground'), label: t.items.playground },
+    { id: 'docs', href: L('/docs'), label: t.items.docs },
+    { id: 'pricing', href: L('/pricing'), label: t.items.pricing },
   ];
 
   useEffect(() => {
@@ -62,7 +64,7 @@ export function SiteNav({ currentRoute, lang, onLanguageChange }: SiteNavProps) 
 
   return (
     <header className={styles.nav} data-nav>
-      <a href="/" className={styles.brand} aria-label={t.homeLabel}>
+      <a href={L('/')} className={styles.brand} aria-label={t.homeLabel}>
         <img src="/brand/icone_bregalda.svg" alt="" width="28" height="28" />
         <span>ChaosSQL</span>
       </a>
@@ -91,7 +93,7 @@ export function SiteNav({ currentRoute, lang, onLanguageChange }: SiteNavProps) 
         >
           GitHub <ArrowUpRight size={14} aria-hidden="true" />
         </a>
-        <Button href="/#story" className={styles.cta} onClick={() => track('cta_click', 'nav_story')}>
+        <Button href={L('/#story')} className={styles.cta} onClick={() => track('cta_click', 'nav_story')}>
           {m.cta.primary}
         </Button>
         <button

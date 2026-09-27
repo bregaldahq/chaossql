@@ -22,7 +22,9 @@ function templateHtmlRewrite(): Plugin {
 }
 
 // https://vitejs.dev/config/
-export default defineConfig({
+// The client build starts from template.html; the SSR build (used only by
+// scripts/prerender.mjs) starts from src/entry-server.tsx.
+export default defineConfig(({ isSsrBuild }) => ({
   plugins: [react(), templateHtmlRewrite()],
   resolve: {
     alias: {
@@ -36,11 +38,16 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     sourcemap: true,
+    // scripts/prerender.mjs reads dist/.vite/manifest.json to link each lazy
+    // page's CSS in its prerendered HTML (no flash of unstyled content).
+    manifest: !isSsrBuild,
     target: 'esnext',
-    rollupOptions: {
-      input: {
-        main: fileURLToPath(new URL('./template.html', import.meta.url)),
-      },
-    },
+    rollupOptions: isSsrBuild
+      ? undefined
+      : {
+          input: {
+            main: fileURLToPath(new URL('./template.html', import.meta.url)),
+          },
+        },
   },
-});
+}));

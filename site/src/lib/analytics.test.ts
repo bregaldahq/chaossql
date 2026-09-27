@@ -2,7 +2,7 @@
 // @vitest-environment-options {"url": "https://chaossql.bregalda.com/pricing"}
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { track } from './analytics';
-import { getStoredLanguage } from './i18n';
+import { getStoredLanguage, prefersPortuguese, setStoredLanguage } from './i18n';
 
 function stubBeacon() {
   const calls: Array<{ url: string; body: Record<string, unknown> }> = [];
@@ -47,20 +47,21 @@ describe('track', () => {
   });
 });
 
-describe('getStoredLanguage', () => {
-  it('defaults to English for a global audience', () => {
-    vi.spyOn(navigator, 'languages', 'get').mockReturnValue(['en-US', 'de']);
-    expect(getStoredLanguage()).toBe('en');
-  });
-
-  it('picks Portuguese when the browser prefers it', () => {
+describe('language preference', () => {
+  it('suggests Portuguese when the browser prefers it and nothing was chosen', () => {
     vi.spyOn(navigator, 'languages', 'get').mockReturnValue(['pt-BR', 'en']);
-    expect(getStoredLanguage()).toBe('pt');
+    expect(prefersPortuguese()).toBe(true);
   });
 
-  it('keeps an explicit choice over the browser preference', () => {
+  it('does not suggest Portuguese to other browsers', () => {
+    vi.spyOn(navigator, 'languages', 'get').mockReturnValue(['en-US', 'de']);
+    expect(prefersPortuguese()).toBe(false);
+  });
+
+  it('respects an explicit choice over the browser preference', () => {
     vi.spyOn(navigator, 'languages', 'get').mockReturnValue(['pt-BR']);
-    localStorage.setItem('chaossql_lang', 'en');
+    setStoredLanguage('en');
     expect(getStoredLanguage()).toBe('en');
+    expect(prefersPortuguese()).toBe(false);
   });
 });

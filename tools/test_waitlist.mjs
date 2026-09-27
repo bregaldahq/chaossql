@@ -1,13 +1,19 @@
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
 import { test } from 'node:test';
-import { transform } from '../site/node_modules/esbuild/lib/main.js';
+import { build } from '../site/node_modules/esbuild/lib/main.js';
 
 const sources = ['worker.ts', 'site/_worker.js', 'functions/api/waitlist.ts', 'site/functions/api/waitlist.ts'];
 
 for (const source of sources) {
-  const raw = await readFile(new URL(`../${source}`, import.meta.url), 'utf8');
-  const { code } = await transform(raw, { loader: source.endsWith('.ts') ? 'ts' : 'js', format: 'esm' });
+  // Bundle each source like its deploy target does (worker.ts imports site/src/lib/seo.ts).
+  const bundled = await build({
+    entryPoints: [new URL(`../${source}`, import.meta.url).pathname],
+    bundle: true,
+    format: 'esm',
+    platform: 'neutral',
+    write: false,
+  });
+  const code = bundled.outputFiles[0].text;
   const module = await import(`data:text/javascript;base64,${Buffer.from(code + `\n//# sourceURL=${source}`).toString('base64')}`);
   // A distinct client per request keeps the per-IP rate limit out of these tests.
   let client = 0;

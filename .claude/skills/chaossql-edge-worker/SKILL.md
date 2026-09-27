@@ -16,13 +16,14 @@ description: The Cloudflare edge code for the portal — worker.ts (Workers depl
 | File | Runtime |
 | :--- | :--- |
 | `worker.ts` | Cloudflare Worker (root `wrangler.toml`: `main = ./worker.ts`, assets `./site` bound as `ASSETS`, SPA fallback, `run_worker_first` for section URLs) |
-| `site/_worker.js` | bundled JavaScript copy of `worker.ts` for Cloudflare Pages advanced mode (`pages deploy site`); no script in the repo regenerates it |
+| `site/_worker.js` | generated bundle of `worker.ts` (and the `site/src/lib/seo.ts` it imports) for Cloudflare Pages advanced mode (`pages deploy site`), written by `site/scripts/build-pages-worker.mjs` at the end of `npm run build`; never edit it by hand |
 | `functions/api/waitlist.ts`, `site/functions/api/waitlist.ts` | identical Pages Function versions of the waitlist endpoint |
 
-Any behavior change must be applied to all applicable copies;
-`tools/test_waitlist.mjs` transpiles and exercises all four with esbuild, and
-`site/src/lib/router.test.ts` checks route metadata across `worker.ts`,
-`site/_worker.js` and `wrangler.toml`.
+Edit `worker.ts` and rebuild the site (or run
+`node site/scripts/build-pages-worker.mjs`); `site/src/lib/router.test.ts`
+fails when the committed `site/_worker.js` differs from a fresh build. The two
+Pages Functions are still hand-kept copies of the waitlist endpoint.
+`tools/test_waitlist.mjs` bundles and exercises all four with esbuild.
 
 ## Endpoints (`worker.ts`)
 
@@ -41,12 +42,16 @@ Any behavior change must be applied to all applicable copies;
   https, without credentials, default port, and its host in
   `ALLOWED_WEBHOOK_HOSTS` (Discord variants, `hooks.slack.com`); sends a
   Discord/Slack/generic test message and returns `{success, status}`.
-- Section URLs (`/docs`, `/playground`, ...): `serveAppShell` fetches the SPA
-  shell from `ASSETS` and injects the route's `<title>`, description,
-  canonical URL, robots directive and Open Graph card (`og:image` and
-  `twitter:image`, absolute URL of `image`, a `/og/*.png` rendered by
-  `npm run og`) from `ROUTE_META`; trailing slashes are
-  normalized, then the Web Analytics beacon is appended (below).
+- Page URLs (`appPath`): `/`, every section path, `/scenarios/<slug>`, each
+  also under `/pt`. Trailing slashes redirect (301) to the canonical path.
+  If the path is in `/prerender/manifest.json` (read once per isolate), the
+  worker serves `site/prerender/<path>.html` (`/` → `/prerender/home`) as is;
+  otherwise `serveAppShell` fetches the `index.html` shell and injects
+  `<html lang>`, title, description, robots, canonical, Open Graph/Twitter
+  tags, `og:locale` and hreflang alternates from `pageMeta` in
+  `site/src/lib/seo.ts` (the module the app uses). An unknown scenario slug
+  gets the shell with `noindex` and status 404. The Web Analytics beacon is
+  appended to both (below).
 - `POST /api/event` (+ `OPTIONS`): cookieless site events. Origin must be
   allowed (403); body ≤ 1024 bytes (413); `event` must be in `SITE_EVENTS`
   (keep in sync with `site/src/lib/analytics.ts`), `label`/`path`/`ref` must
@@ -79,15 +84,21 @@ hex characters; otherwise the page is untouched.
 - Rate limiting is per-isolate memory — best effort, not global.
 - This relay is unrelated to the control plane's webhooks
   (`chaossql-webhooks-outbox`), which have their own SSRF protection.
-- `site/_worker.js` drifts silently if you edit only `worker.ts`. It has
-  already drifted: it has no `/api/event` endpoint and no analytics beacon, so
-  a Pages deployment of `site/` loses site events and page-view analytics.
-  Only the waitlist and route-metadata tests cover both copies.
+- `site/_worker.js` used to be hand-edited and drifted (it lacked
+  `/api/event`); it is now generated and a test pins it to `worker.ts`.
+- `index.html` must stay a plain shell: other deployments (nginx, the Go
+  `spaFileServer`) use it as their SPA fallback, which is why prerendered
+  pages live under `site/prerender/` and only this worker maps them to URLs.
+- Paths under `/pt` and `/scenarios/*` must be in `run_worker_first`,
+  otherwise the assets layer answers with the SPA fallback and the Portuguese
+  metadata and prerendered HTML are never served.
 
 ## Tests
 
-- `node --test tools/test_waitlist.mjs tools/test_site_events.mjs` (part of
-  `make verify`; `test_site_events.mjs` covers `worker.ts` only)
+- `node --test tools/test_waitlist.mjs tools/test_site_events.mjs tools/test_worker_routes.mjs`
+  (part of `make verify`). `test_worker_routes.mjs` bundles `worker.ts` with a
+  fake `HTMLRewriter` and covers prerendered pages, Portuguese shell metadata,
+  the 404 for unknown slugs and trailing-slash redirects.
 - `cd site && npx vitest run src/lib/router.test.ts`
 
 ## Source map
@@ -98,6 +109,9 @@ hex characters; otherwise the page is untouched.
 - `site/functions/api/waitlist.ts`
 - `wrangler.toml`
 - `site/wrangler.toml`
+- `site/src/lib/seo.ts`
+- `site/scripts/build-pages-worker.mjs`
+- `tools/test_worker_routes.mjs`
 - `site/_redirects`
 - `tools/test_waitlist.mjs`
 - `tools/test_site_events.mjs`

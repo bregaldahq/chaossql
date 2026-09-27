@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { navigate, useSearchParams } from '../lib/router';
+import { localizePath, navigate, useSearchParams } from '../lib/router';
 import { DOCS_DATA, CHAPTER_ORDER, ChapterId } from '../data/docs-content';
 import { DocsSidebar } from '../components/docs/DocsSidebar';
 import { DocsContent } from '../components/docs/DocsContent';
@@ -21,7 +21,7 @@ export function DocsPage({ lang = 'en' }: DocsPageProps) {
 
   const handleSelectChapter = (id: ChapterId) => {
     setActiveChapterId(id);
-    navigate(`/docs?chapter=${id}`);
+    navigate(localizePath(`/docs?chapter=${id}`, lang));
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 

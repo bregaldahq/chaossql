@@ -1,9 +1,10 @@
 import { lazy, Suspense, useEffect } from 'react';
 import { SiteNav } from './components/ui/SiteNav';
 import { SiteFooter } from './components/ui/SiteFooter';
+import { LanguageHint } from './components/ui/LanguageHint';
 import { LandingPage } from './pages/LandingPage';
 import { useI18n } from './lib/i18n';
-import { interceptLinkClick, routeFromPath, RouteId, scrollToHash, useLocation } from './lib/router';
+import { interceptLinkClick, localizePath, routeFromPath, RouteId, scrollToHash, splitLocale, useLocation } from './lib/router';
 import { applyRouteMeta } from './lib/route-meta';
 
 // The landing ships in the main bundle; every other page loads on demand so
@@ -18,7 +19,7 @@ const PlaygroundPage = lazy(() => import('./pages/PlaygroundPage').then((m) => (
 
 // Pages rendered in the dark "lab" theme. The rest keep the legacy light look
 // until they are migrated.
-const LAB_ROUTES: ReadonlySet<RouteId> = new Set(['landing', 'pricing']);
+export const LAB_ROUTES: ReadonlySet<RouteId> = new Set(['landing', 'pricing']);
 
 export default function App() {
   const { lang, setLang } = useI18n();
@@ -62,6 +63,7 @@ export default function App() {
         {lang === 'pt' ? 'Pular para o conteúdo' : 'Skip to content'}
       </a>
       <SiteNav currentRoute={route} lang={lang} onLanguageChange={setLang} />
+      <LanguageHint lang={lang} ptHref={localizePath(splitLocale(pathname).path, 'pt')} />
 
       <main id="main" style={{ flexGrow: 1 }}>
         <Suspense fallback={<div style={{ minHeight: '60vh' }} aria-busy="true" />}>

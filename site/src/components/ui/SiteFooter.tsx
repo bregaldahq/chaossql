@@ -1,4 +1,5 @@
 import { messages, type Language } from '../../i18n';
+import { localizePath } from '../../lib/router';
 import styles from './SiteFooter.module.css';
 
 export interface SiteFooterProps {
@@ -10,28 +11,29 @@ const GITHUB_URL = 'https://github.com/bregaldahq/chaossql';
 export function SiteFooter({ lang = 'en' }: SiteFooterProps) {
   const m = messages[lang];
   const t = m.footer;
+  const L = (href: string) => localizePath(href, lang);
   const groups = [
     {
       title: t.product,
       links: [
-        { href: '/#story', label: m.nav.howItWorks },
-        { href: '/scenarios', label: t.scenarios },
-        { href: '/pricing', label: t.pricing },
+        { href: L('/#story'), label: m.nav.howItWorks },
+        { href: L('/scenarios'), label: t.scenarios },
+        { href: L('/pricing'), label: t.pricing },
       ],
     },
     {
       title: t.tools,
       links: [
-        { href: '/playground', label: t.playground },
-        { href: '/visualizer', label: t.visualizer },
-        { href: '/matrix', label: t.matrix },
-        { href: '/dashboard', label: t.dashboard },
+        { href: L('/playground'), label: t.playground },
+        { href: L('/visualizer'), label: t.visualizer },
+        { href: L('/matrix'), label: t.matrix },
+        { href: L('/dashboard'), label: t.dashboard },
       ],
     },
     {
       title: t.resources,
       links: [
-        { href: '/docs', label: t.docs },
+        { href: L('/docs'), label: t.docs },
         { href: GITHUB_URL, label: 'GitHub', external: true },
         { href: `${GITHUB_URL}/releases`, label: t.releases, external: true },
       ],
@@ -42,7 +44,7 @@ export function SiteFooter({ lang = 'en' }: SiteFooterProps) {
     <footer className={styles.footer}>
       <div className={styles.inner}>
         <div className={styles.brand}>
-          <a href="/" className={styles.logo}>
+          <a href={L('/')} className={styles.logo}>
             <img src="/brand/icone_bregalda.svg" alt="" width="28" height="28" />
             <span>ChaosSQL</span>
           </a>
@@ -65,7 +67,7 @@ export function SiteFooter({ lang = 'en' }: SiteFooterProps) {
           ))}
         </nav>
         <p className={styles.copyright}>
-          © {new Date().getFullYear()} Studio Bregalda. {t.rights}
+          <span suppressHydrationWarning>© {new Date().getFullYear()}</span> Studio Bregalda. {t.rights}
         </p>
       </div>
     </footer>
