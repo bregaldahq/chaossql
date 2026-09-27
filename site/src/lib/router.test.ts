@@ -128,6 +128,16 @@ describe('wrangler.toml', () => {
     expect(wranglerToml).toMatch(/^\[assets\][^[]*^binding = "ASSETS"$/m);
   });
 
+  it('has no run_worker_first rule made redundant by a wildcard (wrangler rejects the deploy)', () => {
+    const block = wranglerToml.match(/^run_worker_first = \[([^\]]*)\]/m)?.[1] ?? '';
+    const rules = [...block.matchAll(/"([^"]+)"/g)].map((m) => m[1]);
+    const wildcards = rules.filter((r) => r.endsWith('/*')).map((r) => r.slice(0, -1));
+    for (const rule of rules) {
+      if (rule.endsWith('/*')) continue;
+      for (const prefix of wildcards) expect(rule.startsWith(prefix), `${rule} is covered by ${prefix}*`).toBe(false);
+    }
+  });
+
   it('routes API calls to the worker before the assets layer', () => {
     const runWorkerFirst = wranglerToml.match(/^run_worker_first = \[([^\]]*)\]/m)?.[1] ?? '';
     expect(runWorkerFirst).toContain('"/api/*"');
