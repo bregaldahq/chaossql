@@ -343,11 +343,9 @@ func TestValidateWebhookTargetRejectsSSRF(t *testing.T) {
 
 func TestValidateWebhookTargetAllowsPublicHTTPS(t *testing.T) {
 	// Stub DNS so the test does not depend on network access.
-	original := lookupIP
-	lookupIP = func(host string) ([]net.IP, error) {
+	stubLookupIP(t, func(host string) ([]net.IP, error) {
 		return []net.IP{net.ParseIP("203.0.113.10")}, nil
-	}
-	defer func() { lookupIP = original }()
+	})
 
 	allowed := []string{
 		"https://discord.com/api/webhooks/123456789/AbC-dEf_123",

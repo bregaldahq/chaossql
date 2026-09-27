@@ -19,9 +19,7 @@ func TestDefaultWebhookDispatcherRejectsPrivateDestination(t *testing.T) {
 }
 
 func TestSafeWebhookDialPinsResolvedIPAddress(t *testing.T) {
-	original := lookupIP
-	lookupIP = func(string) ([]net.IP, error) { return []net.IP{net.ParseIP("203.0.113.10")}, nil }
-	defer func() { lookupIP = original }()
+	stubLookupIP(t, func(string) ([]net.IP, error) { return []net.IP{net.ParseIP("203.0.113.10")}, nil })
 	client := NewSafeHTTPClient()
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()

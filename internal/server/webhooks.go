@@ -11,6 +11,7 @@ import (
 	neturl "net/url"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -233,9 +234,19 @@ func ValidateWebhookTarget(rawURL string) error {
 	return nil
 }
 
-// lookupIP is a package-level indirection so tests can resolve hosts without
-// depending on live DNS.
-var lookupIP = net.LookupIP
+// resolver is a package-level indirection so tests can resolve hosts without
+// depending on live DNS. It is atomic because outbox dispatchers started by
+// earlier routers keep dialing in the background while a test swaps it.
+var resolver atomic.Pointer[func(string) ([]net.IP, error)]
+
+func init() {
+	lookup := net.LookupIP
+	resolver.Store(&lookup)
+}
+
+func lookupIP(host string) ([]net.IP, error) {
+	return (*resolver.Load())(host)
+}
 
 func isInternalIP(ip net.IP) bool {
 	if ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast() ||

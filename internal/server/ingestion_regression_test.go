@@ -264,9 +264,7 @@ func TestSavedWebhookTestAuthorizationAndDestination(t *testing.T) {
 	received := make(chan string, 1)
 	endpoint := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { received <- r.URL.RequestURI(); w.WriteHeader(204) }))
 	defer endpoint.Close()
-	original := lookupIP
-	lookupIP = func(string) ([]net.IP, error) { return []net.IP{net.ParseIP("203.0.113.10")}, nil }
-	defer func() { lookupIP = original }()
+	stubLookupIP(t, func(string) ([]net.IP, error) { return []net.IP{net.ParseIP("203.0.113.10")}, nil })
 	transport := endpoint.Client().Transport.(*http.Transport).Clone()
 	transport.TLSClientConfig = transport.TLSClientConfig.Clone()
 	transport.TLSClientConfig.ServerName = "127.0.0.1"
@@ -342,9 +340,7 @@ func TestMemberTokenIssuanceAuthorization(t *testing.T) {
 }
 
 func TestWebhookMetadataRedactsCredentialURL(t *testing.T) {
-	original := lookupIP
-	lookupIP = func(string) ([]net.IP, error) { return []net.IP{net.ParseIP("203.0.113.10")}, nil }
-	defer func() { lookupIP = original }()
+	stubLookupIP(t, func(string) ([]net.IP, error) { return []net.IP{net.ParseIP("203.0.113.10")}, nil })
 	h, s, _ := newTestServer(t)
 	defer s.db.Close()
 	if err := s.CreateAPITokenWithRole("admin", "org_cloud_test", "admin-secret", "Admin", RoleAdmin); err != nil {

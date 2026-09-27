@@ -14,7 +14,7 @@ description: Webhook alerts in the Cloud control plane — registration and SSRF
 
 Body `{target_type, url, events}`; `ValidateWebhookTarget(url)`:
 https only, no userinfo, host required; literal IPs checked directly,
-hostnames resolved via `lookupIP` (swappable in tests); rejects loopback,
+hostnames resolved via `lookupIP`, which reads an atomic `resolver` (tests swap it only through `stubLookupIP(t, fn)`, which restores it on cleanup); rejects loopback,
 private, link-local, multicast, unspecified, CGNAT `100.64.0.0/10` and other
 internal ranges. `events` defaults to `"regression,all"`. Listing returns
 redacted URLs.
@@ -55,6 +55,11 @@ synchronously.
 - The dispatcher polls every 20 ms for the life of the process (keep the
   machine running — see `deploy/fly/fly.toml`).
 - Retention deletes non-pending outbox rows older than the plan window.
+- Every router starts an `OutboxDispatcher` that is never stopped, so in tests
+  dispatchers from earlier servers keep dialing in the background. Never swap
+  package-level hooks such as the resolver with a plain assignment: it races
+  with those goroutines under `-race` (it made CI flaky before
+  `stubLookupIP`).
 
 ## Tests
 
@@ -67,6 +72,7 @@ synchronously.
 - `internal/server/store.go`
 - `internal/server/webhooks_test.go`
 - `internal/server/webhook_safety_regression_test.go`
+- `internal/server/resolver_test.go`
 - `specs/20_saas_reliable_ingestion_and_baselines.md`
 
 ## Related skills
