@@ -4,19 +4,21 @@ import { ProjectCycle } from '../components/ui/ProjectCycle';
 import { ChaosSqlArtifact } from '../components/artifacts/ChaosSqlArtifact';
 import { DemoShowcase } from '../components/ui/DemoShowcase';
 import { CloudWaitlistSection } from '../components/ui/CloudWaitlistSection';
+import { track } from '../lib/analytics';
 import styles from './LandingPage.module.css';
 
 export interface LandingPageProps {
   lang?: 'pt' | 'en';
 }
 
-export function LandingPage({ lang = 'pt' }: LandingPageProps) {
+export function LandingPage({ lang = 'en' }: LandingPageProps) {
   const [copied, setCopied] = useState(false);
 
   const installCmd = 'go install github.com/bregaldahq/chaossql/cmd/chaossql@latest';
 
   const handleCopy = () => {
     navigator.clipboard.writeText(installCmd);
+    track('install_copy', 'hero');
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -176,12 +178,12 @@ export function LandingPage({ lang = 'pt' }: LandingPageProps) {
 
         {/* Dual Actions */}
         <div className={styles.heroActions}>
-          <a href="/playground" className={styles.ctaPlayground}>
+          <a href="/playground" className={styles.ctaPlayground} onClick={() => track('cta_click', 'hero_playground')}>
             <Play size={16} fill="currentColor" />
             {lang === 'pt' ? 'Testar no Playground WASM' : 'Launch WASM Playground'}
           </a>
 
-          <a href="#waitlist" className={styles.ctaWaitlist}>
+          <a href="#waitlist" className={styles.ctaWaitlist} onClick={() => track('cta_click', 'hero_waitlist')}>
             <Sparkles size={16} />
             {lang === 'pt' ? 'Participar do Cloud Early Access' : 'Join Cloud Early Access'}
           </a>
@@ -195,15 +197,15 @@ export function LandingPage({ lang = 'pt' }: LandingPageProps) {
               type="button"
               className={styles.copyBtn}
               onClick={handleCopy}
-              aria-label="Copiar comando de instalação"
+              aria-label={lang === 'pt' ? 'Copiar comando de instalação' : 'Copy install command'}
             >
               {copied ? (
                 <>
-                  <Check size={12} /> Copiado!
+                  <Check size={12} /> {lang === 'pt' ? 'Copiado!' : 'Copied!'}
                 </>
               ) : (
                 <>
-                  <Copy size={12} /> Copiar
+                  <Copy size={12} /> {lang === 'pt' ? 'Copiar' : 'Copy'}
                 </>
               )}
             </button>
@@ -214,7 +216,7 @@ export function LandingPage({ lang = 'pt' }: LandingPageProps) {
         <div className={styles.heroCardContainer}>
           <div className={styles.heroAnomalyCard}>
             <div className={styles.anomalyHeader}>
-              <span className={styles.anomalyBadgeRed}>🚨 LOST UPDATE DETECTED (P4)</span>
+              <span className={styles.anomalyBadgeRed}>LOST UPDATE DETECTED (P4)</span>
               <span className={styles.anomalySeed}>Seed: 184729</span>
             </div>
             <div className={styles.anomalyRow}>
@@ -275,13 +277,14 @@ export function LandingPage({ lang = 'pt' }: LandingPageProps) {
         secondaryAction={cycleData.secondaryAction}
         technologies={cycleData.technologies}
         evidence={cycleData.evidence}
-        artifact={<ChaosSqlArtifact />}
+        artifact={<ChaosSqlArtifact lang={lang} />}
+        lang={lang}
       />
 
       {/* 5. Three Pillars Section */}
       <section className={styles.pillarsSection}>
         <div style={{ textAlign: 'center', marginBottom: 'var(--space-3)' }}>
-          <p className="technical-label">Fundamentos de Engenharia</p>
+          <p className="technical-label">{lang === 'pt' ? 'Fundamentos de Engenharia' : 'Engineering Foundations'}</p>
           <h2
             style={{
               fontSize: 'var(--type-h3)',

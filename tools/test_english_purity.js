@@ -17,7 +17,8 @@ const TARGET_DIRS = [
   'cmd',
   'internal',
   'pkg',
-  'tools'
+  'tools',
+  '.claude/skills'
 ];
 
 // Target root-level files to audit
@@ -25,6 +26,7 @@ const ROOT_FILES = [
   'Makefile',
   'ARCHITECTURE.md',
   'AGENTS.md',
+  'CLAUDE.md',
   'CONTRIBUTING.md',
   'README.md',
   'SECURITY.md',

@@ -50,7 +50,7 @@ func newUICmd() *cobra.Command {
 
 			htmlContent := reporter.GenerateEmbeddedTraceViewerHTML(trace, spec, graph, shrink, invResults)
 			addr := fmt.Sprintf("127.0.0.1:%d", port)
-			return serveTraceViewer(addr, htmlContent, noOpen)
+			return serveTraceViewer(cmd.Context(), addr, htmlContent, noOpen)
 		},
 	}
 
@@ -150,7 +150,8 @@ func startTraceViewerServer(addr string, htmlContent string) (*http.Server, stri
 	return server, actualURL, nil
 }
 
-func serveTraceViewer(addr string, htmlContent string, noOpen bool) error {
+// serveTraceViewer blocks until Ctrl+C/SIGTERM or until ctx is cancelled.
+func serveTraceViewer(ctx context.Context, addr string, htmlContent string, noOpen bool) error {
 	server, serverURL, err := startTraceViewerServer(addr, htmlContent)
 	if err != nil {
 		return err
@@ -169,14 +170,14 @@ func serveTraceViewer(addr string, htmlContent string, noOpen bool) error {
 		_ = openBrowser(serverURL)
 	}
 
-	stop := make(chan os.Signal, 1)
-	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
-	<-stop
+	stopCtx, stopSignals := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
+	defer stopSignals()
+	<-stopCtx.Done()
 
 	fmt.Println("\nShutting down ChaosSQL Trace Viewer server...")
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
-	return server.Shutdown(ctx)
+	return server.Shutdown(shutdownCtx)
 }
 
 func openBrowser(url string) error {

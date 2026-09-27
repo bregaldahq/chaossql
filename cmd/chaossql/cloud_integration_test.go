@@ -48,7 +48,7 @@ func TestCloudPublishingIntegration(t *testing.T) {
 		workersFlag, iterationsFlag, seedFlag = 0, 0, 0
 	}()
 
-	err := executeChaos("../../examples/banking_lost_update/chaos.yaml")
+	err := executeChaos(context.Background(), "../../examples/banking_lost_update/chaos.yaml")
 	if err != nil {
 		t.Fatalf("unexpected error executing chaos with cloud integration: %v", err)
 	}
@@ -107,7 +107,7 @@ func TestCloudPRReporterStepSummaryIntegration(t *testing.T) {
 		workersFlag, iterationsFlag, seedFlag = 0, 0, 0
 	}()
 
-	err := executeChaos("../../examples/banking_lost_update/chaos.yaml")
+	err := executeChaos(context.Background(), "../../examples/banking_lost_update/chaos.yaml")
 	if err != nil {
 		t.Fatalf("unexpected execution error: %v", err)
 	}
@@ -153,7 +153,7 @@ func TestCloudFailFastInJSON(t *testing.T) {
 	jsonFlag = true
 	workersFlag = 1
 	iterationsFlag = 2
-	err := executeChaos("../../examples/banking_lost_update/chaos.yaml")
+	err := executeChaos(context.Background(), "../../examples/banking_lost_update/chaos.yaml")
 	if err == nil || !strings.Contains(err.Error(), "failed to publish") {
 		t.Fatalf("JSON suppressed cloud-fail-fast: %v", err)
 	}

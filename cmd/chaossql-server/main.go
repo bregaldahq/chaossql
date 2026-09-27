@@ -28,12 +28,20 @@ var (
 )
 
 func main() {
+	if err := newRootCommand().Execute(); err != nil {
+		os.Exit(1)
+	}
+}
+
+// newRootCommand builds the CLI; the server stops when the command context is
+// cancelled or the process receives SIGINT/SIGTERM.
+func newRootCommand() *cobra.Command {
 	rootCmd := &cobra.Command{
 		Use:     "chaossql-server",
 		Short:   "ChaosSQL SaaS Control Plane & Regression Detection API",
 		Version: version.Version,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runServer()
+			return runServer(cmd.Context())
 		},
 	}
 
@@ -47,7 +55,7 @@ func main() {
 		Use:   "start",
 		Short: "Start the ChaosSQL Cloud control plane server",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runServer()
+			return runServer(cmd.Context())
 		},
 	}
 	startCmd.Flags().IntVarP(&portFlag, "port", "p", getEnvInt("PORT", 8080), "HTTP port to listen on")
@@ -62,13 +70,10 @@ func main() {
 	orgCmd.PersistentFlags().StringVar(&dbPathFlag, "db", getEnv("DB_PATH", "chaossql-cloud.db"), "Path to SQLite database file")
 
 	rootCmd.AddCommand(startCmd, tokenCmd, orgCmd)
-
-	if err := rootCmd.Execute(); err != nil {
-		os.Exit(1)
-	}
+	return rootCmd
 }
 
-func runServer() error {
+func runServer(parent context.Context) error {
 	if err := server.ValidateBootstrapToken(tokenFlag); err != nil {
 		return err
 	}
@@ -105,7 +110,7 @@ func runServer() error {
 	}
 
 	idleConnsClosed := make(chan struct{})
-	shutdownContext, stopSignals := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	shutdownContext, stopSignals := signal.NotifyContext(parent, os.Interrupt, syscall.SIGTERM)
 	defer stopSignals()
 	go func() {
 		<-shutdownContext.Done()

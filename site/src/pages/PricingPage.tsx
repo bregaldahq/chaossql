@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import styles from './PricingPage.module.css';
 import { submitLead } from '../lib/lead-request';
+import { track } from '../lib/analytics';
 
 interface PricingPageProps {
   lang: 'pt' | 'en';
@@ -66,7 +67,7 @@ export function PricingPage({ lang }: PricingPageProps) {
     proCta: lang === 'pt' ? 'Solicitar Cloud Pro' : 'Request Cloud Pro',
 
     // Audit Section
-    auditTag: lang === 'pt' ? 'SERVIÇO DE ENGENHARIA VIP' : 'VIP ENGINEERING ENGAGEMENT',
+    auditTag: lang === 'pt' ? 'SERVIÇO DE ENGENHARIA' : 'ENGINEERING ENGAGEMENT',
     auditTitle: lang === 'pt' ? 'ChaosSQL Concurrency Safety Audit' : 'ChaosSQL Concurrency Safety Audit',
     auditSubtitle: lang === 'pt'
       ? 'Uma semana de análise aprofundada conduzida por engenheiros especialistas no seu banco de dados e transações críticas.'
@@ -89,7 +90,11 @@ export function PricingPage({ lang }: PricingPageProps) {
       : 'We received your request. Our team will contact you to discuss access and setup.',
   };
 
+  const pt = lang === 'pt';
+  const L = (ptText: string, enText: string) => (pt ? ptText : enText);
+
   const handleOpenModal = (planName: string) => {
+    track('plan_select', planName.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, ''));
     setSelectedPlan(planName);
     setSubmitted(false);
     setSubmitError(null);
@@ -110,6 +115,7 @@ export function PricingPage({ lang }: PricingPageProps) {
         timestamp: new Date().toISOString(),
       };
       await submitLead(payload);
+      track('lead_submit', `pricing:${selectedPlan.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '')}`);
       setSubmitted(true);
     } catch (error) {
       setSubmitError(error instanceof Error ? error.message : 'Request delivery failed. Please try again.');
@@ -131,8 +137,12 @@ export function PricingPage({ lang }: PricingPageProps) {
           <button
             type="button"
             className={`${styles.switchToggle} ${annual ? styles.switchToggleAnnual : ''}`}
-            onClick={() => setAnnual(!annual)}
-            aria-label="Alternar ciclo de faturamento"
+            onClick={() => {
+              track('pricing_toggle', annual ? 'monthly' : 'annual');
+              setAnnual(!annual);
+            }}
+            aria-label={L('Alternar ciclo de faturamento', 'Toggle billing cycle')}
+            aria-pressed={annual}
           >
             <span className={styles.toggleKnob} />
           </button>
@@ -153,16 +163,22 @@ export function PricingPage({ lang }: PricingPageProps) {
           </div>
           <div className={styles.priceRow}>
             <span className={styles.priceNum}>{t.ossPrice}</span>
-            <span className={styles.pricePeriod}>/permanente</span>
+            <span className={styles.pricePeriod}>{L('/para sempre', '/forever')}</span>
           </div>
           <ul className={styles.featureList}>
-            <li><Check size={16} className={styles.checkIcon} /> Repositórios Open Source ilimitados</li>
-            <li><Check size={16} className={styles.checkIcon} /> Motor determinístico Go completo</li>
-            <li><Check size={16} className={styles.checkIcon} /> Algoritmo ddmin de redução causal</li>
-            <li><Check size={16} className={styles.checkIcon} /> Exportação HTML, JUnit, OTLP e SARIF</li>
-            <li><Check size={16} className={styles.checkIcon} /> Licença permissiva Apache 2.0</li>
+            <li><Check size={16} className={styles.checkIcon} /> {L('Repositórios Open Source ilimitados', 'Unlimited open-source repositories')}</li>
+            <li><Check size={16} className={styles.checkIcon} /> {L('Motor determinístico Go completo', 'Full deterministic Go engine')}</li>
+            <li><Check size={16} className={styles.checkIcon} /> {L('Algoritmo ddmin de redução causal', 'Causal ddmin trace reduction')}</li>
+            <li><Check size={16} className={styles.checkIcon} /> {L('Exportação HTML, JUnit, OTLP e SARIF', 'HTML, JUnit, OTLP and SARIF export')}</li>
+            <li><Check size={16} className={styles.checkIcon} /> {L('Licença permissiva MIT', 'Permissive MIT license')}</li>
           </ul>
-          <a href="https://github.com/bregaldahq/chaossql" target="_blank" rel="noreferrer" className={styles.ctaSecondary}>
+          <a
+            href="https://github.com/bregaldahq/chaossql"
+            target="_blank"
+            rel="noreferrer"
+            className={styles.ctaSecondary}
+            onClick={() => track('outbound_click', 'github_pricing_oss')}
+          >
             {t.ossCta} →
           </a>
         </div>
@@ -178,11 +194,11 @@ export function PricingPage({ lang }: PricingPageProps) {
             <span className={styles.pricePeriod}>{t.perMonth}</span>
           </div>
           <ul className={styles.featureList}>
-            <li><Check size={16} className={styles.checkIcon} /> <strong>1 repositório privado</strong></li>
-            <li><Check size={16} className={styles.checkIcon} /> Histórico de 7 dias na nuvem</li>
-            <li><Check size={16} className={styles.checkIcon} /> Verificação básica em PRs do GitHub</li>
-            <li><Check size={16} className={styles.checkIcon} /> Sanitização estrita de credenciais</li>
-            <li><Check size={16} className={styles.checkIcon} /> Usuários/devs ilimitados</li>
+            <li><Check size={16} className={styles.checkIcon} /> <strong>{L('1 repositório privado', '1 private repository')}</strong></li>
+            <li><Check size={16} className={styles.checkIcon} /> {L('Histórico de 7 dias na nuvem', '7-day cloud history')}</li>
+            <li><Check size={16} className={styles.checkIcon} /> {L('Verificação básica em PRs do GitHub', 'Basic GitHub PR checks')}</li>
+            <li><Check size={16} className={styles.checkIcon} /> {L('Sanitização estrita de credenciais', 'Strict credential sanitization')}</li>
+            <li><Check size={16} className={styles.checkIcon} /> {L('Usuários/devs ilimitados', 'Unlimited users')}</li>
           </ul>
           <button className={styles.ctaSecondary} onClick={() => handleOpenModal('Cloud Developer')}>
             {t.devCta}
@@ -206,12 +222,12 @@ export function PricingPage({ lang }: PricingPageProps) {
             {annual ? t.billedAnnually : t.billedMonthly}
           </div>
           <ul className={styles.featureList}>
-            <li><Check size={16} className={styles.checkIconPopular} /> <strong>10 repositórios privados</strong></li>
-            <li><Check size={16} className={styles.checkIconPopular} /> <strong>Detecção de Regressões Concorrentes</strong></li>
-            <li><Check size={16} className={styles.checkIconPopular} /> Bot de Comentários no GitHub PR</li>
+            <li><Check size={16} className={styles.checkIconPopular} /> <strong>{L('10 repositórios privados', '10 private repositories')}</strong></li>
+            <li><Check size={16} className={styles.checkIconPopular} /> <strong>{L('Detecção de Regressões Concorrentes', 'Concurrency regression detection')}</strong></li>
+            <li><Check size={16} className={styles.checkIconPopular} /> {L('Bot de Comentários no GitHub PR', 'GitHub PR comment bot')}</li>
             <li><Check size={16} className={styles.checkIconPopular} /> Concurrency Health Dashboard</li>
-            <li><Check size={16} className={styles.checkIconPopular} /> Histórico de 90 dias com baseline</li>
-            <li><Check size={16} className={styles.checkIconPopular} /> Reprodutores Go para download</li>
+            <li><Check size={16} className={styles.checkIconPopular} /> {L('Histórico de 90 dias com baseline', '90-day history with baseline')}</li>
+            <li><Check size={16} className={styles.checkIconPopular} /> {L('Reprodutores Go para download', 'Downloadable Go reproducers')}</li>
           </ul>
           <button className={styles.ctaPrimary} onClick={() => handleOpenModal('Cloud Team')}>
             {t.teamCta}
@@ -234,12 +250,12 @@ export function PricingPage({ lang }: PricingPageProps) {
             {annual ? t.billedAnnually : t.billedMonthly}
           </div>
           <ul className={styles.featureList}>
-            <li><Check size={16} className={styles.checkIcon} /> <strong>30 repositórios privados</strong></li>
-            <li><Check size={16} className={styles.checkIcon} /> Histórico de 365 dias (1 ano)</li>
-            <li><Check size={16} className={styles.checkIcon} /> Fuzzing noturno contínuo agendado</li>
+            <li><Check size={16} className={styles.checkIcon} /> <strong>{L('30 repositórios privados', '30 private repositories')}</strong></li>
+            <li><Check size={16} className={styles.checkIcon} /> {L('Histórico de 365 dias (1 ano)', '365-day history')}</li>
+            <li><Check size={16} className={styles.checkIcon} /> {L('Fuzzing noturno contínuo agendado', 'Scheduled nightly fuzzing')}</li>
             <li><Check size={16} className={styles.checkIcon} /> Webhooks (Slack, Discord, PagerDuty)</li>
-            <li><Check size={16} className={styles.checkIcon} /> Políticas de isolamento avançadas</li>
-            <li><Check size={16} className={styles.checkIcon} /> Suporte prioritário via Slack privado</li>
+            <li><Check size={16} className={styles.checkIcon} /> {L('Políticas de isolamento avançadas', 'Advanced isolation policies')}</li>
+            <li><Check size={16} className={styles.checkIcon} /> {L('Suporte prioritário via Slack privado', 'Priority support in a private Slack channel')}</li>
           </ul>
           <button className={styles.ctaSecondary} onClick={() => handleOpenModal('Cloud Pro')}>
             {t.proCta}
@@ -259,22 +275,37 @@ export function PricingPage({ lang }: PricingPageProps) {
               <div className={styles.deliverableItem}>
                 <ShieldAlert size={20} color="#ef4444" />
                 <div>
-                  <strong>Diagnóstico Hermitage Completo</strong>
-                  <p>Mapeamento de anomalias (P4 Lost Update, A5A Write Skew, Deadlocks) nos seus fluxos de banco reais.</p>
+                  <strong>{L('Diagnóstico Hermitage Completo', 'Full Hermitage Diagnosis')}</strong>
+                  <p>
+                    {L(
+                      'Mapeamento de anomalias (P4 Lost Update, A5B Write Skew, deadlocks) nos seus fluxos de banco reais.',
+                      'Anomaly mapping (P4 lost update, A5B write skew, deadlocks) across your real database flows.'
+                    )}
+                  </p>
                 </div>
               </div>
               <div className={styles.deliverableItem}>
                 <GitPullRequest size={20} color="#4b2e83" />
                 <div>
-                  <strong>Testes Reprodutores em Go Entregues</strong>
-                  <p>Scripts reprodutores minimalistas delta-debugged prontos para rodar no seu CI/CD.</p>
+                  <strong>{L('Testes Reprodutores em Go Entregues', 'Go Reproduction Tests Delivered')}</strong>
+                  <p>
+                    {L(
+                      'Testes reprodutores mínimos, reduzidos por delta-debugging, prontos para rodar no seu CI/CD.',
+                      'Minimal, delta-debugged reproduction tests ready to run in your CI/CD.'
+                    )}
+                  </p>
                 </div>
               </div>
               <div className={styles.deliverableItem}>
                 <Award size={20} color="#22c55e" />
                 <div>
-                  <strong>Relatório Executivo com Mitigações Cirúrgicas</strong>
-                  <p>Instruções exatas de SQL (`SELECT FOR UPDATE`, row-level locking, versionamento otimista).</p>
+                  <strong>{L('Relatório Executivo com Mitigações', 'Executive Report with Mitigations')}</strong>
+                  <p>
+                    {L(
+                      'Correções SQL exatas (SELECT FOR UPDATE, locks por linha, versionamento otimista).',
+                      'Exact SQL fixes (SELECT FOR UPDATE, row-level locking, optimistic versioning).'
+                    )}
+                  </p>
                 </div>
               </div>
             </div>
@@ -282,7 +313,7 @@ export function PricingPage({ lang }: PricingPageProps) {
 
           <div className={styles.auditCard}>
             <div className={styles.auditCardHeader}>
-              <div className={styles.auditDuration}>Duração: 1 semana útil</div>
+              <div className={styles.auditDuration}>{L('Duração: 1 semana útil', 'Duration: 1 business week')}</div>
               <div className={styles.auditPriceRow}>
                 <span className={styles.auditPriceNum}>{t.auditPrice}</span>
               </div>
@@ -290,16 +321,16 @@ export function PricingPage({ lang }: PricingPageProps) {
             </div>
 
             <ul className={styles.auditList}>
-              <li>✓ Kickoff de 45 min com arquiteto do time</li>
-              <li>✓ Mapeamento das 5 transações mais críticas</li>
-              <li>✓ 100.000+ escalonamentos de concorrência</li>
-              <li>✓ Relatório final entregue e apresentado ao time</li>
-              <li>✓ 3 meses inclusos de ChaosSQL Cloud Team</li>
+              <li>✓ {L('Kickoff de 45 min com o arquiteto do time', '45-min kickoff with your architect')}</li>
+              <li>✓ {L('Mapeamento das 5 transações mais críticas', 'Mapping of your 5 most critical transactions')}</li>
+              <li>✓ {L('100.000+ escalonamentos de concorrência', '100,000+ concurrency schedules explored')}</li>
+              <li>✓ {L('Relatório final entregue e apresentado ao time', 'Final report delivered and presented to your team')}</li>
+              <li>✓ {L('3 meses de ChaosSQL Cloud Team inclusos', '3 months of ChaosSQL Cloud Team included')}</li>
             </ul>
 
             <button
               className={styles.auditCtaBtn}
-              onClick={() => handleOpenModal('VIP Concurrency Safety Audit ($1,490)')}
+              onClick={() => handleOpenModal('Concurrency Safety Audit ($1,490)')}
             >
               {t.auditCta} →
             </button>
@@ -316,7 +347,7 @@ export function PricingPage({ lang }: PricingPageProps) {
                 <span className={styles.modalSelectedPlan}>{selectedPlan}</span>
                 <h3 className={styles.modalTitle}>{t.modalTitle}</h3>
               </div>
-              <button className={styles.modalClose} onClick={() => setModalOpen(false)}>
+              <button type="button" className={styles.modalClose} onClick={() => setModalOpen(false)} aria-label={L('Fechar', 'Close')}>
                 <X size={20} />
               </button>
             </div>
@@ -326,8 +357,8 @@ export function PricingPage({ lang }: PricingPageProps) {
                 <div className={styles.successIcon}>✓</div>
                 <h4>{t.successTitle}</h4>
                 <p>{t.successDesc}</p>
-                <button className={styles.closeBtnFinal} onClick={() => setModalOpen(false)}>
-                  Fechar
+                <button type="button" className={styles.closeBtnFinal} onClick={() => setModalOpen(false)}>
+                  {L('Fechar', 'Close')}
                 </button>
               </div>
             ) : (
@@ -335,22 +366,24 @@ export function PricingPage({ lang }: PricingPageProps) {
                 <p>{lang === 'pt' ? 'Envie uma solicitação de contato. Nenhuma assinatura ou cobrança é criada aqui.' : 'Send a contact request. This form does not create a subscription or charge.'}</p>
                 {submitError && <p role="alert">{submitError}</p>}
                 <div className={styles.inputGroup}>
-                  <label>{t.nameLabel}</label>
+                  <label htmlFor="pricing-name">{t.nameLabel}</label>
                   <input
+                    id="pricing-name"
                     type="text"
                     required
-                    placeholder="Ricardo Bregalda"
+                    placeholder={L('Seu nome', 'Your name')}
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   />
                 </div>
 
                 <div className={styles.inputGroup}>
-                  <label>{t.emailLabel}</label>
+                  <label htmlFor="pricing-email">{t.emailLabel}</label>
                   <input
+                    id="pricing-email"
                     type="email"
                     required
-                    placeholder="ricardo@empresa.com"
+                    placeholder={L('voce@empresa.com', 'you@company.com')}
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   />
@@ -358,18 +391,20 @@ export function PricingPage({ lang }: PricingPageProps) {
 
                 <div className={styles.formRow}>
                   <div className={styles.inputGroup}>
-                    <label>{t.companyLabel}</label>
+                    <label htmlFor="pricing-company">{t.companyLabel}</label>
                     <input
+                      id="pricing-company"
                       type="text"
                       required
-                      placeholder="Acme Fintech"
+                      placeholder={L('Nome da empresa', 'Company name')}
                       value={formData.company}
                       onChange={(e) => setFormData({ ...formData, company: e.target.value })}
                     />
                   </div>
                   <div className={styles.inputGroup}>
-                    <label>{t.dbLabel}</label>
+                    <label htmlFor="pricing-database">{t.dbLabel}</label>
                     <select
+                      id="pricing-database"
                       value={formData.database}
                       onChange={(e) => setFormData({ ...formData, database: e.target.value })}
                     >
@@ -383,10 +418,11 @@ export function PricingPage({ lang }: PricingPageProps) {
                 </div>
 
                 <div className={styles.inputGroup}>
-                  <label>{t.notesLabel}</label>
+                  <label htmlFor="pricing-notes">{t.notesLabel}</label>
                   <textarea
+                    id="pricing-notes"
                     rows={3}
-                    placeholder="Volume de transações, repositórios ou prazos de release..."
+                    placeholder={L('Volume de transações, repositórios ou prazos de release...', 'Transaction volume, repositories or release deadlines...')}
                     value={formData.notes}
                     onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                   />

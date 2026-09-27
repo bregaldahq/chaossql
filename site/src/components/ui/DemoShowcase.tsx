@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Copy, Check, Play, AlertTriangle, GitBranch } from 'lucide-react';
+import { track } from '../../lib/analytics';
 import styles from './DemoShowcase.module.css';
 
 export interface DemoShowcaseProps {
@@ -22,7 +23,7 @@ interface ScenarioData {
 const SCENARIOS: ScenarioData[] = [
   {
     id: 'banking',
-    title: { pt: '🏦 Transferência Bancária', en: '🏦 Banking Transfer' },
+    title: { pt: 'Transferência Bancária', en: 'Banking Transfer' },
     badge: 'P4 ANOMALY',
     anomalyName: { pt: 'Lost Update Silencioso', en: 'Silent Lost Update' },
     description: {
@@ -50,7 +51,7 @@ const SCENARIOS: ScenarioData[] = [
   },
   {
     id: 'hospital',
-    title: { pt: '🏥 Escala Médica', en: '🏥 Hospital Shift' },
+    title: { pt: 'Escala Médica', en: 'Hospital Shift' },
     badge: 'A5B ANOMALY',
     anomalyName: { pt: 'Write Skew de Capacidade', en: 'Capacity Write Skew' },
     description: {
@@ -78,8 +79,8 @@ const SCENARIOS: ScenarioData[] = [
   },
   {
     id: 'deadlock',
-    title: { pt: '🔒 Travamento Cruzado', en: '🔒 Lock Inversion' },
-    badge: 'G-DL ANOMALY',
+    title: { pt: 'Travamento Cruzado', en: 'Lock Inversion' },
+    badge: 'DEADLOCK',
     anomalyName: { pt: 'Ciclo de Deadlock Mútuo', en: 'Mutual Deadlock Cycle' },
     description: {
       pt: 'O Worker 1 adquire o lock no Registro A e solicita o Registro B. Ao mesmo tempo, o Worker 2 adquire B e solicita A. Ambas as conexões ficam travadas até timeout ou cancelamento abrupto.',
@@ -106,7 +107,7 @@ const SCENARIOS: ScenarioData[] = [
   },
 ];
 
-export function DemoShowcase({ lang = 'pt' }: DemoShowcaseProps) {
+export function DemoShowcase({ lang = 'en' }: DemoShowcaseProps) {
   const [selectedId, setSelectedId] = useState<'banking' | 'hospital' | 'deadlock'>('banking');
   const [copied, setCopied] = useState(false);
 
@@ -114,6 +115,7 @@ export function DemoShowcase({ lang = 'pt' }: DemoShowcaseProps) {
 
   const handleCopy = () => {
     navigator.clipboard.writeText(scenario.cliCmd);
+    track('command_copy', scenario.id);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -141,7 +143,10 @@ export function DemoShowcase({ lang = 'pt' }: DemoShowcaseProps) {
             key={s.id}
             type="button"
             className={`${styles.tabButton} ${selectedId === s.id ? styles.tabButtonActive : ''}`}
-            onClick={() => setSelectedId(s.id)}
+            onClick={() => {
+              setSelectedId(s.id);
+              track('scenario_view', s.id);
+            }}
           >
             <span>{s.title[lang]}</span>
             <span className={styles.anomalyBadge}>{s.badge}</span>
@@ -201,12 +206,17 @@ export function DemoShowcase({ lang = 'pt' }: DemoShowcaseProps) {
               className={styles.copyBtn}
               onClick={handleCopy}
               title={lang === 'pt' ? 'Copiar comando' : 'Copy command'}
+              aria-label={lang === 'pt' ? 'Copiar comando' : 'Copy command'}
             >
               {copied ? <Check size={16} color="#22c55e" /> : <Copy size={16} />}
             </button>
           </div>
 
-          <a href={scenario.playgroundQuery} className={styles.actionBtn}>
+          <a
+            href={scenario.playgroundQuery}
+            className={styles.actionBtn}
+            onClick={() => track('cta_click', `demo_playground:${scenario.id}`)}
+          >
             <Play size={15} fill="currentColor" />
             {lang === 'pt' ? 'Testar no Playground WASM' : 'Test in WASM Playground'}
           </a>

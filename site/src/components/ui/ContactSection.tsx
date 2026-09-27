@@ -4,7 +4,7 @@ export interface ContactSectionProps {
   lang?: 'pt' | 'en';
 }
 
-export function ContactSection({ lang = 'pt' }: ContactSectionProps) {
+export function ContactSection({ lang = 'en' }: ContactSectionProps) {
   return (
     <section id="contact" className={styles.contact} data-surface="dark">
       <p className={styles.eyebrow}>

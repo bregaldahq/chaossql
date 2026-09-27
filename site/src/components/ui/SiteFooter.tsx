@@ -1,10 +1,12 @@
+import { messages } from '../../i18n';
 import styles from './SiteFooter.module.css';
 
 export interface SiteFooterProps {
   lang?: 'pt' | 'en';
 }
 
-export function SiteFooter({ lang = 'pt' }: SiteFooterProps) {
+export function SiteFooter({ lang = 'en' }: SiteFooterProps) {
+  const t = messages[lang].footer;
   return (
     <footer className={styles.footer} data-surface="light">
       <div className={styles.footerInner}>
@@ -16,10 +18,10 @@ export function SiteFooter({ lang = 'pt' }: SiteFooterProps) {
           />
         </div>
 
-        <nav aria-label="Links de rodapé" className={styles.metaLinks}>
-          <a href="/docs">{lang === 'pt' ? 'Documentação' : 'Documentation'}</a>
-          <a href="/scenarios">{lang === 'pt' ? 'Cenários' : 'Scenarios'}</a>
-          <a href="/playground">Playground WASM</a>
+        <nav aria-label={t.label} className={styles.metaLinks}>
+          <a href="/docs">{t.docs}</a>
+          <a href="/scenarios">{t.scenarios}</a>
+          <a href="/playground">{t.playground}</a>
           <a
             href="https://github.com/bregaldahq/chaossql"
             target="_blank"
@@ -30,7 +32,7 @@ export function SiteFooter({ lang = 'pt' }: SiteFooterProps) {
         </nav>
 
         <p className={styles.copyright}>
-          © {new Date().getFullYear()} Studio Bregalda. All rights reserved.
+          © {new Date().getFullYear()} Studio Bregalda. {t.rights}
         </p>
       </div>
     </footer>

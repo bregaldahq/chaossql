@@ -7,7 +7,7 @@ export interface ScenariosPageProps {
   lang?: 'pt' | 'en';
 }
 
-export function ScenariosPage({ lang = 'pt' }: ScenariosPageProps) {
+export function ScenariosPage({ lang = 'en' }: ScenariosPageProps) {
   const [selectedId, setSelectedId] = useState<string>(SCENARIOS_DATA[0]?.id || 'banking');
   const [activeTab, setActiveTab] = useState<'schema' | 'chaos' | 'invariant' | 'fix'>('schema');
 
@@ -39,7 +39,7 @@ export function ScenariosPage({ lang = 'pt' }: ScenariosPageProps) {
 
       <div className={styles.layout}>
         {/* Navegação de Cenários à Esquerda */}
-        <aside className={styles.scenariosNav} aria-label="Lista de cenários">
+        <aside className={styles.scenariosNav} aria-label={lang === 'pt' ? 'Lista de cenários' : 'Scenario list'}>
           {SCENARIOS_DATA.map((sc, idx) => {
             const isActive = sc.id === selectedId;
             return (
@@ -91,6 +91,7 @@ export function ScenariosPage({ lang = 'pt' }: ScenariosPageProps) {
           {activeTab === 'schema' && (
             <div>
               <CodeBlock
+                lang={lang}
                 code={currentScenario.schema}
                 language="sql"
                 filename="schema.sql & seed.sql"
@@ -101,6 +102,7 @@ export function ScenariosPage({ lang = 'pt' }: ScenariosPageProps) {
           {activeTab === 'chaos' && (
             <div>
               <CodeBlock
+                lang={lang}
                 code={currentScenario.chaos}
                 language="yaml"
                 filename="chaos.yaml"
@@ -111,7 +113,7 @@ export function ScenariosPage({ lang = 'pt' }: ScenariosPageProps) {
           {activeTab === 'invariant' && (
             <div>
               <div className={styles.infoBox}>
-                <p className="technical-label">Asserção de Consistência</p>
+                <p className="technical-label">{lang === 'pt' ? 'Asserção de Consistência' : 'Consistency Assertion'}</p>
                 <code style={{ fontSize: '1rem', color: 'var(--purple)', display: 'block', marginBlock: '0.4rem' }}>
                   {currentScenario.invariant?.assert || 'total_completed >= 0'}
                 </code>
@@ -158,6 +160,7 @@ export function ScenariosPage({ lang = 'pt' }: ScenariosPageProps) {
 
               {currentScenario.fix?.sql && (
                 <CodeBlock
+                lang={lang}
                   code={currentScenario.fix.sql}
                   language="sql"
                   filename="remediation_fix.sql"

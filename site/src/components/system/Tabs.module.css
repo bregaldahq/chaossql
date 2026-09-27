@@ -1,0 +1,85 @@
+.root {
+  /* Lets wide panels (code) scroll inside instead of widening grid/flex parents. */
+  min-width: 0;
+}
+
+.panel {
+  min-width: 0;
+}
+
+.list {
+  display: flex;
+  gap: 0.25rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+  border-bottom: 1px solid var(--line);
+}
+
+.list::-webkit-scrollbar {
+  display: none;
+}
+
+.tab {
+  position: relative;
+  flex-shrink: 0;
+  padding: 0.75rem 1rem;
+  border: 0;
+  border-radius: var(--r-control) var(--r-control) 0 0;
+  background: transparent;
+  color: var(--text-muted);
+  font-family: var(--font-sans);
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color var(--dur-fast) var(--ease-out);
+}
+
+.tab::after {
+  content: '';
+  position: absolute;
+  inset: auto 0.75rem -1px;
+  height: 2px;
+  background: var(--text-strong);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform var(--dur-base) var(--ease-out);
+}
+
+.tab:hover {
+  color: var(--text-body);
+}
+
+.tab[aria-selected='true'] {
+  color: var(--text-strong);
+}
+
+.tab[aria-selected='true']::after {
+  transform: scaleX(1);
+}
+
+.tab:focus-visible {
+  outline-offset: -2px;
+}
+
+.panel {
+  padding-top: 1.5rem;
+  animation: panel-in var(--dur-base) var(--ease-out);
+}
+
+.panel:focus-visible {
+  outline-offset: 4px;
+}
+
+@keyframes panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .panel {
+    animation: none;
+  }
+}

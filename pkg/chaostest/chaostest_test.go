@@ -165,3 +165,87 @@ func TestChaostest_RunReturnsExecutionError(t *testing.T) {
 		t.Fatalf("result=%+v shrink=%+v error=%v", result, shrink, err)
 	}
 }
+
+func TestChaostest_RunWithParamsAndCapture(t *testing.T) {
+	driver := drivers.NewSQLiteDriver("")
+	defer driver.Close()
+	tester := chaostest.New(t).
+		WithDriver(driver).
+		WithJitter(0, 1).
+		WithSchema("CREATE TABLE bids (id INTEGER PRIMARY KEY AUTOINCREMENT, amount INT);").
+		WithInvariant("bids_in_range", "SELECT COUNT(*) AS bad FROM bids WHERE amount < 10 OR amount > 20;", "bad == 0").
+		AddOperationWithParams("bid", map[string]string{"amount": "int(10, 20)"},
+			"SELECT COUNT(*) FROM bids -> seen",
+			"INSERT INTO bids (amount) VALUES ({amount});",
+		)
+
+	result, shrink, err := tester.Run(context.Background(), 2, 10, 7)
+	if err != nil || result == nil || result.ViolationDetected || shrink != nil {
+		t.Fatalf("result=%+v shrink=%+v err=%v", result, shrink, err)
+	}
+}
+
+func TestChaostest_RunReportsDriverOpenFailure(t *testing.T) {
+	driver, err := drivers.GetDriver("postgres", "postgres://nobody@127.0.0.1:1/none?sslmode=disable&connect_timeout=2")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer driver.Close()
+	_, _, err = chaostest.New(t).WithDriver(driver).Run(context.Background(), 1, 1, 1)
+	if err == nil || !strings.Contains(err.Error(), "failed to open database driver") {
+		t.Fatalf("err = %v, want an open failure", err)
+	}
+}
+
+func TestChaostest_AssertNoAnomalies_ReportsExecutionError(t *testing.T) {
+	driver := drivers.NewSQLiteDriver("")
+	defer driver.Close()
+	spy := &spyTB{TB: t}
+	chaostest.New(spy).
+		WithDriver(driver).
+		WithSchema("CREATE TABLE items (id INT PRIMARY KEY);").
+		WithInvariant("must_not_run", "SELECT 1 AS one", "one == 1").
+		AddOperation("invalid", "NOT VALID SQL").
+		AssertNoAnomalies(context.Background(), 1, 1, 42)
+
+	if !spy.fatalCalled || !strings.Contains(spy.fatalMsg, "execution failed") {
+		t.Fatalf("fatalCalled=%t msg=%q, want an execution failure report", spy.fatalCalled, spy.fatalMsg)
+	}
+}
+
+func TestChaostest_AssertNoAnomalies_ReportsCapturedSteps(t *testing.T) {
+	driver := drivers.NewSQLiteDriver("file:chaostest_capture?mode=memory&cache=shared")
+	defer driver.Close()
+	spy := &spyTB{TB: t}
+	chaostest.New(spy).
+		WithDriver(driver).
+		WithSchema("CREATE TABLE accounts (id INT PRIMARY KEY, balance INT);").
+		WithSeed("INSERT INTO accounts VALUES (1, 100);").
+		WithInvariant("balance_unchanged", "SELECT balance FROM accounts WHERE id = 1;", "balance == 100").
+		AddOperation("drain",
+			"SELECT balance FROM accounts WHERE id = 1; -> bal",
+			"UPDATE accounts SET balance = {bal} - 1 WHERE id = 1;",
+		).
+		AssertNoAnomalies(context.Background(), 1, 3, 42)
+
+	if !spy.fatalCalled || !strings.Contains(spy.fatalMsg, "(capture: bal)") {
+		t.Fatalf("fatalCalled=%t msg=%q, want the minimal schedule with its capture variable", spy.fatalCalled, spy.fatalMsg)
+	}
+}
+
+func TestChaostest_RunHonoursCancelledContext(t *testing.T) {
+	driver := drivers.NewSQLiteDriver("")
+	defer driver.Close()
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	_, _, err := chaostest.New(t).
+		WithDriver(driver).
+		WithSchema("CREATE TABLE t (id INT PRIMARY KEY, v INT);").
+		WithSeed("INSERT INTO t VALUES (1, 0);").
+		WithInvariant("zero", "SELECT v FROM t WHERE id = 1", "v == 0").
+		AddOperation("bump", "UPDATE t SET v = v + 1 WHERE id = 1").
+		Run(ctx, 1, 5, 3)
+	if err == nil {
+		t.Fatal("a run with a cancelled context must return an error")
+	}
+}

@@ -3,12 +3,13 @@ import styles from './VisualizerPage.module.css';
 import { RAW_TRACE_OPS, SHRUNK_TRACE_OPS, TraceOp } from '../lib/wasm-bridge';
 import { CodeBlock } from '../components/docs/CodeBlock';
 import { useSearchParams } from '../lib/router';
+import { Zap } from 'lucide-react';
 
 interface VisualizerPageProps {
   lang?: 'pt' | 'en';
 }
 
-export const VisualizerPage: React.FC<VisualizerPageProps> = ({ lang = 'pt' }) => {
+export const VisualizerPage: React.FC<VisualizerPageProps> = ({ lang = 'en' }) => {
   // Live run links never render the bundled demonstration traces.
   const queryParams = useSearchParams();
   const paramMode = queryParams.get('mode') as 'raw' | 'shrunk' | null;
@@ -150,7 +151,7 @@ export const VisualizerPage: React.FC<VisualizerPageProps> = ({ lang = 'pt' }) =
           </button>
 
           <div className={styles.statusPill}>
-            <span>⚡</span>
+            <Zap size={14} aria-hidden="true" />
             <span>
               {isPt
                 ? `P4_LOST_UPDATE detectado em t=${collisionUs}μs`
@@ -426,7 +427,7 @@ export const VisualizerPage: React.FC<VisualizerPageProps> = ({ lang = 'pt' }) =
             </div>
 
             <div className={styles.sqlBox}>
-              <CodeBlock code={currentOp.name} language="sql" filename={`op_${currentOp.id}.sql`} />
+              <CodeBlock lang={lang} code={currentOp.name} language="sql" filename={`op_${currentOp.id}.sql`} />
             </div>
           </div>
         </div>

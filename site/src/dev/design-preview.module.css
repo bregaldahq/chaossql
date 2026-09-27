@@ -1,0 +1,93 @@
+.page {
+  min-height: 100dvh;
+}
+
+.hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+  gap: clamp(2rem, 4vw, 4rem);
+  align-items: center;
+  padding-block: clamp(2rem, 6vw, 5rem);
+}
+
+.heroCopy {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.display {
+  font-size: var(--fs-display);
+  font-weight: 620;
+  line-height: var(--lh-tight);
+  letter-spacing: var(--tracking-tight);
+  color: var(--text-strong);
+  text-wrap: balance;
+}
+
+.lead {
+  max-width: 34rem;
+  font-size: var(--fs-lg);
+  line-height: var(--lh-body);
+  color: var(--text-body);
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.stack {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 2rem;
+}
+
+.swatches {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr));
+  gap: 1.25rem;
+}
+
+.swatch {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.chip {
+  height: 3.5rem;
+  border: 1px solid var(--line);
+  border-radius: var(--r-control);
+}
+
+.swatchName {
+  color: var(--text-strong);
+  font-size: var(--fs-sm);
+}
+
+.swatchToken {
+  color: var(--text-muted);
+  font-family: var(--font-jetbrains-mono);
+  font-size: var(--fs-xs);
+}
+
+.typeSample {
+  display: flex;
+  align-items: baseline;
+  gap: 1rem;
+  color: var(--text-strong);
+  line-height: var(--lh-snug);
+  letter-spacing: var(--tracking-tight);
+}
+
+@media (max-width: 767px) {
+  .hero {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .typeSample {
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+}
