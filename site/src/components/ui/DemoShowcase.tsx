@@ -132,8 +132,8 @@ export function DemoShowcase({ lang = 'en' }: DemoShowcaseProps) {
         </h2>
         <p className={styles.subtitle}>
           {lang === 'pt'
-            ? 'Veja exatamente como race conditions que passam despercebidas em testes comuns são detectadas, isoladas e reproduzidas pelo ChaosSQL em milissegundos.'
-            : 'See how race conditions that slip past normal unit tests are deterministically exposed, isolated, and synthesized by ChaosSQL in milliseconds.'}
+            ? 'Veja exatamente como race conditions que passam despercebidas em testes comuns são detectadas, isoladas e reproduzidas pelo ChaosSQL.'
+            : 'See how race conditions that slip past normal unit tests are deterministically exposed, isolated, and reproduced by ChaosSQL.'}
         </p>
       </div>
 

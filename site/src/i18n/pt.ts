@@ -32,4 +32,139 @@ export const pt: Messages = {
     playground: 'Playground WASM',
     rights: 'Todos os direitos reservados.',
   },
+  cta: {
+    primary: 'Ver o bug acontecer',
+    install: 'Instalar',
+    installed: 'Comando copiado',
+    waitlist: 'Entrar na lista do Cloud',
+    audit: 'Agendar auditoria',
+    playground: 'Abrir no playground',
+    allScenarios: 'Ver todos os cenários',
+    howWeMeasure: 'Como medimos',
+  },
+  hero: {
+    title: 'Seus testes passam. Seus saldos não fecham.',
+    lead: 'O ChaosSQL força as corridas entre transações no PostgreSQL, MySQL e SQLite e entrega o menor teste que reproduz o bug.',
+  },
+  proof: {
+    engines: 'Funciona com PostgreSQL, MySQL e SQLite',
+    license: 'Open source, licença MIT',
+    binary: 'Um binário Go estático, sem CGO',
+    stars: '{stars} estrelas no GitHub',
+  },
+  story: {
+    title: 'Um lost update em quatro passos',
+    lead: 'Esta é uma execução real do exemplo bancário, gravada com a seed {seed}. Nada nesta página é simulado.',
+    steps: {
+      read: {
+        title: 'Dois saques leem o mesmo saldo',
+        body: 'As duas transações leem {start} antes de qualquer uma escrever. Cada uma, sozinha, está correta.',
+      },
+      write: {
+        title: 'Cada uma grava o seu resultado',
+        body: 'A primeira debita {amountA} e salva {afterA}. A segunda debita {amountB} e salva {afterB}.',
+      },
+      lost: {
+        title: 'A segunda escrita apaga a primeira',
+        body: 'A conta termina em {afterB} em vez de {expected}. Um débito de {lost} sumiu e nenhum erro chega aos logs.',
+      },
+      repro: {
+        title: 'O ChaosSQL prova e entrega o teste',
+        body: 'A invariante falha, o motor repete a ordem exata e o delta debugging mantém só as {minimal} transações que causam o bug, em repro_test.go.',
+      },
+    },
+    glossary: {
+      invariant: 'Uma regra que seus dados precisam obedecer sempre, escrita como consulta SQL. Por exemplo: o saldo é igual ao saldo inicial menos todos os débitos.',
+      isolation: 'Quanto uma transação enxerga de outra que ainda está rodando. Níveis mais fracos são mais rápidos e permitem mais bugs como este.',
+      seed: 'Um número que fixa a ordem de todas as operações, para que a mesma seed repita a mesma execução.',
+    },
+  },
+  scenarios: {
+    title: 'Não acontece só em banco',
+    lead: 'Cada exemplo vem com o schema, a invariante e uma execução com falha gravada.',
+    banking: {
+      name: 'Banco',
+      pain: 'Dois saques ao mesmo tempo e um deles some do saldo.',
+      invariant: 'O saldo é sempre o saldo inicial menos todos os débitos registrados.',
+    },
+    inventory: {
+      name: 'Estoque',
+      pain: 'Dois compradores levam as últimas unidades e o estoque só baixa uma vez.',
+      invariant: 'Unidades em estoque mais unidades vendidas é sempre igual ao estoque inicial.',
+    },
+    hospital: {
+      name: 'Plantão hospitalar',
+      pain: 'Dois médicos veem um colega de plantão e os dois vão para casa.',
+      invariant: 'Sempre há pelo menos um médico de plantão.',
+    },
+  },
+  shrink: {
+    title: 'De {original} transações para as {minimal} que importam',
+    lead: 'Uma execução com falha tem muito ruído. O delta debugging remove transações até não dar para tirar mais nada sem o bug sumir, e confirma o resultado no banco.',
+    statReduction: 'menor',
+    statTrials: 'repetições para provar',
+    statTime: 'menos de um segundo',
+    note: 'Números da execução bancária gravada. Nossa suíte de avaliação exige pelo menos 85% de redução em todo trace com falha.',
+  },
+  ci: {
+    title: 'Rode em todo pull request',
+    lead: 'A GitHub Action executa seus cenários, gera um relatório JUnit e um resumo do job e anexa a reprodução.',
+    gate: 'Uma violação não reprova o job sozinha: bloqueie o merge pelo relatório JUnit, ou pela saída is-regression do ChaosSQL Cloud, que compara cada pull request com a main e comenta o trace mínimo.',
+  },
+  plans: {
+    title: 'Comece de graça. Pague quando proteger produção.',
+    oss: {
+      name: 'Open source',
+      price: 'Grátis',
+      body: 'O motor completo, todos os exportadores e a GitHub Action. Licença MIT.',
+    },
+    cloud: {
+      name: 'Cloud',
+      price: 'A partir de {price} por mês',
+      body: 'Histórico, baseline contra a main, comentários em pull requests e alertas. Em acesso antecipado.',
+    },
+    audit: {
+      name: 'Auditoria de concorrência',
+      price: '{price}, uma semana',
+      body: 'Mapeamos suas cinco transações mais críticas, exploramos mais de 100.000 escalonamentos e entregamos os testes que falham com as correções.',
+    },
+    compare: 'Comparar planos',
+  },
+  faq: {
+    title: 'O que engenheiros perguntam primeiro',
+    items: {
+      production: {
+        q: 'Ele roda contra meu banco de produção?',
+        a: 'Não, e não deve. Toda execução recria o schema e os dados iniciais, então aponte para um banco descartável: um container de serviço no CI ou uma cópia local.',
+      },
+      engines: {
+        q: 'Quais bancos são suportados?',
+        a: 'PostgreSQL, MySQL e SQLite, além de um driver em memória para o playground no navegador. O SQLite serializa escritas no nível padrão, então a maioria das anomalias aparece no PostgreSQL, no MySQL ou em níveis de isolamento mais fracos.',
+      },
+      loadTest: {
+        q: 'Qual a diferença para um teste de carga?',
+        a: 'Um teste de carga mede throughput e torce para uma corrida acontecer. O ChaosSQL escolhe o intercalamento a partir de uma seed, verifica uma regra de negócio ao fim de cada execução e repete a ordem exata que quebrou.',
+      },
+      deterministic: {
+        q: 'É determinístico de verdade?',
+        a: 'A mesma especificação com a mesma seed sempre gera o mesmo escalonamento. O banco ainda decide parte do timing sozinho, e o ChaosSQL reporta essa diferença em vez de escondê-la.',
+      },
+      ci: {
+        q: 'Uma violação vai quebrar meu build?',
+        a: 'Não sozinha: o comando termina com sucesso e registra a violação no relatório JUnit e no resumo do job. Bloqueie por eles, ou pela saída is-regression do ChaosSQL Cloud.',
+      },
+      runtime: {
+        q: 'O que preciso instalar?',
+        a: 'Só o binário: o go install entrega um único programa Go estático, sem CGO. Os SDKs de Python e TypeScript chamam o mesmo binário.',
+      },
+      audit: {
+        q: 'O que a auditoria inclui?',
+        a: 'Um kickoff de 45 minutos, as cinco transações mais críticas mapeadas, mais de 100.000 escalonamentos explorados, testes de reprodução em Go, um relatório final apresentado ao time e três meses de Cloud Team.',
+      },
+    },
+  },
+  final: {
+    title: 'Encontre a corrida antes dos seus clientes.',
+    lead: 'Instale a CLI com um comando, ou agende uma auditoria antes do próximo lançamento.',
+  },
 };

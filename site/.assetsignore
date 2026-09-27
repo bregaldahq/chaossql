@@ -28,3 +28,9 @@ docs-data.js
 
 # Dev-only design system preview (served by `npm run dev`, never deployed)
 design-preview.html
+
+# Build-time scripts (OG card renderer)
+scripts
+
+# Contributor docs
+COPY.md

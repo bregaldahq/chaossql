@@ -38,7 +38,9 @@ Any behavior change must be applied to all applicable copies;
   Discord/Slack/generic test message and returns `{success, status}`.
 - Section URLs (`/docs`, `/playground`, ...): `serveAppShell` fetches the SPA
   shell from `ASSETS` and injects the route's `<title>`, description,
-  canonical URL and robots directive from `ROUTE_META`; trailing slashes are
+  canonical URL, robots directive and Open Graph card (`og:image` and
+  `twitter:image`, absolute URL of `image`, a `/og/*.png` rendered by
+  `npm run og`) from `ROUTE_META`; trailing slashes are
   normalized, then the Web Analytics beacon is appended (below).
 - `POST /api/event` (+ `OPTIONS`): cookieless site events. Origin must be
   allowed (403); body ≤ 1024 bytes (413); `event` must be in `SITE_EVENTS`

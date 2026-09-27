@@ -60,6 +60,7 @@ describe('worker route metadata', () => {
       expect(source.includes(`'${path}':`) || source.includes(`"${path}":`)).toBe(true);
       expect(source).toContain(JSON.stringify(meta.title));
       expect(source).toContain(JSON.stringify(meta.description));
+      expect(source).toContain(`image: '${meta.image}'`);
     }
   });
 });
@@ -78,5 +79,12 @@ describe('wrangler.toml', () => {
 describe('site analytics', () => {
   it('worker.ts accepts exactly the events the app sends', () => {
     for (const event of SITE_EVENTS) expect(workerTs).toContain(`'${event}',`);
+  });
+});
+
+describe('open graph cards', () => {
+  const cards = import.meta.glob('../../og/*.png', { query: '?url', import: 'default', eager: true });
+  it.each(Object.entries(ROUTE_META))('%s points at a rendered card', (_route, meta) => {
+    expect(Object.keys(cards)).toContain(`../..${meta.image}`);
   });
 });

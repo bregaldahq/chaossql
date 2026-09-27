@@ -1,0 +1,140 @@
+{
+  "scenario": "hospital_write_skew",
+  "source": "examples/hospital_write_skew/chaos.yaml",
+  "engineVersion": "1.6.0",
+  "driver": "sqlite",
+  "isolation": "READ_UNCOMMITTED",
+  "seed": 1,
+  "status": "violation",
+  "anomalyType": "A5B_WRITE_SKEW",
+  "invariant": {
+    "name": "at_least_one_doctor_on_call",
+    "expression": "active_doctors >= 1",
+    "actual": {
+      "active_doctors": 0
+    }
+  },
+  "shrink": {
+    "originalOps": 10,
+    "minimalOps": 2,
+    "reductionPct": 80,
+    "trials": 10,
+    "durationMs": 414
+  },
+  "rawOps": [
+    {
+      "id": 1,
+      "worker": 1
+    },
+    {
+      "id": 2,
+      "worker": 2
+    },
+    {
+      "id": 3,
+      "worker": 1
+    },
+    {
+      "id": 4,
+      "worker": 2
+    },
+    {
+      "id": 5,
+      "worker": 1
+    },
+    {
+      "id": 6,
+      "worker": 2
+    },
+    {
+      "id": 7,
+      "worker": 1
+    },
+    {
+      "id": 8,
+      "worker": 2
+    },
+    {
+      "id": 9,
+      "worker": 1
+    },
+    {
+      "id": 10,
+      "worker": 2
+    }
+  ],
+  "minimalOps": [
+    {
+      "id": 1,
+      "name": "go_off_call_doctor_2",
+      "params": {}
+    },
+    {
+      "id": 2,
+      "name": "go_off_call_doctor_1",
+      "params": {}
+    }
+  ],
+  "minimalTrace": [
+    {
+      "worker": 2,
+      "op": 2,
+      "type": "BEGIN",
+      "sql": "BEGIN"
+    },
+    {
+      "worker": 1,
+      "op": 1,
+      "type": "BEGIN",
+      "sql": "BEGIN"
+    },
+    {
+      "worker": 1,
+      "op": 1,
+      "type": "EXEC",
+      "sql": "SELECT SUM(is_on_call) FROM doctors;"
+    },
+    {
+      "worker": 2,
+      "op": 2,
+      "type": "EXEC",
+      "sql": "SELECT SUM(is_on_call) FROM doctors;"
+    },
+    {
+      "worker": 1,
+      "op": 1,
+      "type": "EXEC",
+      "sql": "UPDATE doctors SET is_on_call = 0 WHERE id = 2 AND 2 >= 2;"
+    },
+    {
+      "worker": 1,
+      "op": 1,
+      "type": "EXEC",
+      "sql": "INSERT INTO audit_log (doctor_id, action) VALUES (2, 'LEAVE_CALL');"
+    },
+    {
+      "worker": 1,
+      "op": 1,
+      "type": "COMMIT",
+      "sql": "COMMIT"
+    },
+    {
+      "worker": 2,
+      "op": 2,
+      "type": "EXEC",
+      "sql": "UPDATE doctors SET is_on_call = 0 WHERE id = 1 AND 2 >= 2;"
+    },
+    {
+      "worker": 2,
+      "op": 2,
+      "type": "EXEC",
+      "sql": "INSERT INTO audit_log (doctor_id, action) VALUES (1, 'LEAVE_CALL');"
+    },
+    {
+      "worker": 2,
+      "op": 2,
+      "type": "COMMIT",
+      "sql": "COMMIT"
+    }
+  ]
+}

@@ -5,11 +5,17 @@ import { ChaosSqlArtifact } from '../components/artifacts/ChaosSqlArtifact';
 import { DemoShowcase } from '../components/ui/DemoShowcase';
 import { CloudWaitlistSection } from '../components/ui/CloudWaitlistSection';
 import { track } from '../lib/analytics';
+import { RECORDED_RUNS } from '../data/traces';
+import { lostUpdateStory } from '../data/story';
 import styles from './LandingPage.module.css';
 
 export interface LandingPageProps {
   lang?: 'pt' | 'en';
 }
+
+// Real numbers from the recorded banking run (src/data/traces), not a mock.
+const STORY = lostUpdateStory(RECORDED_RUNS.banking);
+const usd = (n: number) => `$${n.toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
 
 export function LandingPage({ lang = 'en' }: LandingPageProps) {
   const [copied, setCopied] = useState(false);
@@ -130,15 +136,15 @@ export function LandingPage({ lang = 'en' }: LandingPageProps) {
       title: { pt: 'Síntese Causal (ddmin)', en: 'Synthesize Minimal Repro' },
       desc: {
         pt: 'Encolhe centenas de queries para a reprodução exata de 2 a 4 operações no repro_test.go.',
-        en: 'Shrinks noisy execution schedules into a 1-minimal Go test reproduction in milliseconds.',
+        en: 'Shrinks a noisy failing run to the few transactions that cause it, in repro_test.go.',
       },
     },
     {
       step: '04',
-      title: { pt: 'CI Bloqueia Regressão', en: 'CI Blocks Regressions' },
+      title: { pt: 'Evidência em Todo PR', en: 'Evidence on Every PR' },
       desc: {
-        pt: 'A GitHub Action avalia o PR contra a branch main e bloqueia o merge caso haja anomalia.',
-        en: 'GitHub Action compares against main baseline and blocks regressions with PR trace comments.',
+        pt: 'A GitHub Action gera relatório JUnit e resumo do job com a reprodução. Com o Cloud, a saída is-regression compara o PR com a main.',
+        en: 'The GitHub Action writes a JUnit report and a job summary with the reproduction. With Cloud, the is-regression output compares the PR with main.',
       },
     },
   ];
@@ -217,19 +223,19 @@ export function LandingPage({ lang = 'en' }: LandingPageProps) {
           <div className={styles.heroAnomalyCard}>
             <div className={styles.anomalyHeader}>
               <span className={styles.anomalyBadgeRed}>LOST UPDATE DETECTED (P4)</span>
-              <span className={styles.anomalySeed}>Seed: 184729</span>
+              <span className={styles.anomalySeed}>Seed: {STORY.seed}</span>
             </div>
             <div className={styles.anomalyRow}>
               <span className={styles.anomalyLabel}>{lang === 'pt' ? 'Saldo Esperado:' : 'Expected Balance:'}</span>
-              <span className={styles.anomalyValGreen}>$2,000.00</span>
+              <span className={styles.anomalyValGreen}>{usd(STORY.expected)}</span>
             </div>
             <div className={styles.anomalyRow}>
               <span className={styles.anomalyLabel}>{lang === 'pt' ? 'Saldo Real (Corrompido):' : 'Actual Balance (Corrupted):'}</span>
-              <span className={styles.anomalyValRed}>$1,950.00</span>
+              <span className={styles.anomalyValRed}>{usd(STORY.afterB)}</span>
             </div>
             <div className={styles.anomalyRow}>
               <span className={styles.anomalyLabel}>{lang === 'pt' ? 'Reprodução Sintetizada:' : 'Synthesized Reproduction:'}</span>
-              <span style={{ color: 'var(--cream)' }}>4 ops in repro_test.go (&lt; 200ms)</span>
+              <span style={{ color: 'var(--cream)' }}>{lang === 'pt' ? '2 transações em repro_test.go' : '2 transactions in repro_test.go'}</span>
             </div>
           </div>
         </div>
