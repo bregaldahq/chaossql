@@ -5,7 +5,7 @@ export interface MatrixPageProps {
   lang?: 'pt' | 'en';
 }
 
-export function MatrixPage({ lang = 'pt' }: MatrixPageProps) {
+export function MatrixPage({ lang = 'en' }: MatrixPageProps) {
   return (
     <div className={styles.pageContainer} data-surface="light">
       <div className={styles.header}>

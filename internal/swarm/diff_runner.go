@@ -202,26 +202,7 @@ func executeDriverRun(ctx context.Context, spec domain.Spec, ops []domain.Schedu
 
 	start := time.Now()
 
-	dsn := ""
-	if strings.EqualFold(spec.Database.Driver, driverName) && spec.Database.DSN != "" {
-		dsn = spec.Database.DSN
-	}
-	if dsn == "" {
-		switch strings.ToLower(driverName) {
-		case "postgres", "postgresql":
-			if env := os.Getenv("DATABASE_URL"); env != "" && strings.HasPrefix(env, "postgres") {
-				dsn = env
-			} else if env := os.Getenv("POSTGRES_DSN"); env != "" {
-				dsn = env
-			}
-		case "mysql", "mariadb":
-			if env := os.Getenv("MYSQL_DSN"); env != "" {
-				dsn = env
-			} else if env := os.Getenv("DATABASE_URL"); env != "" && strings.HasPrefix(env, "mysql") {
-				dsn = env
-			}
-		}
-	}
+	dsn := resolveDSN(spec, driverName)
 
 	driver, err := drivers.GetDriver(driverName, dsn)
 	if err != nil {
@@ -270,6 +251,31 @@ func executeDriverRun(ctx context.Context, spec domain.Spec, ops []domain.Schedu
 		DetectedAnomaly:   anomaly,
 		DurationMs:        runResult.Duration.Milliseconds(),
 	}, nil
+}
+
+// resolveDSN picks the connection string for driverName: the spec's own DSN
+// when the spec targets that driver, otherwise the conventional environment
+// variables (DATABASE_URL / POSTGRES_DSN for Postgres, MYSQL_DSN / DATABASE_URL
+// for MySQL). An empty result lets the driver use its default.
+func resolveDSN(spec domain.Spec, driverName string) string {
+	if strings.EqualFold(spec.Database.Driver, driverName) && spec.Database.DSN != "" {
+		return spec.Database.DSN
+	}
+	switch strings.ToLower(driverName) {
+	case "postgres", "postgresql":
+		if env := os.Getenv("DATABASE_URL"); strings.HasPrefix(env, "postgres") {
+			return env
+		}
+		return os.Getenv("POSTGRES_DSN")
+	case "mysql", "mariadb":
+		if env := os.Getenv("MYSQL_DSN"); env != "" {
+			return env
+		}
+		if env := os.Getenv("DATABASE_URL"); strings.HasPrefix(env, "mysql") {
+			return env
+		}
+	}
+	return ""
 }
 
 func detectAnomalyFromTrace(trace domain.ExecutionTrace) string {

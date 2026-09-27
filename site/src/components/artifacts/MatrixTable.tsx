@@ -6,7 +6,7 @@ export interface MatrixTableProps {
   lang?: 'pt' | 'en';
 }
 
-export function MatrixTable({ lang = 'pt' }: MatrixTableProps) {
+export function MatrixTable({ lang = 'en' }: MatrixTableProps) {
   const [selectedRow, setSelectedRow] = useState<MatrixRow>(HERMITAGE_MATRIX[0]);
 
   const renderBadge = (status: string, label?: string) => {

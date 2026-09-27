@@ -3,10 +3,12 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"io"
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -198,5 +200,73 @@ func TestParseTracePayload_Formats(t *testing.T) {
 	}
 	if len(invs) != 1 || invs[0].Name != "inv1" {
 		t.Errorf("expected failing invariant inv1")
+	}
+}
+
+func TestUICmd_ServesTraceFileUntilCancelled(t *testing.T) {
+	dir := t.TempDir()
+	tracePath := filepath.Join(dir, "run.json")
+	result := domain.ExecutionResult{
+		Trace: domain.ExecutionTrace{
+			{WorkerID: 1, OpIndex: 1, Type: domain.EventExec, SQL: "UPDATE accounts SET balance = 1 WHERE id = 1"},
+		},
+		FailingInvariant: &domain.InvariantResult{Name: "balance_preserved"},
+	}
+	data, _ := json.Marshal(result)
+	if err := os.WriteFile(tracePath, data, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	addr, port := freeLocalAddr(t)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	cmd := newUICmd()
+	cmd.SetArgs([]string{tracePath, "--port", strconv.Itoa(port), "--no-open"})
+	var runErr error
+	output := captureStdout(t, func() {
+		done := make(chan error, 1)
+		go func() { done <- cmd.ExecuteContext(ctx) }()
+		deadline := time.Now().Add(10 * time.Second)
+		for {
+			resp, err := http.Get("http://" + addr + "/health")
+			if err == nil {
+				resp.Body.Close()
+				break
+			}
+			if time.Now().After(deadline) {
+				t.Error("trace viewer never started")
+				break
+			}
+			time.Sleep(20 * time.Millisecond)
+		}
+		cancel()
+		runErr = <-done
+	})
+	if runErr != nil {
+		t.Fatalf("ui returned %v", runErr)
+	}
+	if !strings.Contains(output, "ChaosSQL Embedded Trace Viewer") {
+		t.Errorf("banner missing:\n%s", output)
+	}
+}
+
+func TestLoadTraceData_RejectsUnreadableAndUnknownFiles(t *testing.T) {
+	dir := t.TempDir()
+	if _, _, _, _, _, err := loadTraceData(filepath.Join(dir, "missing.json")); err == nil {
+		t.Fatal("missing file must fail")
+	}
+	unknown := filepath.Join(dir, "unknown.json")
+	_ = os.WriteFile(unknown, []byte(`{"hello":"world"}`), 0o644)
+	if _, _, _, _, _, err := loadTraceData(unknown); err == nil {
+		t.Fatal("unrecognized JSON must fail")
+	}
+	cmd := newUICmd()
+	cmd.SetArgs([]string{unknown, "--no-open"})
+	cmd.SilenceUsage, cmd.SilenceErrors = true, true
+	if err := cmd.Execute(); err == nil {
+		t.Fatal("ui with an unrecognized trace must fail")
+	}
+	if _, _, err := startTraceViewerServer("256.0.0.1:0", ""); err == nil {
+		t.Fatal("invalid listen address must fail")
 	}
 }

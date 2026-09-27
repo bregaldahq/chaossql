@@ -117,7 +117,7 @@ func main() {
 
 func runChaosTest(cmd *cobra.Command, args []string) error {
 	specPath := args[0]
-	return executeChaos(specPath, cmd.Flags().Changed("seed"))
+	return executeChaos(cmd.Context(), specPath, cmd.Flags().Changed("seed"))
 }
 
 func resolveDemoPath(scenario string) (string, error) {
@@ -167,11 +167,12 @@ func runDemo(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	return executeChaos(specPath, false)
+	return executeChaos(cmd.Context(), specPath, false)
 }
 
-func executeChaos(specPath string, seedOverride ...bool) error {
-	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+// executeChaos runs one scenario; it stops on Ctrl+C/SIGTERM or when parent is cancelled.
+func executeChaos(parent context.Context, specPath string, seedOverride ...bool) error {
+	ctx, cancel := signal.NotifyContext(parent, os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
 	spec, err := domain.LoadSpec(specPath)
@@ -210,40 +211,7 @@ func executeChaos(specPath string, seedOverride ...bool) error {
 
 	graph := analyzer.BuildGraph(runResult.Trace)
 	cycles := analyzer.FindCycles(graph)
-	anomaly := domain.AnomalyUnknown
-	for _, c := range cycles {
-		cls := analyzer.ClassifyCycle(c)
-		if cls == domain.AnomalyG1aDirtyRead {
-			anomaly = domain.AnomalyG1aDirtyRead
-			break
-		}
-		if cls == domain.AnomalyG0DirtyWrite {
-			anomaly = domain.AnomalyG0DirtyWrite
-			break
-		}
-		if cls == domain.AnomalyG1cCircularInfo {
-			anomaly = domain.AnomalyG1cCircularInfo
-			break
-		}
-		if cls == domain.AnomalyG2AntiDependency {
-			anomaly = domain.AnomalyG2AntiDependency
-			break
-		}
-		if cls == domain.AnomalyWriteSkew {
-			anomaly = domain.AnomalyWriteSkew
-			break
-		}
-		if cls == domain.AnomalyA5AReadSkew {
-			anomaly = domain.AnomalyA5AReadSkew
-			break
-		}
-		if cls == domain.AnomalyLostUpdate {
-			anomaly = domain.AnomalyLostUpdate
-		}
-	}
-	if anomaly == domain.AnomalyUnknown && len(cycles) > 0 {
-		anomaly = analyzer.ClassifyCycle(cycles[0])
-	}
+	anomaly := dominantAnomaly(cycles, domain.AnomalyUnknown)
 
 	var shrinkResult *domain.ShrinkResult
 	minimalTrace := runResult.Trace
@@ -275,39 +243,7 @@ func executeChaos(specPath string, seedOverride ...bool) error {
 				minimalTrace = minRunRes.Trace
 				minGraph := analyzer.BuildGraph(minimalTrace)
 				minCycles := analyzer.FindCycles(minGraph)
-				for _, c := range minCycles {
-					cls := analyzer.ClassifyCycle(c)
-					if cls == domain.AnomalyG1aDirtyRead {
-						anomaly = domain.AnomalyG1aDirtyRead
-						break
-					}
-					if cls == domain.AnomalyG0DirtyWrite {
-						anomaly = domain.AnomalyG0DirtyWrite
-						break
-					}
-					if cls == domain.AnomalyG1cCircularInfo {
-						anomaly = domain.AnomalyG1cCircularInfo
-						break
-					}
-					if cls == domain.AnomalyG2AntiDependency {
-						anomaly = domain.AnomalyG2AntiDependency
-						break
-					}
-					if cls == domain.AnomalyA5AReadSkew {
-						anomaly = domain.AnomalyA5AReadSkew
-						break
-					}
-					if cls == domain.AnomalyWriteSkew {
-						anomaly = domain.AnomalyWriteSkew
-						break
-					}
-					if cls == domain.AnomalyLostUpdate {
-						anomaly = domain.AnomalyLostUpdate
-					}
-				}
-				if anomaly == domain.AnomalyUnknown && len(minCycles) > 0 {
-					anomaly = analyzer.ClassifyCycle(minCycles[0])
-				}
+				anomaly = dominantAnomaly(minCycles, anomaly)
 			}
 		}
 	}
@@ -483,7 +419,7 @@ func executeChaos(specPath string, seedOverride ...bool) error {
 
 	if uiFlag {
 		htmlContent := reporter.GenerateEmbeddedTraceViewerHTML(minimalTrace, *spec, graph, shrinkResult, invResults)
-		return serveTraceViewer("127.0.0.1:8090", htmlContent, false)
+		return serveTraceViewer(ctx, "127.0.0.1:8090", htmlContent, false)
 	}
 
 	return unreliableRunError(runResult)
@@ -504,6 +440,26 @@ func resolveEffectiveSeed(specSeed, overrideSeed uint64, overrideSet bool) uint6
 		return overrideSeed
 	}
 	return specSeed
+}
+
+// dominantAnomaly returns the class of the first cycle that is a definitive
+// anomaly. A lost update replaces fallback but keeps scanning for a definitive
+// class; when nothing classifies, an unknown fallback defers to the first cycle.
+func dominantAnomaly(cycles []analyzer.Cycle, fallback domain.AnomalyType) domain.AnomalyType {
+	anomaly := fallback
+	for _, c := range cycles {
+		switch cls := analyzer.ClassifyCycle(c); cls {
+		case domain.AnomalyG1aDirtyRead, domain.AnomalyG0DirtyWrite, domain.AnomalyG1cCircularInfo,
+			domain.AnomalyG2AntiDependency, domain.AnomalyWriteSkew, domain.AnomalyA5AReadSkew:
+			return cls
+		case domain.AnomalyLostUpdate:
+			anomaly = cls
+		}
+	}
+	if anomaly == domain.AnomalyUnknown && len(cycles) > 0 {
+		return analyzer.ClassifyCycle(cycles[0])
+	}
+	return anomaly
 }
 
 func unreliableRunError(result *engine.RunResult) error {

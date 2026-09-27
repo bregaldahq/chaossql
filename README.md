@@ -12,6 +12,8 @@
 [![Go Reference](https://img.shields.io/badge/Go_Reference-pkg.go.dev-00ADD8?style=for-the-badge&logo=go&logoColor=white)](https://pkg.go.dev/github.com/bregaldahq/chaossql)
 [![Zero CGO](https://img.shields.io/badge/CGO-Disabled_(Pure_Go)-22C55E?style=for-the-badge)](https://modernc.org/sqlite)
 [![CI Pipeline](https://img.shields.io/github/actions/workflow/status/bregaldahq/chaossql/ci.yml?branch=main&style=for-the-badge&logo=githubactions&logoColor=white&label=CI)](https://github.com/bregaldahq/chaossql/actions/workflows/ci.yml)
+[![Coverage](https://img.shields.io/codecov/c/github/bregaldahq/chaossql?style=for-the-badge&logo=codecov&logoColor=white)](https://app.codecov.io/gh/bregaldahq/chaossql)
+[![CI Pipeline](https://img.shields.io/badge/CI-Passing-22C55E?style=for-the-badge&logo=githubactions&logoColor=white)](https://github.com/bregaldahq/chaossql/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](LICENSE)
 
 <p align="center">

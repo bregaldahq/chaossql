@@ -75,71 +75,36 @@ func (tr *Tester) WithJitter(minMs, maxMs int) *Tester {
 // Steps can optionally specify capture variables using "-> var_name" or "=> var_name" syntax
 // (e.g. "SELECT balance FROM accounts WHERE id = 1; -> current_bal").
 func (tr *Tester) AddOperation(name string, steps ...string) *Tester {
-	var stepConfigs []domain.StepConfig
-	for _, s := range steps {
-		s = strings.TrimSpace(s)
-		var sqlStmt string
-		var captureVar string
-
-		if strings.Contains(s, "->") {
-			parts := strings.SplitN(s, "->", 2)
-			sqlStmt = strings.TrimSpace(parts[0])
-			captureVar = strings.TrimSpace(parts[1])
-		} else if strings.Contains(s, "=>") {
-			parts := strings.SplitN(s, "=>", 2)
-			sqlStmt = strings.TrimSpace(parts[0])
-			captureVar = strings.TrimSpace(parts[1])
-		} else {
-			sqlStmt = s
-		}
-
-		stepConfigs = append(stepConfigs, domain.StepConfig{
-			SQL:     sqlStmt,
-			Capture: captureVar,
-		})
-	}
-
-	tr.operations = append(tr.operations, domain.OperationConfig{
-		Name:   name,
-		Weight: 1.0,
-		Steps:  stepConfigs,
-	})
-	return tr
+	return tr.AddOperationWithParams(name, nil, steps...)
 }
 
 // AddOperationWithParams registers an operation with dynamic parameter generators and steps.
 func (tr *Tester) AddOperationWithParams(name string, params map[string]string, steps ...string) *Tester {
-	var stepConfigs []domain.StepConfig
-	for _, s := range steps {
-		s = strings.TrimSpace(s)
-		var sqlStmt string
-		var captureVar string
-
-		if strings.Contains(s, "->") {
-			parts := strings.SplitN(s, "->", 2)
-			sqlStmt = strings.TrimSpace(parts[0])
-			captureVar = strings.TrimSpace(parts[1])
-		} else if strings.Contains(s, "=>") {
-			parts := strings.SplitN(s, "=>", 2)
-			sqlStmt = strings.TrimSpace(parts[0])
-			captureVar = strings.TrimSpace(parts[1])
-		} else {
-			sqlStmt = s
-		}
-
-		stepConfigs = append(stepConfigs, domain.StepConfig{
-			SQL:     sqlStmt,
-			Capture: captureVar,
-		})
-	}
-
 	tr.operations = append(tr.operations, domain.OperationConfig{
 		Name:   name,
 		Weight: 1.0,
 		Params: params,
-		Steps:  stepConfigs,
+		Steps:  parseSteps(steps),
 	})
 	return tr
+}
+
+// parseSteps splits each "SQL -> var" (or "SQL => var") step into its SQL
+// statement and optional capture variable.
+func parseSteps(steps []string) []domain.StepConfig {
+	stepConfigs := make([]domain.StepConfig, 0, len(steps))
+	for _, s := range steps {
+		s = strings.TrimSpace(s)
+		sqlStmt, captureVar := s, ""
+		for _, arrow := range []string{"->", "=>"} {
+			if before, after, found := strings.Cut(s, arrow); found {
+				sqlStmt, captureVar = strings.TrimSpace(before), strings.TrimSpace(after)
+				break
+			}
+		}
+		stepConfigs = append(stepConfigs, domain.StepConfig{SQL: sqlStmt, Capture: captureVar})
+	}
+	return stepConfigs
 }
 
 // Run executes the configured chaos workload and returns the execution result,
@@ -208,32 +173,27 @@ func (tr *Tester) Run(ctx context.Context, workers, iterations int, seed uint64)
 		return execRes, nil, shrinkErr
 	}
 	if shrinkErr != nil || shrinkRes == nil {
-		fallbackShrink := &domain.ShrinkResult{
-			OriginalSize:   len(execRes.ScheduledOps),
-			ReducedSize:    len(execRes.ScheduledOps),
-			ReductionRatio: 0.0,
-			MinimalOps:     execRes.ScheduledOps,
-			Iterations:     0,
-		}
-		return execRes, fallbackShrink, nil
+		return execRes, unshrunkResult(execRes.ScheduledOps, nil), nil
 	}
 	minRes, minErr := runner.RunSchedule(ctx, spec, shrinkRes.MinimalOps)
 	if errors.Is(minErr, context.Canceled) || errors.Is(minErr, context.DeadlineExceeded) {
 		return execRes, nil, minErr
 	}
 	if minErr != nil || !shrinker.ReproducesFailure(minRes, target) {
-		fallbackShrink := &domain.ShrinkResult{
-			OriginalSize:   len(execRes.ScheduledOps),
-			ReducedSize:    len(execRes.ScheduledOps),
-			ReductionRatio: 0.0,
-			MinimalOps:     execRes.ScheduledOps,
-			Iterations:     shrinkRes.Iterations,
-			Trials:         shrinkRes.Trials,
-		}
-		return execRes, fallbackShrink, nil
+		return execRes, unshrunkResult(execRes.ScheduledOps, shrinkRes), nil
 	}
 
 	return execRes, shrinkRes, nil
+}
+
+// unshrunkResult reports the original schedule when delta debugging could not
+// produce a verified smaller reproduction, keeping the attempt's statistics.
+func unshrunkResult(ops []domain.ScheduledOp, attempt *domain.ShrinkResult) *domain.ShrinkResult {
+	result := &domain.ShrinkResult{OriginalSize: len(ops), ReducedSize: len(ops), MinimalOps: ops}
+	if attempt != nil {
+		result.Iterations, result.Trials = attempt.Iterations, attempt.Trials
+	}
+	return result
 }
 
 // AssertNoAnomalies runs the chaos test and calls t.Fatalf if an invariant violation is detected,

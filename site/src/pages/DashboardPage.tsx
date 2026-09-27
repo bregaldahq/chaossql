@@ -338,7 +338,7 @@ export function DashboardPage({ lang }: DashboardPageProps) {
     regressionsCaught: lang === 'pt' ? 'Regressões Detectadas' : 'Regressions Caught',
     openRegressions: lang === 'pt' ? 'nas execuções exibidas' : 'in displayed runs',
     allRuns: lang === 'pt' ? 'Todos os Runs' : 'All Runs',
-    regressionsOnly: lang === 'pt' ? 'Regressões Apenas 🚨' : 'Regressions Only 🚨',
+    regressionsOnly: lang === 'pt' ? 'Apenas Regressões' : 'Regressions Only',
     prsOnly: lang === 'pt' ? 'Pull Requests' : 'Pull Requests',
     passedOnly: lang === 'pt' ? 'Passados' : 'Passed',
     searchPlaceholder: lang === 'pt' ? 'Filtrar por repositório ou cenário...' : 'Filter by repository or scenario...',
