@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { RECORDED_RUNS } from './traces';
-import { lostUpdateStory } from './story';
+import { balanceAfter, lostUpdateStory, storyBeats } from './story';
 import { format, messages } from '../i18n';
 
 describe('lostUpdateStory', () => {
@@ -25,5 +25,24 @@ describe('lostUpdateStory', () => {
       for (const step of Object.values(steps)) expect(() => format(step.body, story)).not.toThrow();
       expect(format(messages[lang].story.lead, story)).toContain('42');
     }
+  });
+});
+
+describe('storyBeats', () => {
+  it('locates the lost update milestones in the banking trace', () => {
+    const run = RECORDED_RUNS.banking;
+    const beats = storyBeats(run);
+    expect(run.minimalTrace[beats.bothRead].sql).toMatch(/^SELECT balance/);
+    expect(run.minimalTrace[beats.firstCommit].type).toBe('COMMIT');
+    expect(run.minimalTrace[beats.lostWrite].sql).toContain('balance = 989');
+    expect(beats.end).toBe(run.minimalTrace.length - 1);
+  });
+
+  it('tracks the stored balance through the trace', () => {
+    const run = RECORDED_RUNS.banking;
+    const beats = storyBeats(run);
+    expect(balanceAfter(run, beats.bothRead, 1000)).toBe(1000);
+    expect(balanceAfter(run, beats.firstCommit, 1000)).toBe(981);
+    expect(balanceAfter(run, beats.end, 1000)).toBe(989);
   });
 });

@@ -59,6 +59,9 @@ Job 2: `make wasm` and `make stress-wasm`.
 
 ## Change checklist
 
+- Exit behavior or Cloud outputs change → the portal CI copy and FAQ
+  (`site/src/i18n/en.ts`, `site/src/i18n/pt.ts`, `site/COPY.md`) and the
+  README paragraph under the workflow example.
 - New CLI flag worth exposing → input + env + argument assembly + README
   example (`uses: bregaldahq/chaossql@vX.Y.Z`) + portal snippets
   (`site/src/pages/DashboardPage.tsx`).

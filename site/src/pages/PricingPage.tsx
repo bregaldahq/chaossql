@@ -264,7 +264,7 @@ export function PricingPage({ lang }: PricingPageProps) {
       </div>
 
       {/* Dedicated Audit Section (Sections 22 & 23 of 90-Days Plan) */}
-      <div className={styles.auditSection}>
+      <div className={styles.auditSection} id="audit">
         <div className={styles.auditInner}>
           <div className={styles.auditLeft}>
             <div className={styles.auditTag}>{t.auditTag}</div>

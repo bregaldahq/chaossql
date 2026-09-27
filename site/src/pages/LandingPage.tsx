@@ -1,333 +1,345 @@
-import { useState } from 'react';
-import { Check, Copy, Cpu, GitBranch, Terminal, Play, Sparkles } from 'lucide-react';
-import { ProjectCycle } from '../components/ui/ProjectCycle';
-import { ChaosSqlArtifact } from '../components/artifacts/ChaosSqlArtifact';
-import { DemoShowcase } from '../components/ui/DemoShowcase';
-import { CloudWaitlistSection } from '../components/ui/CloudWaitlistSection';
+import { useEffect, useRef, useState } from 'react';
+import { ArrowRight, ArrowUpRight, Check, Copy, Play, Star } from 'lucide-react';
 import { track } from '../lib/analytics';
-import { RECORDED_RUNS } from '../data/traces';
-import { lostUpdateStory } from '../data/story';
+import { RECORDED_RUNS, type RecordedRun } from '../data/traces';
+import { format, messages, type Language } from '../i18n';
+import { Badge } from '../components/system/Badge';
+import { Button } from '../components/system/Button';
+import { Section, SectionHeader } from '../components/system/Section';
+import { Tabs } from '../components/system/Tabs';
+import { Terminal } from '../components/system/Terminal';
+import { useGitHubStars, useInView } from '../components/landing/hooks';
+import { laneOf } from '../components/landing/TraceLanes';
+import { TracePanel } from '../components/landing/TracePanel';
+import { StoryScroll } from '../components/landing/StoryScroll';
+import { ShrinkViz } from '../components/landing/ShrinkViz';
+import { WaitlistForm } from '../components/landing/WaitlistForm';
+import reportDdmin from '../media/report-ddmin.webp';
 import styles from './LandingPage.module.css';
 
 export interface LandingPageProps {
-  lang?: 'pt' | 'en';
+  lang?: Language;
 }
 
-// Real numbers from the recorded banking run (src/data/traces), not a mock.
-const STORY = lostUpdateStory(RECORDED_RUNS.banking);
-const usd = (n: number) => `$${n.toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
+const INSTALL_CMD = 'go install github.com/bregaldahq/chaossql/cmd/chaossql@latest';
+const GITHUB_URL = 'https://github.com/bregaldahq/chaossql';
+const CLOUD_FROM_PRICE = '$39';
+const AUDIT_PRICE = '$1,490';
+const SCENARIOS = ['banking', 'inventory', 'hospital'] as const;
+// Below this, a star count reads as negative social proof: show a plain link.
+const MIN_STARS_SHOWN = 50;
 
-export function LandingPage({ lang = 'en' }: LandingPageProps) {
+// The workflow users copy: inputs as declared in action.yml.
+const ACTION_YAML = `name: Concurrency Guard
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  concurrency:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: bregaldahq/chaossql@v1.6.0
+        with:
+          spec-path: chaos/transfers.yaml
+          seed: '42'
+          export-junit: chaossql-junit.xml
+          export-repro: 'true'
+          # Optional, ChaosSQL Cloud: baseline against main and PR comments
+          cloud-token: \${{ secrets.CHAOSSQL_CLOUD_TOKEN }}
+`;
+
+function InstallButton({ lang, placement }: { lang: Language; placement: string }) {
+  const m = messages[lang];
   const [copied, setCopied] = useState(false);
+  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  useEffect(() => () => clearTimeout(timer.current), []);
 
-  const installCmd = 'go install github.com/bregaldahq/chaossql/cmd/chaossql@latest';
-
-  const handleCopy = () => {
-    navigator.clipboard.writeText(installCmd);
-    track('install_copy', 'hero');
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(INSTALL_CMD);
+    } catch {
+      return;
+    }
+    track('install_copy', placement);
     setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    clearTimeout(timer.current);
+    timer.current = setTimeout(() => setCopied(false), 2000);
   };
-
-  const cycleData = {
-    id: 'chaossql',
-    sequence: '01',
-    name: 'ChaosSQL',
-    headline:
-      lang === 'pt'
-        ? 'Concorrência imprevisível transformada em evidência reproduzível.'
-        : 'Concurrency bugs become evidence you can inspect.',
-    summary:
-      lang === 'pt'
-        ? 'Testes de estresse em cargas de trabalho SQL concorrentes, avaliação formal de invariantes de isolamento e algoritmo causal delta-debugging para sintetizar falhas em testes mínimos.'
-        : 'Stress SQL workloads, check invariants, and shrink failing execution traces into focused reproductions. Concurrency bugs become evidence you can inspect.',
-    primaryAction: {
-      label: lang === 'pt' ? 'Explorar Documentação' : 'Explore Documentation',
-      href: '/docs',
-    },
-    secondaryAction: {
-      label: lang === 'pt' ? 'Testar no Playground WASM' : 'Test in WASM Playground',
-      href: '/playground',
-    },
-    technologies: [
-      'Go 1.25',
-      'SQLite',
-      'PostgreSQL',
-      'MySQL',
-      'Seeded scheduling',
-      'Causal delta debugging',
-      'Go testing SDK',
-      'GitHub Actions',
-    ] as const,
-    evidence: [
-      {
-        label: lang === 'pt' ? 'Detecção' : 'Detection',
-        value:
-          lang === 'pt'
-            ? 'Cargas de trabalho concorrentes, invariantes SQL e classificação formal de Adya (P4, A3, A5B, G1, G2).'
-            : 'Concurrent workloads, SQL invariants, and formal Adya anomaly taxonomy (P4, A3, A5B, G1, G2).',
-      },
-      {
-        label: lang === 'pt' ? 'Redução' : 'Reduction',
-        value:
-          lang === 'pt'
-            ? 'Algoritmo causal ddmin que encolhe rastros de dezenas de operações em reproduções 1-minimal focadas.'
-            : 'Causal delta debugging (ddmin) narrows failing traces into focused, minimal reproductions.',
-      },
-      {
-        label: lang === 'pt' ? 'Entrega' : 'Delivery',
-        value:
-          lang === 'pt'
-            ? 'SDK Go (pkg/chaostest), testes standalone reproduzíveis (repro_test.go), exportação JUnit e SARIF.'
-            : 'Go testing SDK, standalone repro tests, HTML interactive reports, and JUnit/SARIF exports.',
-      },
-    ],
-  };
-
-  const pillars = [
-    {
-      id: '01',
-      icon: <Terminal size={18} />,
-      title: lang === 'pt' ? 'Fuzzing Determinístico & Jitter' : 'Deterministic Fuzzing & Jitter',
-      desc:
-        lang === 'pt'
-          ? 'Escalonamento baseado em PRNG com sementes e injeção de atraso micro-temporal (jitter), permitindo reprodução idêntica de deadlocks e corridas críticas.'
-          : 'Seeded PRNG scheduling with micro-temporal jitter injection, delivering bit-level deterministic replays of critical transaction races and deadlocks.',
-    },
-    {
-      id: '02',
-      icon: <GitBranch size={18} />,
-      title: lang === 'pt' ? 'Grafos de Dependência de Adya' : 'Adya Direct Dependency Graphs',
-      desc:
-        lang === 'pt'
-          ? 'Construção matemática de Directed Serialization Graphs (DSG) com arestas de leitura e escrita (wr, ww, rw) para detectar ciclos de anomalias com prova formal.'
-          : 'Mathematical construction of Direct Dependency Serialization Graphs (DSG) tracking write/read dependencies to formally classify isolation anomalies.',
-    },
-    {
-      id: '03',
-      icon: <Cpu size={18} />,
-      title: lang === 'pt' ? 'Causal Delta-Debugging (ddmin)' : 'Causal Delta-Debugging (ddmin)',
-      desc:
-        lang === 'pt'
-          ? 'Elimina ruído de dezenas de queries irrelevantes, isolando estritamente as poucas operações causais necessárias para disparar a quebra da invariante.'
-          : 'Eliminates interleaving noise from dozens of parallel queries, shrinking traces down to the 1-minimal subset that triggers the exact invariant failure.',
-    },
-  ];
-
-  const workflowSteps = [
-    {
-      step: '01',
-      title: { pt: 'Defina o Invariante', en: 'Define SQL Invariant' },
-      desc: {
-        pt: 'Declare a regra de negócio sagrada em SQL (ex: total_balance == 2000 ou seats_available >= 0).',
-        en: 'Declare your business rule in plain SQL (e.g. total_balance == 2000 or seats_available >= 0).',
-      },
-    },
-    {
-      step: '02',
-      title: { pt: 'Exploração de Escalas', en: 'Explore Interleavings' },
-      desc: {
-        pt: 'ChaosSQL permuta a ordem de execução concorrente com jitter e escalonamento determinístico.',
-        en: 'ChaosSQL schedules concurrent worker transactions with microsecond jitter and seed control.',
-      },
-    },
-    {
-      step: '03',
-      title: { pt: 'Síntese Causal (ddmin)', en: 'Synthesize Minimal Repro' },
-      desc: {
-        pt: 'Encolhe centenas de queries para a reprodução exata de 2 a 4 operações no repro_test.go.',
-        en: 'Shrinks a noisy failing run to the few transactions that cause it, in repro_test.go.',
-      },
-    },
-    {
-      step: '04',
-      title: { pt: 'Evidência em Todo PR', en: 'Evidence on Every PR' },
-      desc: {
-        pt: 'A GitHub Action gera relatório JUnit e resumo do job com a reprodução. Com o Cloud, a saída is-regression compara o PR com a main.',
-        en: 'The GitHub Action writes a JUnit report and a job summary with the reproduction. With Cloud, the is-regression output compares the PR with main.',
-      },
-    },
-  ];
 
   return (
-    <div data-surface="light">
-      {/* 1. Hero Section */}
-      <section className={styles.hero}>
-        <div className={styles.monogramWrapper}>
-          <img
-            src="/brand/bregalda_monogram.svg"
-            alt="Bregalda Emblem"
-            width="64"
-            height="64"
-          />
+    <Button
+      variant="secondary"
+      size="lg"
+      onClick={copy}
+      title={INSTALL_CMD}
+      aria-label={`${m.landingUi.installTitle}: ${INSTALL_CMD}`}
+      icon={copied ? <Check /> : <Copy />}
+    >
+      <span aria-live="polite">{copied ? m.cta.installed : m.cta.install}</span>
+    </Button>
+  );
+}
+
+/** Fades a block in the first time it enters the viewport (CSS handles reduced motion). */
+function Reveal({ children, className }: { children: React.ReactNode; className?: string }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const shown = useInView(ref, { once: true, rootMargin: '0px 0px -10% 0px' });
+  return (
+    <div ref={ref} className={[styles.reveal, shown ? styles.revealShown : '', className].filter(Boolean).join(' ')}>
+      {children}
+    </div>
+  );
+}
+
+function traceText(run: RecordedRun): string {
+  const lanes = laneOf(run.minimalTrace);
+  return run.minimalTrace.map((e) => `T${lanes.get(e.worker)}  ${e.sql}`).join('\n');
+}
+
+export function LandingPage({ lang = 'en' }: LandingPageProps) {
+  const m = messages[lang];
+  const stars = useGitHubStars();
+  const banking = RECORDED_RUNS.banking;
+  const anomalyName = (type: string) => (type.startsWith('A5B') ? m.landingUi.anomalyA5B : m.landingUi.anomalyP4);
+
+  return (
+    <div className={styles.page}>
+      {/* 1. Hero: promise, two actions, and the bug happening on the right. */}
+      <Section spacing="tight" width="wide" labelledBy="hero-title" className={styles.heroSection}>
+        <div className={styles.hero}>
+          <div className={styles.heroCopy}>
+            <h1 id="hero-title" className={styles.heroTitle}>
+              {m.hero.title}
+            </h1>
+            <p className={styles.heroLead}>{m.hero.lead}</p>
+            <div className={styles.actions}>
+              <Button href="/#story" size="lg" icon={<Play />} onClick={() => track('cta_click', 'hero_story')}>
+                {m.cta.primary}
+              </Button>
+              <InstallButton lang={lang} placement="hero" />
+            </div>
+          </div>
+          <TracePanel lang={lang} className={styles.heroPanel} />
         </div>
+      </Section>
 
-        <div className={styles.heroEyebrow}>
-          <span className="technical-label">Studio Bregalda</span>
-          <span style={{ color: 'var(--purple)' }}>·</span>
-          <span className="technical-label" style={{ color: 'var(--purple)' }}>
-            Database Concurrency Systems
-          </span>
-        </div>
-
-        <h1 className={styles.heroTitle}>
-          {lang === 'pt'
-            ? 'Encontre bugs de concorrência antes que cheguem à produção.'
-            : 'Catch database concurrency bugs before production does.'}
-        </h1>
-
-        <p className={styles.heroLead}>
-          {lang === 'pt'
-            ? 'Testes determinísticos de concorrência e anomalias de transação para PostgreSQL, MySQL e SQLite. Encontre race conditions silenciosas, gere reproduções mínimas e bloqueie regressões no CI/CD.'
-            : 'Deterministic concurrency and isolation anomaly testing for PostgreSQL, MySQL, and SQLite. Discover silent race conditions, synthesize minimal reproductions, and block regressions in CI/CD.'}
-        </p>
-
-        {/* Dual Actions */}
-        <div className={styles.heroActions}>
-          <a href="/playground" className={styles.ctaPlayground} onClick={() => track('cta_click', 'hero_playground')}>
-            <Play size={16} fill="currentColor" />
-            {lang === 'pt' ? 'Testar no Playground WASM' : 'Launch WASM Playground'}
-          </a>
-
-          <a href="#waitlist" className={styles.ctaWaitlist} onClick={() => track('cta_click', 'hero_waitlist')}>
-            <Sparkles size={16} />
-            {lang === 'pt' ? 'Participar do Cloud Early Access' : 'Join Cloud Early Access'}
-          </a>
-        </div>
-
-        {/* CLI Quick Copy */}
-        <div>
-          <div className={styles.installBox}>
-            <code>{installCmd}</code>
-            <button
-              type="button"
-              className={styles.copyBtn}
-              onClick={handleCopy}
-              aria-label={lang === 'pt' ? 'Copiar comando de instalação' : 'Copy install command'}
-            >
-              {copied ? (
+      {/* 2. Proof strip: facts a reader can check. */}
+      <div className={styles.proof}>
+        <ul className={styles.proofList}>
+          <li>{m.proof.engines}</li>
+          <li>{m.proof.license}</li>
+          <li>{m.proof.binary}</li>
+          <li>
+            <a href={GITHUB_URL} target="_blank" rel="noreferrer" onClick={() => track('outbound_click', 'github_proof')}>
+              {stars !== null && stars >= MIN_STARS_SHOWN ? (
                 <>
-                  <Check size={12} /> {lang === 'pt' ? 'Copiado!' : 'Copied!'}
+                  <Star size={14} aria-hidden="true" /> {format(m.proof.stars, { stars: stars.toLocaleString(lang === 'pt' ? 'pt-BR' : 'en-US') })}
                 </>
               ) : (
                 <>
-                  <Copy size={12} /> {lang === 'pt' ? 'Copiar' : 'Copy'}
+                  GitHub <ArrowUpRight size={14} aria-hidden="true" />
                 </>
               )}
-            </button>
-          </div>
-        </div>
-
-        {/* Hero Visual Anomaly Card Preview */}
-        <div className={styles.heroCardContainer}>
-          <div className={styles.heroAnomalyCard}>
-            <div className={styles.anomalyHeader}>
-              <span className={styles.anomalyBadgeRed}>LOST UPDATE DETECTED (P4)</span>
-              <span className={styles.anomalySeed}>Seed: {STORY.seed}</span>
-            </div>
-            <div className={styles.anomalyRow}>
-              <span className={styles.anomalyLabel}>{lang === 'pt' ? 'Saldo Esperado:' : 'Expected Balance:'}</span>
-              <span className={styles.anomalyValGreen}>{usd(STORY.expected)}</span>
-            </div>
-            <div className={styles.anomalyRow}>
-              <span className={styles.anomalyLabel}>{lang === 'pt' ? 'Saldo Real (Corrompido):' : 'Actual Balance (Corrupted):'}</span>
-              <span className={styles.anomalyValRed}>{usd(STORY.afterB)}</span>
-            </div>
-            <div className={styles.anomalyRow}>
-              <span className={styles.anomalyLabel}>{lang === 'pt' ? 'Reprodução Sintetizada:' : 'Synthesized Reproduction:'}</span>
-              <span style={{ color: 'var(--cream)' }}>{lang === 'pt' ? '2 transações em repro_test.go' : '2 transactions in repro_test.go'}</span>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* 2. Interactive Flagship Demo Showcase */}
-      <DemoShowcase lang={lang} />
-
-      {/* 3. Workflow Section */}
-      <section className={styles.workflowSection}>
-        <div style={{ textAlign: 'center', marginBottom: 'var(--space-2)' }}>
-          <p className="technical-label">{lang === 'pt' ? 'Fluxo do Desenvolvedor' : 'Developer Workflow'}</p>
-          <h2
-            style={{
-              fontSize: 'var(--type-h3)',
-              fontWeight: 600,
-              letterSpacing: '-0.04em',
-              marginBlock: 'var(--space-1) var(--space-2)',
-              color: 'var(--ink)',
-            }}
-          >
-            {lang === 'pt' ? 'Como o ChaosSQL protege seu repositório' : 'How ChaosSQL protects your repository'}
-          </h2>
-        </div>
-
-        <div className={styles.workflowGrid}>
-          {workflowSteps.map((step) => (
-            <div key={step.step} className={styles.workflowCard}>
-              <span className={styles.workflowStepNumber}>{step.step} /</span>
-              <h3 className={styles.workflowStepTitle}>{step.title[lang]}</h3>
-              <p className={styles.workflowStepDesc}>{step.desc[lang]}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* 4. Signature Chapter Grid */}
-      <ProjectCycle
-        id={cycleData.id}
-        sequence={cycleData.sequence}
-        name={cycleData.name}
-        headline={cycleData.headline}
-        summary={cycleData.summary}
-        primaryAction={cycleData.primaryAction}
-        secondaryAction={cycleData.secondaryAction}
-        technologies={cycleData.technologies}
-        evidence={cycleData.evidence}
-        artifact={<ChaosSqlArtifact lang={lang} />}
-        lang={lang}
-      />
-
-      {/* 5. Three Pillars Section */}
-      <section className={styles.pillarsSection}>
-        <div style={{ textAlign: 'center', marginBottom: 'var(--space-3)' }}>
-          <p className="technical-label">{lang === 'pt' ? 'Fundamentos de Engenharia' : 'Engineering Foundations'}</p>
-          <h2
-            style={{
-              fontSize: 'var(--type-h3)',
-              fontWeight: 500,
-              letterSpacing: '-0.05em',
-              marginBlock: 'var(--space-1) var(--space-2)',
-            }}
-          >
-            {lang === 'pt' ? 'Três pilares de rigor transacional' : 'Three pillars of transactional rigor'}
-          </h2>
-        </div>
-
-        <div className={styles.pillarsGrid}>
-          {pillars.map((pillar) => (
-            <div key={pillar.id} className={styles.pillarCard}>
-              <div className={styles.pillarHeader}>
-                {pillar.icon}
-                <span className="technical-label">{pillar.id} /</span>
-              </div>
-              <h3 className={styles.pillarTitle}>{pillar.title}</h3>
-              <p className={styles.pillarCopy}>{pillar.desc}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* 6. Brand Divider */}
-      <div className={styles.brandDivider}>
-        <img
-          src="/brand/bregalda_primary_lockup.svg"
-          alt="Bregalda · Build · Learn · Ship"
-          width="360"
-        />
+            </a>
+          </li>
+        </ul>
       </div>
 
-      {/* 7. Native Cloud Waitlist & Concurrency Audit Section */}
-      <CloudWaitlistSection lang={lang} />
+      {/* 3. The bug, step by step, on the recorded run. */}
+      <Section width="wide" id="story" labelledBy="story-title">
+        <StoryScroll lang={lang} />
+      </Section>
+
+      {/* 4. Other domains, same failure mode. */}
+      <Section width="wide" id="scenarios" labelledBy="scenarios-title" className={styles.scenariosSection}>
+        <Reveal>
+          <SectionHeader id="scenarios-title" title={m.scenarios.title} lead={m.scenarios.lead} />
+          <Tabs
+            label={m.scenarios.title}
+            onChange={(id) => track('scenario_view', id)}
+            items={SCENARIOS.map((id) => {
+              const run = RECORDED_RUNS[id];
+              const copy = m.scenarios[id];
+              return {
+                id,
+                label: copy.name,
+                content: (
+                  <div className={styles.scenario}>
+                    <div className={styles.scenarioCopy}>
+                      <Badge tone="signal">{anomalyName(run.anomalyType)}</Badge>
+                      <p className={styles.scenarioPain}>{copy.pain}</p>
+                      <div>
+                        <p className={styles.scenarioLabel}>{m.landingUi.scenarioInvariant}</p>
+                        <p className={styles.scenarioInvariant}>{copy.invariant}</p>
+                      </div>
+                      <Button
+                        href={`/playground?scenario=${id}`}
+                        variant="secondary"
+                        trailingIcon={<ArrowRight />}
+                        onClick={() => track('cta_click', `scenario_playground:${id}`)}
+                      >
+                        {m.cta.playground}
+                      </Button>
+                    </div>
+                    <figure className={styles.scenarioTrace}>
+                      <Terminal
+                        lang={lang}
+                        title={m.landingUi.scenarioTrace}
+                        language="sql"
+                        code={traceText(run)}
+                        onCopy={() => track('command_copy', `trace:${id}`)}
+                      />
+                      <figcaption>{format(m.landingUi.scenarioSource, { seed: run.seed, source: run.source })}</figcaption>
+                    </figure>
+                  </div>
+                ),
+              };
+            })}
+          />
+          <p className={styles.more}>
+            <a href="/scenarios">
+              {m.cta.allScenarios} <ArrowRight size={14} aria-hidden="true" />
+            </a>
+          </p>
+        </Reveal>
+      </Section>
+
+      {/* 5. Delta debugging: from a noisy failure to the transactions that matter. */}
+      <Section width="wide" labelledBy="shrink-title" className={styles.band}>
+        <Reveal>
+          <SectionHeader
+            id="shrink-title"
+            title={format(m.shrink.title, { original: banking.shrink.originalOps, minimal: banking.shrink.minimalOps })}
+            lead={m.shrink.lead}
+          />
+          <div className={styles.shrink}>
+            <ShrinkViz run={banking} lang={lang} />
+            <dl className={styles.stats}>
+              <div>
+                <dt>{m.shrink.statReduction}</dt>
+                <dd>{Math.round(banking.shrink.reductionPct)}%</dd>
+              </div>
+              <div>
+                <dt>{m.shrink.statTrials}</dt>
+                <dd>{banking.shrink.trials}</dd>
+              </div>
+              <div>
+                <dt>{m.shrink.statTime}</dt>
+                <dd>&lt; 1 s</dd>
+              </div>
+            </dl>
+          </div>
+          <p className={styles.note}>
+            {m.shrink.note}{' '}
+            <a href="https://github.com/bregaldahq/chaossql/blob/main/evals/01_shrinking_ratio.md" target="_blank" rel="noreferrer">
+              {m.cta.howWeMeasure}
+            </a>
+          </p>
+          <figure className={styles.report}>
+            <img src={reportDdmin} alt={m.landingUi.reportCaption} width={1800} height={788} loading="lazy" decoding="async" />
+            <figcaption>{m.landingUi.reportCaption}</figcaption>
+          </figure>
+        </Reveal>
+      </Section>
+
+      {/* 6. CI: the real workflow, and what it does and does not do. */}
+      <Section width="wide" labelledBy="ci-title">
+        <Reveal className={styles.ci}>
+          <div className={styles.ciCopy}>
+            <h2 id="ci-title" className={styles.h2}>
+              {m.ci.title}
+            </h2>
+            <p className={styles.lead}>{m.ci.lead}</p>
+            <p className={styles.caveat}>{m.ci.gate}</p>
+          </div>
+          <Terminal
+            lang={lang}
+            title={m.landingUi.ciFile}
+            language="yaml"
+            code={ACTION_YAML}
+            onCopy={() => track('command_copy', 'ci_yaml')}
+          />
+        </Reveal>
+      </Section>
+
+      {/* 7. Three ways in, with the audit as the one to act on before a launch. */}
+      <Section width="wide" id="plans" labelledBy="plans-title" className={styles.band}>
+        <Reveal>
+          <SectionHeader id="plans-title" title={m.plans.title} />
+          <div className={styles.plans}>
+            <div className={styles.plan}>
+              <h3>{m.plans.oss.name}</h3>
+              <p className={styles.price}>{m.plans.oss.price}</p>
+              <p>{m.plans.oss.body}</p>
+              <InstallButton lang={lang} placement="plans" />
+            </div>
+            <div className={styles.plan}>
+              <h3>{m.plans.cloud.name}</h3>
+              <p className={styles.price}>{format(m.plans.cloud.price, { price: CLOUD_FROM_PRICE })}</p>
+              <p>{m.plans.cloud.body}</p>
+              <Button href="/#waitlist" variant="secondary" size="lg" onClick={() => track('cta_click', 'plans_waitlist')}>
+                {m.cta.waitlist}
+              </Button>
+            </div>
+            <div className={[styles.plan, styles.planAudit].join(' ')}>
+              <h3>{m.plans.audit.name}</h3>
+              <p className={styles.price}>{format(m.plans.audit.price, { price: AUDIT_PRICE })}</p>
+              <p>{m.plans.audit.body}</p>
+              <Button href="/pricing#audit" size="lg" onClick={() => track('cta_click', 'plans_audit')}>
+                {m.cta.audit}
+              </Button>
+            </div>
+          </div>
+          <p className={styles.more}>
+            <a href="/pricing">
+              {m.plans.compare} <ArrowRight size={14} aria-hidden="true" />
+            </a>
+          </p>
+        </Reveal>
+      </Section>
+
+      {/* 8. Objections, then the last call to action. */}
+      <Section width="wide" labelledBy="faq-title">
+        <Reveal className={styles.faqLayout}>
+          <h2 id="faq-title" className={styles.h2}>
+            {m.faq.title}
+          </h2>
+          <div className={styles.faq}>
+            {Object.entries(m.faq.items).map(([id, item]) => (
+              <details key={id} className={styles.faqItem}>
+                <summary>{item.q}</summary>
+                <p>{item.a}</p>
+              </details>
+            ))}
+          </div>
+        </Reveal>
+      </Section>
+
+      <Section width="wide" id="waitlist" labelledBy="final-title" className={styles.finalSection}>
+        <Reveal className={styles.final}>
+          <h2 id="final-title" className={styles.finalTitle}>
+            {m.final.title}
+          </h2>
+          <p className={styles.lead}>{m.final.lead}</p>
+          <Terminal lang={lang} title="shell" prompt code={INSTALL_CMD} onCopy={() => track('install_copy', 'final')} />
+          <div className={styles.waitlist}>
+            <h3>{m.landingUi.waitlistTitle}</h3>
+            <p>{m.landingUi.waitlistLead}</p>
+            <WaitlistForm lang={lang} />
+          </div>
+          <p className={styles.auditLink}>
+            <a href="/pricing#audit" onClick={() => track('cta_click', 'final_audit')}>
+              {m.landingUi.auditCta} <ArrowRight size={14} aria-hidden="true" />
+            </a>
+          </p>
+        </Reveal>
+      </Section>
     </div>
   );
 }

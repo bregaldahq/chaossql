@@ -123,7 +123,7 @@ jobs:
           post-pr-comment: 'true'
 ```
 
-When an invariant fails, the action blocks the pull request, publishes a metadata-only GitHub Step Summary, and can synthesize a local `repro_test.go` artifact. SQL, invariant values, and reproduction source are not included in the remote summary or PR comment.
+When an invariant fails, the action writes a GitHub Step Summary and can export a JUnit report and a local `repro_test.go`. A violation does **not** fail the job by itself (`chaossql run` exits 0 on violations): gate merges on the JUnit report, or on the `is-regression` output, which is set after a successful ChaosSQL Cloud publish together with the metadata-only PR comment. SQL, invariant values, and reproduction source are not included in the remote summary or PR comment.
 
 ---
 
@@ -137,12 +137,12 @@ When an invariant fails, the action blocks the pull request, publishes a metadat
 👉 **[Explore Cloud Dashboard](https://chaossql.bregalda.com/dashboard)** • **[View Plans & Pricing](https://chaossql.bregalda.com/pricing)** • **[Join Early Access](https://chaossql.bregalda.com/#waitlist)**
 
 ### 2. ChaosSQL Concurrency Audit
-Preparing a major launch, financial ledger, or high-throughput reservation engine? Studio Bregalda provides dedicated **Database Concurrency Audits** ($500 – $2,000):
+Preparing a major launch, financial ledger, or high-throughput reservation engine? Studio Bregalda provides dedicated **Database Concurrency Audits** ($1,490, one week):
 * Formal invariant specification of your critical transaction flows.
 * Multi-engine isolation analysis (PostgreSQL vs. MySQL vs. SQLite).
 * Turnkey minimal reproductions and mitigation blueprints (`SELECT ... FOR UPDATE`, OCC versioning, SSI).
 
-👉 **[Request an Audit for Your Team](https://chaossql.bregalda.com/#waitlist)**
+👉 **[Request an Audit for Your Team](https://chaossql.bregalda.com/pricing#audit)**
 
 ---
 

@@ -16,7 +16,10 @@ English is canonical); the English purity gate skips `site/`.
 ## Structure
 
 - Entry: `site/template.html` → `src/main.tsx` → `src/App.tsx` (nav, page by
-  route, footer). The dev server (`vite.config.ts`, port 3000) serves
+  route, footer). The landing is in the main bundle; every other page is a
+  `React.lazy` chunk behind a `Suspense` fallback. `LAB_ROUTES` in `App.tsx`
+  lists the routes rendered in the dark lab theme (today only `landing`): App
+  sets `data-theme="lab"` on `<html>` and the `theme-color` meta for them. The dev server (`vite.config.ts`, port 3000) serves
   `template.html` for every extension-less app route, so deep links in dev
   never load the committed prebuilt bundle. `design-preview.html`
   (`src/dev/design-preview.tsx`) is a dev-only styleguide of the lab design
@@ -25,11 +28,26 @@ English is canonical); the English purity gate skips `site/`.
   `/scenarios`, `/visualizer`, `/matrix`, `/playground`, `/pricing`;
   `routeFromPath` uses the first segment; legacy `#/docs` hashes are migrated
   with `history.replaceState`; internal link clicks are intercepted
-  (`interceptLinkClick`, `navigate`).
+  (`interceptLinkClick`, `navigate`). Hashes are kept: `navigate('/#story')`
+  from another page changes route and App scrolls to the anchor after render
+  (`scrollToHash`); on the same page it only scrolls. `/playground?scenario=<id>`
+  opens that preset (ids from `PLAYGROUND_PRESETS`).
 - Pages in `src/pages/*Page.tsx` with CSS modules; shared components in
   `src/components/{ui,docs,artifacts}`; design tokens in
   `src/styles/tokens.css` (Studio Bregalda identity; brand SVGs in
   `site/brand`, `site/public/brand`, `site/assets`).
+- Landing (`src/pages/LandingPage.tsx`, lab theme): hero with the autoplaying
+  `TracePanel` (pause button, stops off screen, final state under reduced
+  motion), proof strip (GitHub stars shown only from 50 up), `StoryScroll`
+  (`#story`, sticky panel driven by an IntersectionObserver band), scenario
+  `Tabs` (`#scenarios`), `ShrinkViz` + report crop, CI section with the
+  `action.yml` workflow, plans (`#plans`), FAQ (`<details>`), final CTA with
+  `WaitlistForm` (`#waitlist`). Components in `src/components/landing/`;
+  animation is CSS plus IntersectionObserver, no animation library.
+- Shared chrome (`SiteNav`, `SiteFooter`) uses only semantic tokens, which
+  have light values in `:root`, so it renders in both themes. Nav links:
+  How it works, Scenarios, Playground, Docs, Pricing; the visualizer, matrix
+  and dashboard are linked from the footer.
 - Lab design system (marketing redesign, plan in
   `docs/superpowers/plans/2026-09-22-marketing-site-redesign.md`): pages opt in
   with `data-theme="lab"`, which defines semantic tokens (`--surface-*`,
@@ -72,7 +90,8 @@ English is canonical); the English purity gate skips `site/`.
   and member-token issuance, with `cache: no-store`, `credentials: omit`,
   `redirect: error`.
 - Waitlist/contact forms post to `/api/waitlist` (`src/lib/lead-request.ts`,
-  handled by the edge worker).
+  handled by the edge worker, which requires `name` and `email`); the landing
+  uses `WaitlistForm`, the pricing page its own modal.
 
 ## Route metadata (keep four places in sync)
 
@@ -116,6 +135,7 @@ vanilla portal) are required by `make check-harness` and exercised by
 - Tests: `src/lib/router.test.ts`, `src/lib/cloud-api.test.ts`,
   `src/lib/analytics.test.ts`, `src/components/system/system.test.tsx`,
   `src/i18n/i18n.test.ts`, `src/data/traces.test.ts`, `src/data/story.test.ts`,
+  `src/pages/LandingPage.test.tsx`,
   `src/pages/CloudFlows.test.tsx`; plus `node tools/test_playground_ui.js`.
 - Local: `cd site && npm run dev`; `make serve-site` serves `site/` statically on 8080.
 
@@ -152,6 +172,14 @@ vanilla portal) are required by `make check-harness` and exercised by
 - `site/src/data/docs.json`
 - `site/src/data/scenarios.json`
 - `site/src/styles/tokens.css`
+- `site/src/pages/LandingPage.tsx`
+- `site/src/components/landing/TracePanel.tsx`
+- `site/src/components/landing/StoryScroll.tsx`
+- `site/src/components/landing/ShrinkViz.tsx`
+- `site/src/components/landing/WaitlistForm.tsx`
+- `site/src/components/ui/SiteNav.tsx`
+- `site/src/components/ui/SiteFooter.tsx`
+- `site/src/pages/PlaygroundPage.tsx`
 - `site/src/components/system/Tabs.tsx`
 - `site/src/components/system/Terminal.tsx`
 - `site/src/components/system/Button.tsx`

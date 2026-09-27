@@ -1,0 +1,72 @@
+.viz {
+  min-width: 0;
+}
+
+.ops {
+  display: grid;
+  grid-template-columns: repeat(10, minmax(0, 1fr));
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ops li {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  border-radius: var(--r-control);
+  background: color-mix(in srgb, var(--text-muted) 45%, var(--surface-page));
+  font-family: var(--font-jetbrains-mono);
+  font-size: clamp(0.55rem, 1vw, 0.75rem);
+  color: var(--surface-page);
+}
+
+.ops li span {
+  opacity: 0.8;
+}
+
+.run .pruned {
+  animation: prune var(--dur-slow) var(--ease-out) forwards;
+  animation-delay: calc(300ms + var(--i) * 70ms);
+}
+
+.run .kept {
+  animation: keep var(--dur-slow) var(--ease-out) forwards;
+  animation-delay: 1.8s;
+}
+
+@keyframes prune {
+  to {
+    opacity: 0.12;
+    transform: scale(0.72);
+  }
+}
+
+@keyframes keep {
+  to {
+    background: var(--signal);
+    color: var(--text-inverse);
+    transform: scale(1.08);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ops .pruned {
+    animation: none;
+    opacity: 0.12;
+    transform: scale(0.72);
+  }
+
+  .ops .kept {
+    animation: none;
+    background: var(--signal);
+    color: var(--text-inverse);
+  }
+}
+
+@media (max-width: 520px) {
+  .ops {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+}
