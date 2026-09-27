@@ -62,7 +62,7 @@ export function ScenariosPage({ lang = 'en' }: ScenariosPageProps) {
         </aside>
 
         {/* Palco do Cenário Selecionado */}
-        <main className={styles.stagePane}>
+        <div className={styles.stagePane}>
           <div>
             <span className={styles.anomalyBadge}>Adya {currentScenario.code}</span>
             <h2 className={styles.stageTitle}>
@@ -168,7 +168,7 @@ export function ScenariosPage({ lang = 'en' }: ScenariosPageProps) {
               )}
             </div>
           )}
-        </main>
+        </div>
       </div>
     </div>
   );

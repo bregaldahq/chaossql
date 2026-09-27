@@ -171,6 +171,39 @@
   --z-toast: 90;
 }
 
+/* Light values of the semantic tokens, so shared chrome (nav, footer) and
+   system components render on legacy light pages too. */
+:root {
+  --surface-page: var(--cream);
+  --surface-raised: color-mix(in srgb, var(--purple) 4%, var(--cream));
+  --surface-sunken: color-mix(in srgb, var(--ink) 5%, var(--cream));
+  --surface-code: #0f0c19;
+  --surface-brand: color-mix(in srgb, var(--purple) 10%, var(--cream));
+
+  --text-strong: var(--ink);
+  --text-body: color-mix(in srgb, var(--ink) 80%, var(--cream));
+  --text-muted: color-mix(in srgb, var(--ink) 64%, var(--cream));
+  --text-inverse: var(--cream);
+
+  --line: color-mix(in srgb, var(--purple) 18%, var(--cream));
+  --line-strong: color-mix(in srgb, var(--ink) 45%, var(--cream));
+
+  --brand: var(--purple);
+  --brand-text: var(--purple);
+  --signal: #8a6a00;
+  --signal-soft: color-mix(in srgb, var(--yellow) 22%, transparent);
+  --ok: #15803d;
+  --ok-soft: color-mix(in srgb, var(--green) 16%, transparent);
+  --danger: #b42318;
+  --danger-soft: color-mix(in srgb, #ef4444 12%, transparent);
+
+  --button-primary-bg: var(--purple);
+  --button-primary-bg-hover: color-mix(in srgb, var(--purple) 85%, #000);
+  --button-primary-text: var(--cream);
+
+  --shadow-raised: 0 18px 40px -28px color-mix(in srgb, var(--purple) 45%, transparent);
+}
+
 [data-theme='lab'] {
   --surface-page: #141021;
   --surface-raised: #1c1630;
@@ -210,6 +243,13 @@
   --border-subtle: var(--line);
 
   color-scheme: dark;
+  background: var(--surface-page);
+  color: var(--text-body);
+}
+
+/* The landing sets data-theme="lab" on <html>: paint the whole canvas. */
+html[data-theme='lab'],
+html[data-theme='lab'] body {
   background: var(--surface-page);
   color: var(--text-body);
 }

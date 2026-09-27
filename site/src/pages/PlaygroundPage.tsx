@@ -19,14 +19,17 @@ interface PlaygroundPageProps {
 export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({ lang = 'en' }) => {
   const isPt = lang === 'pt';
 
-  const [selectedPresetId, setSelectedPresetId] = useState<string>('hospital');
+  // /playground?scenario=banking opens that preset (deep links from the landing).
+  const requestedPreset = new URLSearchParams(window.location.search).get('scenario');
+  const startPresetId = PLAYGROUND_PRESETS.some((p) => p.id === requestedPreset) ? (requestedPreset as string) : 'hospital';
+  const [selectedPresetId, setSelectedPresetId] = useState<string>(startPresetId);
   const [workers, setWorkers] = useState<number>(4);
   const [iterations, setIterations] = useState<number>(15);
   const [jitterMs, setJitterMs] = useState<number>(10);
   const [seed, setSeed] = useState<number>(42);
 
   const initialPreset = useMemo(() => {
-    return PLAYGROUND_PRESETS.find((p) => p.id === 'hospital') || PLAYGROUND_PRESETS[0];
+    return PLAYGROUND_PRESETS.find((p) => p.id === startPresetId) || PLAYGROUND_PRESETS[0];
   }, []);
 
   const [yamlContent, setYamlContent] = useState<string>(initialPreset.yaml);

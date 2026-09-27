@@ -270,14 +270,16 @@ Cada fase é um PR independente, com `make verify` verde e screenshot antes/depo
 - [x] OG cards 1200x630 por página (`npm run og` → `site/og/`), com a swimlane do trace real, ligados por rota no app e nos dois workers.
 
 ### Fase 4: Landing nova (5–7 dias)
-- [ ] Hero com `TraceAnimation` (dados reais).
-- [ ] Faixa de prova (estrelas do GitHub buscadas no build).
-- [ ] Scroll-story "O bug em 30 segundos".
-- [ ] Galeria de cenários com deep link para o Playground (`/playground?scenario=…`).
-- [ ] Animação ddmin.
-- [ ] Seção CI, comparação de planos, FAQ, CTA final.
-- [ ] Nav e footer novos.
-- [ ] Remover `ProjectCycle`, pilares, workflow e o lockup da landing.
+- [x] Hero com o `TracePanel` (execução gravada, autoplay com pausa, parado fora da tela, estado final com movimento reduzido).
+- [x] Faixa de prova. As estrelas do GitHub são buscadas no navegador (cache de 6 h), porque o build é commitado e ficaria desatualizado; a contagem só aparece a partir de 50 (hoje são 0).
+- [x] Scroll-story "Um lost update em quatro passos" (`#story`) com glossário.
+- [x] Galeria de cenários (banco, estoque, plantão) com trace mínimo real e deep link `/playground?scenario=…`.
+- [x] Animação ddmin (20 → 2 transações da execução gravada) + recorte do relatório HTML.
+- [x] Seção CI com o YAML real da Action e o aviso de que a violação não reprova o job sozinha; planos; FAQ; CTA final com formulário da waitlist.
+- [x] Nav (5 links, funciona nos dois temas) e footer novos; ferramentas no footer.
+- [x] Removidos `ProjectCycle`, `ChaosSqlArtifact`, `ArtifactCard`, `DemoShowcase`, `ContactSection` e `CloudWaitlistSection`.
+- Extras: páginas fora da landing carregam sob demanda (`React.lazy`); README corrigido (a Action não bloqueia o PR; auditoria $1,490).
+- Sem biblioteca de animação: CSS + IntersectionObserver, para não pesar o bundle.
 
 ### Fase 5: Pricing e formulários (2–3 dias)
 - [ ] `/pricing` com o novo design, CTAs unificados e auditoria com entregáveis.

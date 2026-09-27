@@ -4,7 +4,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-libra
 import { DashboardPage } from './DashboardPage';
 import { PricingPage } from './PricingPage';
 import { VisualizerPage } from './VisualizerPage';
-import { CloudWaitlistSection } from '../components/ui/CloudWaitlistSection';
+import { WaitlistForm } from '../components/landing/WaitlistForm';
 import { navigate } from '../lib/router';
 
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); window.history.replaceState(null, '', '/'); });
@@ -134,12 +134,36 @@ it.each(['network', 'unacknowledged', 'HTTP'])('waitlist does not fake success o
     if (failure === 'network') throw new Error('offline');
     return Response.json({ success: true, lead: { dispatched: false } }, { status: failure === 'HTTP' ? 502 : 200 });
   });
-  render(<CloudWaitlistSection lang="en" />);
-  fireEvent.change(screen.getByLabelText(/Your Name/), { target: { value: 'Person' } });
-  fireEvent.change(screen.getByLabelText(/Work Email/), { target: { value: 'p@example.com' } });
-  fireEvent.submit(screen.getByRole('button', { name: 'Request Early Access' }).closest('form')!);
-  expect(await screen.findByRole('alert')).toBeTruthy();
-  expect(screen.queryByText('Registration Confirmed!')).toBeNull();
+  render(<WaitlistForm lang="en" />);
+  fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Person' } });
+  fireEvent.change(screen.getByLabelText('Work email'), { target: { value: 'p@example.com' } });
+  fireEvent.submit(screen.getByRole('button', { name: 'Join the waitlist' }).closest('form')!);
+  expect(await screen.findByText('We could not send this right now. Please try again.')).toBeTruthy();
+  expect(screen.queryByText('You are on the list')).toBeNull();
+});
+
+it('waitlist confirms only after the lead is acknowledged', async () => {
+  let body: Record<string, unknown> = {};
+  vi.stubGlobal('fetch', async (_url: string, init: RequestInit) => {
+    body = JSON.parse(init.body as string);
+    return Response.json({ success: true, lead: { dispatched: true } });
+  });
+  render(<WaitlistForm lang="en" />);
+  fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Person' } });
+  fireEvent.change(screen.getByLabelText('Work email'), { target: { value: 'p@example.com' } });
+  fireEvent.submit(screen.getByRole('button', { name: 'Join the waitlist' }).closest('form')!);
+  expect(await screen.findByText('You are on the list')).toBeTruthy();
+  expect(body).toMatchObject({ name: 'Person', email: 'p@example.com', source: 'landing_page' });
+});
+
+it('waitlist rejects a missing name or invalid email without sending', () => {
+  const fetchSpy = vi.fn();
+  vi.stubGlobal('fetch', fetchSpy);
+  render(<WaitlistForm lang="en" />);
+  fireEvent.change(screen.getByLabelText('Work email'), { target: { value: 'not-an-email' } });
+  fireEvent.submit(screen.getByRole('button', { name: 'Join the waitlist' }).closest('form')!);
+  expect(screen.getByText('Please enter your name and a valid email.')).toBeTruthy();
+  expect(fetchSpy).not.toHaveBeenCalled();
 });
 
 it('refuses to present a static trace as a linked CI finding', () => {

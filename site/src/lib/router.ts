@@ -39,9 +39,26 @@ export function migrateLegacyHash(): void {
   if (path !== null) window.history.replaceState(null, '', path);
 }
 
+/** Scrolls to the element named by a #hash. Returns false when it is not rendered yet. */
+export function scrollToHash(hash: string): boolean {
+  const id = decodeURIComponent(hash.replace(/^#/, ''));
+  const target = id ? document.getElementById(id) : null;
+  if (!target) return false;
+  const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  target.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
+  return true;
+}
+
 export function navigate(to: string, { replace = false } = {}): void {
-  const current = window.location.pathname + window.location.search;
-  if (to === current) return;
+  const url = new URL(to, window.location.origin);
+  const samePage = url.pathname === window.location.pathname && url.search === window.location.search;
+  if (samePage && url.hash) {
+    // In-page anchor: update the URL and scroll, without a route change.
+    if (url.hash !== window.location.hash) window.history.pushState(null, '', to);
+    scrollToHash(url.hash);
+    return;
+  }
+  if (samePage) return;
   if (replace) window.history.replaceState(null, '', to);
   else window.history.pushState(null, '', to);
   window.dispatchEvent(new Event(LOCATION_CHANGE));
@@ -83,5 +100,5 @@ export function interceptLinkClick(event: MouseEvent): void {
   const url = new URL(href, window.location.origin);
   if (routeFromPath(url.pathname) === 'landing' && url.pathname !== '/') return;
   event.preventDefault();
-  navigate(url.pathname + url.search);
+  navigate(url.pathname + url.search + url.hash);
 }
