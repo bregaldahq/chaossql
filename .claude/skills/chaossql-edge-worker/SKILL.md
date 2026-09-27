@@ -29,7 +29,12 @@ Any behavior change must be applied to all applicable copies;
 - `POST /api/waitlist` (+ `OPTIONS` preflight): origin must be in
   `ALLOWED_ORIGINS` (`https://chaossql.bregalda.com`, `localhost:5173`,
   `127.0.0.1:5173`) → 403 otherwise; rate limit 5/min per client key → 429;
-  requires non-empty `name` and a valid `email` → 400; forwards the lead to
+  requires a valid `email` → 400; `name` is optional (the landing waitlist is
+  email only) but must be a string when sent → 400. Optional fields: `company`,
+  `database`, `plan`, `billingCycle`, `timeline`, `notes`, `wantAudit`,
+  `source`. Free text is truncated (name/company/timeline 128, database 64,
+  notes 1000) because Discord rejects embed field values over 1024
+  characters, which would drop the lead. Forwards the lead to
   `env.DISCORD_WEBHOOK_URL || env.WAITLIST_WEBHOOK_URL`, and fails loudly
   when neither secret is configured (no hard-coded fallback).
 - `POST /api/webhooks/test`: same origin check, 10/min limit; the URL must be

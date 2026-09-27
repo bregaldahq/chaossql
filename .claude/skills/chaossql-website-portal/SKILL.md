@@ -18,7 +18,7 @@ English is canonical); the English purity gate skips `site/`.
 - Entry: `site/template.html` → `src/main.tsx` → `src/App.tsx` (nav, page by
   route, footer). The landing is in the main bundle; every other page is a
   `React.lazy` chunk behind a `Suspense` fallback. `LAB_ROUTES` in `App.tsx`
-  lists the routes rendered in the dark lab theme (today only `landing`): App
+  lists the routes rendered in the dark lab theme (`landing`, `pricing`): App
   sets `data-theme="lab"` on `<html>` and the `theme-color` meta for them. The dev server (`vite.config.ts`, port 3000) serves
   `template.html` for every extension-less app route, so deep links in dev
   never load the committed prebuilt bundle. `design-preview.html`
@@ -89,9 +89,17 @@ English is canonical); the English purity gate skips `site/`.
   `/v1/organizations/me/webhooks` (create uses events `regression,failure`),
   and member-token issuance, with `cache: no-store`, `credentials: omit`,
   `redirect: error`.
-- Waitlist/contact forms post to `/api/waitlist` (`src/lib/lead-request.ts`,
-  handled by the edge worker, which requires `name` and `email`); the landing
-  uses `WaitlistForm`, the pricing page its own modal.
+- Lead forms (`src/components/forms/`) post to `/api/waitlist` through
+  `src/lib/lead-request.ts` (edge worker): `WaitlistForm` asks only for an
+  email (landing `#waitlist`; on pricing it adds a plan select that the plan
+  buttons preselect, plus the billing cycle); `AuditForm` (pricing `#audit`)
+  requires name, work email and company and sends database, timeline, notes,
+  `wantAudit: true` and a plan containing "Audit". Both show success only
+  after the lead is acknowledged.
+- Pricing (`src/pages/PricingPage.tsx`, lab theme): open source row, Cloud
+  plans from `CLOUD_PLANS` with a monthly/annual switch, shared Cloud
+  features, Enterprise on request, the audit offer with its form in place, and
+  the waitlist. No modal.
 
 ## Route metadata (keep four places in sync)
 
@@ -114,12 +122,14 @@ commit the PNGs when a card title or the banking trace changes.
 
 ## Build output is committed
 
-`npm run build` = `tsc --noEmit && vite build && cp dist/template.html index.html && cp -rf dist/assets/* assets/ && rm -rf dist`.
+`npm run build` = `tsc --noEmit && vite build && cp dist/template.html index.html && cp -rf dist/assets/* assets/ && rm -rf dist && node scripts/prune-assets.mjs`.
 The deployed site is the `site/` directory itself (Cloudflare Pages
 `pages deploy site`, GitHub Pages fallback, Workers assets `./site`), so after
-source changes you must rebuild and commit `site/index.html` and the new
-hashed `site/assets/main-*.js|css` — and delete the previous hashed bundles
-(the copy step never removes them).
+source changes you must rebuild and commit `site/index.html` and the hashed
+files in `site/assets/` (main bundle, one lazy chunk per page, fonts, images).
+`scripts/prune-assets.mjs` deletes hashed files that `index.html` no longer
+reaches (following imports through JS and CSS); stage those deletions too.
+Unhashed files (`chaossql.wasm`, `style.css`, `wasm-*.js`) are never pruned.
 
 ## Legacy files still in use
 
@@ -176,7 +186,9 @@ vanilla portal) are required by `make check-harness` and exercised by
 - `site/src/components/landing/TracePanel.tsx`
 - `site/src/components/landing/StoryScroll.tsx`
 - `site/src/components/landing/ShrinkViz.tsx`
-- `site/src/components/landing/WaitlistForm.tsx`
+- `site/src/components/forms/WaitlistForm.tsx`
+- `site/src/components/forms/AuditForm.tsx`
+- `site/src/components/landing/InstallButton.tsx`
 - `site/src/components/ui/SiteNav.tsx`
 - `site/src/components/ui/SiteFooter.tsx`
 - `site/src/pages/PlaygroundPage.tsx`
@@ -189,6 +201,7 @@ vanilla portal) are required by `make check-harness` and exercised by
 - `site/src/data/traces.ts`
 - `site/src/data/story.ts`
 - `site/scripts/render-og.mjs`
+- `site/scripts/prune-assets.mjs`
 - `site/design-preview.html`
 - `site/COPY.md`
 - `tools/export_site_traces.mjs`

@@ -44,7 +44,11 @@ Plans change via `chaossql server org set-plan <org> <plan>`
 - The bootstrap organization `org_default` is created on the `pro` plan.
 - Unknown plan strings in the DB silently behave as `developer`; the admin CLI
   validates plan IDs (`validPlanID`).
-- Portal pricing is hard-coded separately in the site — keep it in sync.
+- Portal pricing is hard-coded separately in the site — keep it in sync
+  (`CLOUD_PLANS` in `site/src/pages/PricingPage.tsx`). Because the feature
+  flags are not enforced, the portal sells tiers only on repositories,
+  history and support, and lists the shared features once ("Every Cloud plan
+  includes"); see the claims register in `site/COPY.md`.
 
 ## Change checklist
 

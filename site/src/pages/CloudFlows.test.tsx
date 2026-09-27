@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { DashboardPage } from './DashboardPage';
 import { PricingPage } from './PricingPage';
 import { VisualizerPage } from './VisualizerPage';
-import { WaitlistForm } from '../components/landing/WaitlistForm';
+import { WaitlistForm } from '../components/forms/WaitlistForm';
 import { navigate } from '../lib/router';
 
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); window.history.replaceState(null, '', '/'); });
@@ -134,35 +134,35 @@ it.each(['network', 'unacknowledged', 'HTTP'])('waitlist does not fake success o
     if (failure === 'network') throw new Error('offline');
     return Response.json({ success: true, lead: { dispatched: false } }, { status: failure === 'HTTP' ? 502 : 200 });
   });
-  render(<WaitlistForm lang="en" />);
-  fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Person' } });
+  render(<WaitlistForm lang="en" source="landing_page" />);
   fireEvent.change(screen.getByLabelText('Work email'), { target: { value: 'p@example.com' } });
   fireEvent.submit(screen.getByRole('button', { name: 'Join the waitlist' }).closest('form')!);
   expect(await screen.findByText('We could not send this right now. Please try again.')).toBeTruthy();
   expect(screen.queryByText('You are on the list')).toBeNull();
 });
 
-it('waitlist confirms only after the lead is acknowledged', async () => {
+it('waitlist needs only an email and confirms after the lead is acknowledged', async () => {
   let body: Record<string, unknown> = {};
   vi.stubGlobal('fetch', async (_url: string, init: RequestInit) => {
     body = JSON.parse(init.body as string);
     return Response.json({ success: true, lead: { dispatched: true } });
   });
-  render(<WaitlistForm lang="en" />);
-  fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Person' } });
+  render(<WaitlistForm lang="en" source="landing_page" />);
+  expect(screen.queryByLabelText('Name')).toBeNull();
   fireEvent.change(screen.getByLabelText('Work email'), { target: { value: 'p@example.com' } });
   fireEvent.submit(screen.getByRole('button', { name: 'Join the waitlist' }).closest('form')!);
   expect(await screen.findByText('You are on the list')).toBeTruthy();
-  expect(body).toMatchObject({ name: 'Person', email: 'p@example.com', source: 'landing_page' });
+  expect(body).toMatchObject({ email: 'p@example.com', source: 'landing_page' });
+  expect(body).not.toHaveProperty('name');
 });
 
-it('waitlist rejects a missing name or invalid email without sending', () => {
+it('waitlist rejects an invalid email without sending', () => {
   const fetchSpy = vi.fn();
   vi.stubGlobal('fetch', fetchSpy);
-  render(<WaitlistForm lang="en" />);
+  render(<WaitlistForm lang="en" source="landing_page" />);
   fireEvent.change(screen.getByLabelText('Work email'), { target: { value: 'not-an-email' } });
   fireEvent.submit(screen.getByRole('button', { name: 'Join the waitlist' }).closest('form')!);
-  expect(screen.getByText('Please enter your name and a valid email.')).toBeTruthy();
+  expect(screen.getByText('Please enter a valid email.')).toBeTruthy();
   expect(fetchSpy).not.toHaveBeenCalled();
 });
 
@@ -183,31 +183,55 @@ it('reacts to CI links and demo links while the visualizer remains mounted', asy
   expect(await screen.findByRole('button', { name: 'Raw Trace (20 ops)' })).toBeTruthy();
 });
 
-it('pricing waits for delivery acknowledgment before showing confirmation', async () => {
-  let acknowledge: (response: Response) => void = () => {};
-  vi.stubGlobal('fetch', () => new Promise<Response>(resolve => { acknowledge = resolve; }));
+it('pricing plan buttons preselect the plan and send it with the billing cycle', async () => {
+  let body: Record<string, unknown> = {};
+  vi.stubGlobal('fetch', async (_url: string, init: RequestInit) => {
+    body = JSON.parse(init.body as string);
+    return Response.json({ success: true, lead: { dispatched: true } });
+  });
   render(<PricingPage lang="en" />);
-  fireEvent.click(screen.getByRole('button', { name: 'Request Cloud Team' }));
-  fireEvent.submit(screen.getByRole('button', { name: /Confirm Request/ }).closest('form')!);
-  expect(screen.queryByText('Request Registered!')).toBeNull();
-  acknowledge(Response.json({ success: true, lead: { dispatched: true } }));
-  expect(await screen.findByText('Request Registered!')).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'Monthly' }));
+  expect(screen.getByText('$39')).toBeTruthy();
+  fireEvent.click(screen.getAllByRole('button', { name: 'Join the Cloud waitlist' })[1]);
+  expect((screen.getByLabelText('Plan you are interested in') as HTMLSelectElement).value).toBe('team');
+  const waitlist = screen.getByRole('heading', { name: 'Join the Cloud waitlist' }).parentElement!;
+  fireEvent.change(within(waitlist).getByLabelText('Work email'), { target: { value: 'lead@example.com' } });
+  fireEvent.submit(within(waitlist).getByRole('button', { name: 'Join the waitlist' }).closest('form')!);
+  expect(await screen.findByText('You are on the list')).toBeTruthy();
+  expect(body).toMatchObject({ email: 'lead@example.com', plan: 'team', billingCycle: 'monthly', source: 'pricing_page' });
 });
 
-it('pricing reports delivery failures and preserves the requested plan and audit intent', async () => {
+it('pricing lists only features the Cloud actually provides', () => {
+  const { container } = render(<PricingPage lang="en" />);
+  const text = container.textContent ?? '';
+  for (const claim of [/PagerDuty/i, /nightly fuzzing/i, /downloadable/i, /most popular/i, /isolation policies/i, /Apache/i]) {
+    expect(text).not.toMatch(claim);
+  }
+});
+
+it('audit form requires the qualifying fields before sending', () => {
+  const fetchSpy = vi.fn();
+  vi.stubGlobal('fetch', fetchSpy);
+  render(<PricingPage lang="en" />);
+  fireEvent.submit(screen.getByRole('button', { name: 'Book the audit' }).closest('form')!);
+  expect(screen.getByText('Please fill in your name, a valid work email and your company.')).toBeTruthy();
+  expect(fetchSpy).not.toHaveBeenCalled();
+});
+
+it('audit form reports delivery failures and sends the audit intent and timeline', async () => {
   let body: Record<string, unknown> = {};
   vi.stubGlobal('fetch', async (_url: string, init: RequestInit) => {
     body = JSON.parse(init.body as string);
     return new Response('delivery failed', { status: 502 });
   });
   render(<PricingPage lang="en" />);
-  fireEvent.click(screen.getByRole('button', { name: /Concurrency Audit/i }));
-  fireEvent.change(screen.getByLabelText(/Your Name/), { target: { value: 'Test Person' } });
-  fireEvent.change(screen.getByLabelText(/Work Email/), { target: { value: 'test@example.com' } });
-  fireEvent.change(screen.getByLabelText(/^Company$/), { target: { value: 'Team' } });
-  fireEvent.submit(screen.getByRole('button', { name: /Confirm Request/ }).closest('form')!);
-  await waitFor(() => expect(screen.getByRole('alert')).toBeTruthy());
-  expect(screen.queryByText('Request Registered!')).toBeNull();
-  expect(body).toMatchObject({ billingCycle: 'annual', wantAudit: true, source: 'pricing_page' });
+  fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Test Person' } });
+  fireEvent.change(screen.getByLabelText('Work email', { selector: '#audit-email' }), { target: { value: 'test@example.com' } });
+  fireEvent.change(screen.getByLabelText('Company'), { target: { value: 'Team' } });
+  fireEvent.click(screen.getByLabelText('In 1 to 3 months'));
+  fireEvent.submit(screen.getByRole('button', { name: 'Book the audit' }).closest('form')!);
+  await waitFor(() => expect(screen.getByText('We could not send this right now. Please try again.')).toBeTruthy());
+  expect(screen.queryByText('Request received')).toBeNull();
+  expect(body).toMatchObject({ wantAudit: true, source: 'pricing_page', timeline: 'In 1 to 3 months', company: 'Team' });
   expect(body.plan).toMatch(/Audit/);
 });

@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc --noEmit && vite build && cp dist/template.html index.html && cp -rf dist/assets/* assets/ && rm -rf dist",
+    "build": "tsc --noEmit && vite build && cp dist/template.html index.html && cp -rf dist/assets/* assets/ && rm -rf dist && node scripts/prune-assets.mjs",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
