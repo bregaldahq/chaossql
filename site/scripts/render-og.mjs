@@ -6,8 +6,8 @@
 // Usage: npm run og   (set CHROMIUM_PATH to use a specific browser binary)
 
 import { chromium } from 'playwright-core';
-import { readFileSync, readdirSync, mkdirSync, existsSync } from 'node:fs';
-import { homedir } from 'node:os';
+import { readFileSync, mkdirSync } from 'node:fs';
+import { chromiumPath, fontUrl } from './render-lib.mjs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -21,25 +21,6 @@ export const CARDS = {
   playground: { title: 'Watch a lost update happen in your browser.', kicker: 'WASM playground' },
   pricing: { title: 'Free CLI. Cloud for CI. Audits before launch.', kicker: 'Pricing' },
 };
-
-function chromiumPath() {
-  if (process.env.CHROMIUM_PATH) return process.env.CHROMIUM_PATH;
-  const cache = join(homedir(), '.cache/ms-playwright');
-  const shells = existsSync(cache) ? readdirSync(cache).filter((d) => d.startsWith('chromium_headless_shell-')).sort() : [];
-  for (const dir of shells.reverse()) {
-    for (const sub of readdirSync(join(cache, dir))) {
-      const exe = join(cache, dir, sub, 'chrome-headless-shell');
-      if (existsSync(exe)) return exe;
-    }
-  }
-  throw new Error('No Chromium found: install one with `npx playwright install chromium-headless-shell` or set CHROMIUM_PATH');
-}
-
-// Inlined as data URLs: pages loaded with setContent cannot fetch file:// fonts.
-function fontUrl(pkg, file) {
-  const bytes = readFileSync(join(SITE, 'node_modules/@fontsource-variable', pkg, 'files', file));
-  return `data:font/woff2;base64,${bytes.toString('base64')}`;
-}
 
 function escapeHtml(text) {
   return text.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);

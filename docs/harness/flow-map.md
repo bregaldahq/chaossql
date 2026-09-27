@@ -80,7 +80,7 @@ the `chaossql-skill-maintenance` skill.
 
 | Skill | Flow | Primary paths |
 | :--- | :--- | :--- |
-| `chaossql-website-portal` | React/Vite portal, path routing, route metadata, i18n and copy, lab design system, recorded runs, OG cards, dashboard client, build output | `site/`, `tools/export_site_traces.mjs` |
+| `chaossql-website-portal` | React/Vite portal, path routing, route metadata, i18n and copy, lab design system, recorded runs, OG cards, dashboard client, build output | `site/`, `tools/export_site_traces.mjs`, `tools/site_funnel.mjs` |
 | `chaossql-edge-worker` | Cloudflare worker: waitlist, site events and analytics beacon, webhook test relay, rate limits, per-route SEO shell | `worker.ts`, `site/_worker.js`, `functions/api/waitlist.ts`, `wrangler.toml` |
 
 ## 9. Quality, Process and Distribution

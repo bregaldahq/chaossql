@@ -146,6 +146,24 @@ read in an effect (see `src/components/landing/hooks.ts`: reduced motion and
 GitHub stars start as `false`/`null`); `TracePanel` starts on its final state
 so the prerendered hero already shows the failing invariant.
 
+## Reading the funnel
+
+`node tools/site_funnel.mjs [days] [--json]` (needs `CLOUDFLARE_ACCOUNT_ID`
+and a `CLOUDFLARE_API_TOKEN` with Account Analytics: Read; optional
+`CF_WEB_ANALYTICS_SITE_TAG` for page views) queries the `chaossql_site_events`
+Analytics Engine dataset and prints the stages: story CTA, scenario tabs,
+install copies, playground opens, plan selections, waitlist and audit leads,
+plus events per language and top referrers. `STAGES` matches the labels the
+site sends with `track()`; add a stage when a new CTA is instrumented.
+`tools/test_site_funnel.mjs` covers the label mapping and API calls.
+
+## README animation
+
+`npm run gif` (`scripts/render-trace-gif.mjs`, dev dependencies `gifenc` and
+`pngjs`, shared helpers in `scripts/render-lib.mjs`) renders
+`docs/media/lost-update.gif` from the recorded banking trace, one frame per
+statement, for the README and social posts. Re-render when the trace changes.
+
 ## Open Graph cards
 
 `npm run og` (`scripts/render-og.mjs`, dev dependency `playwright-core`)
@@ -267,6 +285,10 @@ vanilla portal) are required by `make check-harness` and exercised by
 - `site/design-preview.html`
 - `site/COPY.md`
 - `tools/export_site_traces.mjs`
+- `tools/site_funnel.mjs`
+- `site/scripts/render-trace-gif.mjs`
+- `site/scripts/render-lib.mjs`
+- `docs/media/lost-update.gif`
 - `site/src/lib/router.test.ts`
 - `site/index.html`
 - `site/_headers`
