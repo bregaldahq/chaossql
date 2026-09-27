@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 
-export type Language = 'pt' | 'en';
+import type { Language } from '../i18n';
+
+export type { Language };
 
 const STORAGE_KEY = 'chaossql_lang';
 

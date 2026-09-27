@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Menu, X } from 'lucide-react';
 import styles from './SiteNav.module.css';
 import { track } from '../../lib/analytics';
+import { messages } from '../../i18n';
 
 export interface SiteNavProps {
   currentRoute: string;
@@ -17,17 +18,18 @@ export function SiteNav({
   onRouteChange,
 }: SiteNavProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const t = messages[lang].nav;
 
   const navItems = [
-    { id: 'landing', labelPt: 'Início', labelEn: 'Home', path: '/' },
-    { id: 'dashboard', labelPt: 'Cloud Dashboard', labelEn: 'Cloud Dashboard', path: '/dashboard' },
-    { id: 'docs', labelPt: 'Documentação', labelEn: 'Docs', path: '/docs' },
-    { id: 'scenarios', labelPt: 'Cenários (9)', labelEn: 'Scenarios (9)', path: '/scenarios' },
-    { id: 'visualizer', labelPt: 'Trace Visualizer', labelEn: 'Trace Visualizer', path: '/visualizer' },
-    { id: 'matrix', labelPt: 'Matriz Hermitage', labelEn: 'Hermitage Matrix', path: '/matrix' },
-    { id: 'playground', labelPt: 'Playground WASM', labelEn: 'WASM Playground', path: '/playground' },
-    { id: 'pricing', labelPt: 'Preços', labelEn: 'Pricing', path: '/pricing' },
-  ];
+    { id: 'landing', path: '/' },
+    { id: 'dashboard', path: '/dashboard' },
+    { id: 'docs', path: '/docs' },
+    { id: 'scenarios', path: '/scenarios' },
+    { id: 'visualizer', path: '/visualizer' },
+    { id: 'matrix', path: '/matrix' },
+    { id: 'playground', path: '/playground' },
+    { id: 'pricing', path: '/pricing' },
+  ] as const;
 
   const handleNavClick = (id: string) => {
     onRouteChange(id);
@@ -44,7 +46,7 @@ export function SiteNav({
             handleNavClick('landing');
           }}
           className={styles.brandGroup}
-          aria-label={lang === 'pt' ? 'ChaosSQL by Studio Bregalda, início' : 'ChaosSQL by Studio Bregalda, home'}
+          aria-label={t.homeLabel}
         >
           <div className={styles.wordmark}>
             <img
@@ -54,10 +56,10 @@ export function SiteNav({
               height="36"
             />
           </div>
-          <span className={styles.productTag}>ChaosSQL v1.4</span>
+          <span className={styles.productTag}>ChaosSQL</span>
         </a>
 
-        <nav aria-label={lang === 'pt' ? 'Navegação principal' : 'Main navigation'} className={styles.desktopLinks}>
+        <nav aria-label={t.mainLabel} className={styles.desktopLinks}>
           {navItems.map((item) => {
             const isActive = currentRoute === item.id;
             return (
@@ -71,14 +73,14 @@ export function SiteNav({
                 className={`${styles.navLink} ${isActive ? styles.navLinkActive : ''}`}
                 aria-current={isActive ? 'page' : undefined}
               >
-                {lang === 'pt' ? item.labelPt : item.labelEn}
+                {t.items[item.id]}
               </a>
             );
           })}
         </nav>
 
         <div className={styles.actionsGroup}>
-          <div className={styles.langSwitch} role="group" aria-label={lang === 'pt' ? 'Seletor de idioma' : 'Language selector'}>
+          <div className={styles.langSwitch} role="group" aria-label={t.languageLabel}>
             <button
               type="button"
               className={`${styles.langBtn} ${lang === 'pt' ? styles.langBtnActive : ''}`}
@@ -118,11 +120,7 @@ export function SiteNav({
             type="button"
             className={styles.mobileMenuToggle}
             onClick={() => setMobileOpen(!mobileOpen)}
-            aria-label={
-              lang === 'pt'
-                ? mobileOpen ? 'Fechar menu de navegação' : 'Abrir menu de navegação'
-                : mobileOpen ? 'Close navigation menu' : 'Open navigation menu'
-            }
+            aria-label={mobileOpen ? t.closeMenu : t.openMenu}
             aria-expanded={mobileOpen}
           >
             {mobileOpen ? <X size={20} /> : <Menu size={20} />}
@@ -132,7 +130,7 @@ export function SiteNav({
 
       {mobileOpen && (
         <div className={styles.mobileDrawerOpen} data-surface="light">
-          <nav aria-label={lang === 'pt' ? 'Navegação mobile' : 'Mobile navigation'}>
+          <nav aria-label={t.mobileLabel}>
             {navItems.map((item) => {
               const isActive = currentRoute === item.id;
               return (
@@ -145,7 +143,7 @@ export function SiteNav({
                   }}
                   className={`${styles.mobileNavLink} ${isActive ? styles.mobileNavLinkActive : ''}`}
                 >
-                  <span>{lang === 'pt' ? item.labelPt : item.labelEn}</span>
+                  <span>{t.items[item.id]}</span>
                   <span aria-hidden="true">→</span>
                 </a>
               );
@@ -158,7 +156,7 @@ export function SiteNav({
             className={styles.mobileCta}
             onClick={() => track('outbound_click', 'github_nav_mobile')}
           >
-            GitHub Repository
+            {t.githubRepository}
             <span aria-hidden="true">↗</span>
           </a>
         </div>
