@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
-import { ArrowRight, ArrowUpRight, Check, Copy, Play, Star } from 'lucide-react';
+import { useRef } from 'react';
+import { ArrowRight, ArrowUpRight, Play, Star } from 'lucide-react';
 import { track } from '../lib/analytics';
 import { RECORDED_RUNS, type RecordedRun } from '../data/traces';
 import { format, messages, type Language } from '../i18n';
@@ -13,7 +13,8 @@ import { laneOf } from '../components/landing/TraceLanes';
 import { TracePanel } from '../components/landing/TracePanel';
 import { StoryScroll } from '../components/landing/StoryScroll';
 import { ShrinkViz } from '../components/landing/ShrinkViz';
-import { WaitlistForm } from '../components/landing/WaitlistForm';
+import { WaitlistForm } from '../components/forms/WaitlistForm';
+import { INSTALL_CMD, InstallButton } from '../components/landing/InstallButton';
 import reportDdmin from '../media/report-ddmin.webp';
 import styles from './LandingPage.module.css';
 
@@ -21,7 +22,6 @@ export interface LandingPageProps {
   lang?: Language;
 }
 
-const INSTALL_CMD = 'go install github.com/bregaldahq/chaossql/cmd/chaossql@latest';
 const GITHUB_URL = 'https://github.com/bregaldahq/chaossql';
 const CLOUD_FROM_PRICE = '$39';
 const AUDIT_PRICE = '$1,490';
@@ -53,38 +53,6 @@ jobs:
           # Optional, ChaosSQL Cloud: baseline against main and PR comments
           cloud-token: \${{ secrets.CHAOSSQL_CLOUD_TOKEN }}
 `;
-
-function InstallButton({ lang, placement }: { lang: Language; placement: string }) {
-  const m = messages[lang];
-  const [copied, setCopied] = useState(false);
-  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  useEffect(() => () => clearTimeout(timer.current), []);
-
-  const copy = async () => {
-    try {
-      await navigator.clipboard.writeText(INSTALL_CMD);
-    } catch {
-      return;
-    }
-    track('install_copy', placement);
-    setCopied(true);
-    clearTimeout(timer.current);
-    timer.current = setTimeout(() => setCopied(false), 2000);
-  };
-
-  return (
-    <Button
-      variant="secondary"
-      size="lg"
-      onClick={copy}
-      title={INSTALL_CMD}
-      aria-label={`${m.landingUi.installTitle}: ${INSTALL_CMD}`}
-      icon={copied ? <Check /> : <Copy />}
-    >
-      <span aria-live="polite">{copied ? m.cta.installed : m.cta.install}</span>
-    </Button>
-  );
-}
 
 /** Fades a block in the first time it enters the viewport (CSS handles reduced motion). */
 function Reveal({ children, className }: { children: React.ReactNode; className?: string }) {
@@ -331,7 +299,7 @@ export function LandingPage({ lang = 'en' }: LandingPageProps) {
           <div className={styles.waitlist}>
             <h3>{m.landingUi.waitlistTitle}</h3>
             <p>{m.landingUi.waitlistLead}</p>
-            <WaitlistForm lang={lang} />
+            <WaitlistForm lang={lang} source="landing_page" />
           </div>
           <p className={styles.auditLink}>
             <a href="/pricing#audit" onClick={() => track('cta_click', 'final_audit')}>

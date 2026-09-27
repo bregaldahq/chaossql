@@ -13,6 +13,7 @@ interface WaitlistPayload {
   plan?: string;
   billingCycle?: string;
   notes?: string;
+  timeline?: string;
   source?: string;
   timestamp?: string;
 }
@@ -71,8 +72,9 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
   try {
     const data = (await request.json()) as WaitlistPayload;
 
-    if (!data.name || typeof data.name !== 'string' || !data.name.trim()) {
-      return jsonResponse(request, { error: 'Name is required' }, 400);
+    // Name is optional (the waitlist asks only for an email); when sent it must be text.
+          if (data.name !== undefined && typeof data.name !== 'string') {
+      return jsonResponse(request, { error: 'Name must be a string' }, 400);
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -105,15 +107,16 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
           description: 'Um novo desenvolvedor acabou de se registrar no **ChaosSQL SaaS**.',
           color: 0x4b2e83, // Bregalda Purple (#4B2E83)
           fields: [
-            { name: '👤 Nome', value: data.name.trim(), inline: true },
+            { name: '👤 Nome', value: data.name?.trim().slice(0, 128) || 'Não informado', inline: true },
             { name: '📧 E-mail', value: data.email.trim(), inline: true },
-            { name: '🏢 Empresa / Repo', value: data.company?.trim() || 'Não informada', inline: true },
-            { name: '🗄️ Banco Principal', value: data.database || 'PostgreSQL', inline: true },
+            { name: '🏢 Empresa / Repo', value: data.company?.trim().slice(0, 128) || 'Não informada', inline: true },
+            { name: '🗄️ Banco Principal', value: data.database?.slice(0, 64) || 'PostgreSQL', inline: true },
             { name: '🛡️ Concurrency Audit', value: auditText, inline: true },
             { name: 'Plan', value: data.plan?.trim().slice(0, 128) || 'Not selected', inline: true },
             { name: 'Billing cycle', value: data.billingCycle?.trim().slice(0, 32) || 'Not selected', inline: true },
+            { name: 'Timeline', value: data.timeline?.trim().slice(0, 128) || 'Not provided', inline: true },
             { name: '📍 Origem', value: sourceText, inline: true },
-            { name: '📝 Desafio / Caso de Uso', value: data.notes?.trim() || 'Nenhum detalhe adicional informado.', inline: false },
+            { name: '📝 Desafio / Caso de Uso', value: data.notes?.trim().slice(0, 1000) || 'Nenhum detalhe adicional informado.', inline: false },
           ],
           footer: {
             text: 'ChaosSQL Cloud Control Plane • Studio Bregalda',
@@ -159,7 +162,7 @@ export async function onRequestPost(context: { request: Request; env: Env }) {
         success: true,
         message: 'Inscrição registrada com sucesso!',
         lead: {
-          name: data.name.trim(),
+          name: data.name?.trim().slice(0, 128) ?? '',
           email: data.email.trim(),
           wantAudit,
           dispatched,

@@ -62,7 +62,10 @@ Re-check this table when the engine, the action or the prices change.
 | One static Go binary, no CGO | `AGENTS.md` principle 6; `go install ./cmd/chaossql` with `CGO_ENABLED=0` |
 | MIT license | `LICENSE` |
 | Cloud from $39 per month, early access | `src/pages/PricingPage.tsx` (Team, monthly) and `internal/server/billing.go` |
-| Audit: $1,490, one week, 45 min kickoff, 5 transactions, 100,000+ schedules, 3 months Cloud Team | `src/pages/PricingPage.tsx` audit card |
+| Audit: $1,490, one week, 45 min kickoff, 5 transactions, 100,000+ schedules, 3 months Cloud Team | Confirmed offer; `pricing.audit` in `src/i18n/en.ts` |
+| Cloud plan limits (1/10/30 repositories, 7/90/365 days) and prices ($0, $39/$31, $99/$79) | `internal/server/billing.go`; `CLOUD_PLANS` in `src/pages/PricingPage.tsx` |
+| "Every Cloud plan includes": metadata-only uploads, baseline on main and `is-regression`, PR comments, Discord/Slack/generic webhooks, unlimited users | `chaossql-cloud-publishing`, `chaossql-ingestion-baselines` and `chaossql-webhooks-outbox` skills; plan feature flags are informational only, so no feature is sold as exclusive to a tier |
+| Not claimed on purpose | Nightly scheduled fuzzing, downloadable reproducers from Cloud (reproductions stay in the runner), PagerDuty, "advanced isolation policies", "most popular" (no customers yet) |
 
 ## What the recorded runs are (and are not)
 

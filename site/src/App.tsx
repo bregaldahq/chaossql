@@ -18,7 +18,7 @@ const PlaygroundPage = lazy(() => import('./pages/PlaygroundPage').then((m) => (
 
 // Pages rendered in the dark "lab" theme. The rest keep the legacy light look
 // until they are migrated.
-const LAB_ROUTES: ReadonlySet<RouteId> = new Set(['landing']);
+const LAB_ROUTES: ReadonlySet<RouteId> = new Set(['landing', 'pricing']);
 
 export default function App() {
   const { lang, setLang } = useI18n();
@@ -35,10 +35,20 @@ export default function App() {
 
   useEffect(() => {
     applyRouteMeta(route, pathname);
-    // Land on the requested section (/#story) or at the top of the new page.
-    if (!(window.location.hash && scrollToHash(window.location.hash))) {
-      window.scrollTo({ top: 0 });
-    }
+    // Land on the requested section (/pricing#audit) or at the top of the new
+    // page. Lazy pages render after this effect, so wait briefly for the anchor.
+    const hash = window.location.hash;
+    if (!hash || !scrollToHash(hash)) window.scrollTo({ top: 0 });
+    if (!hash || document.getElementById(hash.slice(1))) return;
+    const observer = new MutationObserver(() => {
+      if (scrollToHash(hash)) observer.disconnect();
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+    const timeout = setTimeout(() => observer.disconnect(), 5000);
+    return () => {
+      observer.disconnect();
+      clearTimeout(timeout);
+    };
   }, [route, pathname]);
 
   useEffect(() => {

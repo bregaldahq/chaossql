@@ -180,8 +180,9 @@ var worker_default = {
         }
         try {
           const data = await request.json();
-          if (!data.name || typeof data.name !== "string" || !data.name.trim()) {
-            return jsonResponse(request, { error: "Name is required" }, 400);
+          // Name is optional (the waitlist asks only for an email); when sent it must be text.
+          if (data.name !== undefined && typeof data.name !== "string") {
+            return jsonResponse(request, { error: "Name must be a string" }, 400);
           }
           const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
           if (!data.email || typeof data.email !== "string" || !emailRegex.test(data.email.trim())) {
@@ -209,15 +210,16 @@ var worker_default = {
                 color: 4927107,
                 // Bregalda Purple (#4B2E83)
                 fields: [
-                  { name: "\u{1F464} Nome", value: data.name.trim(), inline: true },
+                  { name: "\u{1F464} Nome", value: data.name?.trim().slice(0, 128) || "N\xE3o informado", inline: true },
                   { name: "\u{1F4E7} E-mail", value: data.email.trim(), inline: true },
-                  { name: "\u{1F3E2} Empresa / Repo", value: data.company?.trim() || "N\xE3o informada", inline: true },
-                  { name: "\u{1F5C4}\uFE0F Banco Principal", value: data.database || "PostgreSQL", inline: true },
+                  { name: "\u{1F3E2} Empresa / Repo", value: data.company?.trim().slice(0, 128) || "N\xE3o informada", inline: true },
+                  { name: "\u{1F5C4}\uFE0F Banco Principal", value: data.database?.slice(0, 64) || "PostgreSQL", inline: true },
                   { name: "\u{1F6E1}\uFE0F Concurrency Audit", value: auditText, inline: true },
                   { name: "Plan", value: data.plan?.trim().slice(0, 128) || "Not selected", inline: true },
                   { name: "Billing cycle", value: data.billingCycle?.trim().slice(0, 32) || "Not selected", inline: true },
+                  { name: "Timeline", value: data.timeline?.trim().slice(0, 128) || "Not provided", inline: true },
                   { name: "\u{1F4CD} Origem", value: sourceText, inline: true },
-                  { name: "\u{1F4DD} Desafio / Caso de Uso", value: data.notes?.trim() || "Nenhum detalhe adicional informado.", inline: false }
+                  { name: "\u{1F4DD} Desafio / Caso de Uso", value: data.notes?.trim().slice(0, 1000) || "Nenhum detalhe adicional informado.", inline: false }
                 ],
                 footer: {
                   text: "ChaosSQL Cloud Control Plane \u2022 Studio Bregalda",
@@ -258,7 +260,7 @@ var worker_default = {
               success: true,
               message: "Inscri\xE7\xE3o registrada com sucesso!",
               lead: {
-                name: data.name.trim(),
+                name: data.name?.trim().slice(0, 128) ?? "",
                 email: data.email.trim(),
                 wantAudit,
                 dispatched

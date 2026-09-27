@@ -282,9 +282,11 @@ Cada fase é um PR independente, com `make verify` verde e screenshot antes/depo
 - Sem biblioteca de animação: CSS + IntersectionObserver, para não pesar o bundle.
 
 ### Fase 5: Pricing e formulários (2–3 dias)
-- [ ] `/pricing` com o novo design, CTAs unificados e auditoria com entregáveis.
-- [ ] Waitlist com 1 campo; formulário de auditoria qualificado.
-- [ ] Estados de loading, erro e sucesso revisados.
+- [x] `/pricing` no tema escuro. A linha open source vem primeiro. Os planos Cloud aparecem alinhados com o seletor mensal/anual, e as funcionalidades comuns aparecem uma vez só. O Enterprise fica sob consulta. A auditoria tem o formulário na própria página (`#audit`), sem modal.
+- [x] Funcionalidades falsas removidas: reprodutores para download (o Cloud só recebe metadados), fuzzing noturno, PagerDuty, "políticas de isolamento avançadas" e o selo "Mais escolhido" (ainda não há clientes). Registrado em `site/COPY.md`.
+- [x] Waitlist só com e-mail (no pricing, com o plano pré-selecionado pelo botão do plano). O Worker agora aceita lead sem nome, nas 4 cópias.
+- [x] Formulário de auditoria qualificado: nome, e-mail, empresa, banco, prazo do lançamento e observações opcionais.
+- [x] Estados revisados: validação antes do envio, erro inline e sucesso só depois da confirmação do Worker. Textos livres truncados no Worker, porque o Discord recusa campos com mais de 1024 caracteres e o lead se perdia.
 
 ### Fase 6: SEO e performance (3–4 dias)
 - [ ] SSG da landing, do pricing e das páginas de cenário.

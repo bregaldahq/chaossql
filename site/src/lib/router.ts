@@ -45,7 +45,7 @@ export function scrollToHash(hash: string): boolean {
   const target = id ? document.getElementById(id) : null;
   if (!target) return false;
   const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-  target.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
+  target.scrollIntoView?.({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
   return true;
 }
 
