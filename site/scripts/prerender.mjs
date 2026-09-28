@@ -14,11 +14,19 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 const SITE = join(dirname(fileURLToPath(import.meta.url)), '..');
 const OUT = join(SITE, 'prerender');
 const ssr = await import(pathToFileURL(join(SITE, 'dist-ssr', 'entry-server.js')).href);
-const { renderPage, SCENARIO_SLUGS, SEO_ROUTES, SITE_ORIGIN, LAB_ROUTES, localizePath, messages } = ssr;
+const { renderPage, SCENARIO_SLUGS, CHAPTER_ORDER, SEO_ROUTES, SITE_ORIGIN, LAB_ROUTES, localizePath, messages } = ssr;
 
 // Pages whose content renders fully without a browser. The visualizer,
 // playground and dashboard need client APIs and keep the injected shell.
-const PAGES = ['/', '/pricing', '/scenarios', '/docs', '/matrix', ...Object.values(SCENARIO_SLUGS).map((slug) => `/scenarios/${slug}`)];
+const PAGES = [
+  '/',
+  '/pricing',
+  '/scenarios',
+  '/docs',
+  '/matrix',
+  ...Object.values(SCENARIO_SLUGS).map((slug) => `/scenarios/${slug}`),
+  ...CHAPTER_ORDER.map((id) => `/docs/${id}`),
+];
 const LANGS = ['en', 'pt'];
 
 const shell = readFileSync(join(SITE, 'index.html'), 'utf8');
@@ -144,6 +152,7 @@ const urls = [
     .filter((route) => route.indexable)
     .map((route) => route.path),
   ...Object.values(SCENARIO_SLUGS).map((slug) => `/scenarios/${slug}`),
+  ...CHAPTER_ORDER.map((id) => `/docs/${id}`),
 ];
 const abs = (path) => `${SITE_ORIGIN}${path}`;
 const entries = urls.flatMap((path) =>

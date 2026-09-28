@@ -64,7 +64,8 @@ Other workflows: `concurrency-ci.yml` and `swarm.yml`
 `worker.ts` it serves the committed build with `site/scripts/serve-static.mjs`
 and runs `@lhci/cli autorun` with `site/lighthouserc.json` (performance >= 90,
 accessibility/best practices/SEO >= 95, CLS <= 0.1; reports uploaded as an
-artifact). Reproduce locally with `cd site && npx @lhci/cli@0.14.0 autorun
+artifact). Three runs per URL, median aggregation: with two runs a single cold first run
+(0.55) sank the median. Reproduce locally with `cd site && npx @lhci/cli@0.14.0 autorun
 --config=lighthouserc.json` (set `CHROME_PATH` if Chrome is not installed).
 
 ## Gotchas

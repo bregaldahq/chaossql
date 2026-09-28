@@ -244,10 +244,10 @@ function parseWebhookTarget(raw) {
   }
   return { url: parsed.toString() };
 }
-var SCENARIO_PATH = /^\/scenarios\/[a-z0-9-]+$/;
+var DETAIL_PATH = /^\/(scenarios|docs)\/[a-z0-9-]+$/;
 function appPath(pathname) {
   const { lang, path } = splitLocale(pathname);
-  if (path === "/" || seoRouteForPath(path) !== null || SCENARIO_PATH.test(path)) return { lang, path };
+  if (path === "/" || seoRouteForPath(path) !== null || DETAIL_PATH.test(path)) return { lang, path };
   return null;
 }
 var prerendered = null;
@@ -324,8 +324,8 @@ function withWebAnalytics(response, env) {
   } }).transform(response);
 }
 async function serveAppShell(request, env, lang, path) {
-  const scenarioPage = SCENARIO_PATH.test(path);
-  const route = scenarioPage ? "scenarios" : seoRouteForPath(path) ?? "landing";
+  const detail = DETAIL_PATH.exec(path);
+  const route = detail ? detail[1] : seoRouteForPath(path) ?? "landing";
   const meta = pageMeta(route, lang, path);
   const shell = await env.ASSETS.fetch(new Request(new URL("/", request.url), request));
   if (!shell.ok) return shell;
@@ -336,9 +336,9 @@ async function serveAppShell(request, env, lang, path) {
   } }).on('meta[name="description"]', { element: (el) => {
     el.setAttribute("content", meta.description);
   } }).on('meta[name="robots"]', {
-    // An unknown scenario slug is a 404 and must not be indexed.
+    // An unknown scenario or chapter slug is a 404 and must not be indexed.
     element: (el) => {
-      el.setAttribute("content", scenarioPage ? "noindex, follow" : meta.robots);
+      el.setAttribute("content", detail ? "noindex, follow" : meta.robots);
     }
   }).on('link[rel="canonical"]', { element: (el) => {
     el.setAttribute("href", meta.canonical);
@@ -366,7 +366,7 @@ async function serveAppShell(request, env, lang, path) {
       if (href) el.setAttribute("href", href);
     }
   }).transform(shell);
-  if (!scenarioPage) return rewritten;
+  if (!detail) return rewritten;
   return new Response(rewritten.body, { status: 404, headers: rewritten.headers });
 }
 var worker_default = {

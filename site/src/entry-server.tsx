@@ -5,8 +5,11 @@ import { prerender } from 'react-dom/static';
 import App from './App';
 import { routeFromPath, setServerLocation } from './lib/router';
 import { metaForPath } from './lib/route-meta';
+// Detail page titles (scenarios, docs chapters) for the prerendered <head>.
+import './lib/detail-meta';
 
 export { SCENARIO_SLUGS } from './data/scenarios-data';
+export { CHAPTER_ORDER } from './data/docs-content';
 export { SEO_ROUTES, SITE_ORIGIN, localizePath, splitLocale } from './lib/seo';
 export { messages } from './i18n';
 

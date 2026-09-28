@@ -2,7 +2,7 @@ name: Lighthouse
 
 # Budgets for the public site (site/lighthouserc.json): performance >= 90,
 # accessibility, best practices and SEO >= 95, CLS <= 0.1 on the landing (both
-# languages), pricing and a scenario page. The committed build is served by
+# languages), pricing, a scenario page and a docs chapter. The committed build is served by
 # site/scripts/serve-static.mjs, which mirrors the edge worker's routing.
 
 on:

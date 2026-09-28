@@ -156,12 +156,13 @@ function parseWebhookTarget(raw: unknown): { url: string } | { error: string } {
 // are served at their canonical URL; every other section gets the app shell
 // (index.html) with its metadata injected. index.html stays a plain shell
 // because the dashboard and self-hosted servers use it as their SPA fallback.
-const SCENARIO_PATH = /^\/scenarios\/[a-z0-9-]+$/;
+// Detail pages: /scenarios/<slug> and /docs/<chapter>.
+const DETAIL_PATH = /^\/(scenarios|docs)\/[a-z0-9-]+$/;
 
 /** Unprefixed app path this request maps to, or null when it is not an app page. */
 function appPath(pathname: string): { lang: Lang; path: string } | null {
   const { lang, path } = splitLocale(pathname);
-  if (path === '/' || seoRouteForPath(path) !== null || SCENARIO_PATH.test(path)) return { lang, path };
+  if (path === '/' || seoRouteForPath(path) !== null || DETAIL_PATH.test(path)) return { lang, path };
   return null;
 }
 
@@ -259,8 +260,9 @@ function withWebAnalytics(response: Response, env: Env): Response {
 }
 
 async function serveAppShell(request: Request, env: Env, lang: Lang, path: string): Promise<Response> {
-  const scenarioPage = SCENARIO_PATH.test(path);
-  const route = scenarioPage ? 'scenarios' : seoRouteForPath(path) ?? 'landing';
+  // Detail pages are all prerendered; one that reaches the shell has an unknown slug.
+  const detail = DETAIL_PATH.exec(path);
+  const route = detail ? (detail[1] as 'scenarios' | 'docs') : seoRouteForPath(path) ?? 'landing';
   const meta = pageMeta(route, lang, path);
   const shell = await env.ASSETS.fetch(new Request(new URL('/', request.url), request));
   if (!shell.ok) return shell;
@@ -269,8 +271,8 @@ async function serveAppShell(request: Request, env: Env, lang: Lang, path: strin
     .on('title', { element: (el) => { el.setInnerContent(meta.title); } })
     .on('meta[name="description"]', { element: (el) => { el.setAttribute('content', meta.description); } })
     .on('meta[name="robots"]', {
-      // An unknown scenario slug is a 404 and must not be indexed.
-      element: (el) => { el.setAttribute('content', scenarioPage ? 'noindex, follow' : meta.robots); },
+      // An unknown scenario or chapter slug is a 404 and must not be indexed.
+      element: (el) => { el.setAttribute('content', detail ? 'noindex, follow' : meta.robots); },
     })
     .on('link[rel="canonical"]', { element: (el) => { el.setAttribute('href', meta.canonical); } })
     .on('meta[property="og:url"]', { element: (el) => { el.setAttribute('content', meta.canonical); } })
@@ -289,7 +291,7 @@ async function serveAppShell(request: Request, env: Env, lang: Lang, path: strin
       },
     })
     .transform(shell);
-  if (!scenarioPage) return rewritten;
+  if (!detail) return rewritten;
   return new Response(rewritten.body, { status: 404, headers: rewritten.headers });
 }
 

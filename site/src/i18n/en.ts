@@ -161,6 +161,16 @@ export const en = {
       notSure: 'Not sure yet',
     },
   },
+  docs: {
+    title: 'Documentation',
+    lead: 'From a first run to CI, the SDKs and the theory behind the anomaly classes.',
+    chaptersLabel: 'Documentation chapters',
+    search: 'Search the docs',
+    noResults: 'No chapter matches this search.',
+    previous: 'Previous',
+    next: 'Next',
+    allChapters: 'All chapters',
+  },
   cta: {
     primary: 'See the bug happen',
     install: 'Install',

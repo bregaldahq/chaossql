@@ -40,7 +40,7 @@ const bundled = await build({
 });
 const worker = (await import(`data:text/javascript;base64,${Buffer.from(bundled.outputFiles[0].text).toString('base64')}`)).default;
 
-const PRERENDERED = ['/', '/pt', '/pricing', '/pt/pricing', '/scenarios/lost-update'];
+const PRERENDERED = ['/', '/pt', '/pricing', '/pt/pricing', '/scenarios/lost-update', '/docs/cli-reference', '/pt/docs/go-sdk'];
 const env = {
   ASSETS: {
     fetch: async (request) => {
@@ -84,10 +84,12 @@ test('English sections keep English metadata and indexing rules', async () => {
   assert.equal(changes['meta[name="robots"] content'], 'noindex, follow');
 });
 
-test('an unknown scenario slug is a noindex 404', async () => {
-  const res = await get('/scenarios/not-a-scenario');
-  assert.equal(res.status, 404);
-  assert.equal((await res.json())['meta[name="robots"] content'], 'noindex, follow');
+test('an unknown scenario slug or docs chapter is a noindex 404', async () => {
+  for (const path of ['/scenarios/not-a-scenario', '/docs/not-a-chapter', '/pt/docs/not-a-chapter']) {
+    const res = await get(path);
+    assert.equal(res.status, 404, path);
+    assert.equal((await res.json())['meta[name="robots"] content'], 'noindex, follow');
+  }
 });
 
 test('trailing slashes redirect to the canonical path', async () => {

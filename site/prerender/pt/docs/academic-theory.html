@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="lab" data-surface="light">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Teoria Formal &amp; Fundamentação Matemática | Documentação | ChaosSQL</title>
+    <meta
+      name="description"
+      content="O embasamento científico rigoroso do ChaosSQL: Condições de Conflito de Bernstein, Teorema da Serializabilidade por Conflito (CSR), agendamento probabilístic..."
+    />
+    <link rel="canonical" href="https://chaossql.bregalda.com/pt/docs/academic-theory" />
+    <link rel="alternate" hreflang="en" href="https://chaossql.bregalda.com/docs/academic-theory" />
+    <link rel="alternate" hreflang="pt-BR" href="https://chaossql.bregalda.com/pt/docs/academic-theory" />
+    <link rel="alternate" hreflang="x-default" href="https://chaossql.bregalda.com/docs/academic-theory" />
+    <meta name="robots" content="index, follow, max-image-preview:large" />
+    <meta name="keywords" content="ChaosSQL, SQL concurrency testing, database fuzzer, isolation levels, lost update, write skew, Adya anomalies, delta debugging, PostgreSQL, MySQL, SQLite, Go" />
+    <meta name="author" content="Ricardo Bregalda — Studio Bregalda" />
+    <meta name="theme-color" content="#141021" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="ChaosSQL" />
+    <meta property="og:locale" content="pt_BR" />
+    <meta property="og:locale:alternate" content="en_US" />
+    <meta property="og:url" content="https://chaossql.bregalda.com/pt/docs/academic-theory" />
+    <meta property="og:title" content="Teoria Formal &amp; Fundamentação Matemática | Documentação | ChaosSQL" />
+    <meta property="og:description" content="O embasamento científico rigoroso do ChaosSQL: Condições de Conflito de Bernstein, Teorema da Serializabilidade por Conflito (CSR), agendamento probabilístic..." />
+    <meta property="og:image" content="https://chaossql.bregalda.com/og/docs.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Teoria Formal &amp; Fundamentação Matemática | Documentação | ChaosSQL" />
+    <meta name="twitter:description" content="O embasamento científico rigoroso do ChaosSQL: Condições de Conflito de Bernstein, Teorema da Serializabilidade por Conflito (CSR), agendamento probabilístic..." />
+    <meta name="twitter:image" content="https://chaossql.bregalda.com/og/docs.png" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "ChaosSQL",
+        "url": "https://chaossql.bregalda.com/",
+        "description": "Deterministic concurrency and isolation fuzzer for SQL databases with causal delta-debugging and Adya cycle classification.",
+        "applicationCategory": "DeveloperApplication",
+        "operatingSystem": "Linux, macOS, Windows",
+        "programmingLanguage": "Go",
+        "license": "https://opensource.org/licenses/MIT",
+        "softwareVersion": "1.6.0",
+        "codeRepository": "https://github.com/bregaldahq/chaossql",
+        "sameAs": ["https://github.com/bregaldahq/chaossql"],
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+        "author": { "@type": "Person", "name": "Ricardo Bregalda" }
+      }
+    </script>
+    <link rel="icon" type="image/svg+xml" href="/brand/icone_bregalda.svg" />
+    <script type="module" crossorigin src="/assets/main-CrNNEqIa.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/main-DsdD8E9B.css">
+      <link rel="preload" as="font" type="font/woff2" crossorigin href="/assets/geist-latin-wght-normal-BgDaEnEv.woff2">
+    <link rel="preload" as="font" type="font/woff2" crossorigin href="/assets/jetbrains-mono-latin-wght-normal-B9CIFXIH.woff2">
+      <link rel="stylesheet" crossorigin href="/assets/DocsPage-BWkhtRW7.css">
+    <link rel="modulepreload" crossorigin href="/assets/DocsPage-Dw3uWl2X.js">
+    <link rel="modulepreload" crossorigin href="/assets/detail-meta-CVWaFmrz.js">
+    <link rel="modulepreload" crossorigin href="/assets/scenarios-data-BOJSi6Ec.js">
+    <link rel="modulepreload" crossorigin href="/assets/search-DK0de118.js">
+  </head>
+  <body>
+    <div id="root" data-prerendered><link rel="preload" as="image" href="/brand/icone_bregalda.svg"/><div style="min-height:100vh;display:flex;flex-direction:column"><a class="skip-link" href="#main">Pular para o conteúdo</a><header class="_nav_19ps6_2" data-nav="true"><a href="/pt" class="_brand_19ps6_17" aria-label="ChaosSQL by Studio Bregalda, início"><img src="/brand/icone_bregalda.svg" alt="" width="28" height="28"/><span>ChaosSQL</span></a><nav aria-label="Navegação principal" class="_links_19ps6_33"><a href="/pt#story" class="_link_19ps6_33">Como funciona</a><a href="/pt/scenarios" class="_link_19ps6_33">Cenários</a><a href="/pt/playground" class="_link_19ps6_33">Playground WASM</a><a href="/pt/docs" class="_link_19ps6_33" aria-current="page">Documentação</a><a href="/pt/pricing" class="_link_19ps6_33">Preços</a></nav><div class="_actions_19ps6_59"><div class="_lang_19ps6_66" role="group" aria-label="Seletor de idioma"><button type="button" aria-pressed="false">EN</button><button type="button" aria-pressed="true">PT</button></div><a href="https://github.com/bregaldahq/chaossql" target="_blank" rel="noreferrer" class="_github_19ps6_90">GitHub <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-up-right" aria-hidden="true"><path d="M7 7h10v10"></path><path d="M7 17 17 7"></path></svg></a><a href="/pt#story" class="_button_soy8p_1 _primary_soy8p_44 _md_soy8p_32 _cta_19ps6_146"><span>Ver o bug acontecer</span></a><button type="button" class="_menuToggle_19ps6_104" aria-expanded="false" aria-controls="mobile-nav" aria-label="Abrir menu de navegação"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-menu" aria-hidden="true"><path d="M4 5h16"></path><path d="M4 12h16"></path><path d="M4 19h16"></path></svg></button></div></header><main id="main" style="flex-grow:1"><!--$--><div class="_page_jeaxe_1"><div class="_layout_jeaxe_5"><aside class="_sidebar_1j18f_1"><a href="/pt/docs" class="_home_1j18f_11">Todos os capítulos</a><label class="_search_1j18f_21"><span class="sr-only">Buscar na documentação</span><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-search" aria-hidden="true"><path d="m21 21-4.34-4.34"></path><circle cx="11" cy="11" r="8"></circle></svg><input type="search" placeholder="Buscar na documentação" value=""/></label><nav aria-label="Capítulos da documentação"><div class="_group_1j18f_48"><p class="_category_1j18f_62">Começando</p><ul><li><a href="/pt/docs/getting-started" class="_link_1j18f_68">Guia de Início Rápido &amp; Primeiros Passos</a></li></ul></div><div class="_group_1j18f_48"><p class="_category_1j18f_62">Especificação</p><ul><li><a href="/pt/docs/dsl-spec" class="_link_1j18f_68">Especificação da Linguagem Declarativa (chaos.yaml DSL)</a></li></ul></div><div class="_group_1j18f_48"><p class="_category_1j18f_62">Interface</p><ul><li><a href="/pt/docs/cli-reference" class="_link_1j18f_68">Manual Completo da CLI &amp; Todas as 12 Flags</a></li></ul></div><div class="_group_1j18f_48"><p class="_category_1j18f_62">Visualização</p><ul><li><a href="/pt/docs/trace-visualizer" class="_link_1j18f_68">Visualizador Interativo de Traces (chaossql ui)</a></li></ul></div><div class="_group_1j18f_48"><p class="_category_1j18f_62">CI/CD &amp; Segurança</p><ul><li><a href="/pt/docs/cicd-sarif" class="_link_1j18f_68">Integração com CI/CD, SARIF 2.1.0 &amp; GitHub Actions</a></li></ul></div><div class="_group_1j18f_48"><p class="_category_1j18f_62">Motores</p><ul><li><a href="/pt/docs/drivers" class="_link_1j18f_68">Motores Suportados &amp; Arquitetura de Drivers</a></li></ul></div><div class="_group_1j18f_48"><p class="_category_1j18f_62">SDK</p><ul><li><a href="/pt/docs/go-sdk" class="_link_1j18f_68">Go Developer Testing SDK (pkg/chaostest)</a></li></ul></div><div class="_group_1j18f_48"><p class="_category_1j18f_62">Teoria</p><ul><li><a href="/pt/docs/academic-theory" class="_link_1j18f_68" aria-current="page">Teoria Formal &amp; Fundamentação Matemática</a></li></ul></div></nav></aside><article class="_article_1modt_1" aria-labelledby="chapter-title"><p class="_category_1modt_6">Teoria</p><h1 id="chapter-title" class="_title_1modt_12">Teoria Formal &amp; Fundamentação Matemática</h1><p class="_summary_1modt_22">O embasamento científico rigoroso do ChaosSQL: Condições de Conflito de Bernstein, Teorema da Serializabilidade por Conflito (CSR), agendamento probabilístico PCT com Teorema de Burckhardt, minimização causal com Zeller ddmin e verificação de linearizabilidade estilo Elle.</p><div class="_prose_1modt_30"><h2>1. Modelo Formal de Transações e Histórias de Execução</h2>
+<p>O ChaosSQL fundamenta sua análise na teoria formal clássica de banco de dados estabelecida por Bernstein, Goodman, Papadimitriou e Adya.</p>
+
+<h3>Definição Formal de Transação</h3>
+<p>Uma transação <span class="math">T<sub>i</sub></span> é definida matematicamente como uma tupla ordenada:</p>
+<p><span class="math math-block">T<sub>i</sub> = (O<sub>i</sub>, <<sub>i</sub>)</span></p>
+<p>Onde:</p>
+<ul>
+  <li><span class="math">O<sub>i</sub></span> é um conjunto finito de operações atômicas de leitura <span class="math">r<sub>i</sub>[x]</span>, escrita <span class="math">w<sub>i</sub>[x]</span>, commit <span class="math">c<sub>i</sub></span> ou abort <span class="math">a<sub>i</sub></span>, acessando entidades de dados <span class="math">x ∈ <em>D</em></span>.</li>
+  <li><span class="math"><<sub>i</sub></span> é uma ordem estrita parcial sobre <span class="math">O<sub>i</sub></span> que reflete o fluxo determinístico do programa da transação.</li>
+  <li>Existe exatamente uma operação terminal <span class="math">t<sub>i</sub> ∈ {a<sub>i</sub>, c<sub>i</sub>}</span>, que é o elemento maximal sob <span class="math"><<sub>i</sub></span>.</li>
+</ul>
+
+<h3>Definição Formal de História (Schedule)</h3>
+<p>Uma história de execução concorrente <span class="math">S</span> sobre um conjunto finito de transações <span class="math"><em>T</em> = {T<sub>1</sub>, T<sub>2</sub>, …, T<sub>n</sub>}</span> é uma ordem parcial <span class="math">S = (bigcup<sub>i=1</sub><sup>n</sup> O<sub>i</sub>, <<sub>S</sub>)</span> que satisfaz:</p>
+<ol>
+  <li><span class="math">bigcup<sub>i=1</sub><sup>n</sup> <<sub>i</sub>  ⊆  <<sub>S</sub></span> (preserva a ordem interna de instruções de cada transação).</li>
+  <li>Para quaisquer duas operações conflitantes <span class="math">o<sub>i</sub>, o<sub>j</sub> ∈ S</span> (onde <span class="math">i ≠ j</span>), ou <span class="math">o<sub>i</sub> <<sub>S</sub> o<sub>j</sub></span> ou <span class="math">o<sub>j</sub> <<sub>S</sub> o<sub>i</sub></span>.</li>
+</ol>
+
+<h2>2. Condições de Conflito de Bernstein &amp; Teorema CSR</h2>
+
+<h3>Condição de Conflito de Bernstein (1966)</h3>
+<p>Duas operações <span class="math">o<sub>i</sub>, o<sub>j</sub> ∈ S</span> pertencentes a transações distintas (<span class="math">i ≠ j</span>) estão em <strong>conflito direto</strong> se e somente se acessam a mesma entidade de dados <span class="math">x ∈ <em>D</em></span> e pelo menos uma delas é uma operação de mutação (<span class="math">w</span>):</p>
+<p><span class="math math-block">Conflict(o<sub>i</sub>, o<sub>j</sub>) ⟺ (target(o<sub>i</sub>) = target(o<sub>j</sub>) = x)  ∧  (o<sub>i</sub>  is  w  ∨  o<sub>j</sub>  is  w)</span></p>
+
+<h3>Grafo de Serialização Direta (Adya Dependency Graph)</h3>
+<p>Dado um schedule de execução <span class="math">S</span>, o Grafo de Serialização <span class="math">SG(S) = (V, E)</span> é um dígrafo onde:</p>
+<ul>
+  <li>Os vértices <span class="math">V = <em>T</em></span> correspondem ao conjunto de transações comitadas.</li>
+  <li>Existe uma aresta direcionada <span class="math">(T<sub>i</sub> → T<sub>j</sub>) ∈ E</span> se e somente se existe <span class="math">o<sub>i</sub> ∈ T<sub>i</sub></span> e <span class="math">o<sub>j</sub> ∈ T<sub>j</sub></span> tais que <span class="math">o<sub>i</sub> <<sub>S</sub> o<sub>j</sub></span> e <span class="math">Conflict(o<sub>i</sub>, o<sub>j</sub>)</span>.</li>
+</ul>
+
+<h3>As Três Relações Fundamentais de Dependência (Atul Adya, 1999)</h3>
+<ol>
+  <li><strong>Dependência de Leitura (<span class="math">wr</span> - Read Dependency):</strong> <span class="math">T<sub>i</sub>  —<sup>wr</sup>→  T<sub>j</sub></span> se <span class="math">T<sub>i</sub></span> grava uma versão de <span class="math">x</span> e <span class="math">T<sub>j</sub></span> subsequentemente lê essa mesma versão.</li>
+  <li><strong>Dependência de Sobrescrita (<span class="math">ww</span> - Overwrite Dependency):</strong> <span class="math">T<sub>i</sub>  —<sup>ww</sup>→  T<sub>j</sub></span> se <span class="math">T<sub>i</sub></span> grava uma versão de <span class="math">x</span> e <span class="math">T<sub>j</sub></span> subsequentemente sobrescreve <span class="math">x</span>.</li>
+  <li><strong>Anti-Dependência (<span class="math">rw</span> - Anti-Dependency):</strong> <span class="math">T<sub>i</sub>  —<sup>rw</sup>→  T<sub>j</sub></span> se <span class="math">T<sub>i</sub></span> lê uma versão de <span class="math">x</span> e <span class="math">T<sub>j</sub></span> subsequentemente grava uma nova versão de <span class="math">x</span>, tornando a leitura de <span class="math">T<sub>i</sub></span> desatualizada.</li>
+</ol>
+
+<h3>Teorema Fundamental da Serializabilidade por Conflito (CSR)</h3>
+<div class="docs-callout info">
+  <strong>Teorema Fundamental:</strong> Uma história concorrente <span class="math">S</span> é Serializavel por Conflito (<span class="math">S ∈ CSR</span>) se e somente se seu Grafo de Serialização <span class="math">SG(S)</span> é um <strong>Grafo Direcionado Acíclico (DAG)</strong>.
+</div>
+<p>A presença de qualquer ciclo direcionado (<span class="math">T<sub>1</sub> → T<sub>2</sub> → … → T<sub>1</sub></span>) prova que a execução é semanticamente inconsistente e não possui equivalente serial.</p>
+
+<h2>3. Agendamento Probabilístico PCT-SQL (Burckhardt &amp; Musuvathi)</h2>
+<p>Testes de concorrência ingênuos falham devido à explosão combinatória. Para <span class="math">n</span> transações executando <span class="math">m</span> passos cada, o número de intercalações possíveis <span class="math">Ω</span> cresce fatorialmente:</p>
+<p><span class="math math-block">|Ω| = ((n · m)!)⁄(m!)<sup>n</sup></span></p>
+<p>Para apenas 5 transações de 3 passos, existem <strong>168.168.000 intercalações possíveis</strong>. A chance de acertar a troca de contexto exata por pura aleatoriedade é inferior a <span class="math">10<sup>-6</sup></span>.</p>
+
+<h3>Teorema do Limite Inferior de Burckhardt (ASPLOS 2010)</h3>
+<p>O ChaosSQL adota o algoritmo <em>Probabilistic Concurrency Testing</em> (PCT). Burckhardt e Musuvathi provaram que, se um bug de concorrência requer uma profundidade de agendamento <span class="math">d</span> (número de restrições de prioridade ou trocas de contexto críticas para disparar), o algoritmo garante probabilidade mínima de detecção em uma única rodada:</p>
+<p><span class="math math-block">ℙ(Detecção) ≥ 1⁄(n · k<sup>d-1</sup>)</span></p>
+<p>Onde <span class="math">n</span> é o número de threads concorrentes e <span class="math">k</span> é o total de passos executados.</p>
+
+<h3>Aplicação Prática em Bancos de Dados Relacionais</h3>
+<ul>
+  <li>Estudos empíricos seminais (Lu et al., ASPLOS) demonstram que <strong>~96% dos bugs de concorrência reais possuem profundidade <span class="math">d = 1</span> ou <span class="math">d = 2</span></strong> (Lost Update requer <span class="math">d=1</span>; Write Skew requer <span class="math">d=2</span>).</li>
+  <li>Para <span class="math">d = 2</span>, a probabilidade de detecção por execução é <span class="math">ℙ ≥ 1⁄(n · k)</span>. Em um teste com 4 workers e 25 passos (<span class="math">n=4, k=25</span>), <span class="math">ℙ ≥ 1⁄100 = 1%</span>.</li>
+  <li>Em uma bateria curta de apenas <span class="math">R = 300</span> iterações (que executa em &lt; 1 segundo em memória):</li>
+</ul>
+<p><span class="math math-block">ℙ(Encontrar o Bug em  R  Rodadas) = 1 - (1 - 1⁄100)<sup>300</sup> ≈ 1 - e<sup>-3</sup> ≈ <strong>95.02%</strong></span></p>
+
+<h2>4. Minimização Causal com Andreas Zeller Delta-Debugging (<span class="math">ddmin</span>)</h2>
+
+<h3>Definição Formal de <span class="math">1</span>-Minimalidade</h3>
+<p>Seja <span class="math">C = ⟨ op<sub>1</sub>, op<sub>2</sub>, …, op<sub>N</sub> ⟩</span> a sequência ordenada de operações agendadas que dispara uma falha de invariante <span class="math">test(C) = FAIL</span>.</p>
+<p>Uma subsequência <span class="math">C<sup>*</sup> ⊆ C</span> é dita <strong><span class="math">1</span>-Minimal</strong> se e somente se:</p>
+<p><span class="math math-block">test(C<sup>*</sup>) = FAIL   ∧   ∀ op ∈ C<sup>*</sup>: test(C<sup>*</sup> ∖ {op}) = PASS</span></p>
+
+<h3>O Algoritmo Causal-<span class="math">ddmin</span> do ChaosSQL</h3>
+<p>Em bancos de dados relacionais, o particionamento binário ingênuo do <span class="math">ddmin</span> clássico falha porque remover uma operação que gerou um registro pai provoca erros artificiais de chave estrangeira (<code>FOREIGN KEY constraint failed</code>).</p>
+<p>O ChaosSQL resolve isso através do <strong>Causal Delta-Debugging</strong>:</p>
+<ol>
+  <li>Antes de testar um subconjunto particionado <span class="math">C' ⊂ C</span>, o motor computa o Grafo de Causalidade de Dados.</li>
+  <li>Calcula o fecho causal <span class="math">Closure(C')</span>: se <span class="math">T<sub>j</sub> ∈ C'</span> consome uma chave criada por <span class="math">T<sub>i</sub></span>, <span class="math">T<sub>i</sub></span> é compulsoriamente incluído no teste.</li>
+  <li>Isso elimina 100% dos falsos positivos por integridade referencial e acelera a convergência em até <strong><span class="math">4×</span></strong>.</li>
+</ol>
+
+<h2>5. Linearizabilidade e Observações de Caixa-Preta (Elle)</h2>
+<p>Inspirado na metodologia de Kyle Kingsbury (Jepsen) e Peter Alvaro (VLDB 2020), o ChaosSQL infere anomalias estritamente a partir do histórico observável de operações do cliente (leituras, escritas e retornos). Não há necessidade de instrumentação interna no código fonte do banco de dados, tornando o ChaosSQL universalmente compatível com qualquer motor relacional compatível com SQL.</p></div><nav class="_pager_1modt_234" aria-label="Capítulos da documentação"><a href="/pt/docs/go-sdk" class="_pagerLink_1modt_243" rel="prev"><span class="_pagerLabel_1modt_260"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-left" aria-hidden="true"><path d="m12 19-7-7 7-7"></path><path d="M19 12H5"></path></svg> <!-- -->Anterior</span><span class="_pagerTitle_1modt_272">Go Developer Testing SDK (pkg/chaostest)</span></a><span></span></nav></article></div></div><!--/$--></main><footer class="_footer_ldgol_1"><div class="_inner_ldgol_8"><div class="_brand_ldgol_16"><a href="/pt" class="_logo_ldgol_24"><img src="/brand/icone_bregalda.svg" alt="" width="28" height="28"/><span>ChaosSQL</span></a><p>Feito pelo Studio Bregalda.</p></div><nav aria-label="Links de rodapé" class="_groups_ldgol_37"><div><h2 class="_groupTitle_ldgol_43">Produto</h2><ul><li><a href="/pt#story">Como funciona</a></li><li><a href="/pt/scenarios">Cenários</a></li><li><a href="/pt/pricing">Preços</a></li></ul></div><div><h2 class="_groupTitle_ldgol_43">Ferramentas</h2><ul><li><a href="/pt/playground">Playground WASM</a></li><li><a href="/pt/visualizer">Trace Visualizer</a></li><li><a href="/pt/matrix">Matriz Hermitage</a></li><li><a href="/pt/dashboard">Cloud Dashboard</a></li></ul></div><div><h2 class="_groupTitle_ldgol_43">Recursos</h2><ul><li><a href="/pt/docs">Documentação</a></li><li><a href="https://github.com/bregaldahq/chaossql" target="_blank" rel="noreferrer">GitHub</a></li><li><a href="https://github.com/bregaldahq/chaossql/releases" target="_blank" rel="noreferrer">Releases</a></li></ul></div></nav><p class="_copyright_ldgol_69"><span>© <!-- -->2026</span> Studio Bregalda. <!-- -->Todos os direitos reservados.</p></div></footer></div></div>
+  </body>
+</html>

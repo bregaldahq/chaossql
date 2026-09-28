@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="lab" data-surface="light">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Formal Theory &amp; Mathematical Foundation | Docs | ChaosSQL</title>
+    <meta
+      name="description"
+      content="Mathematical foundations of concurrency fuzzing: Bernstein conditions, Adya CSR theorems, Burckhardt PCT probability bounds, and Zeller delta-debugging."
+    />
+    <link rel="canonical" href="https://chaossql.bregalda.com/docs/academic-theory" />
+    <link rel="alternate" hreflang="en" href="https://chaossql.bregalda.com/docs/academic-theory" />
+    <link rel="alternate" hreflang="pt-BR" href="https://chaossql.bregalda.com/pt/docs/academic-theory" />
+    <link rel="alternate" hreflang="x-default" href="https://chaossql.bregalda.com/docs/academic-theory" />
+    <meta name="robots" content="index, follow, max-image-preview:large" />
+    <meta name="keywords" content="ChaosSQL, SQL concurrency testing, database fuzzer, isolation levels, lost update, write skew, Adya anomalies, delta debugging, PostgreSQL, MySQL, SQLite, Go" />
+    <meta name="author" content="Ricardo Bregalda — Studio Bregalda" />
+    <meta name="theme-color" content="#141021" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="ChaosSQL" />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:locale:alternate" content="pt_BR" />
+    <meta property="og:url" content="https://chaossql.bregalda.com/docs/academic-theory" />
+    <meta property="og:title" content="Formal Theory &amp; Mathematical Foundation | Docs | ChaosSQL" />
+    <meta property="og:description" content="Mathematical foundations of concurrency fuzzing: Bernstein conditions, Adya CSR theorems, Burckhardt PCT probability bounds, and Zeller delta-debugging." />
+    <meta property="og:image" content="https://chaossql.bregalda.com/og/docs.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Formal Theory &amp; Mathematical Foundation | Docs | ChaosSQL" />
+    <meta name="twitter:description" content="Mathematical foundations of concurrency fuzzing: Bernstein conditions, Adya CSR theorems, Burckhardt PCT probability bounds, and Zeller delta-debugging." />
+    <meta name="twitter:image" content="https://chaossql.bregalda.com/og/docs.png" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "ChaosSQL",
+        "url": "https://chaossql.bregalda.com/",
+        "description": "Deterministic concurrency and isolation fuzzer for SQL databases with causal delta-debugging and Adya cycle classification.",
+        "applicationCategory": "DeveloperApplication",
+        "operatingSystem": "Linux, macOS, Windows",
+        "programmingLanguage": "Go",
+        "license": "https://opensource.org/licenses/MIT",
+        "softwareVersion": "1.6.0",
+        "codeRepository": "https://github.com/bregaldahq/chaossql",
+        "sameAs": ["https://github.com/bregaldahq/chaossql"],
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+        "author": { "@type": "Person", "name": "Ricardo Bregalda" }
+      }
+    </script>
+    <link rel="icon" type="image/svg+xml" href="/brand/icone_bregalda.svg" />
+    <script type="module" crossorigin src="/assets/main-CrNNEqIa.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/main-DsdD8E9B.css">
+      <link rel="preload" as="font" type="font/woff2" crossorigin href="/assets/geist-latin-wght-normal-BgDaEnEv.woff2">
+    <link rel="preload" as="font" type="font/woff2" crossorigin href="/assets/jetbrains-mono-latin-wght-normal-B9CIFXIH.woff2">
+      <link rel="stylesheet" crossorigin href="/assets/DocsPage-BWkhtRW7.css">
+    <link rel="modulepreload" crossorigin href="/assets/DocsPage-Dw3uWl2X.js">
+    <link rel="modulepreload" crossorigin href="/assets/detail-meta-CVWaFmrz.js">
+    <link rel="modulepreload" crossorigin href="/assets/scenarios-data-BOJSi6Ec.js">
+    <link rel="modulepreload" crossorigin href="/assets/search-DK0de118.js">
+  </head>
+  <body>
+    <div id="root" data-prerendered><link rel="preload" as="image" href="/brand/icone_bregalda.svg"/><div style="min-height:100vh;display:flex;flex-direction:column"><a class="skip-link" href="#main">Skip to content</a><header class="_nav_19ps6_2" data-nav="true"><a href="/" class="_brand_19ps6_17" aria-label="ChaosSQL by Studio Bregalda, home"><img src="/brand/icone_bregalda.svg" alt="" width="28" height="28"/><span>ChaosSQL</span></a><nav aria-label="Main navigation" class="_links_19ps6_33"><a href="/#story" class="_link_19ps6_33">How it works</a><a href="/scenarios" class="_link_19ps6_33">Scenarios</a><a href="/playground" class="_link_19ps6_33">WASM Playground</a><a href="/docs" class="_link_19ps6_33" aria-current="page">Docs</a><a href="/pricing" class="_link_19ps6_33">Pricing</a></nav><div class="_actions_19ps6_59"><div class="_lang_19ps6_66" role="group" aria-label="Language selector"><button type="button" aria-pressed="true">EN</button><button type="button" aria-pressed="false">PT</button></div><a href="https://github.com/bregaldahq/chaossql" target="_blank" rel="noreferrer" class="_github_19ps6_90">GitHub <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-up-right" aria-hidden="true"><path d="M7 7h10v10"></path><path d="M7 17 17 7"></path></svg></a><a href="/#story" class="_button_soy8p_1 _primary_soy8p_44 _md_soy8p_32 _cta_19ps6_146"><span>See the bug happen</span></a><button type="button" class="_menuToggle_19ps6_104" aria-expanded="false" aria-controls="mobile-nav" aria-label="Open navigation menu"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-menu" aria-hidden="true"><path d="M4 5h16"></path><path d="M4 12h16"></path><path d="M4 19h16"></path></svg></button></div></header><main id="main" style="flex-grow:1"><!--$--><div class="_page_jeaxe_1"><div class="_layout_jeaxe_5"><aside class="_sidebar_1j18f_1"><a href="/docs" class="_home_1j18f_11">All chapters</a><label class="_search_1j18f_21"><span class="sr-only">Search the docs</span><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-search" aria-hidden="true"><path d="m21 21-4.34-4.34"></path><circle cx="11" cy="11" r="8"></circle></svg><input type="search" placeholder="Search the docs" value=""/></label><nav aria-label="Documentation chapters"><div class="_group_1j18f_48"><p class="_category_1j18f_62">Getting Started</p><ul><li><a href="/docs/getting-started" class="_link_1j18f_68">Quickstart Guide &amp; Core Architecture</a></li></ul></div><div class="_group_1j18f_48"><p class="_category_1j18f_62">Specification</p><ul><li><a href="/docs/dsl-spec" class="_link_1j18f_68">Declarative Language Specification</a></li></ul></div><div class="_group_1j18f_48"><p class="_category_1j18f_62">Interface</p><ul><li><a href="/docs/cli-reference" class="_link_1j18f_68">CLI Manual, Subcommands &amp; All 12 Flags</a></li></ul></div><div class="_group_1j18f_48"><p class="_category_1j18f_62">Visualization</p><ul><li><a href="/docs/trace-visualizer" class="_link_1j18f_68">Interactive Trace Visualizer (chaossql ui)</a></li></ul></div><div class="_group_1j18f_48"><p class="_category_1j18f_62">CI/CD &amp; Security</p><ul><li><a href="/docs/cicd-sarif" class="_link_1j18f_68">CI/CD, SARIF 2.1.0 &amp; GitHub Actions</a></li></ul></div><div class="_group_1j18f_48"><p class="_category_1j18f_62">Engines</p><ul><li><a href="/docs/drivers" class="_link_1j18f_68">Supported Database Engines &amp; Drivers</a></li></ul></div><div class="_group_1j18f_48"><p class="_category_1j18f_62">SDK</p><ul><li><a href="/docs/go-sdk" class="_link_1j18f_68">Go Developer Testing SDK (chaostest)</a></li></ul></div><div class="_group_1j18f_48"><p class="_category_1j18f_62">Theory</p><ul><li><a href="/docs/academic-theory" class="_link_1j18f_68" aria-current="page">Formal Theory &amp; Mathematical Foundation</a></li></ul></div></nav></aside><article class="_article_1modt_1" aria-labelledby="chapter-title"><p class="_category_1modt_6">Theory</p><h1 id="chapter-title" class="_title_1modt_12">Formal Theory &amp; Mathematical Foundation</h1><p class="_summary_1modt_22">Mathematical foundations of concurrency fuzzing: Bernstein conditions, Adya CSR theorems, Burckhardt PCT probability bounds, and Zeller delta-debugging.</p><div class="_prose_1modt_30"><h2>1. Formal Model of Transactions and Execution Schedules</h2>
+<p>ChaosSQL establishes its mathematical foundations upon classical database concurrency theory developed by Bernstein, Goodman, Papadimitriou, and Adya.</p>
+
+<h3>Formal Definition of a Transaction</h3>
+<p>A transaction <span class="math">T<sub>i</sub></span> is formally defined as an ordered tuple:</p>
+<p><span class="math math-block">T<sub>i</sub> = (O<sub>i</sub>, <<sub>i</sub>)</span></p>
+<p>Where:</p>
+<ul>
+  <li><span class="math">O<sub>i</sub></span> is a finite set of atomic read operations <span class="math">r<sub>i</sub>[x]</span>, write operations <span class="math">w<sub>i</sub>[x]</span>, commit <span class="math">c<sub>i</sub></span>, or abort <span class="math">a<sub>i</sub></span>, accessing data items <span class="math">x ∈ <em>D</em></span>.</li>
+  <li><span class="math"><<sub>i</sub></span> is a strict partial order over <span class="math">O<sub>i</sub></span> reflecting the deterministic program flow of the transaction.</li>
+  <li>There exists exactly one terminal operation <span class="math">t<sub>i</sub> ∈ {a<sub>i</sub>, c<sub>i</sub>}</span>, which is the maximal element under <span class="math"><<sub>i</sub></span>.</li>
+</ul>
+
+<h3>Formal Definition of an Execution Schedule (History)</h3>
+<p>A concurrent execution schedule <span class="math">S</span> over a finite set of transactions <span class="math"><em>T</em> = {T<sub>1</sub>, T<sub>2</sub>, …, T<sub>n</sub>}</span> is a partial order <span class="math">S = (bigcup<sub>i=1</sub><sup>n</sup> O<sub>i</sub>, <<sub>S</sub>)</span> satisfying:</p>
+<ol>
+  <li><span class="math">bigcup<sub>i=1</sub><sup>n</sup> <<sub>i</sub>  ⊆  <<sub>S</sub></span> (preserves the intra-transaction instruction ordering of each transaction).</li>
+  <li>For any two conflicting operations <span class="math">o<sub>i</sub>, o<sub>j</sub> ∈ S</span> (where <span class="math">i ≠ j</span>), either <span class="math">o<sub>i</sub> <<sub>S</sub> o<sub>j</sub></span> or <span class="math">o<sub>j</sub> <<sub>S</sub> o<sub>i</sub></span>.</li>
+</ol>
+
+<h2>2. Bernstein Conflict Conditions &amp; CSR Theorem</h2>
+
+<h3>Bernstein Conflict Condition (1966)</h3>
+<p>Two operations <span class="math">o<sub>i</sub>, o<sub>j</sub> ∈ S</span> belonging to distinct transactions (<span class="math">i ≠ j</span>) are in <strong>direct conflict</strong> if and only if they access the same data entity <span class="math">x ∈ <em>D</em></span> and at least one of them is a write mutation (<span class="math">w</span>):</p>
+<p><span class="math math-block">Conflict(o<sub>i</sub>, o<sub>j</sub>) ⟺ (target(o<sub>i</sub>) = target(o<sub>j</sub>) = x)  ∧  (o<sub>i</sub>  is  w  ∨  o<sub>j</sub>  is  w)</span></p>
+
+<h3>Direct Serialization Graph (Adya Dependency Graph)</h3>
+<p>Given an execution schedule <span class="math">S</span>, the Direct Serialization Graph <span class="math">SG(S) = (V, E)</span> is a directed graph where:</p>
+<ul>
+  <li>Vertices <span class="math">V = <em>T</em></span> correspond to the set of committed transactions.</li>
+  <li>A directed edge <span class="math">(T<sub>i</sub> → T<sub>j</sub>) ∈ E</span> exists if and only if there exist <span class="math">o<sub>i</sub> ∈ T<sub>i</sub></span> and <span class="math">o<sub>j</sub> ∈ T<sub>j</sub></span> such that <span class="math">o<sub>i</sub> <<sub>S</sub> o<sub>j</sub></span> and <span class="math">Conflict(o<sub>i</sub>, o<sub>j</sub>)</span>.</li>
+</ul>
+
+<h3>The Three Fundamental Dependency Relations (Atul Adya, 1999)</h3>
+<ol>
+  <li><strong>Read Dependency (<span class="math">wr</span>):</strong> <span class="math">T<sub>i</sub>  —<sup>wr</sup>→  T<sub>j</sub></span> if <span class="math">T<sub>i</sub></span> writes a version of <span class="math">x</span> and <span class="math">T<sub>j</sub></span> subsequently reads that same version.</li>
+  <li><strong>Overwrite Dependency (<span class="math">ww</span>):</strong> <span class="math">T<sub>i</sub>  —<sup>ww</sup>→  T<sub>j</sub></span> if <span class="math">T<sub>i</sub></span> writes a version of <span class="math">x</span> and <span class="math">T<sub>j</sub></span> subsequently overwrites <span class="math">x</span>.</li>
+  <li><strong>Anti-Dependency (<span class="math">rw</span>):</strong> <span class="math">T<sub>i</sub>  —<sup>rw</sup>→  T<sub>j</sub></span> if <span class="math">T<sub>i</sub></span> reads a version of <span class="math">x</span> and <span class="math">T<sub>j</sub></span> subsequently writes a newer version of <span class="math">x</span>, invalidating the currency of <span class="math">T<sub>i</sub></span>'s read.</li>
+</ol>
+
+<h3>Fundamental Theorem of Conflict Serializability (CSR)</h3>
+<div class="docs-callout info">
+  <strong>Fundamental Theorem:</strong> A concurrent history <span class="math">S</span> is Conflict Serializable (<span class="math">S ∈ CSR</span>) if and only if its Serialization Graph <span class="math">SG(S)</span> is a <strong>Directed Acyclic Graph (DAG)</strong>.
+</div>
+<p>The existence of any directed cycle (<span class="math">T<sub>1</sub> → T<sub>2</sub> → … → T<sub>1</sub></span>) proves that the execution is semantically inconsistent and possesses no equivalent serial ordering.</p>
+
+<h2>3. Probabilistic Concurrency Testing (PCT-SQL) (Burckhardt &amp; Musuvathi)</h2>
+<p>Naive random concurrency testing fails due to combinatorial explosion. For <span class="math">n</span> transactions executing <span class="math">m</span> steps each, the total number of possible interleavings <span class="math">Ω</span> grows factorially:</p>
+<p><span class="math math-block">|Ω| = ((n · m)!)⁄(m!)<sup>n</sup></span></p>
+<p>For merely 5 transactions with 3 steps each, there exist <strong>168,168,000 possible interleavings</strong>. The probability of hitting a critical context switch purely by chance is below <span class="math">10<sup>-6</sup></span>.</p>
+
+<h3>Burckhardt Lower Bound Theorem (ASPLOS 2010)</h3>
+<p>ChaosSQL adopts the <em>Probabilistic Concurrency Testing</em> (PCT) algorithm. Burckhardt and Musuvathi proved that if a concurrency anomaly has a schedule depth <span class="math">d</span> (the number of priority constraints or critical context switches required to trigger it), the algorithm guarantees a rigorous lower bound on detection probability in a single run:</p>
+<p><span class="math math-block">ℙ(Detection) ≥ 1⁄(n · k<sup>d-1</sup>)</span></p>
+<p>Where <span class="math">n</span> is the number of concurrent threads and <span class="math">k</span> is the total number of executed steps.</p>
+
+<h3>Practical Application to Relational Databases</h3>
+<ul>
+  <li>Seminal empirical research (Lu et al., ASPLOS) demonstrates that <strong>~96% of real-world concurrency bugs have depth <span class="math">d = 1</span> or <span class="math">d = 2</span></strong> (Lost Update requires <span class="math">d=1</span>; Write Skew requires <span class="math">d=2</span>).</li>
+  <li>For <span class="math">d = 2</span>, the single-run detection probability is <span class="math">ℙ ≥ 1⁄(n · k)</span>. In a test with 4 workers and 25 steps (<span class="math">n=4, k=25</span>), <span class="math">ℙ ≥ 1⁄100 = 1%</span>.</li>
+  <li>In a short batch of only <span class="math">R = 300</span> iterations (which completes in &lt; 1 second in-memory):</li>
+</ul>
+<p><span class="math math-block">ℙ(Find Bug in  R  Runs) = 1 - (1 - 1⁄100)<sup>300</sup> ≈ 1 - e<sup>-3</sup> ≈ <strong>95.02%</strong></span></p>
+
+<h2>4. Causal Minimization with Andreas Zeller Delta-Debugging (<span class="math">ddmin</span>)</h2>
+
+<h3>Formal Definition of <span class="math">1</span>-Minimality</h3>
+<p>Let <span class="math">C = ⟨ op<sub>1</sub>, op<sub>2</sub>, …, op<sub>N</sub> ⟩</span> be the ordered sequence of scheduled operations that triggers an invariant failure <span class="math">test(C) = FAIL</span>.</p>
+<p>A subsequence <span class="math">C<sup>*</sup> ⊆ C</span> is defined as <strong><span class="math">1</span>-Minimal</strong> if and only if:</p>
+<p><span class="math math-block">test(C<sup>*</sup>) = FAIL   ∧   ∀ op ∈ C<sup>*</sup>: test(C<sup>*</sup> ∖ {op}) = PASS</span></p>
+
+<h3>The Causal-<span class="math">ddmin</span> Algorithm in ChaosSQL</h3>
+<p>In relational databases, standard binary partitioning of classical <span class="math">ddmin</span> fails because deleting an operation that generated a foreign key parent record produces artificial <code>FOREIGN KEY constraint failed</code> errors.</p>
+<p>ChaosSQL solves this via <strong>Causal Delta-Debugging</strong>:</p>
+<ol>
+  <li>Prior to testing a candidate subset <span class="math">C' ⊂ C</span>, the engine computes the Data Causality Graph.</li>
+  <li>It calculates the causal closure <span class="math">Closure(C')</span>: if <span class="math">T<sub>j</sub> ∈ C'</span> references a key created by <span class="math">T<sub>i</sub></span>, <span class="math">T<sub>i</sub></span> is mandatorily preserved in the test slice.</li>
+  <li>This eliminates 100% of false positives caused by broken referential integrity and accelerates convergence by up to <strong><span class="math">4×</span></strong>.</li>
+</ol>
+
+<h2>5. Linearizability and Black-Box Observations (Elle)</h2>
+<p>Inspired by the testing methodology of Kyle Kingsbury (Jepsen) and Peter Alvaro (VLDB 2020), ChaosSQL infers transactional anomalies strictly from client-observable operation histories (reads, writes, commits, and returns). No internal database engine instrumentation or custom storage bytecode is required, making ChaosSQL universally compatible with any SQL-compliant relational database.</p></div><nav class="_pager_1modt_234" aria-label="Documentation chapters"><a href="/docs/go-sdk" class="_pagerLink_1modt_243" rel="prev"><span class="_pagerLabel_1modt_260"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-left" aria-hidden="true"><path d="m12 19-7-7 7-7"></path><path d="M19 12H5"></path></svg> <!-- -->Previous</span><span class="_pagerTitle_1modt_272">Go Developer Testing SDK (chaostest)</span></a><span></span></nav></article></div></div><!--/$--></main><footer class="_footer_ldgol_1"><div class="_inner_ldgol_8"><div class="_brand_ldgol_16"><a href="/" class="_logo_ldgol_24"><img src="/brand/icone_bregalda.svg" alt="" width="28" height="28"/><span>ChaosSQL</span></a><p>Built by Studio Bregalda.</p></div><nav aria-label="Footer links" class="_groups_ldgol_37"><div><h2 class="_groupTitle_ldgol_43">Product</h2><ul><li><a href="/#story">How it works</a></li><li><a href="/scenarios">Scenarios</a></li><li><a href="/pricing">Pricing</a></li></ul></div><div><h2 class="_groupTitle_ldgol_43">Tools</h2><ul><li><a href="/playground">WASM Playground</a></li><li><a href="/visualizer">Trace Visualizer</a></li><li><a href="/matrix">Hermitage Matrix</a></li><li><a href="/dashboard">Cloud Dashboard</a></li></ul></div><div><h2 class="_groupTitle_ldgol_43">Resources</h2><ul><li><a href="/docs">Documentation</a></li><li><a href="https://github.com/bregaldahq/chaossql" target="_blank" rel="noreferrer">GitHub</a></li><li><a href="https://github.com/bregaldahq/chaossql/releases" target="_blank" rel="noreferrer">Releases</a></li></ul></div></nav><p class="_copyright_ldgol_69"><span>© <!-- -->2026</span> Studio Bregalda. <!-- -->All rights reserved.</p></div></footer></div></div>
+  </body>
+</html>

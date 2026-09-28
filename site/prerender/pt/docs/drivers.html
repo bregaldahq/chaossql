@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="lab" data-surface="light">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Motores Suportados &amp; Arquitetura de Drivers | Documentação | ChaosSQL</title>
+    <meta
+      name="description"
+      content="Guia de configuração e particularidades técnicas dos bancos de dados suportados: SQLite puro em Go (CGO=0 com WAL mode), PostgreSQL (pgx, READ COMMITTED vs S..."
+    />
+    <link rel="canonical" href="https://chaossql.bregalda.com/pt/docs/drivers" />
+    <link rel="alternate" hreflang="en" href="https://chaossql.bregalda.com/docs/drivers" />
+    <link rel="alternate" hreflang="pt-BR" href="https://chaossql.bregalda.com/pt/docs/drivers" />
+    <link rel="alternate" hreflang="x-default" href="https://chaossql.bregalda.com/docs/drivers" />
+    <meta name="robots" content="index, follow, max-image-preview:large" />
+    <meta name="keywords" content="ChaosSQL, SQL concurrency testing, database fuzzer, isolation levels, lost update, write skew, Adya anomalies, delta debugging, PostgreSQL, MySQL, SQLite, Go" />
+    <meta name="author" content="Ricardo Bregalda — Studio Bregalda" />
+    <meta name="theme-color" content="#141021" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="ChaosSQL" />
+    <meta property="og:locale" content="pt_BR" />
+    <meta property="og:locale:alternate" content="en_US" />
+    <meta property="og:url" content="https://chaossql.bregalda.com/pt/docs/drivers" />
+    <meta property="og:title" content="Motores Suportados &amp; Arquitetura de Drivers | Documentação | ChaosSQL" />
+    <meta property="og:description" content="Guia de configuração e particularidades técnicas dos bancos de dados suportados: SQLite puro em Go (CGO=0 com WAL mode), PostgreSQL (pgx, READ COMMITTED vs S..." />
+    <meta property="og:image" content="https://chaossql.bregalda.com/og/docs.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Motores Suportados &amp; Arquitetura de Drivers | Documentação | ChaosSQL" />
+    <meta name="twitter:description" content="Guia de configuração e particularidades técnicas dos bancos de dados suportados: SQLite puro em Go (CGO=0 com WAL mode), PostgreSQL (pgx, READ COMMITTED vs S..." />
+    <meta name="twitter:image" content="https://chaossql.bregalda.com/og/docs.png" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "ChaosSQL",
+        "url": "https://chaossql.bregalda.com/",
+        "description": "Deterministic concurrency and isolation fuzzer for SQL databases with causal delta-debugging and Adya cycle classification.",
+        "applicationCategory": "DeveloperApplication",
+        "operatingSystem": "Linux, macOS, Windows",
+        "programmingLanguage": "Go",
+        "license": "https://opensource.org/licenses/MIT",
+        "softwareVersion": "1.6.0",
+        "codeRepository": "https://github.com/bregaldahq/chaossql",
+        "sameAs": ["https://github.com/bregaldahq/chaossql"],
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+        "author": { "@type": "Person", "name": "Ricardo Bregalda" }
+      }
+    </script>
+    <link rel="icon" type="image/svg+xml" href="/brand/icone_bregalda.svg" />
+    <script type="module" crossorigin src="/assets/main-CrNNEqIa.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/main-DsdD8E9B.css">
+      <link rel="preload" as="font" type="font/woff2" crossorigin href="/assets/geist-latin-wght-normal-BgDaEnEv.woff2">
+    <link rel="preload" as="font" type="font/woff2" crossorigin href="/assets/jetbrains-mono-latin-wght-normal-B9CIFXIH.woff2">
+      <link rel="stylesheet" crossorigin href="/assets/DocsPage-BWkhtRW7.css">
+    <link rel="modulepreload" crossorigin href="/assets/DocsPage-Dw3uWl2X.js">
+    <link rel="modulepreload" crossorigin href="/assets/detail-meta-CVWaFmrz.js">
+    <link rel="modulepreload" crossorigin href="/assets/scenarios-data-BOJSi6Ec.js">
+    <link rel="modulepreload" crossorigin href="/assets/search-DK0de118.js">
+  </head>
+  <body>
+    <div id="root" data-prerendered><link rel="preload" as="image" href="/brand/icone_bregalda.svg"/><div style="min-height:100vh;display:flex;flex-direction:column"><a class="skip-link" href="#main">Pular para o conteúdo</a><header class="_nav_19ps6_2" data-nav="true"><a href="/pt" class="_brand_19ps6_17" aria-label="ChaosSQL by Studio Bregalda, início"><img src="/brand/icone_bregalda.svg" alt="" width="28" height="28"/><span>ChaosSQL</span></a><nav aria-label="Navegação principal" class="_links_19ps6_33"><a href="/pt#story" class="_link_19ps6_33">Como funciona</a><a href="/pt/scenarios" class="_link_19ps6_33">Cenários</a><a href="/pt/playground" class="_link_19ps6_33">Playground WASM</a><a href="/pt/docs" class="_link_19ps6_33" aria-current="page">Documentação</a><a href="/pt/pricing" class="_link_19ps6_33">Preços</a></nav><div class="_actions_19ps6_59"><div class="_lang_19ps6_66" role="group" aria-label="Seletor de idioma"><button type="button" aria-pressed="false">EN</button><button type="button" aria-pressed="true">PT</button></div><a href="https://github.com/bregaldahq/chaossql" target="_blank" rel="noreferrer" class="_github_19ps6_90">GitHub <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-up-right" aria-hidden="true"><path d="M7 7h10v10"></path><path d="M7 17 17 7"></path></svg></a><a href="/pt#story" class="_button_soy8p_1 _primary_soy8p_44 _md_soy8p_32 _cta_19ps6_146"><span>Ver o bug acontecer</span></a><button type="button" class="_menuToggle_19ps6_104" aria-expanded="false" aria-controls="mobile-nav" aria-label="Abrir menu de navegação"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-menu" aria-hidden="true"><path d="M4 5h16"></path><path d="M4 12h16"></path><path d="M4 19h16"></path></svg></button></div></header><main id="main" style="flex-grow:1"><!--$--><div class="_page_jeaxe_1"><div class="_layout_jeaxe_5"><aside class="_sidebar_1j18f_1"><a href="/pt/docs" class="_home_1j18f_11">Todos os capítulos</a><label class="_search_1j18f_21"><span class="sr-only">Buscar na documentação</span><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-search" aria-hidden="true"><path d="m21 21-4.34-4.34"></path><circle cx="11" cy="11" r="8"></circle></svg><input type="search" placeholder="Buscar na documentação" value=""/></label><nav aria-label="Capítulos da documentação"><div class="_group_1j18f_48"><p class="_category_1j18f_62">Começando</p><ul><li><a href="/pt/docs/getting-started" class="_link_1j18f_68">Guia de Início Rápido &amp; Primeiros Passos</a></li></ul></div><div class="_group_1j18f_48"><p class="_category_1j18f_62">Especificação</p><ul><li><a href="/pt/docs/dsl-spec" class="_link_1j18f_68">Especificação da Linguagem Declarativa (chaos.yaml DSL)</a></li></ul></div><div class="_group_1j18f_48"><p class="_category_1j18f_62">Interface</p><ul><li><a href="/pt/docs/cli-reference" class="_link_1j18f_68">Manual Completo da CLI &amp; Todas as 12 Flags</a></li></ul></div><div class="_group_1j18f_48"><p class="_category_1j18f_62">Visualização</p><ul><li><a href="/pt/docs/trace-visualizer" class="_link_1j18f_68">Visualizador Interativo de Traces (chaossql ui)</a></li></ul></div><div class="_group_1j18f_48"><p class="_category_1j18f_62">CI/CD &amp; Segurança</p><ul><li><a href="/pt/docs/cicd-sarif" class="_link_1j18f_68">Integração com CI/CD, SARIF 2.1.0 &amp; GitHub Actions</a></li></ul></div><div class="_group_1j18f_48"><p class="_category_1j18f_62">Motores</p><ul><li><a href="/pt/docs/drivers" class="_link_1j18f_68" aria-current="page">Motores Suportados &amp; Arquitetura de Drivers</a></li></ul></div><div class="_group_1j18f_48"><p class="_category_1j18f_62">SDK</p><ul><li><a href="/pt/docs/go-sdk" class="_link_1j18f_68">Go Developer Testing SDK (pkg/chaostest)</a></li></ul></div><div class="_group_1j18f_48"><p class="_category_1j18f_62">Teoria</p><ul><li><a href="/pt/docs/academic-theory" class="_link_1j18f_68">Teoria Formal &amp; Fundamentação Matemática</a></li></ul></div></nav></aside><article class="_article_1modt_1" aria-labelledby="chapter-title"><p class="_category_1modt_6">Motores</p><h1 id="chapter-title" class="_title_1modt_12">Motores Suportados &amp; Arquitetura de Drivers</h1><p class="_summary_1modt_22">Guia de configuração e particularidades técnicas dos bancos de dados suportados: SQLite puro em Go (CGO=0 com WAL mode), PostgreSQL (pgx, READ COMMITTED vs SSI) e MySQL/MariaDB (InnoDB Repeatable Read e gap locks).</p><div class="_prose_1modt_30"><h2>Arquitetura de Drivers e a Interface DatabaseDriver</h2>
+<p>O ChaosSQL interage com bancos de dados relacionais através de uma interface abstrata de alta performance definida em <code>internal/drivers/driver.go</code>:</p>
+
+<div class="code-container"><button type="button" class="copy-code-btn">Copiar</button>
+  <pre><code class="language-go">type DatabaseDriver interface {
+    DriverName() string
+    Open(ctx context.Context) error
+    Close() error
+    Reset(ctx context.Context, schemaSQL, seedSQL string) error
+    BeginTx(ctx context.Context) (Tx, error)
+    QueryRow(ctx context.Context, query string, args ...any) *sql.Row
+    Query(ctx context.Context, query string, args ...any) (*sql.Rows, error)
+    Exec(ctx context.Context, query string, args ...any) (sql.Result, error)
+}</code></pre>
+</div>
+
+<p>O método <code>Reset()</code> é fundamental para o fuzzer determinístico: antes de cada iteração de teste ou passo de teste do algoritmo de Delta-Debugging (<span class="math">ddmin</span>), o ChaosSQL reinicializa completamente o banco de dados, garantindo isolamento total de estado entre execuções.</p>
+
+<h2>Driver SQLite Puro em Go (<code>modernc.org/sqlite</code>)</h2>
+
+<h3>Compilação Sem CGO (<code>CGO_ENABLED=0</code>)</h3>
+<p>Diferente de implementações baseadas em <code>mattn/go-sqlite3</code> que exigem compilador C e bibliotecas compartilhadas, o ChaosSQL utiliza o driver <code>modernc.org/sqlite</code>. Isso permite compilar binários estáticos universais com zero dependências externas de compilação.</p>
+
+<h3>Configuração WAL e Concorrência</h3>
+<p>Durante o método <code>Open()</code>, o driver aplica automaticamente as configurações de alta concorrência do SQLite:</p>
+<div class="code-container"><button type="button" class="copy-code-btn">Copiar</button>
+  <pre><code class="language-sql">-- Habilita o modo Write-Ahead Logging para permitir leituras concorrentes com uma escrita
+PRAGMA journal_mode = WAL;
+
+-- Define o tempo de espera para aquisição de lock antes de falhar (5 segundos)
+PRAGMA busy_timeout = 5000;</code></pre>
+</div>
+
+<h3>Strings de Conexão Suportadas (DSN)</h3>
+<ul>
+  <li><code>:memory:</code> ou <code>file:chaos_mem?mode=memory&cache=shared</code>: Banco em memória volátil ultrarrápido (ideal para suítes de teste de alta velocidade, executando em &lt; 50ms).</li>
+  <li><code>file:database.db</code>: Banco persistido em arquivo local para testes de estresse em disco.</li>
+</ul>
+
+<h2>Driver PostgreSQL (<code>pgx/v5</code>)</h2>
+<p>O driver PostgreSQL do ChaosSQL utiliza o <code>github.com/jackc/pgx/v5/stdlib</code>, a biblioteca oficial de maior performance do ecossistema Go.</p>
+
+<h3>String de Conexão (DSN)</h3>
+<div class="code-container"><button type="button" class="copy-code-btn">Copiar</button>
+  <pre><code>postgres://chaos_user:secret_pass@localhost:5432/chaostest?sslmode=disable</code></pre>
+</div>
+
+<h3>Reset com Drop Cascade</h3>
+<p>Para garantir estado imaculado antes de cada teste, o driver PostgreSQL executa:</p>
+<div class="code-container"><button type="button" class="copy-code-btn">Copiar</button>
+  <pre><code class="language-sql">DROP SCHEMA IF EXISTS public CASCADE;
+CREATE SCHEMA public;</code></pre>
+</div>
+
+<h3>Semântica de Isolamento: READ COMMITTED vs REPEATABLE READ vs SERIALIZABLE</h3>
+<ul>
+  <li><strong><code>READ COMMITTED</code> (Padrão do PostgreSQL):</strong> Cada instrução SQL enxerga um snapshot gerado no início daquela instrução específica (<em>statement-level snapshot</em>). É altamente vulnerável a <strong>Lost Update (<span class="math">P4</span>)</strong> e <strong>Read Skew (<span class="math">A5A</span>)</strong> se a aplicação realizar lógica Read-Modify-Write.</li>
+  <li><strong><code>REPEATABLE READ</code>:</strong> Implementa Snapshot Isolation (SI). A transação inteira enxerga um snapshot consistente capturado no instante da primeira instrução. Previne <span class="math">P4</span> e <span class="math">A5A</span>, mas permanece vulnerável a <strong>Write Skew (<span class="math">A5B</span>)</strong>, pois transações com escritas disjuntas não colidem no motor de detecção de conflitos de escrita.</li>
+  <li><strong><code>SERIALIZABLE</code>:</strong> Ativa o algoritmo <strong>SSI (Serializable Snapshot Isolation)</strong> de Ports &amp; Grittner (VLDB 2012). O motor monitora locks virtuais de leitura (<code>SIREAD</code>) e aborta transações que participam de ciclos de anti-dependência com o erro SQLSTATE <code>40001 (serialization_failure)</code>.</li>
+</ul>
+
+<h3>Tratamento de Deadlocks no PostgreSQL</h3>
+<p>O driver intercepta o erro SQLSTATE <code>40P01 (deadlock_detected)</code> e o remapeia automaticamente para o tipo de erro canônico <code>ErrDeadlockDetected</code>, categorizado pelo ChaosSQL sob a anomalia <code>G-DL</code>.</p>
+
+<h2>Driver MySQL &amp; MariaDB (<code>go-sql-driver/mysql</code>)</h2>
+<p>O driver MySQL utiliza <code>github.com/go-sql-driver/mysql</code> configurado com suporte a múltiplas instruções (<code>multiStatements=true</code>).</p>
+
+<h3>String de Conexão (DSN)</h3>
+<div class="code-container"><button type="button" class="copy-code-btn">Copiar</button>
+  <pre><code>root:password@tcp(127.0.0.1:3306)/chaostest?parseTime=true&multiStatements=true</code></pre>
+</div>
+
+<h3>Particularidades do Motor de Armazenamento InnoDB</h3>
+<ul>
+  <li><strong>Nível Padrão <code>REPEATABLE READ</code>:</strong> Diferente do PostgreSQL, o InnoDB adota <code>REPEATABLE READ</code> como nível padrão.</li>
+  <li><strong>Next-Key Locks e Gap Locks:</strong> O InnoDB bloqueia não apenas os registros encontrados, mas também os intervalos vazios (<em>gaps</em>) entre eles em índices ordenados, impedindo a ocorrência de leituras fantasmas (<span class="math">A3</span>).</li>
+  <li><strong>Deadlocks em Bloqueios Pessimistas:</strong> Transações concorrentes que executam <code>SELECT ... FOR UPDATE</code> sobre linhas com chaves secundárias são propensas a deadlocks de intervalo (Gap Deadlocks). O ChaosSQL captura o erro MySQL <code>1213 (ER_LOCK_DEADLOCK)</code> e categoriza a anomalia.</li>
+</ul>
+
+<h2>Fuzzing Diferencial Cross-Engine com <code>chaossql diff</code></h2>
+<p>O comando <code>diff</code> executa o mesmo cenário com a mesma semente PRNG contra dois motores diferentes simultaneamente, emitindo um relatório comparativo de divergência semântica:</p>
+<div class="code-container"><button type="button" class="copy-code-btn">Copiar</button>
+  <pre><code>chaossql diff specs/banking_lost_update.yaml \
+  --driver-a=sqlite --dsn-a=":memory:" \
+  --driver-b=postgres --dsn-b="postgres://user:pass@localhost:5432/chaostest" \
+  --seed=42</code></pre>
+</div></div><nav class="_pager_1modt_234" aria-label="Capítulos da documentação"><a href="/pt/docs/cicd-sarif" class="_pagerLink_1modt_243" rel="prev"><span class="_pagerLabel_1modt_260"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-left" aria-hidden="true"><path d="m12 19-7-7 7-7"></path><path d="M19 12H5"></path></svg> <!-- -->Anterior</span><span class="_pagerTitle_1modt_272">Integração com CI/CD, SARIF 2.1.0 &amp; GitHub Actions</span></a><a href="/pt/docs/go-sdk" class="_pagerLink_1modt_243 _pagerNext_1modt_256" rel="next"><span class="_pagerLabel_1modt_260">Próximo<!-- --> <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-right" aria-hidden="true"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg></span><span class="_pagerTitle_1modt_272">Go Developer Testing SDK (pkg/chaostest)</span></a></nav></article></div></div><!--/$--></main><footer class="_footer_ldgol_1"><div class="_inner_ldgol_8"><div class="_brand_ldgol_16"><a href="/pt" class="_logo_ldgol_24"><img src="/brand/icone_bregalda.svg" alt="" width="28" height="28"/><span>ChaosSQL</span></a><p>Feito pelo Studio Bregalda.</p></div><nav aria-label="Links de rodapé" class="_groups_ldgol_37"><div><h2 class="_groupTitle_ldgol_43">Produto</h2><ul><li><a href="/pt#story">Como funciona</a></li><li><a href="/pt/scenarios">Cenários</a></li><li><a href="/pt/pricing">Preços</a></li></ul></div><div><h2 class="_groupTitle_ldgol_43">Ferramentas</h2><ul><li><a href="/pt/playground">Playground WASM</a></li><li><a href="/pt/visualizer">Trace Visualizer</a></li><li><a href="/pt/matrix">Matriz Hermitage</a></li><li><a href="/pt/dashboard">Cloud Dashboard</a></li></ul></div><div><h2 class="_groupTitle_ldgol_43">Recursos</h2><ul><li><a href="/pt/docs">Documentação</a></li><li><a href="https://github.com/bregaldahq/chaossql" target="_blank" rel="noreferrer">GitHub</a></li><li><a href="https://github.com/bregaldahq/chaossql/releases" target="_blank" rel="noreferrer">Releases</a></li></ul></div></nav><p class="_copyright_ldgol_69"><span>© <!-- -->2026</span> Studio Bregalda. <!-- -->Todos os direitos reservados.</p></div></footer></div></div>
+  </body>
+</html>

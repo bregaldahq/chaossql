@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pt-BR" data-surface="light">
+<html lang="pt-BR" data-theme="lab" data-surface="light">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -15,7 +15,7 @@
     <meta name="robots" content="index, follow, max-image-preview:large" />
     <meta name="keywords" content="ChaosSQL, SQL concurrency testing, database fuzzer, isolation levels, lost update, write skew, Adya anomalies, delta debugging, PostgreSQL, MySQL, SQLite, Go" />
     <meta name="author" content="Ricardo Bregalda — Studio Bregalda" />
-    <meta name="theme-color" content="#4B2E83" />
+    <meta name="theme-color" content="#141021" />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="ChaosSQL" />
     <meta property="og:locale" content="pt_BR" />
@@ -49,210 +49,17 @@
       }
     </script>
     <link rel="icon" type="image/svg+xml" href="/brand/icone_bregalda.svg" />
-    <script type="module" crossorigin src="/assets/main-DEFI-GWg.js"></script>
+    <script type="module" crossorigin src="/assets/main-CrNNEqIa.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/main-DsdD8E9B.css">
       <link rel="preload" as="font" type="font/woff2" crossorigin href="/assets/geist-latin-wght-normal-BgDaEnEv.woff2">
     <link rel="preload" as="font" type="font/woff2" crossorigin href="/assets/jetbrains-mono-latin-wght-normal-B9CIFXIH.woff2">
-      <link rel="stylesheet" crossorigin href="/assets/DocsPage-DYDmsIPm.css">
-    <link rel="modulepreload" crossorigin href="/assets/DocsPage-BvveOFkA.js">
-    <link rel="modulepreload" crossorigin href="/assets/search-vXR3bvwm.js">
+      <link rel="stylesheet" crossorigin href="/assets/DocsPage-BWkhtRW7.css">
+    <link rel="modulepreload" crossorigin href="/assets/DocsPage-Dw3uWl2X.js">
+    <link rel="modulepreload" crossorigin href="/assets/detail-meta-CVWaFmrz.js">
+    <link rel="modulepreload" crossorigin href="/assets/scenarios-data-BOJSi6Ec.js">
+    <link rel="modulepreload" crossorigin href="/assets/search-DK0de118.js">
   </head>
   <body>
-    <div id="root" data-prerendered><link rel="preload" as="image" href="/brand/icone_bregalda.svg"/><div style="min-height:100vh;display:flex;flex-direction:column"><a class="skip-link" href="#main">Pular para o conteúdo</a><header class="_nav_19ps6_2" data-nav="true"><a href="/pt" class="_brand_19ps6_17" aria-label="ChaosSQL by Studio Bregalda, início"><img src="/brand/icone_bregalda.svg" alt="" width="28" height="28"/><span>ChaosSQL</span></a><nav aria-label="Navegação principal" class="_links_19ps6_33"><a href="/pt#story" class="_link_19ps6_33">Como funciona</a><a href="/pt/scenarios" class="_link_19ps6_33">Cenários</a><a href="/pt/playground" class="_link_19ps6_33">Playground WASM</a><a href="/pt/docs" class="_link_19ps6_33" aria-current="page">Documentação</a><a href="/pt/pricing" class="_link_19ps6_33">Preços</a></nav><div class="_actions_19ps6_59"><div class="_lang_19ps6_66" role="group" aria-label="Seletor de idioma"><button type="button" aria-pressed="false">EN</button><button type="button" aria-pressed="true">PT</button></div><a href="https://github.com/bregaldahq/chaossql" target="_blank" rel="noreferrer" class="_github_19ps6_90">GitHub <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-up-right" aria-hidden="true"><path d="M7 7h10v10"></path><path d="M7 17 17 7"></path></svg></a><a href="/pt#story" class="_button_soy8p_1 _primary_soy8p_44 _md_soy8p_32 _cta_19ps6_146"><span>Ver o bug acontecer</span></a><button type="button" class="_menuToggle_19ps6_104" aria-expanded="false" aria-controls="mobile-nav" aria-label="Abrir menu de navegação"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-menu" aria-hidden="true"><path d="M4 5h16"></path><path d="M4 12h16"></path><path d="M4 19h16"></path></svg></button></div></header><main id="main" style="flex-grow:1"><!--$--><div class="_pageContainer_1iru9_1" data-surface="light"><div class="_docsLayout_1iru9_7"><aside class="_sidebar_1xajw_1" aria-label="Navegação da documentação"><div class="_searchBox_1xajw_12"><input type="text" class="_searchInput_1xajw_17" placeholder="Buscar tópicos (/)..." value=""/><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-search _searchIcon_1xajw_33" aria-hidden="true"><path d="m21 21-4.34-4.34"></path><circle cx="11" cy="11" r="8"></circle></svg></div><nav class="_navGroup_1xajw_42"><div style="margin-bottom:var(--space-2)"><div class="_categoryTitle_1xajw_48">Começando</div><a href="/docs?chapter=getting-started" class="_chapterLink_1xajw_58 _chapterLinkActive_1xajw_77"><span class="technical-label" style="font-size:0.68rem;color:var(--text-secondary)">0<!-- -->1</span><span>Guia de Início Rápido &amp; Primeiros Passos</span></a></div><div style="margin-bottom:var(--space-2)"><div class="_categoryTitle_1xajw_48">Especificação</div><a href="/docs?chapter=dsl-spec" class="_chapterLink_1xajw_58 "><span class="technical-label" style="font-size:0.68rem;color:var(--text-secondary)">0<!-- -->1</span><span>Especificação da Linguagem Declarativa (chaos.yaml DSL)</span></a></div><div style="margin-bottom:var(--space-2)"><div class="_categoryTitle_1xajw_48">Interface</div><a href="/docs?chapter=cli-reference" class="_chapterLink_1xajw_58 "><span class="technical-label" style="font-size:0.68rem;color:var(--text-secondary)">0<!-- -->1</span><span>Manual Completo da CLI &amp; Todas as 12 Flags</span></a></div><div style="margin-bottom:var(--space-2)"><div class="_categoryTitle_1xajw_48">Visualização</div><a href="/docs?chapter=trace-visualizer" class="_chapterLink_1xajw_58 "><span class="technical-label" style="font-size:0.68rem;color:var(--text-secondary)">0<!-- -->1</span><span>Visualizador Interativo de Traces (chaossql ui)</span></a></div><div style="margin-bottom:var(--space-2)"><div class="_categoryTitle_1xajw_48">CI/CD &amp; Segurança</div><a href="/docs?chapter=cicd-sarif" class="_chapterLink_1xajw_58 "><span class="technical-label" style="font-size:0.68rem;color:var(--text-secondary)">0<!-- -->1</span><span>Integração com CI/CD, SARIF 2.1.0 &amp; GitHub Actions</span></a></div><div style="margin-bottom:var(--space-2)"><div class="_categoryTitle_1xajw_48">Motores</div><a href="/docs?chapter=drivers" class="_chapterLink_1xajw_58 "><span class="technical-label" style="font-size:0.68rem;color:var(--text-secondary)">0<!-- -->1</span><span>Motores Suportados &amp; Arquitetura de Drivers</span></a></div><div style="margin-bottom:var(--space-2)"><div class="_categoryTitle_1xajw_48">SDK</div><a href="/docs?chapter=go-sdk" class="_chapterLink_1xajw_58 "><span class="technical-label" style="font-size:0.68rem;color:var(--text-secondary)">0<!-- -->1</span><span>Go Developer Testing SDK (pkg/chaostest)</span></a></div><div style="margin-bottom:var(--space-2)"><div class="_categoryTitle_1xajw_48">Teoria</div><a href="/docs?chapter=academic-theory" class="_chapterLink_1xajw_58 "><span class="technical-label" style="font-size:0.68rem;color:var(--text-secondary)">0<!-- -->1</span><span>Teoria Formal &amp; Fundamentação Matemática</span></a></div></nav></aside><article class="_contentPane_vnnxe_1" data-surface="light"><div class="_articleInner_vnnxe_7"><div class="_breadcrumbs_vnnxe_11"><span>ChaosSQL</span><span>/</span><span>Docs</span><span>/</span><span>Começando</span></div><span class="_badge_vnnxe_23">Começando</span><h1 class="_title_vnnxe_35">Guia de Início Rápido &amp; Primeiros Passos</h1><div class="_summaryBox_vnnxe_45"><p style="margin:0">Aprenda os fundamentos do ChaosSQL, como instalar a ferramenta com zero dependências externas (Pure Go, CGO_ENABLED=0) e executar seu primeiro teste de concorrência com detecção de anomalia e redução causal em menos de 5 minutos.</p></div><div class="_htmlContent_vnnxe_56"><h2>O Que é o ChaosSQL?</h2>
-<p>O <strong>ChaosSQL</strong> é um Fuzzer Determinístico de Concorrência e Invariantes para Bancos de Dados SQL, criado por Ricardo Bregalda (Studio Bregalda). Em sistemas concorrentes e microsserviços modernos, bugs de concorrência — como <em>Lost Updates</em>, <em>Write Skew</em>, <em>Phantom Reads</em> e <em>Deadlocks</em> transitórios — são extremamente difíceis de reproduzir e depurar. Testes de unidade convencionais são sequenciais e determinísticos por natureza, enquanto testes de carga estocásticos (como JMeter ou k6) geram ruído desmedido e raramente reproduzem as trocas de contexto (<em>context switches</em>) críticas necessárias para disparar a anomalia.</p>
-
-<p>O ChaosSQL aborda essa lacuna fundamental unindo a engenharia do caos com três pilares da computação teórica:</p>
-<ul>
-  <li><strong>Agendamento Probabilístico Estocástico (PCT-SQL):</strong> Baseado no algoritmo <em>Probabilistic Concurrency Testing</em> de Burckhardt &amp; Musuvathi (ASPLOS 2010), fornecendo garantias matemáticas formais de probabilidade mínima de detecção em espaços combinatórios exponenciais.</li>
-  <li><strong>Classificação Automática de Anomalias via Grafos de Adya:</strong> Reconstrói o Grafo de Serialização Direta (<em>Direct Serialization Graph</em>) com base na tese seminal de Atul Adya (MIT 1999) e nas observações de caixa-preta do Elle (VLDB 2020), identificando arestas de conflito $rw$ (anti-dependência), $ww$ (sobreposição) e $wr$ (dependência de leitura).</li>
-  <li><strong>Causal Delta-Debugging ($ddmin$):</strong> Implementa o algoritmo de Andreas Zeller adaptado com preservação de integridade referencial, reduzindo centenas de transações caóticas a um caso de teste <em>1-minimal</em> de apenas 2 operações em milissegundos.</li>
-</ul>
-
-<div class="docs-callout info">
-  <strong>Zero CGO &amp; Pure Go:</strong> O ChaosSQL compila para um único binário executável estático sem necessidade de ferramentas de compilação em C (<code>CGO_ENABLED=0</code>). O motor SQLite embutido roda via transpilador nativo em Go puro (<code>modernc.org/sqlite</code>), permitindo execução instantânea em qualquer container Alpine, WSL2, Linux, macOS ou Windows.
-</div>
-
-<h2>Requisitos de Sistema &amp; Instalação</h2>
-<p>O ChaosSQL requer apenas o ambiente Go 1.22 ou superior (caso deseje compilar a partir do código-fonte) ou pode ser baixado diretamente como binário standalone.</p>
-
-<h3>Método 1: Instalação Rápida via Go Toolchain</h3>
-<div class="code-container">
-  <button class="copy-code-btn" onclick="navigator.clipboard.writeText('go install github.com/bregaldahq/chaossql/cmd/chaossql@latest')">Copiar</button>
-  <pre><code>go install github.com/bregaldahq/chaossql/cmd/chaossql@latest</code></pre>
-</div>
-
-<h3>Método 2: Compilação Estática a Partir do Repositório Git</h3>
-<div class="code-container">
-  <button class="copy-code-btn" onclick="navigator.clipboard.writeText('git clone https://github.com/bregaldahq/chaossql.git\ncd chaossql\nCGO_ENABLED=0 go build -ldflags=\"-s -w\" -o bin/chaossql ./cmd/chaossql')">Copiar</button>
-  <pre><code># 1. Clonar o repositório oficial
-git clone https://github.com/bregaldahq/chaossql.git
-cd chaossql
-
-# 2. Compilar binário estático de alta performance
-CGO_ENABLED=0 go build -ldflags="-s -w" -o bin/chaossql ./cmd/chaossql
-
-# 3. Testar a instalação
-./bin/chaossql --help</code></pre>
-</div>
-
-<h3>Método 3: Execução via Docker Container</h3>
-<div class="code-container">
-  <pre><code>docker run --rm -v $(pwd):/workspace -w /workspace ghcr.io/bregaldahq/chaossql:latest run specs/banking.yaml</code></pre>
-</div>
-
-<h2>Seu Primeiro Teste em 5 Minutos (Passo a Passo)</h2>
-<p>Vamos criar e testar um cenário clássico de perda de atualização bancária (<em>Lost Update</em>, anomalia $P4$), onde dois clientes sacam dinheiro simultaneamente da mesma conta sob isolamento permissivo.</p>
-
-<h3>Passo 1: Criar o Scaffolding com <code>chaossql init</code></h3>
-<p>O comando <code>init</code> cria a estrutura de diretórios e arquivos de modelo prontos para execução:</p>
-<div class="code-container">
-  <pre><code>chaossql init quickstart_banking --driver sqlite</code></pre>
-</div>
-<p>A estrutura de arquivos criada é:</p>
-<ul>
-  <li><code>schema.sql</code>: Esquema das tabelas e índices DDL.</li>
-  <li><code>seed.sql</code>: Carga inicial de dados DML.</li>
-  <li><code>chaos.yaml</code>: Especificação do motor, workers, invariantes e operações.</li>
-  <li><code>README.md</code>: Documentação contextual do cenário.</li>
-</ul>
-
-<h3>Passo 2: Definir o Esquema DDL (<code>schema.sql</code>)</h3>
-<div class="code-container">
-  <pre><code class="language-sql">-- Tabela de contas bancárias
-CREATE TABLE accounts (
-    id INT PRIMARY KEY,
-    owner TEXT NOT NULL,
-    balance INT NOT NULL
-);</code></pre>
-</div>
-
-<h3>Passo 3: Inserir a Carga Inicial (<code>seed.sql</code>)</h3>
-<div class="code-container">
-  <pre><code class="language-sql">-- Saldo inicial de R$ 1.000 para Alice
-INSERT INTO accounts (id, owner, balance) VALUES (1, 'Alice', 1000);</code></pre>
-</div>
-
-<h3>Passo 4: Configurar a Especificação (<code>chaos.yaml</code>)</h3>
-<div class="code-container">
-  <pre><code class="language-yaml">version: "1.0"
-name: "quickstart_banking"
-description: "Verificação de integridade de saldo sob saques simultâneos"
-
-database:
-  driver: "sqlite"
-  schema: "schema.sql"
-  seed: "seed.sql"
-
-engine:
-  workers: 4          # 4 goroutines concorrentes
-  iterations: 20      # 20 operações de saque no total
-  seed: 42            # Semente determinística reproduzível
-  jitter_ms: [1, 5]   # Micro-atrasos estocásticos de 1ms a 5ms
-
-invariants:
-  - name: "total_balance_consistency"
-    query: "SELECT balance FROM accounts WHERE id = 1;"
-    assert: "balance == 1000 - (total_completed * 100)"
-
-operations:
-  - name: "withdraw_100"
-    steps:
-      - "SELECT balance FROM accounts WHERE id = 1 -> cur"
-      - "UPDATE accounts SET balance = {cur - 100} WHERE id = 1"</code></pre>
-</div>
-
-<h3>Passo 5: Executar o Fuzzer com <code>chaossql run</code></h3>
-<div class="code-container">
-  <pre><code>chaossql run quickstart_banking/chaos.yaml --seed=42 --workers=4</code></pre>
-</div>
-
-<h3>Passo 6: Analisando o Diagnóstico no Terminal</h3>
-<p>O ChaosSQL executa os 4 workers simultaneamente, intercalando as operações de leitura (<code>SELECT</code>) e escrita (<code>UPDATE</code>) com jitter estocástico. Em poucos milissegundos, o fuzzer detecta a violação da invariante:</p>
-<ul>
-  <li><strong>Violação Identificada:</strong> <code>balance == 1000 - (total_completed * 100)</code> falhou (esperado: 0, real: 500).</li>
-  <li><strong>Classificação Adya:</strong> Anomalia <code>P4_LOST_UPDATE</code> ($G\text{-single}$ cycle).</li>
-  <li><strong>Grafo de Conflito:</strong> <code>T1 ──(rw)──► T2 ──(ww)──► T1</code>.</li>
-  <li><strong>Causal Delta-Debugging ($ddmin$):</strong> Reduziu o trace original de 20 operações para apenas 2 operações críticas em 68ms (90.0% de redução).</li>
-</ul>
-
-<div class="docs-callout tip">
-  <strong>Interface Visual Interativa:</strong> Adicione a flag <code>--ui</code> ao executar qualquer teste (ex: <code>chaossql run chaos.yaml --ui</code>) para inicializar instantaneamente o servidor de visualização local em <code>http://127.0.0.1:8090</code>, com linha do tempo Gantt e visualização de grafos SVG.
-</div>
-
-<h2>Demonstrações Flagship Embutidas</h2>
-<p>O ChaosSQL inclui 10 cenários pré-configurados prontos para execução imediata via comando <code>chaossql demo</code>:</p>
-
-<table class="matrix-table">
-  <thead>
-    <tr>
-      <th>Comando</th>
-      <th>Fenômeno</th>
-      <th>Código Adya</th>
-      <th>Severidade</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td><code>chaossql demo banking</code></td>
-      <td>Banking Lost Update</td>
-      <td><span class="badge badge-cycle">P4</span></td>
-      <td>Alta (Perda de Mutação)</td>
-    </tr>
-    <tr>
-      <td><code>chaossql demo inventory</code></td>
-      <td>Inventory Oversell</td>
-      <td><span class="badge badge-cycle">A3</span></td>
-      <td>Crítica (Estoque Negativo)</td>
-    </tr>
-    <tr>
-      <td><code>chaossql demo hospital</code></td>
-      <td>Hospital Write Skew</td>
-      <td><span class="badge badge-cycle">A5B</span></td>
-      <td>Crítica (Violação Global)</td>
-    </tr>
-    <tr>
-      <td><code>chaossql demo financial</code></td>
-      <td>Financial Read Skew</td>
-      <td><span class="badge badge-cycle">A5A</span></td>
-      <td>Média (Auditoria Quebrada)</td>
-    </tr>
-    <tr>
-      <td><code>chaossql demo auction</code></td>
-      <td>Auction Dirty Write</td>
-      <td><span class="badge badge-cycle">G0</span></td>
-      <td>Crítica (Violação 2PL)</td>
-    </tr>
-    <tr>
-      <td><code>chaossql demo crypto</code></td>
-      <td>Crypto Arbitrage Info Cycle</td>
-      <td><span class="badge badge-cycle">G1c</span></td>
-      <td>Alta (Fluxo Circular)</td>
-    </tr>
-    <tr>
-      <td><code>chaossql demo flash_crash</code></td>
-      <td>Flash Crash Dirty Read</td>
-      <td><span class="badge badge-cycle">G1a</span></td>
-      <td>Crítica (Dados Abortados)</td>
-    </tr>
-    <tr>
-      <td><code>chaossql demo ticket</code></td>
-      <td>Ticket Anti-Dependency</td>
-      <td><span class="badge badge-cycle">G2</span></td>
-      <td>Alta (Reserva Duplicada)</td>
-    </tr>
-    <tr>
-      <td><code>chaossql demo deadlock</code></td>
-      <td>Deadlock Cycle &amp; Recovery</td>
-      <td><span class="badge badge-cycle">G-DL</span></td>
-      <td>Média (Bloqueio Mútuo)</td>
-    </tr>
-    <tr>
-      <td><code>chaossql demo fk</code></td>
-      <td>Foreign Key Cascade Deadlock</td>
-      <td><span class="badge badge-cycle">G-DL</span></td>
-      <td>Alta (Conflito Cascata)</td>
-    </tr>
-  </tbody>
-</table></div><div class="_footerNav_vnnxe_147"><div></div><button type="button" class="_navBtn_vnnxe_156"><span>Especificação da Linguagem Declarativa (chaos.yaml DSL)</span><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-right" aria-hidden="true"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg></button></div></div></article></div></div><!--/$--></main><footer class="_footer_ldgol_1"><div class="_inner_ldgol_8"><div class="_brand_ldgol_16"><a href="/pt" class="_logo_ldgol_24"><img src="/brand/icone_bregalda.svg" alt="" width="28" height="28"/><span>ChaosSQL</span></a><p>Feito pelo Studio Bregalda.</p></div><nav aria-label="Links de rodapé" class="_groups_ldgol_37"><div><h2 class="_groupTitle_ldgol_43">Produto</h2><ul><li><a href="/pt#story">Como funciona</a></li><li><a href="/pt/scenarios">Cenários</a></li><li><a href="/pt/pricing">Preços</a></li></ul></div><div><h2 class="_groupTitle_ldgol_43">Ferramentas</h2><ul><li><a href="/pt/playground">Playground WASM</a></li><li><a href="/pt/visualizer">Trace Visualizer</a></li><li><a href="/pt/matrix">Matriz Hermitage</a></li><li><a href="/pt/dashboard">Cloud Dashboard</a></li></ul></div><div><h2 class="_groupTitle_ldgol_43">Recursos</h2><ul><li><a href="/pt/docs">Documentação</a></li><li><a href="https://github.com/bregaldahq/chaossql" target="_blank" rel="noreferrer">GitHub</a></li><li><a href="https://github.com/bregaldahq/chaossql/releases" target="_blank" rel="noreferrer">Releases</a></li></ul></div></nav><p class="_copyright_ldgol_69"><span>© <!-- -->2026</span> Studio Bregalda. <!-- -->Todos os direitos reservados.</p></div></footer></div></div>
+    <div id="root" data-prerendered><link rel="preload" as="image" href="/brand/icone_bregalda.svg"/><div style="min-height:100vh;display:flex;flex-direction:column"><a class="skip-link" href="#main">Pular para o conteúdo</a><header class="_nav_19ps6_2" data-nav="true"><a href="/pt" class="_brand_19ps6_17" aria-label="ChaosSQL by Studio Bregalda, início"><img src="/brand/icone_bregalda.svg" alt="" width="28" height="28"/><span>ChaosSQL</span></a><nav aria-label="Navegação principal" class="_links_19ps6_33"><a href="/pt#story" class="_link_19ps6_33">Como funciona</a><a href="/pt/scenarios" class="_link_19ps6_33">Cenários</a><a href="/pt/playground" class="_link_19ps6_33">Playground WASM</a><a href="/pt/docs" class="_link_19ps6_33" aria-current="page">Documentação</a><a href="/pt/pricing" class="_link_19ps6_33">Preços</a></nav><div class="_actions_19ps6_59"><div class="_lang_19ps6_66" role="group" aria-label="Seletor de idioma"><button type="button" aria-pressed="false">EN</button><button type="button" aria-pressed="true">PT</button></div><a href="https://github.com/bregaldahq/chaossql" target="_blank" rel="noreferrer" class="_github_19ps6_90">GitHub <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-up-right" aria-hidden="true"><path d="M7 7h10v10"></path><path d="M7 17 17 7"></path></svg></a><a href="/pt#story" class="_button_soy8p_1 _primary_soy8p_44 _md_soy8p_32 _cta_19ps6_146"><span>Ver o bug acontecer</span></a><button type="button" class="_menuToggle_19ps6_104" aria-expanded="false" aria-controls="mobile-nav" aria-label="Abrir menu de navegação"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-menu" aria-hidden="true"><path d="M4 5h16"></path><path d="M4 12h16"></path><path d="M4 19h16"></path></svg></button></div></header><main id="main" style="flex-grow:1"><!--$--><div class="_page_jeaxe_1"><div class="_layout_jeaxe_5"><aside class="_sidebar_1j18f_1"><a href="/pt/docs" class="_home_1j18f_11" aria-current="page">Todos os capítulos</a><label class="_search_1j18f_21"><span class="sr-only">Buscar na documentação</span><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-search" aria-hidden="true"><path d="m21 21-4.34-4.34"></path><circle cx="11" cy="11" r="8"></circle></svg><input type="search" placeholder="Buscar na documentação" value=""/></label><nav aria-label="Capítulos da documentação"><div class="_group_1j18f_48"><p class="_category_1j18f_62">Começando</p><ul><li><a href="/pt/docs/getting-started" class="_link_1j18f_68">Guia de Início Rápido &amp; Primeiros Passos</a></li></ul></div><div class="_group_1j18f_48"><p class="_category_1j18f_62">Especificação</p><ul><li><a href="/pt/docs/dsl-spec" class="_link_1j18f_68">Especificação da Linguagem Declarativa (chaos.yaml DSL)</a></li></ul></div><div class="_group_1j18f_48"><p class="_category_1j18f_62">Interface</p><ul><li><a href="/pt/docs/cli-reference" class="_link_1j18f_68">Manual Completo da CLI &amp; Todas as 12 Flags</a></li></ul></div><div class="_group_1j18f_48"><p class="_category_1j18f_62">Visualização</p><ul><li><a href="/pt/docs/trace-visualizer" class="_link_1j18f_68">Visualizador Interativo de Traces (chaossql ui)</a></li></ul></div><div class="_group_1j18f_48"><p class="_category_1j18f_62">CI/CD &amp; Segurança</p><ul><li><a href="/pt/docs/cicd-sarif" class="_link_1j18f_68">Integração com CI/CD, SARIF 2.1.0 &amp; GitHub Actions</a></li></ul></div><div class="_group_1j18f_48"><p class="_category_1j18f_62">Motores</p><ul><li><a href="/pt/docs/drivers" class="_link_1j18f_68">Motores Suportados &amp; Arquitetura de Drivers</a></li></ul></div><div class="_group_1j18f_48"><p class="_category_1j18f_62">SDK</p><ul><li><a href="/pt/docs/go-sdk" class="_link_1j18f_68">Go Developer Testing SDK (pkg/chaostest)</a></li></ul></div><div class="_group_1j18f_48"><p class="_category_1j18f_62">Teoria</p><ul><li><a href="/pt/docs/academic-theory" class="_link_1j18f_68">Teoria Formal &amp; Fundamentação Matemática</a></li></ul></div></nav></aside><section class="_index_jeaxe_14" aria-labelledby="docs-title"><h1 id="docs-title" class="_title_jeaxe_20">Documentação</h1><p class="_lead_jeaxe_28">Da primeira execução ao CI, aos SDKs e à teoria por trás das classes de anomalia.</p><ol class="_chapters_jeaxe_35"><li><a href="/pt/docs/getting-started" class="_chapterCard_jeaxe_44"><span class="_category_jeaxe_60">Começando</span><span class="_chapterTitle_jeaxe_66">Guia de Início Rápido &amp; Primeiros Passos</span><span class="_chapterSummary_jeaxe_72">Aprenda os fundamentos do ChaosSQL, como instalar a ferramenta com zero dependências externas (Pure Go, CGO_ENABLED=0) e executar seu primeiro teste de concorrência com detecção de anomalia e redução causal em menos de 5 minutos.</span></a></li><li><a href="/pt/docs/dsl-spec" class="_chapterCard_jeaxe_44"><span class="_category_jeaxe_60">Especificação</span><span class="_chapterTitle_jeaxe_66">Especificação da Linguagem Declarativa (chaos.yaml DSL)</span><span class="_chapterSummary_jeaxe_72">Referência exaustiva da DSL declarativa YAML: taxonomia completa de campos, sintaxe de captura léxica, interpolação de expressões dinâmicas, predicados de guarda condicional, asserções de invariantes e injeção de falhas controladas.</span></a></li><li><a href="/pt/docs/cli-reference" class="_chapterCard_jeaxe_44"><span class="_category_jeaxe_60">Interface</span><span class="_chapterTitle_jeaxe_66">Manual Completo da CLI &amp; Todas as 12 Flags</span><span class="_chapterSummary_jeaxe_72">Guia definitivo de uso da interface de linha de comando do ChaosSQL: documentação exaustiva de todos os 9 subcomandos, parâmetros posicionais, códigos de saída e a tabela completa das 12 flags de execução e exportação.</span></a></li><li><a href="/pt/docs/trace-visualizer" class="_chapterCard_jeaxe_44"><span class="_category_jeaxe_60">Visualização</span><span class="_chapterTitle_jeaxe_66">Visualizador Interativo de Traces (chaossql ui)</span><span class="_chapterSummary_jeaxe_72">Arquitetura e recursos do visualizador web interativo embutido: navegação pelo Gantt swimlane em microssegundos, inspeção visual do grafo de conflitos de Adya (arestas rw, ww, wr), comparação de delta-debugging e inspetor de queries SQL.</span></a></li><li><a href="/pt/docs/cicd-sarif" class="_chapterCard_jeaxe_44"><span class="_category_jeaxe_60">CI/CD &amp; Segurança</span><span class="_chapterTitle_jeaxe_66">Integração com CI/CD, SARIF 2.1.0 &amp; GitHub Actions</span><span class="_chapterSummary_jeaxe_72">Automatize o fuzzer em pipelines de CI/CD: guia completo de uso do action.yml, exportação OASIS SARIF v2.1.0 para a aba Security/Code Scanning do GitHub, catálogo das 9 regras formais, relatórios JUnit XML e traces OpenTelemetry (OTLP JSON).</span></a></li><li><a href="/pt/docs/drivers" class="_chapterCard_jeaxe_44"><span class="_category_jeaxe_60">Motores</span><span class="_chapterTitle_jeaxe_66">Motores Suportados &amp; Arquitetura de Drivers</span><span class="_chapterSummary_jeaxe_72">Guia de configuração e particularidades técnicas dos bancos de dados suportados: SQLite puro em Go (CGO=0 com WAL mode), PostgreSQL (pgx, READ COMMITTED vs SSI) e MySQL/MariaDB (InnoDB Repeatable Read e gap locks).</span></a></li><li><a href="/pt/docs/go-sdk" class="_chapterCard_jeaxe_44"><span class="_category_jeaxe_60">SDK</span><span class="_chapterTitle_jeaxe_66">Go Developer Testing SDK (pkg/chaostest)</span><span class="_chapterSummary_jeaxe_72">Como integrar o ChaosSQL diretamente em suítes de testes unitários do Go (*testing.T): referência completa da API fluente do builder chaostest.New(), asserções de invariantes e síntese automática de repro_test.go.</span></a></li><li><a href="/pt/docs/academic-theory" class="_chapterCard_jeaxe_44"><span class="_category_jeaxe_60">Teoria</span><span class="_chapterTitle_jeaxe_66">Teoria Formal &amp; Fundamentação Matemática</span><span class="_chapterSummary_jeaxe_72">O embasamento científico rigoroso do ChaosSQL: Condições de Conflito de Bernstein, Teorema da Serializabilidade por Conflito (CSR), agendamento probabilístico PCT com Teorema de Burckhardt, minimização causal com Zeller ddmin e verificação de linearizabilidade estilo Elle.</span></a></li></ol></section></div></div><!--/$--></main><footer class="_footer_ldgol_1"><div class="_inner_ldgol_8"><div class="_brand_ldgol_16"><a href="/pt" class="_logo_ldgol_24"><img src="/brand/icone_bregalda.svg" alt="" width="28" height="28"/><span>ChaosSQL</span></a><p>Feito pelo Studio Bregalda.</p></div><nav aria-label="Links de rodapé" class="_groups_ldgol_37"><div><h2 class="_groupTitle_ldgol_43">Produto</h2><ul><li><a href="/pt#story">Como funciona</a></li><li><a href="/pt/scenarios">Cenários</a></li><li><a href="/pt/pricing">Preços</a></li></ul></div><div><h2 class="_groupTitle_ldgol_43">Ferramentas</h2><ul><li><a href="/pt/playground">Playground WASM</a></li><li><a href="/pt/visualizer">Trace Visualizer</a></li><li><a href="/pt/matrix">Matriz Hermitage</a></li><li><a href="/pt/dashboard">Cloud Dashboard</a></li></ul></div><div><h2 class="_groupTitle_ldgol_43">Recursos</h2><ul><li><a href="/pt/docs">Documentação</a></li><li><a href="https://github.com/bregaldahq/chaossql" target="_blank" rel="noreferrer">GitHub</a></li><li><a href="https://github.com/bregaldahq/chaossql/releases" target="_blank" rel="noreferrer">Releases</a></li></ul></div></nav><p class="_copyright_ldgol_69"><span>© <!-- -->2026</span> Studio Bregalda. <!-- -->Todos os direitos reservados.</p></div></footer></div></div>
   </body>
 </html>

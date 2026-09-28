@@ -1,7 +1,10 @@
+import { useEffect } from 'react';
 import { SCENARIOS_DATA, SCENARIO_SLUGS, ScenarioItem, scenarioBySlug } from '../data/scenarios-data';
 import { CodeBlock } from '../components/docs/CodeBlock';
 import { localizePath, scenarioSlugFromPath, useLocation } from '../lib/router';
 import styles from './ScenariosPage.module.css';
+import '../lib/detail-meta';
+import { applyRouteMeta } from '../lib/route-meta';
 
 export interface ScenariosPageProps {
   lang?: 'pt' | 'en';
@@ -14,6 +17,9 @@ export interface ScenariosPageProps {
  */
 export function ScenariosPage({ lang = 'en' }: ScenariosPageProps) {
   const { pathname } = useLocation();
+  // App applies route metadata before this lazy chunk (and its scenario
+  // titles) has loaded; apply it again once the page is here.
+  useEffect(() => applyRouteMeta('scenarios', pathname), [pathname]);
   const fromUrl = scenarioBySlug(scenarioSlugFromPath(pathname));
   const currentScenario: ScenarioItem = fromUrl ?? SCENARIOS_DATA[0];
   const isDetail = fromUrl !== undefined;

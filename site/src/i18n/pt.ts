@@ -158,6 +158,16 @@ export const pt: Messages = {
       notSure: 'Ainda não sei',
     },
   },
+  docs: {
+    title: 'Documentação',
+    lead: 'Da primeira execução ao CI, aos SDKs e à teoria por trás das classes de anomalia.',
+    chaptersLabel: 'Capítulos da documentação',
+    search: 'Buscar na documentação',
+    noResults: 'Nenhum capítulo corresponde à busca.',
+    previous: 'Anterior',
+    next: 'Próximo',
+    allChapters: 'Todos os capítulos',
+  },
   cta: {
     primary: 'Ver o bug acontecer',
     install: 'Instalar',

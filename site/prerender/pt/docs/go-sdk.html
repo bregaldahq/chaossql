@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="lab" data-surface="light">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Go Developer Testing SDK (pkg/chaostest) | Documentação | ChaosSQL</title>
+    <meta
+      name="description"
+      content="Como integrar o ChaosSQL diretamente em suítes de testes unitários do Go (*testing.T): referência completa da API fluente do builder chaostest.New(), asserçõ..."
+    />
+    <link rel="canonical" href="https://chaossql.bregalda.com/pt/docs/go-sdk" />
+    <link rel="alternate" hreflang="en" href="https://chaossql.bregalda.com/docs/go-sdk" />
+    <link rel="alternate" hreflang="pt-BR" href="https://chaossql.bregalda.com/pt/docs/go-sdk" />
+    <link rel="alternate" hreflang="x-default" href="https://chaossql.bregalda.com/docs/go-sdk" />
+    <meta name="robots" content="index, follow, max-image-preview:large" />
+    <meta name="keywords" content="ChaosSQL, SQL concurrency testing, database fuzzer, isolation levels, lost update, write skew, Adya anomalies, delta debugging, PostgreSQL, MySQL, SQLite, Go" />
+    <meta name="author" content="Ricardo Bregalda — Studio Bregalda" />
+    <meta name="theme-color" content="#141021" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="ChaosSQL" />
+    <meta property="og:locale" content="pt_BR" />
+    <meta property="og:locale:alternate" content="en_US" />
+    <meta property="og:url" content="https://chaossql.bregalda.com/pt/docs/go-sdk" />
+    <meta property="og:title" content="Go Developer Testing SDK (pkg/chaostest) | Documentação | ChaosSQL" />
+    <meta property="og:description" content="Como integrar o ChaosSQL diretamente em suítes de testes unitários do Go (*testing.T): referência completa da API fluente do builder chaostest.New(), asserçõ..." />
+    <meta property="og:image" content="https://chaossql.bregalda.com/og/docs.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Go Developer Testing SDK (pkg/chaostest) | Documentação | ChaosSQL" />
+    <meta name="twitter:description" content="Como integrar o ChaosSQL diretamente em suítes de testes unitários do Go (*testing.T): referência completa da API fluente do builder chaostest.New(), asserçõ..." />
+    <meta name="twitter:image" content="https://chaossql.bregalda.com/og/docs.png" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "ChaosSQL",
+        "url": "https://chaossql.bregalda.com/",
+        "description": "Deterministic concurrency and isolation fuzzer for SQL databases with causal delta-debugging and Adya cycle classification.",
+        "applicationCategory": "DeveloperApplication",
+        "operatingSystem": "Linux, macOS, Windows",
+        "programmingLanguage": "Go",
+        "license": "https://opensource.org/licenses/MIT",
+        "softwareVersion": "1.6.0",
+        "codeRepository": "https://github.com/bregaldahq/chaossql",
+        "sameAs": ["https://github.com/bregaldahq/chaossql"],
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+        "author": { "@type": "Person", "name": "Ricardo Bregalda" }
+      }
+    </script>
+    <link rel="icon" type="image/svg+xml" href="/brand/icone_bregalda.svg" />
+    <script type="module" crossorigin src="/assets/main-CrNNEqIa.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/main-DsdD8E9B.css">
+      <link rel="preload" as="font" type="font/woff2" crossorigin href="/assets/geist-latin-wght-normal-BgDaEnEv.woff2">
+    <link rel="preload" as="font" type="font/woff2" crossorigin href="/assets/jetbrains-mono-latin-wght-normal-B9CIFXIH.woff2">
+      <link rel="stylesheet" crossorigin href="/assets/DocsPage-BWkhtRW7.css">
+    <link rel="modulepreload" crossorigin href="/assets/DocsPage-Dw3uWl2X.js">
+    <link rel="modulepreload" crossorigin href="/assets/detail-meta-CVWaFmrz.js">
+    <link rel="modulepreload" crossorigin href="/assets/scenarios-data-BOJSi6Ec.js">
+    <link rel="modulepreload" crossorigin href="/assets/search-DK0de118.js">
+  </head>
+  <body>
+    <div id="root" data-prerendered><link rel="preload" as="image" href="/brand/icone_bregalda.svg"/><div style="min-height:100vh;display:flex;flex-direction:column"><a class="skip-link" href="#main">Pular para o conteúdo</a><header class="_nav_19ps6_2" data-nav="true"><a href="/pt" class="_brand_19ps6_17" aria-label="ChaosSQL by Studio Bregalda, início"><img src="/brand/icone_bregalda.svg" alt="" width="28" height="28"/><span>ChaosSQL</span></a><nav aria-label="Navegação principal" class="_links_19ps6_33"><a href="/pt#story" class="_link_19ps6_33">Como funciona</a><a href="/pt/scenarios" class="_link_19ps6_33">Cenários</a><a href="/pt/playground" class="_link_19ps6_33">Playground WASM</a><a href="/pt/docs" class="_link_19ps6_33" aria-current="page">Documentação</a><a href="/pt/pricing" class="_link_19ps6_33">Preços</a></nav><div class="_actions_19ps6_59"><div class="_lang_19ps6_66" role="group" aria-label="Seletor de idioma"><button type="button" aria-pressed="false">EN</button><button type="button" aria-pressed="true">PT</button></div><a href="https://github.com/bregaldahq/chaossql" target="_blank" rel="noreferrer" class="_github_19ps6_90">GitHub <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-up-right" aria-hidden="true"><path d="M7 7h10v10"></path><path d="M7 17 17 7"></path></svg></a><a href="/pt#story" class="_button_soy8p_1 _primary_soy8p_44 _md_soy8p_32 _cta_19ps6_146"><span>Ver o bug acontecer</span></a><button type="button" class="_menuToggle_19ps6_104" aria-expanded="false" aria-controls="mobile-nav" aria-label="Abrir menu de navegação"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-menu" aria-hidden="true"><path d="M4 5h16"></path><path d="M4 12h16"></path><path d="M4 19h16"></path></svg></button></div></header><main id="main" style="flex-grow:1"><!--$--><div class="_page_jeaxe_1"><div class="_layout_jeaxe_5"><aside class="_sidebar_1j18f_1"><a href="/pt/docs" class="_home_1j18f_11">Todos os capítulos</a><label class="_search_1j18f_21"><span class="sr-only">Buscar na documentação</span><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-search" aria-hidden="true"><path d="m21 21-4.34-4.34"></path><circle cx="11" cy="11" r="8"></circle></svg><input type="search" placeholder="Buscar na documentação" value=""/></label><nav aria-label="Capítulos da documentação"><div class="_group_1j18f_48"><p class="_category_1j18f_62">Começando</p><ul><li><a href="/pt/docs/getting-started" class="_link_1j18f_68">Guia de Início Rápido &amp; Primeiros Passos</a></li></ul></div><div class="_group_1j18f_48"><p class="_category_1j18f_62">Especificação</p><ul><li><a href="/pt/docs/dsl-spec" class="_link_1j18f_68">Especificação da Linguagem Declarativa (chaos.yaml DSL)</a></li></ul></div><div class="_group_1j18f_48"><p class="_category_1j18f_62">Interface</p><ul><li><a href="/pt/docs/cli-reference" class="_link_1j18f_68">Manual Completo da CLI &amp; Todas as 12 Flags</a></li></ul></div><div class="_group_1j18f_48"><p class="_category_1j18f_62">Visualização</p><ul><li><a href="/pt/docs/trace-visualizer" class="_link_1j18f_68">Visualizador Interativo de Traces (chaossql ui)</a></li></ul></div><div class="_group_1j18f_48"><p class="_category_1j18f_62">CI/CD &amp; Segurança</p><ul><li><a href="/pt/docs/cicd-sarif" class="_link_1j18f_68">Integração com CI/CD, SARIF 2.1.0 &amp; GitHub Actions</a></li></ul></div><div class="_group_1j18f_48"><p class="_category_1j18f_62">Motores</p><ul><li><a href="/pt/docs/drivers" class="_link_1j18f_68">Motores Suportados &amp; Arquitetura de Drivers</a></li></ul></div><div class="_group_1j18f_48"><p class="_category_1j18f_62">SDK</p><ul><li><a href="/pt/docs/go-sdk" class="_link_1j18f_68" aria-current="page">Go Developer Testing SDK (pkg/chaostest)</a></li></ul></div><div class="_group_1j18f_48"><p class="_category_1j18f_62">Teoria</p><ul><li><a href="/pt/docs/academic-theory" class="_link_1j18f_68">Teoria Formal &amp; Fundamentação Matemática</a></li></ul></div></nav></aside><article class="_article_1modt_1" aria-labelledby="chapter-title"><p class="_category_1modt_6">SDK</p><h1 id="chapter-title" class="_title_1modt_12">Go Developer Testing SDK (pkg/chaostest)</h1><p class="_summary_1modt_22">Como integrar o ChaosSQL diretamente em suítes de testes unitários do Go (*testing.T): referência completa da API fluente do builder chaostest.New(), asserções de invariantes e síntese automática de repro_test.go.</p><div class="_prose_1modt_30"><h2>Introdução ao SDK (<code>pkg/chaostest</code>)</h2>
+<p>O <strong>ChaosSQL Go Developer Testing SDK</strong> (<code>pkg/chaostest</code>) foi desenvolvido para engenheiros de software que desejam incorporar testes de concorrência e invariantes diretamente nas suas suítes de testes unitários em Go (<code>*testing.T</code>). Ele permite testar camadas de persistência, repositórios e serviços de domínio diretamente via comando nativo <code>go test ./...</code>, com suporte completo a <code>go test -race</code> e sem a necessidade de instalar ou gerenciar binários externos.</p>
+
+<h2>API Fluente do Builder: <code>chaostest.New(t)</code></h2>
+<p>O pacote expõe um padrão builder fluente com encadeamento de métodos para configurar o cenário de concorrência de forma intuitiva:</p>
+
+<table class="matrix-table">
+  <thead>
+    <tr>
+      <th>Método</th>
+      <th>Parâmetros</th>
+      <th>Descrição Técnica</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>New(t testing.TB)</code></td>
+      <td><code>testing.TB</code></td>
+      <td>Inicializa uma nova instância de teste atrelada ao ciclo de vida do teste atual.</td>
+    </tr>
+    <tr>
+      <td><code>WithDriver(driver)</code></td>
+      <td><code>drivers.DatabaseDriver</code></td>
+      <td>Define a instância do driver. Se omitido, provisiona automaticamente um SQLite in-memory isolado.</td>
+    </tr>
+    <tr>
+      <td><code>WithSchema(sql)</code></td>
+      <td><code>string</code></td>
+      <td>Define os comandos SQL DDL para criação de tabelas e índices.</td>
+    </tr>
+    <tr>
+      <td><code>WithSeed(sql)</code></td>
+      <td><code>string</code></td>
+      <td>Define os comandos SQL DML para carga inicial de dados antes do teste.</td>
+    </tr>
+    <tr>
+      <td><code>WithInvariant(name, query, expr)</code></td>
+      <td><code>string, string, string</code></td>
+      <td>Registra uma regra de negócio que deve ser preservada ao final do teste.</td>
+    </tr>
+    <tr>
+      <td><code>WithJitter(minMs, maxMs)</code></td>
+      <td><code>int, int</code></td>
+      <td>Configura a faixa de jitter microtemporal injetada entre os passos de cada transação (padrão: 1ms a 5ms).</td>
+    </tr>
+    <tr>
+      <td><code>AddOperation(name, steps...)</code></td>
+      <td><code>string, ...string</code></td>
+      <td>Registra uma transação concorrente. Suporta sintaxe de captura <code>-&gt; var</code> e expressões <code>{var - 100}</code>.</td>
+    </tr>
+    <tr>
+      <td><code>AddOperationWithParams(name, params, steps...)</code></td>
+      <td><code>string, map[string]string, ...string</code></td>
+      <td>Registra uma operação com parâmetros gerados dinamicamente por transação.</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>Asserções de Teste: <code>AssertNoAnomalies</code> vs <code>AssertAnomalyDetected</code></h2>
+
+<h3>1. <code>AssertNoAnomalies(ctx, workers, iterations, seed)</code></h3>
+<p>Asserção positiva: valida que a implementação do serviço ou repositório é 100% segura contra corridas concorrentes sob as condições configuradas. Se uma anomalia for detectada ou uma invariante for violada, o método invoca <code>t.Fatalf</code> reportando:</p>
+<ul>
+  <li>Nome e valor da invariante que falhou.</li>
+  <li>Classificação formal da anomalia no catálogo Adya (ex: <code>P4_LOST_UPDATE</code>).</li>
+  <li>Métricas do Causal Delta-Debugging (<span class="math">ddmin</span>): redução de <span class="math">N</span> operações originais para o caso minimal.</li>
+  <li>Diagrama de Sequência Mermaid formatado pronto para copiar.</li>
+</ul>
+
+<h3>2. <code>AssertAnomalyDetected(ctx, workers, iterations, seed, expectedAnomaly...)</code></h3>
+<p>Asserção negativa: utilizada em testes de regressão para provar empiricamente que um código vulnerável ou um nível de isolamento insuficiente realmente dispara a anomalia prevista. Garante que o teste não apresente falsos negativos.</p>
+
+<h2>Exemplo Completo: Testando e Mitigando Lost Update</h2>
+<p>O exemplo abaixo demonstra como escrever um teste unitário em Go que comprova a eficácia de uma mitigação concorrente (migração de Read-Modify-Write vulnerável para um UPDATE atômico com guarda):</p>
+
+<div class="code-container"><button type="button" class="copy-code-btn">Copiar</button>
+  <pre><code id="go-sdk-code" class="language-go">package bank_test
+
+import (
+    "context"
+    "testing"
+
+    "github.com/bregaldahq/chaossql/internal/drivers"
+    "github.com/bregaldahq/chaossql/pkg/chaostest"
+)
+
+// TestAccountWithdrawal_AtomicMitigation valida que saques concorrentes
+// usando update atômico impedem a ocorrência de Lost Update (P4).
+func TestAccountWithdrawal_AtomicMitigation(t *testing.T) {
+    ctx := context.Background()
+
+    // 1. Instanciar driver de banco de dados (SQLite puro em memória)
+    driver := drivers.NewSQLiteDriver("file:bank_test?mode=memory&cache=shared")
+    defer driver.Close()
+
+    // 2. Construir o fuzzer de concorrência com o SDK fluente
+    tester := chaostest.New(t).
+        WithDriver(driver).
+        WithSchema(`
+            CREATE TABLE accounts (
+                id INT PRIMARY KEY,
+                balance INT NOT NULL
+            );
+            CREATE TABLE ledger (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                amount INT NOT NULL
+            );
+        `).
+        WithSeed("INSERT INTO accounts (id, balance) VALUES (1, 1000);").
+        WithInvariant(
+            "ledger_balance_consistency",
+            "SELECT (SELECT balance FROM accounts WHERE id = 1) AS actual, " +
+            "(1000 - COALESCE(SUM(amount), 0)) AS expected FROM ledger;",
+            "actual == expected",
+        ).
+        WithJitter(1, 4).
+        // Transação mitigada: UPDATE atômico com verificação de saldo suficiente
+        AddOperation("atomic_withdrawal",
+            "UPDATE accounts SET balance = balance - 100 WHERE id = 1 AND balance >= 100;",
+            "INSERT INTO ledger (amount) VALUES (100);",
+        )
+
+    // 3. Executar o fuzzer com 8 workers simultâneos e 40 transações
+    // Deve passar com 100% de sucesso sem violação de invariantes
+    tester.AssertNoAnomalies(ctx, 8, 40, 42)
+}</code></pre>
+</div>
+
+<h2>Síntese Automática de <code>repro_test.go</code> pelo <span class="math">ddmin</span></h2>
+<p>Quando um teste executado via SDK falha com <code>AssertNoAnomalies</code>, o algoritmo Causal Delta-Debugging (<span class="math">ddmin</span>) não apenas isola o subconjunto de 2 operações mínimas, mas também sintetiza no log do teste o código fonte completo em Go de um arquivo <code>repro_test.go</code> independente.</p>
+<p>Esse código gerado pode ser colado em um arquivo local para depuração com breakpoints no Delve, permitindo que a equipe reproduza o defeito em 5 milissegundos sem qualquer dependência do fuzzer.</p>
+
+<div class="docs-callout tip">
+  <strong>Determinismo Estrito em Testes de CI:</strong> Ao configurar testes de regressão no Go, utilize sempre uma semente estática constante (ex: <code>seed: 42</code>). Isso garante que o <code>go test</code> rode de forma ultrarrápida, previsível e sem oscilações (<em>flakiness</em>) no CI.
+</div></div><nav class="_pager_1modt_234" aria-label="Capítulos da documentação"><a href="/pt/docs/drivers" class="_pagerLink_1modt_243" rel="prev"><span class="_pagerLabel_1modt_260"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-left" aria-hidden="true"><path d="m12 19-7-7 7-7"></path><path d="M19 12H5"></path></svg> <!-- -->Anterior</span><span class="_pagerTitle_1modt_272">Motores Suportados &amp; Arquitetura de Drivers</span></a><a href="/pt/docs/academic-theory" class="_pagerLink_1modt_243 _pagerNext_1modt_256" rel="next"><span class="_pagerLabel_1modt_260">Próximo<!-- --> <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-right" aria-hidden="true"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg></span><span class="_pagerTitle_1modt_272">Teoria Formal &amp; Fundamentação Matemática</span></a></nav></article></div></div><!--/$--></main><footer class="_footer_ldgol_1"><div class="_inner_ldgol_8"><div class="_brand_ldgol_16"><a href="/pt" class="_logo_ldgol_24"><img src="/brand/icone_bregalda.svg" alt="" width="28" height="28"/><span>ChaosSQL</span></a><p>Feito pelo Studio Bregalda.</p></div><nav aria-label="Links de rodapé" class="_groups_ldgol_37"><div><h2 class="_groupTitle_ldgol_43">Produto</h2><ul><li><a href="/pt#story">Como funciona</a></li><li><a href="/pt/scenarios">Cenários</a></li><li><a href="/pt/pricing">Preços</a></li></ul></div><div><h2 class="_groupTitle_ldgol_43">Ferramentas</h2><ul><li><a href="/pt/playground">Playground WASM</a></li><li><a href="/pt/visualizer">Trace Visualizer</a></li><li><a href="/pt/matrix">Matriz Hermitage</a></li><li><a href="/pt/dashboard">Cloud Dashboard</a></li></ul></div><div><h2 class="_groupTitle_ldgol_43">Recursos</h2><ul><li><a href="/pt/docs">Documentação</a></li><li><a href="https://github.com/bregaldahq/chaossql" target="_blank" rel="noreferrer">GitHub</a></li><li><a href="https://github.com/bregaldahq/chaossql/releases" target="_blank" rel="noreferrer">Releases</a></li></ul></div></nav><p class="_copyright_ldgol_69"><span>© <!-- -->2026</span> Studio Bregalda. <!-- -->Todos os direitos reservados.</p></div></footer></div></div>
+  </body>
+</html>

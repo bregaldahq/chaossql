@@ -1,56 +1,70 @@
-import { useState, useEffect } from 'react';
-import { localizePath, navigate, useSearchParams } from '../lib/router';
-import { DOCS_DATA, CHAPTER_ORDER, ChapterId } from '../data/docs-content';
+import { useEffect } from 'react';
+import { docChapterFromPath, localizePath, navigate, useLocation } from '../lib/router';
+import { DOCS_DATA, CHAPTER_ORDER, docChapter, isChapterId } from '../data/docs-content';
+import { messages, type Language } from '../i18n';
 import { DocsSidebar } from '../components/docs/DocsSidebar';
 import { DocsContent } from '../components/docs/DocsContent';
 import styles from './DocsPage.module.css';
+import '../lib/detail-meta';
+import { applyRouteMeta } from '../lib/route-meta';
 
 export interface DocsPageProps {
-  lang?: 'pt' | 'en';
+  lang?: Language;
 }
 
+/**
+ * /docs is the chapter index; /docs/<chapter> is one indexable page per
+ * chapter. Old links with ?chapter=<id> are moved to the chapter URL.
+ */
 export function DocsPage({ lang = 'en' }: DocsPageProps) {
-  const [activeChapterId, setActiveChapterId] = useState<ChapterId>('getting-started');
+  const { pathname, search } = useLocation();
+  const t = messages[lang].docs;
+  const legacy = new URLSearchParams(search).get('chapter');
 
-  const chapterParam = useSearchParams().get('chapter');
   useEffect(() => {
-    if (chapterParam && CHAPTER_ORDER.includes(chapterParam as ChapterId)) {
-      setActiveChapterId(chapterParam as ChapterId);
-    }
-  }, [chapterParam]);
+    if (isChapterId(legacy)) navigate(localizePath(`/docs/${legacy}`, lang), { replace: true });
+  }, [legacy, lang]);
 
-  const handleSelectChapter = (id: ChapterId) => {
-    setActiveChapterId(id);
-    navigate(localizePath(`/docs?chapter=${id}`, lang));
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
+  // App applies route metadata before this lazy chunk (and its chapter
+  // titles) has loaded; apply it again once the page is here.
+  useEffect(() => applyRouteMeta('docs', pathname), [pathname]);
 
-  const chapters = DOCS_DATA[lang] || DOCS_DATA['pt'];
-  const currentChapter = chapters[activeChapterId] || chapters['getting-started'];
-
-  const currentIndex = CHAPTER_ORDER.indexOf(activeChapterId);
-  const prevChapterId = currentIndex > 0 ? CHAPTER_ORDER[currentIndex - 1] : undefined;
-  const nextChapterId = currentIndex < CHAPTER_ORDER.length - 1 ? CHAPTER_ORDER[currentIndex + 1] : undefined;
-
-  const prevChapter = prevChapterId ? { id: prevChapterId, title: chapters[prevChapterId]?.title || '' } : undefined;
-  const nextChapter = nextChapterId ? { id: nextChapterId, title: chapters[nextChapterId]?.title || '' } : undefined;
+  const chapterId = docChapterFromPath(pathname);
+  const chapter = docChapter(chapterId, lang);
+  const chapters = DOCS_DATA[lang];
+  const index = chapter ? CHAPTER_ORDER.indexOf(chapter.id as (typeof CHAPTER_ORDER)[number]) : -1;
+  const link = (id: string) => ({ id, title: chapters[id].title, href: localizePath(`/docs/${id}`, lang) });
 
   return (
-    <div className={styles.pageContainer} data-surface="light">
-      <div className={styles.docsLayout}>
-        <DocsSidebar
-          chapters={chapters}
-          activeChapterId={activeChapterId}
-          onSelectChapter={handleSelectChapter}
-          lang={lang}
-        />
-        <DocsContent
-          chapter={currentChapter}
-          prevChapter={prevChapter}
-          nextChapter={nextChapter}
-          onNavigate={handleSelectChapter}
-          lang={lang}
-        />
+    <div className={styles.page}>
+      <div className={styles.layout}>
+        <DocsSidebar chapters={chapters} activeChapterId={chapter?.id ?? null} lang={lang} />
+        {chapter ? (
+          <DocsContent
+            chapter={chapter}
+            lang={lang}
+            prev={index > 0 ? link(CHAPTER_ORDER[index - 1]) : undefined}
+            next={index < CHAPTER_ORDER.length - 1 ? link(CHAPTER_ORDER[index + 1]) : undefined}
+          />
+        ) : (
+          <section className={styles.index} aria-labelledby="docs-title">
+            <h1 id="docs-title" className={styles.title}>
+              {t.title}
+            </h1>
+            <p className={styles.lead}>{t.lead}</p>
+            <ol className={styles.chapters}>
+              {CHAPTER_ORDER.map((id) => (
+                <li key={id}>
+                  <a href={localizePath(`/docs/${id}`, lang)} className={styles.chapterCard}>
+                    <span className={styles.category}>{chapters[id].category}</span>
+                    <span className={styles.chapterTitle}>{chapters[id].title}</span>
+                    <span className={styles.chapterSummary} dangerouslySetInnerHTML={{ __html: chapters[id].summary }} />
+                  </a>
+                </li>
+              ))}
+            </ol>
+          </section>
+        )}
       </div>
     </div>
   );

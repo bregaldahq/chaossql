@@ -19,7 +19,7 @@ const PlaygroundPage = lazy(() => import('./pages/PlaygroundPage').then((m) => (
 
 // Pages rendered in the dark "lab" theme. The rest keep the legacy light look
 // until they are migrated.
-export const LAB_ROUTES: ReadonlySet<RouteId> = new Set(['landing', 'pricing']);
+export const LAB_ROUTES: ReadonlySet<RouteId> = new Set(['landing', 'pricing', 'docs']);
 
 export default function App() {
   const { lang, setLang } = useI18n();
