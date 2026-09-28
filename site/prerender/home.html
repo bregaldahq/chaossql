@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="lab" data-surface="light">
+<html lang="en" data-theme="lab">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -49,8 +49,8 @@
       }
     </script>
     <link rel="icon" type="image/svg+xml" href="/brand/icone_bregalda.svg" />
-    <script type="module" crossorigin src="/assets/main-CrNNEqIa.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/main-DsdD8E9B.css">
+    <script type="module" crossorigin src="/assets/main-B0klgZf3.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/main-CdqTirtY.css">
       <link rel="preload" as="font" type="font/woff2" crossorigin href="/assets/geist-latin-wght-normal-BgDaEnEv.woff2">
     <link rel="preload" as="font" type="font/woff2" crossorigin href="/assets/jetbrains-mono-latin-wght-normal-B9CIFXIH.woff2">
       <script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"Does it run against my production database?","acceptedAnswer":{"@type":"Answer","text":"No, and it must not. Every run resets the schema and seed data, so point it at a disposable database: a CI service container or a local copy."}},{"@type":"Question","name":"Which databases does it support?","acceptedAnswer":{"@type":"Answer","text":"PostgreSQL, MySQL and SQLite, plus an in-memory driver for the browser playground. SQLite serializes writes at its default level, so most anomalies show up on PostgreSQL, MySQL or weaker isolation levels."}},{"@type":"Question","name":"How is this different from a load test?","acceptedAnswer":{"@type":"Answer","text":"A load test measures throughput and hopes a race happens. ChaosSQL chooses the interleaving from a seed, checks a business rule after every run and replays the exact order that broke it."}},{"@type":"Question","name":"Is it really deterministic?","acceptedAnswer":{"@type":"Answer","text":"The same spec and seed always produce the same schedule. Databases still decide some timing on their own, and ChaosSQL reports that difference instead of hiding it."}},{"@type":"Question","name":"Will a violation fail my build?","acceptedAnswer":{"@type":"Answer","text":"Not by itself: the command exits successfully and records the violation in the JUnit report and job summary. Gate on those, or on the is-regression output from ChaosSQL Cloud."}},{"@type":"Question","name":"What do I need to install?","acceptedAnswer":{"@type":"Answer","text":"Only the binary: go install gives you a single static Go program with no CGO. The Python and TypeScript SDKs call the same binary."}},{"@type":"Question","name":"What does the audit include?","acceptedAnswer":{"@type":"Answer","text":"A 45 minute kickoff, the five most critical transactions mapped, more than 100,000 schedules explored, Go reproduction tests, a final report presented to your team and three months of Cloud Team."}}]}</script>

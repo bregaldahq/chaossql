@@ -1,9 +1,9 @@
 .tableCard {
-  background: var(--cream);
-  border: 1px solid var(--border-subtle);
+  background: var(--surface-raised);
+  border: 1px solid var(--line);
   border-radius: var(--radius-card);
   overflow-x: auto;
-  box-shadow: 0 4px 20px color-mix(in srgb, var(--ink) 4%, transparent);
+  box-shadow: 0 4px 20px var(--line);
 }
 
 .table {
@@ -15,18 +15,18 @@
 
 .table th {
   padding: 0.85rem 1rem;
-  border-bottom: 2px solid var(--border-subtle);
+  border-bottom: 2px solid var(--line);
   font-family: var(--font-jetbrains-mono), monospace;
   font-size: var(--type-meta);
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: var(--text-secondary);
-  background: color-mix(in srgb, var(--purple) 3%, var(--cream));
+  color: var(--text-body);
+  background: var(--surface-raised);
 }
 
 .table td {
   padding: 0.85rem 1rem;
-  border-bottom: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--line);
   vertical-align: middle;
 }
 
@@ -36,19 +36,19 @@
 }
 
 .row:hover {
-  background: color-mix(in srgb, var(--purple) 4%, var(--cream));
+  background: var(--surface-raised);
 }
 
 .rowSelected {
-  background: color-mix(in srgb, var(--purple) 8%, var(--cream));
+  background: var(--surface-raised);
 }
 
 .badgePrevented {
   display: inline-block;
   padding: 0.2rem 0.55rem;
-  background: color-mix(in srgb, var(--green) 12%, var(--cream));
-  border: 1px solid color-mix(in srgb, var(--green) 35%, transparent);
-  color: color-mix(in srgb, var(--ink) 80%, var(--green));
+  background: var(--ok-soft);
+  border: 1px solid var(--ok);
+  color: var(--text-body);
   border-radius: var(--radius-badge);
   font-family: var(--font-jetbrains-mono), monospace;
   font-size: 0.72rem;
@@ -58,9 +58,9 @@
 .badgePermitted {
   display: inline-block;
   padding: 0.2rem 0.55rem;
-  background: color-mix(in srgb, var(--yellow) 15%, var(--cream));
-  border: 1px solid color-mix(in srgb, var(--yellow) 45%, transparent);
-  color: var(--ink);
+  background: var(--signal-soft);
+  border: 1px solid var(--signal);
+  color: var(--text-strong);
   border-radius: var(--radius-badge);
   font-family: var(--font-jetbrains-mono), monospace;
   font-size: 0.72rem;
@@ -70,9 +70,9 @@
 .badgeCycle {
   display: inline-block;
   padding: 0.2rem 0.55rem;
-  background: color-mix(in srgb, var(--purple) 12%, var(--cream));
-  border: 1px solid color-mix(in srgb, var(--purple) 35%, transparent);
-  color: var(--purple);
+  background: var(--surface-brand);
+  border: 1px solid var(--line-strong);
+  color: var(--brand-text);
   border-radius: var(--radius-badge);
   font-family: var(--font-jetbrains-mono), monospace;
   font-size: 0.72rem;
@@ -82,8 +82,8 @@
 .detailDrawer {
   margin-top: var(--space-4);
   padding: var(--space-4);
-  background: color-mix(in srgb, var(--purple) 4%, var(--cream));
-  border: 1px solid var(--border-subtle);
+  background: var(--surface-raised);
+  border: 1px solid var(--line);
   border-radius: var(--radius-card);
   display: flex;
   flex-direction: column;

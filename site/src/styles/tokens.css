@@ -253,3 +253,9 @@ html[data-theme='lab'] body {
   background: var(--surface-page);
   color: var(--text-body);
 }
+
+/* Headings default to the strong text color in the lab theme. Zero
+   specificity (:where), so any component rule still wins. */
+:where([data-theme='lab']) :where(h1, h2, h3, h4, h5, h6) {
+  color: var(--text-strong);
+}

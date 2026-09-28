@@ -46,7 +46,7 @@ export function MatrixTable({ lang = 'en' }: MatrixTableProps) {
                     <strong>{row.code}</strong> — {row.name}
                   </td>
                   <td>
-                    <code style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                    <code style={{ fontSize: '0.8rem', color: 'var(--text-body)' }}>
                       {row.formalCycle}
                     </code>
                   </td>
@@ -65,17 +65,17 @@ export function MatrixTable({ lang = 'en' }: MatrixTableProps) {
         <div className={styles.detailDrawer}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
             <span className={styles.badgeCycle}>{selectedRow.code}</span>
-            <h3 style={{ margin: 0, fontSize: '1.2rem', color: 'var(--ink)' }}>
+            <h2 style={{ margin: 0, fontSize: '1.2rem', color: 'var(--text-strong)' }}>
               {selectedRow.name}
-            </h3>
+            </h2>
           </div>
 
-          <p style={{ margin: 0, fontSize: '0.92rem', lineHeight: 1.7, color: 'var(--ink)' }}>
+          <p style={{ margin: 0, fontSize: '0.92rem', lineHeight: 1.7, color: 'var(--text-strong)' }}>
             {selectedRow.adyaDetails[lang] || selectedRow.adyaDetails.pt}
           </p>
 
           <div style={{ marginTop: 'var(--space-2)' }}>
-            <span className="technical-label" style={{ marginRight: '0.5rem', color: 'var(--purple)' }}>
+            <span className="technical-label" style={{ marginRight: '0.5rem', color: 'var(--brand-text)' }}>
               {lang === 'pt' ? 'Comando para reproduzir:' : 'Reproduction command:'}
             </span>
             <code
@@ -83,8 +83,8 @@ export function MatrixTable({ lang = 'en' }: MatrixTableProps) {
                 fontFamily: 'var(--font-jetbrains-mono), monospace',
                 fontSize: '0.82rem',
                 padding: '0.3rem 0.6rem',
-                background: 'color-mix(in srgb, var(--purple) 8%, var(--cream))',
-                border: '1px solid var(--border-subtle)',
+                background: 'var(--surface-raised)',
+                border: '1px solid var(--line)',
                 borderRadius: 'var(--radius-control)',
               }}
             >

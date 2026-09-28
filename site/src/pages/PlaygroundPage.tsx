@@ -267,9 +267,9 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({ lang = 'en' }) =
             <div className={styles.panelHeader}>
               <div className={styles.panelTitleGroup}>
                 <span className={styles.panelIcon} aria-hidden="true"><Settings size={16} /></span>
-                <h3 className={styles.panelTitle}>
+                <h2 className={styles.panelTitle}>
                   {isPt ? 'Configuração & Cenário' : 'Configuration & Scenario'}
-                </h3>
+                </h2>
               </div>
               <div
                 className={`${styles.wasmStatusBadge} ${
@@ -310,12 +310,13 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({ lang = 'en' }) =
               {/* Workers */}
               <div className={styles.formGroup}>
                 <div className={styles.sliderHeader}>
-                  <label className={styles.formLabel}>
+                  <label htmlFor="pg-workers" className={styles.formLabel}>
                     <span className={styles.workersPill}>Workers</span>
                   </label>
                   <span className={styles.sliderVal}>{workers}</span>
                 </div>
                 <input
+                  id="pg-workers"
                   type="range"
                   min="1"
                   max="8"
@@ -328,10 +329,11 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({ lang = 'en' }) =
               {/* Iterações */}
               <div className={styles.formGroup}>
                 <div className={styles.sliderHeader}>
-                  <label className={styles.formLabel}>{isPt ? 'Iterações' : 'Iterations'}</label>
+                  <label htmlFor="pg-iterations" className={styles.formLabel}>{isPt ? 'Iterações' : 'Iterations'}</label>
                   <span className={styles.sliderVal}>{iterations}</span>
                 </div>
                 <input
+                  id="pg-iterations"
                   type="range"
                   min="5"
                   max="50"
@@ -345,10 +347,11 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({ lang = 'en' }) =
               {/* Micro-Jitter */}
               <div className={styles.formGroup}>
                 <div className={styles.sliderHeader}>
-                  <label className={styles.formLabel}>Micro-Jitter</label>
+                  <label htmlFor="pg-jitter" className={styles.formLabel}>Micro-Jitter</label>
                   <span className={styles.sliderVal}>{jitterMs}ms</span>
                 </div>
                 <input
+                  id="pg-jitter"
                   type="range"
                   min="0"
                   max="50"
@@ -361,10 +364,11 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({ lang = 'en' }) =
               {/* Semente PRNG */}
               <div className={styles.formGroup}>
                 <div className={styles.sliderHeader}>
-                  <label className={styles.formLabel}>{isPt ? 'Semente PRNG' : 'PRNG Seed'}</label>
+                  <label htmlFor="pg-seed" className={styles.formLabel}>{isPt ? 'Semente PRNG' : 'PRNG Seed'}</label>
                   <span className={styles.sliderVal}>{seed}</span>
                 </div>
                 <input
+                  id="pg-seed"
                   type="number"
                   min="0"
                   max="999"
@@ -388,6 +392,7 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({ lang = 'en' }) =
                 </button>
               </div>
               <textarea
+                aria-label="chaos.yaml"
                 value={yamlContent}
                 onChange={(e) => {
                   setYamlContent(e.target.value);
@@ -447,9 +452,9 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({ lang = 'en' }) =
             <div className={styles.panelHeader}>
               <div className={styles.panelTitleGroup}>
                 <span className={styles.panelIcon} aria-hidden="true"><Activity size={16} /></span>
-                <h3 className={styles.panelTitle}>
+                <h2 className={styles.panelTitle}>
                   {isPt ? 'Observabilidade em Tempo Real' : 'Real-Time Observability'}
-                </h3>
+                </h2>
               </div>
               <div className={styles.playgroundTabs}>
                 <button
