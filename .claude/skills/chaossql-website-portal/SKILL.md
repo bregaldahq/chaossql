@@ -82,6 +82,14 @@ English is canonical); the English purity gate skips `site/`.
   one `.copy-code-btn` handled by a delegated click in `DocsContent` (the
   legacy inline `onclick` handlers are stripped). Chapter HTML is styled with
   `:global` rules in `DocsContent.module.css`.
+- Docs copy follows `site/COPY.md` like the rest of the site and must match
+  the code: `run` exits 0 on `violation` and 1 on any error (no exit 2); the
+  flag table lists only the flags registered in `cmd/chaossql/main.go`; the
+  engine uses seeded jitter (PCT-style scheduling is proxy only); the shrinker
+  is memoized ddmin plus a 1-minimality audit on the failure signature, with
+  no causal closure. `src/data/docs-copy.test.ts` guards dashes, removed
+  claims and flags that do not exist; when a CLI flag or exit code changes,
+  update `docs.json` (en and pt) in the same commit.
 - Copy (`src/i18n/`): `en.ts` is canonical, `pt.ts` is typed as `Messages`
   so a missing or extra key fails `tsc`; `format(template, values)` fills
   `{name}` placeholders and throws on a missing value. `src/i18n/i18n.test.ts`
@@ -291,6 +299,7 @@ vanilla portal) are required by `make check-harness` and exercised by
 - `site/src/pages/DashboardPage.tsx`
 - `site/src/pages/PricingPage.tsx`
 - `site/src/data/docs.json`
+- `site/src/data/docs-copy.test.ts`
 - `site/src/data/scenarios.json`
 - `site/src/styles/tokens.css`
 - `site/src/pages/LandingPage.tsx`
