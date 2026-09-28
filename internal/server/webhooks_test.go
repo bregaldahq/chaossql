@@ -362,7 +362,7 @@ func TestValidateWebhookTargetAllowsPublicHTTPS(t *testing.T) {
 
 func TestSaaSRouterDoesNotExposeShortWebhookRoutes(t *testing.T) {
 	s := newTestStore(t)
-	router := NewRouter(RouterConfig{Store: s, Engine: NewRegressionEngine(s)})
+	router := NewRouter(RouterConfig{Store: s, Engine: NewRegressionEngine(s), Context: t.Context()})
 
 	// A stored webhook whose URL embeds a provider secret.
 	_ = s.CreateWebhook(context.Background(), &WebhookRecord{
@@ -386,7 +386,7 @@ func TestSaaSRouterDoesNotExposeShortWebhookRoutes(t *testing.T) {
 
 func TestSaaSRouterCannotEnableShortRoutesThroughEnvironment(t *testing.T) {
 	s := newTestStore(t)
-	router := NewRouter(RouterConfig{Store: s, Engine: NewRegressionEngine(s)})
+	router := NewRouter(RouterConfig{Store: s, Engine: NewRegressionEngine(s), Context: t.Context()})
 
 	t.Setenv("CHAOSSQL_LOCAL_DASHBOARD", "1")
 
@@ -405,7 +405,7 @@ func TestExplicitLocalRouterAllowsShortWebhookRoutes(t *testing.T) {
 	if err := s.CreateOrganization("org_default", "Local", "developer"); err != nil {
 		t.Fatal(err)
 	}
-	router := NewLocalRouter(RouterConfig{Store: s, Engine: NewRegressionEngine(s)})
+	router := NewLocalRouter(RouterConfig{Store: s, Engine: NewRegressionEngine(s), Context: t.Context()})
 
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest("GET", "/v1/webhooks", nil)

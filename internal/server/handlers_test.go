@@ -43,6 +43,7 @@ func newTestServer(t *testing.T) (http.Handler, *Store, string) {
 		Store:         store,
 		Engine:        engine,
 		PublicBaseURL: "https://cloud.chaossql.com",
+		Context:       t.Context(),
 	})
 
 	return handler, store, token

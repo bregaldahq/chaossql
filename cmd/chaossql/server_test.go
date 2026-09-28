@@ -103,6 +103,7 @@ func TestServerCmd_LiveServerHealth(t *testing.T) {
 		Store:         store,
 		Engine:        engine,
 		PublicBaseURL: "http://localhost:18081",
+		Context:       t.Context(),
 	})
 
 	srv := &http.Server{
