@@ -1,46 +1,34 @@
 import type { RouteId } from './router';
-import { docChapterFromPath, scenarioSlugFromPath } from './router';
 import { pageMeta, SEO_ROUTES, SITE_ORIGIN, splitLocale, type Lang, type PageMeta } from './seo';
-import { scenarioBySlug } from '../data/scenarios-data';
-import { docChapter } from '../data/docs-content';
 
 export { SITE_ORIGIN };
 
 // Per-route metadata lives in seo.ts, shared with the prerender and the worker.
 export const ROUTE_META = SEO_ROUTES;
 
-/** Title and description of a scenario page (/scenarios/<slug>). */
-export function scenarioMeta(slug: string | null, lang: Lang): { title: string; description: string } | undefined {
-  const scenario = scenarioBySlug(slug);
-  if (!scenario) return undefined;
-  const summary = (scenario.summary[lang] || scenario.summary.en).replace(/\s+/g, ' ').trim();
-  return {
-    title: `${scenario.name[lang] || scenario.name.en} (${scenario.code}) | ${lang === 'pt' ? 'Cenários' : 'Scenarios'} | ChaosSQL`,
-    description: summary.length > 160 ? `${summary.slice(0, 157).trimEnd()}...` : summary,
-  };
+type Copy = { title: string; description: string };
+type MetaOverride = (pathname: string, lang: Lang) => Copy | undefined;
+
+// Detail pages (/scenarios/<slug>, /docs/<chapter>) take their title from
+// their content files. Those files are large, so they must stay in the lazy
+// page chunks: each page module registers its override when it loads (see
+// src/lib/detail-meta.ts), and this module never imports content data.
+const overrides: Partial<Record<RouteId, MetaOverride>> = {};
+
+export function registerMetaOverride(route: RouteId, override: MetaOverride): void {
+  overrides[route] = override;
 }
 
-/** Title and description of a docs chapter page (/docs/<chapter>). */
-export function docChapterMeta(id: string | null, lang: Lang): { title: string; description: string } | undefined {
-  const chapter = docChapter(id, lang);
-  if (!chapter) return undefined;
-  const summary = chapter.summary.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
-  return {
-    title: `${chapter.title} | ${lang === 'pt' ? 'Documentação' : 'Docs'} | ChaosSQL`,
-    description: summary.length > 160 ? `${summary.slice(0, 157).trimEnd()}...` : summary,
-  };
+/** Shortens a plain-text summary to a meta description. */
+export function metaDescription(text: string): string {
+  const plain = text.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
+  return plain.length > 160 ? `${plain.slice(0, 157).trimEnd()}...` : plain;
 }
 
 /** Metadata for a full pathname ("/pt/scenarios/write-skew"). */
 export function metaForPath(route: RouteId, pathname: string): PageMeta {
   const { lang, path } = splitLocale(pathname);
-  const override =
-    route === 'scenarios'
-      ? scenarioMeta(scenarioSlugFromPath(pathname), lang)
-      : route === 'docs'
-        ? docChapterMeta(docChapterFromPath(pathname), lang)
-        : undefined;
-  return pageMeta(route, lang, path, override);
+  return pageMeta(route, lang, path, overrides[route]?.(pathname, lang));
 }
 
 function setAttr(selector: string, attr: string, value: string) {

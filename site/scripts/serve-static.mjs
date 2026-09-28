@@ -12,6 +12,7 @@ import { fileURLToPath } from 'node:url';
 
 const SITE = join(dirname(fileURLToPath(import.meta.url)), '..');
 const PORT = Number(process.argv[2] ?? 4173);
+const gzipped = new Map();
 const manifest = new Set(JSON.parse(readFileSync(join(SITE, 'prerender', 'manifest.json'), 'utf8')));
 const TYPES = {
   '.html': 'text/html; charset=utf-8',
@@ -41,8 +42,10 @@ createServer((req, res) => {
   if (pathname.startsWith('/assets/')) headers['Cache-Control'] = 'public, max-age=31536000, immutable';
   let body = readFileSync(file);
   // Compress text like Cloudflare does, so Lighthouse measures realistic sizes.
+  // Cached, so compression does not compete with Lighthouse for the CPU.
   if (/gzip/.test(req.headers['accept-encoding'] ?? '') && /text|javascript|json|xml|svg/.test(headers['Content-Type'])) {
-    body = gzipSync(body);
+    if (!gzipped.has(file)) gzipped.set(file, gzipSync(body, { level: 9 }));
+    body = gzipped.get(file);
     headers['Content-Encoding'] = 'gzip';
   }
   res.writeHead(200, headers).end(body);

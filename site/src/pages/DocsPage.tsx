@@ -5,6 +5,8 @@ import { messages, type Language } from '../i18n';
 import { DocsSidebar } from '../components/docs/DocsSidebar';
 import { DocsContent } from '../components/docs/DocsContent';
 import styles from './DocsPage.module.css';
+import '../lib/detail-meta';
+import { applyRouteMeta } from '../lib/route-meta';
 
 export interface DocsPageProps {
   lang?: Language;
@@ -22,6 +24,10 @@ export function DocsPage({ lang = 'en' }: DocsPageProps) {
   useEffect(() => {
     if (isChapterId(legacy)) navigate(localizePath(`/docs/${legacy}`, lang), { replace: true });
   }, [legacy, lang]);
+
+  // App applies route metadata before this lazy chunk (and its chapter
+  // titles) has loaded; apply it again once the page is here.
+  useEffect(() => applyRouteMeta('docs', pathname), [pathname]);
 
   const chapterId = docChapterFromPath(pathname);
   const chapter = docChapter(chapterId, lang);
