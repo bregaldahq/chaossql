@@ -65,6 +65,8 @@ Re-check this table when the engine, the action or the prices change.
 | Audit: $1,490, one week, 45 min kickoff, 5 transactions, 100,000+ schedules, 3 months Cloud Team | Confirmed offer; `pricing.audit` in `src/i18n/en.ts` |
 | Cloud plan limits (1/10/30 repositories, 7/90/365 days) and prices ($0, $39/$31, $99/$79) | `internal/server/billing.go`; `CLOUD_PLANS` in `src/pages/PricingPage.tsx` |
 | "Every Cloud plan includes": metadata-only uploads, baseline on main and `is-regression`, PR comments, Discord/Slack/generic webhooks, unlimited users | `chaossql-cloud-publishing`, `chaossql-ingestion-baselines` and `chaossql-webhooks-outbox` skills; plan feature flags are informational only, so no feature is sold as exclusive to a tier |
+| Docs: exit codes, `run`/`demo` flag table, shrinker and scheduler descriptions | `cmd/chaossql/main.go` (flags, `unreliableRunError`), `internal/shrinker/ddmin.go`, `pkg/proxy/jitter.go` (PCT-style scheduler, proxy only); guarded by `src/data/docs-copy.test.ts` |
+| Docs: "85% or more" and "under 2 s" for the shrinker | `evals/01_shrinking_ratio.md` targets, not per-run measurements |
 | Not claimed on purpose | Nightly scheduled fuzzing, downloadable reproducers from Cloud (reproductions stay in the runner), PagerDuty, "advanced isolation policies", "most popular" (no customers yet) |
 
 ## What the recorded runs are (and are not)
