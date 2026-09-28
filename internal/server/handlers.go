@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -17,6 +18,11 @@ type RouterConfig struct {
 	Store         *Store
 	Engine        *RegressionEngine
 	PublicBaseURL string
+	// Context, when set, bounds the background webhook outbox dispatcher: it
+	// stops when the context is done. Without it the dispatcher runs for the
+	// life of the process (the server entry points). Tests pass t.Context() so
+	// dispatchers from earlier tests do not keep polling their databases.
+	Context context.Context
 }
 
 type Server struct {
@@ -58,6 +64,12 @@ func newRouter(cfg RouterConfig, local bool) http.Handler {
 	var outboxDispatcher *OutboxDispatcher
 	if cfg.Store != nil {
 		outboxDispatcher = NewOutboxDispatcher(cfg.Store, dispatcher)
+		if cfg.Context != nil {
+			go func() {
+				<-cfg.Context.Done()
+				outboxDispatcher.Stop()
+			}()
+		}
 	}
 
 	s := &Server{

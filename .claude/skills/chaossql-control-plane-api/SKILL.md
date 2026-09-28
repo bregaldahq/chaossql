@@ -68,7 +68,8 @@ Webhook URLs are returned redacted (`redactedWebhookURL`).
 - `RouterConfig.Engine` is accepted but ingestion builds its own
   `RegressionEngine` inside the transaction.
 - Creating the router starts an outbox dispatcher goroutine
-  (`chaossql-webhooks-outbox`).
+  (`chaossql-webhooks-outbox`); it stops when `RouterConfig.Context` is done.
+  Tests that build a router must pass `Context: t.Context()`.
 
 ## Change checklist (new endpoint)
 

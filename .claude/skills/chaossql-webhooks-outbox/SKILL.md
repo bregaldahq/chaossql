@@ -28,7 +28,8 @@ redacted URLs.
    `RegressionAlert` (repo, branch, PR, SHA, anomaly, driver, scenario, seed,
    duration, baseline status, run URL, regression flag).
 2. **Dispatch** (`OutboxDispatcher`, started by `newRouter` whenever a store
-   exists): wakes every 20 ms or on `Trigger()`; takes up to 20 `pending`
+   exists; it runs until `RouterConfig.Context` is done, or for the life of
+   the process when no context is set): wakes every 20 ms or on `Trigger()`; takes up to 20 `pending`
    items with `next_retry_at <= now`; loads the webhook (missing/inactive →
    failed attempt); `DispatchAlert` with a 5 s timeout.
 3. **Result**: success → `delivered`; failure →
@@ -55,11 +56,12 @@ synchronously.
 - The dispatcher polls every 20 ms for the life of the process (keep the
   machine running — see `deploy/fly/fly.toml`).
 - Retention deletes non-pending outbox rows older than the plan window.
-- Every router starts an `OutboxDispatcher` that is never stopped, so in tests
-  dispatchers from earlier servers keep dialing in the background. Never swap
-  package-level hooks such as the resolver with a plain assignment: it races
-  with those goroutines under `-race` (it made CI flaky before
-  `stubLookupIP`).
+- Every router starts an `OutboxDispatcher`. Tests must pass
+  `Context: t.Context()` in `RouterConfig` so it stops when the test ends;
+  otherwise dispatchers from earlier tests keep polling every 20 ms (with
+  `-race`, 5 runs of `internal/server` took 158 s instead of 36 s) and keep
+  dialing. Still swap package-level hooks such as the resolver only through
+  helpers like `stubLookupIP`, never with a plain assignment.
 
 ## Tests
 

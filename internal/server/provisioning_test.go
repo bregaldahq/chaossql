@@ -179,7 +179,7 @@ func TestListOrganizationsReportsUsage(t *testing.T) {
 // Two provisioned tenants on one instance must never observe each other's data.
 func TestProvisionedOrganizationsAreIsolated(t *testing.T) {
 	store := newProvisioningStore(t)
-	handler := NewRouter(RouterConfig{Store: store, Engine: NewRegressionEngine(store), PublicBaseURL: "https://cloud.example"})
+	handler := NewRouter(RouterConfig{Store: store, Engine: NewRegressionEngine(store), PublicBaseURL: "https://cloud.example", Context: t.Context()})
 	orgA, ownerA, err := store.ProvisionOrganization("Tenant A", "team")
 	if err != nil {
 		t.Fatal(err)
