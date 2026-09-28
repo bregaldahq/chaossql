@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="lab" data-surface="light">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CLI Manual, Subcommands &amp; All 12 Flags | Docs | ChaosSQL</title>
+    <meta
+      name="description"
+      content="Comprehensive manual for the chaossql command-line interface, detailed options, exit codes, and operational flags."
+    />
+    <link rel="canonical" href="https://chaossql.bregalda.com/docs/cli-reference" />
+    <link rel="alternate" hreflang="en" href="https://chaossql.bregalda.com/docs/cli-reference" />
+    <link rel="alternate" hreflang="pt-BR" href="https://chaossql.bregalda.com/pt/docs/cli-reference" />
+    <link rel="alternate" hreflang="x-default" href="https://chaossql.bregalda.com/docs/cli-reference" />
+    <meta name="robots" content="index, follow, max-image-preview:large" />
+    <meta name="keywords" content="ChaosSQL, SQL concurrency testing, database fuzzer, isolation levels, lost update, write skew, Adya anomalies, delta debugging, PostgreSQL, MySQL, SQLite, Go" />
+    <meta name="author" content="Ricardo Bregalda — Studio Bregalda" />
+    <meta name="theme-color" content="#141021" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="ChaosSQL" />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:locale:alternate" content="pt_BR" />
+    <meta property="og:url" content="https://chaossql.bregalda.com/docs/cli-reference" />
+    <meta property="og:title" content="CLI Manual, Subcommands &amp; All 12 Flags | Docs | ChaosSQL" />
+    <meta property="og:description" content="Comprehensive manual for the chaossql command-line interface, detailed options, exit codes, and operational flags." />
+    <meta property="og:image" content="https://chaossql.bregalda.com/og/docs.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="CLI Manual, Subcommands &amp; All 12 Flags | Docs | ChaosSQL" />
+    <meta name="twitter:description" content="Comprehensive manual for the chaossql command-line interface, detailed options, exit codes, and operational flags." />
+    <meta name="twitter:image" content="https://chaossql.bregalda.com/og/docs.png" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "ChaosSQL",
+        "url": "https://chaossql.bregalda.com/",
+        "description": "Deterministic concurrency and isolation fuzzer for SQL databases with causal delta-debugging and Adya cycle classification.",
+        "applicationCategory": "DeveloperApplication",
+        "operatingSystem": "Linux, macOS, Windows",
+        "programmingLanguage": "Go",
+        "license": "https://opensource.org/licenses/MIT",
+        "softwareVersion": "1.6.0",
+        "codeRepository": "https://github.com/bregaldahq/chaossql",
+        "sameAs": ["https://github.com/bregaldahq/chaossql"],
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+        "author": { "@type": "Person", "name": "Ricardo Bregalda" }
+      }
+    </script>
+    <link rel="icon" type="image/svg+xml" href="/brand/icone_bregalda.svg" />
+    <script type="module" crossorigin src="/assets/main-D4MZCY9i.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/main-DsdD8E9B.css">
+      <link rel="preload" as="font" type="font/woff2" crossorigin href="/assets/geist-latin-wght-normal-BgDaEnEv.woff2">
+    <link rel="preload" as="font" type="font/woff2" crossorigin href="/assets/jetbrains-mono-latin-wght-normal-B9CIFXIH.woff2">
+      <link rel="stylesheet" crossorigin href="/assets/DocsPage-BWkhtRW7.css">
+    <link rel="modulepreload" crossorigin href="/assets/DocsPage-Cir-9m4o.js">
+    <link rel="modulepreload" crossorigin href="/assets/search-Cso1hY8L.js">
+  </head>
+  <body>
+    <div id="root" data-prerendered><link rel="preload" as="image" href="/brand/icone_bregalda.svg"/><div style="min-height:100vh;display:flex;flex-direction:column"><a class="skip-link" href="#main">Skip to content</a><header class="_nav_19ps6_2" data-nav="true"><a href="/" class="_brand_19ps6_17" aria-label="ChaosSQL by Studio Bregalda, home"><img src="/brand/icone_bregalda.svg" alt="" width="28" height="28"/><span>ChaosSQL</span></a><nav aria-label="Main navigation" class="_links_19ps6_33"><a href="/#story" class="_link_19ps6_33">How it works</a><a href="/scenarios" class="_link_19ps6_33">Scenarios</a><a href="/playground" class="_link_19ps6_33">WASM Playground</a><a href="/docs" class="_link_19ps6_33" aria-current="page">Docs</a><a href="/pricing" class="_link_19ps6_33">Pricing</a></nav><div class="_actions_19ps6_59"><div class="_lang_19ps6_66" role="group" aria-label="Language selector"><button type="button" aria-pressed="true">EN</button><button type="button" aria-pressed="false">PT</button></div><a href="https://github.com/bregaldahq/chaossql" target="_blank" rel="noreferrer" class="_github_19ps6_90">GitHub <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-up-right" aria-hidden="true"><path d="M7 7h10v10"></path><path d="M7 17 17 7"></path></svg></a><a href="/#story" class="_button_soy8p_1 _primary_soy8p_44 _md_soy8p_32 _cta_19ps6_146"><span>See the bug happen</span></a><button type="button" class="_menuToggle_19ps6_104" aria-expanded="false" aria-controls="mobile-nav" aria-label="Open navigation menu"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-menu" aria-hidden="true"><path d="M4 5h16"></path><path d="M4 12h16"></path><path d="M4 19h16"></path></svg></button></div></header><main id="main" style="flex-grow:1"><!--$--><div class="_page_jeaxe_1"><div class="_layout_jeaxe_5"><aside class="_sidebar_1j18f_1"><a href="/docs" class="_home_1j18f_11">All chapters</a><label class="_search_1j18f_21"><span class="sr-only">Search the docs</span><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-search" aria-hidden="true"><path d="m21 21-4.34-4.34"></path><circle cx="11" cy="11" r="8"></circle></svg><input type="search" placeholder="Search the docs" value=""/></label><nav aria-label="Documentation chapters"><div class="_group_1j18f_48"><p class="_category_1j18f_62">Getting Started</p><ul><li><a href="/docs/getting-started" class="_link_1j18f_68">Quickstart Guide &amp; Core Architecture</a></li></ul></div><div class="_group_1j18f_48"><p class="_category_1j18f_62">Specification</p><ul><li><a href="/docs/dsl-spec" class="_link_1j18f_68">Declarative Language Specification</a></li></ul></div><div class="_group_1j18f_48"><p class="_category_1j18f_62">Interface</p><ul><li><a href="/docs/cli-reference" class="_link_1j18f_68" aria-current="page">CLI Manual, Subcommands &amp; All 12 Flags</a></li></ul></div><div class="_group_1j18f_48"><p class="_category_1j18f_62">Visualization</p><ul><li><a href="/docs/trace-visualizer" class="_link_1j18f_68">Interactive Trace Visualizer (chaossql ui)</a></li></ul></div><div class="_group_1j18f_48"><p class="_category_1j18f_62">CI/CD &amp; Security</p><ul><li><a href="/docs/cicd-sarif" class="_link_1j18f_68">CI/CD, SARIF 2.1.0 &amp; GitHub Actions</a></li></ul></div><div class="_group_1j18f_48"><p class="_category_1j18f_62">Engines</p><ul><li><a href="/docs/drivers" class="_link_1j18f_68">Supported Database Engines &amp; Drivers</a></li></ul></div><div class="_group_1j18f_48"><p class="_category_1j18f_62">SDK</p><ul><li><a href="/docs/go-sdk" class="_link_1j18f_68">Go Developer Testing SDK (chaostest)</a></li></ul></div><div class="_group_1j18f_48"><p class="_category_1j18f_62">Theory</p><ul><li><a href="/docs/academic-theory" class="_link_1j18f_68">Formal Theory &amp; Mathematical Foundation</a></li></ul></div></nav></aside><article class="_article_1modt_1" aria-labelledby="chapter-title"><p class="_category_1modt_6">Interface</p><h1 id="chapter-title" class="_title_1modt_12">CLI Manual, Subcommands &amp; All 12 Flags</h1><p class="_summary_1modt_22">Comprehensive manual for the chaossql command-line interface, detailed options, exit codes, and operational flags.</p><div class="_prose_1modt_30"><h2>CLI Architecture &amp; Design Philosophy</h2>
+<p>The ChaosSQL Command-Line Interface (CLI) is engineered for systems developers who demand rapid feedback loops, granular scheduling control, and frictionless integration with automated CI/CD pipelines. Built upon Cobra and styled with Charm Lipgloss, the CLI outputs expressive ANSI terminal diagnostics, soft tonal colors from the Studio Bregalda Design System, and exportable industry-standard artifacts (SARIF, JUnit XML, standalone HTML, OpenTelemetry OTLP JSON, and Mermaid sequence diagrams).</p>
+
+<h2>Complete Table of Execution, Scheduling &amp; Export Flags</h2>
+<p>All flags can be passed to execution subcommands (<code>run</code> and <code>demo</code>), overriding corresponding parameters defined in the scenario specification file:</p>
+
+<table class="matrix-table">
+  <thead>
+    <tr>
+      <th>Flag</th>
+      <th>Type</th>
+      <th>Default</th>
+      <th>Subcommands</th>
+      <th>Technical Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>--driver</code></td>
+      <td><code>string</code></td>
+      <td><code>""</code> (reads spec)</td>
+      <td><code>run</code>, <code>diff</code>, <code>matrix</code>, <code>init</code></td>
+      <td>Target database engine driver (<code>sqlite</code>, <code>postgres</code>, <code>mysql</code>).</td>
+    </tr>
+    <tr>
+      <td><code>--dsn</code></td>
+      <td><code>string</code></td>
+      <td><code>""</code> (reads spec)</td>
+      <td><code>run</code>, <code>diff</code>, <code>matrix</code></td>
+      <td>Database connection string / Data Source Name for external database engines.</td>
+    </tr>
+    <tr>
+      <td><code>--config</code></td>
+      <td><code>string</code></td>
+      <td><code>""</code></td>
+      <td><code>run</code>, <code>validate</code></td>
+      <td>Alternative file path to the YAML scenario specification.</td>
+    </tr>
+    <tr>
+      <td><code>--workers</code></td>
+      <td><code>int</code></td>
+      <td><code>0</code> (reads spec)</td>
+      <td><code>run</code>, <code>demo</code>, <code>bench</code></td>
+      <td>Number of concurrent goroutines executing simultaneous transactions.</td>
+    </tr>
+    <tr>
+      <td><code>--duration</code></td>
+      <td><code>duration</code></td>
+      <td><code>0s</code></td>
+      <td><code>run</code>, <code>demo</code>, <code>bench</code></td>
+      <td>Time-bounded fuzzing duration (e.g., <code>10s</code>, <code>1m</code>). Mutually exclusive with iterations.</td>
+    </tr>
+    <tr>
+      <td><code>--iterations</code></td>
+      <td><code>int</code></td>
+      <td><code>0</code> (reads spec)</td>
+      <td><code>run</code>, <code>demo</code></td>
+      <td>Total transaction iterations scheduled across all workers during the session.</td>
+    </tr>
+    <tr>
+      <td><code>--jitter-min</code></td>
+      <td><code>int</code></td>
+      <td><code>1</code></td>
+      <td><code>run</code>, <code>demo</code></td>
+      <td>Minimum stochastic jitter micro-delay in milliseconds injected between SQL steps.</td>
+    </tr>
+    <tr>
+      <td><code>--jitter-max</code></td>
+      <td><code>int</code></td>
+      <td><code>10</code></td>
+      <td><code>run</code>, <code>demo</code></td>
+      <td>Maximum stochastic jitter micro-delay in milliseconds injected between SQL steps.</td>
+    </tr>
+    <tr>
+      <td><code>--seed</code></td>
+      <td><code>uint64</code></td>
+      <td><code>0</code> (reads spec)</td>
+      <td><code>run</code>, <code>demo</code>, <code>diff</code></td>
+      <td>Deterministic PCG64 PRNG seed for bit-for-bit identical anomaly reproduction.</td>
+    </tr>
+    <tr>
+      <td><code>--pct-depth</code></td>
+      <td><code>int</code></td>
+      <td><code>2</code></td>
+      <td><code>run</code>, <code>demo</code></td>
+      <td>Maximum schedule priority change depth <span class="math">d</span> for the PCT-SQL algorithm.</td>
+    </tr>
+    <tr>
+      <td><code>--ddmin</code></td>
+      <td><code>bool</code></td>
+      <td><code>true</code></td>
+      <td><code>run</code>, <code>demo</code></td>
+      <td>Enables or disables Causal Delta-Debugging counterexample minimization.</td>
+    </tr>
+    <tr>
+      <td><code>--output</code></td>
+      <td><code>string</code></td>
+      <td><code>""</code></td>
+      <td><code>run</code>, <code>demo</code>, <code>matrix</code></td>
+      <td>Destination directory or base path for generated execution reports.</td>
+    </tr>
+    <tr>
+      <td><code>--port</code></td>
+      <td><code>int</code></td>
+      <td><code>8090</code></td>
+      <td><code>ui</code>, <code>run</code></td>
+      <td>Port for the local embedded HTTP trace visualizer web server.</td>
+    </tr>
+    <tr>
+      <td><code>--export-sarif</code></td>
+      <td><code>string</code></td>
+      <td><code>""</code></td>
+      <td><code>run</code>, <code>demo</code></td>
+      <td>Exports findings in OASIS SARIF v2.1.0 format for GitHub Code Scanning.</td>
+    </tr>
+    <tr>
+      <td><code>--export-html</code></td>
+      <td><code>string</code></td>
+      <td><code>""</code></td>
+      <td><code>run</code>, <code>demo</code></td>
+      <td>Generates a standalone, dependency-free interactive HTML audit report (~60KB).</td>
+    </tr>
+    <tr>
+      <td><code>--export-otel</code></td>
+      <td><code>string</code></td>
+      <td><code>""</code></td>
+      <td><code>run</code>, <code>demo</code></td>
+      <td>Exports execution trace as OpenTelemetry OTLP JSON for distributed observability.</td>
+    </tr>
+    <tr>
+      <td><code>--export-junit</code></td>
+      <td><code>string</code></td>
+      <td><code>""</code></td>
+      <td><code>run</code>, <code>demo</code></td>
+      <td>Exports execution results as standard JUnit XML for CI/CD test dashboards.</td>
+    </tr>
+    <tr>
+      <td><code>--export-summary</code></td>
+      <td><code>string</code></td>
+      <td><code>""</code></td>
+      <td><code>run</code>, <code>demo</code></td>
+      <td>Exports a GitHub-flavored Markdown report directly to <code>$GITHUB_STEP_SUMMARY</code>.</td>
+    </tr>
+    <tr>
+      <td><code>--export-mermaid</code></td>
+      <td><code>bool</code></td>
+      <td><code>false</code></td>
+      <td><code>run</code>, <code>demo</code></td>
+      <td>Exports chronological sequence diagram of conflicting transactions (<code>trace.mermaid</code>).</td>
+    </tr>
+    <tr>
+      <td><code>--export-repro</code></td>
+      <td><code>bool</code></td>
+      <td><code>false</code></td>
+      <td><code>run</code>, <code>demo</code></td>
+      <td>Synthesizes an isolated Go regression test (<code>repro_test.go</code>) with <span class="math">ddmin</span> reduction.</td>
+    </tr>
+    <tr>
+      <td><code>--ui</code></td>
+      <td><code>bool</code></td>
+      <td><code>false</code></td>
+      <td><code>run</code>, <code>demo</code></td>
+      <td>Automatically launches the embedded trace visualizer on <code>127.0.0.1:8090</code>.</td>
+    </tr>
+    <tr>
+      <td><code>--json</code></td>
+      <td><code>bool</code></td>
+      <td><code>false</code></td>
+      <td><code>run</code>, <code>demo</code>, <code>bench</code>, <code>diff</code>, <code>matrix</code></td>
+      <td>Outputs structured machine-readable JSON to stdout for external automation scripts.</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>Exhaustive Reference of the 9 Subcommands</h2>
+
+<h3>1. <code>chaossql run &lt;chaos.yaml&gt;</code></h3>
+<p>Executes concurrency and invariant fuzzing against the provided specification file:</p>
+<div class="code-container"><button type="button" class="copy-code-btn">Copy</button>
+  <pre><code># Standard execution
+chaossql run specs/banking_lost_update.yaml
+
+# Execution with overrides and comprehensive multi-format report exports
+chaossql run specs/banking_lost_update.yaml \
+  --seed=42 \
+  --workers=8 \
+  --iterations=50 \
+  --export-sarif=reports/audit.sarif \
+  --export-html=reports/report.html \
+  --export-junit=reports/junit.xml \
+  --export-repro \
+  --ui</code></pre>
+</div>
+
+<h3>2. <code>chaossql demo [scenario]</code></h3>
+<p>Launches one of the 10 built-in reference demonstrations featuring terminal visualization and delta-debugging:</p>
+<div class="code-container"><button type="button" class="copy-code-btn">Copy</button>
+  <pre><code>chaossql demo banking       # P4 Lost Update
+chaossql demo inventory     # A3 Inventory Oversell
+chaossql demo hospital      # A5B Hospital Write Skew
+chaossql demo financial     # A5A Financial Read Skew
+chaossql demo auction       # G0 Auction Dirty Write
+chaossql demo crypto        # G1c Circular Information Flow
+chaossql demo flash_crash   # G1a Flash Crash Dirty Read
+chaossql demo ticket        # G2 Anti-Dependency Cycle
+chaossql demo deadlock      # G-DL Mutual Lock Deadlock
+chaossql demo fk            # Foreign Key Cascade Deadlock</code></pre>
+</div>
+
+<h3>3. <code>chaossql ui &lt;trace.json&gt;</code></h3>
+<p>Starts the embedded HTTP web visualizer to inspect a previously recorded execution trace:</p>
+<div class="code-container"><button type="button" class="copy-code-btn">Copy</button>
+  <pre><code>chaossql ui trace_dump.json --port=8090 --no-open</code></pre>
+</div>
+<ul>
+  <li><code>--port int</code>: Local HTTP listener port (default <code>8090</code>).</li>
+  <li><code>--no-open bool</code>: Disables automatic launch of the system default web browser.</li>
+</ul>
+
+<h3>4. <code>chaossql diff &lt;spec.yaml&gt;</code></h3>
+<p>Executes cross-engine differential fuzzing, comparing the runtime isolation semantics of two different database engines under identical workloads and seeds:</p>
+<div class="code-container"><button type="button" class="copy-code-btn">Copy</button>
+  <pre><code>chaossql diff specs/lost_update.yaml \
+  --driver-a=sqlite --dsn-a=":memory:" \
+  --driver-b=postgres --dsn-b="postgres://user:pass@localhost:5432/testdb" \
+  --seed=42</code></pre>
+</div>
+
+<h3>5. <code>chaossql replay &lt;result.json&gt;</code></h3>
+<p>Renders a microsecond-accurate terminal Gantt swimlane from a recorded execution trace:</p>
+<div class="code-container"><button type="button" class="copy-code-btn">Copy</button>
+  <pre><code>chaossql replay result.json --max-events=100</code></pre>
+</div>
+
+<h3>6. <code>chaossql bench</code></h3>
+<p>Executes throughput microbenchmarks measuring deterministic PRNG generation and Adya cycle detection speeds:</p>
+<div class="code-container"><button type="button" class="copy-code-btn">Copy</button>
+  <pre><code>chaossql bench --duration=3s --workers=8 --json</code></pre>
+</div>
+<p>Benchmarks typically demonstrate throughput exceeding <strong>13.9 million operations/second</strong> on modern multi-core processors.</p>
+
+<h3>7. <code>chaossql validate &lt;chaos.yaml&gt;</code></h3>
+<p>Static linter that verifies YAML schema adherence, compiles invariant dynamic expressions, and validates relational referential integrity before runtime execution:</p>
+<div class="code-container"><button type="button" class="copy-code-btn">Copy</button>
+  <pre><code>chaossql validate specs/hospital_write_skew.yaml</code></pre>
+</div>
+
+<h3>8. <code>chaossql init &lt;path&gt;</code></h3>
+<p>Generates production-ready scaffolding for a new test scenario with pre-configured templates:</p>
+<div class="code-container"><button type="button" class="copy-code-btn">Copy</button>
+  <pre><code>chaossql init new_scenario --driver=postgres --name=balance_audit --force</code></pre>
+</div>
+
+<h3>9. <code>chaossql matrix</code></h3>
+<p>Executes an empirical matrix validation based on Martin Kleppmann's Hermitage test taxonomy, testing the target engine against all 9 formal isolation anomalies:</p>
+<div class="code-container"><button type="button" class="copy-code-btn">Copy</button>
+  <pre><code>chaossql matrix --driver=postgres --dsn="postgres://user:pass@localhost:5432/testdb" --markdown</code></pre>
+</div>
+
+<h2>Process Exit Codes</h2>
+<ul>
+  <li><code>0</code>: <strong>Clean / Safe</strong>. All transactions completed successfully and all invariant assertions passed with zero anomalies.</li>
+  <li><code>1</code>: <strong>Anomaly Detected / Violation Found</strong>. At least one invariant assertion failed or an Adya cycle was detected (intentionally fails CI builds).</li>
+  <li><code>2</code>: <strong>Configuration Error / Syntax Error</strong>. YAML syntax error, missing file, or initial database connection failure.</li>
+</ul></div><nav class="_pager_1modt_234" aria-label="Documentation chapters"><a href="/docs/dsl-spec" class="_pagerLink_1modt_243" rel="prev"><span class="_pagerLabel_1modt_260"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-left" aria-hidden="true"><path d="m12 19-7-7 7-7"></path><path d="M19 12H5"></path></svg> <!-- -->Previous</span><span class="_pagerTitle_1modt_272">Declarative Language Specification</span></a><a href="/docs/trace-visualizer" class="_pagerLink_1modt_243 _pagerNext_1modt_256" rel="next"><span class="_pagerLabel_1modt_260">Next<!-- --> <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-right" aria-hidden="true"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg></span><span class="_pagerTitle_1modt_272">Interactive Trace Visualizer (chaossql ui)</span></a></nav></article></div></div><!--/$--></main><footer class="_footer_ldgol_1"><div class="_inner_ldgol_8"><div class="_brand_ldgol_16"><a href="/" class="_logo_ldgol_24"><img src="/brand/icone_bregalda.svg" alt="" width="28" height="28"/><span>ChaosSQL</span></a><p>Built by Studio Bregalda.</p></div><nav aria-label="Footer links" class="_groups_ldgol_37"><div><h2 class="_groupTitle_ldgol_43">Product</h2><ul><li><a href="/#story">How it works</a></li><li><a href="/scenarios">Scenarios</a></li><li><a href="/pricing">Pricing</a></li></ul></div><div><h2 class="_groupTitle_ldgol_43">Tools</h2><ul><li><a href="/playground">WASM Playground</a></li><li><a href="/visualizer">Trace Visualizer</a></li><li><a href="/matrix">Hermitage Matrix</a></li><li><a href="/dashboard">Cloud Dashboard</a></li></ul></div><div><h2 class="_groupTitle_ldgol_43">Resources</h2><ul><li><a href="/docs">Documentation</a></li><li><a href="https://github.com/bregaldahq/chaossql" target="_blank" rel="noreferrer">GitHub</a></li><li><a href="https://github.com/bregaldahq/chaossql/releases" target="_blank" rel="noreferrer">Releases</a></li></ul></div></nav><p class="_copyright_ldgol_69"><span>© <!-- -->2026</span> Studio Bregalda. <!-- -->All rights reserved.</p></div></footer></div></div>
+  </body>
+</html>

@@ -23,6 +23,12 @@ const LOCATION_CHANGE = 'chaossql:locationchange';
 
 export { localizePath, splitLocale } from './seo';
 
+/** Chapter id from "/docs/cli-reference" (any language), or null. */
+export function docChapterFromPath(pathname: string): string | null {
+  const match = /^\/docs\/([a-z0-9-]+)\/?$/.exec(splitLocale(pathname).path);
+  return match ? match[1] : null;
+}
+
 /** Scenario slug from "/scenarios/lost-update" (any language), or null. */
 export function scenarioSlugFromPath(pathname: string): string | null {
   const match = /^\/scenarios\/([a-z0-9-]+)\/?$/.exec(splitLocale(pathname).path);

@@ -1,7 +1,8 @@
 import type { RouteId } from './router';
-import { scenarioSlugFromPath } from './router';
+import { docChapterFromPath, scenarioSlugFromPath } from './router';
 import { pageMeta, SEO_ROUTES, SITE_ORIGIN, splitLocale, type Lang, type PageMeta } from './seo';
 import { scenarioBySlug } from '../data/scenarios-data';
+import { docChapter } from '../data/docs-content';
 
 export { SITE_ORIGIN };
 
@@ -19,10 +20,26 @@ export function scenarioMeta(slug: string | null, lang: Lang): { title: string; 
   };
 }
 
+/** Title and description of a docs chapter page (/docs/<chapter>). */
+export function docChapterMeta(id: string | null, lang: Lang): { title: string; description: string } | undefined {
+  const chapter = docChapter(id, lang);
+  if (!chapter) return undefined;
+  const summary = chapter.summary.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
+  return {
+    title: `${chapter.title} | ${lang === 'pt' ? 'Documentação' : 'Docs'} | ChaosSQL`,
+    description: summary.length > 160 ? `${summary.slice(0, 157).trimEnd()}...` : summary,
+  };
+}
+
 /** Metadata for a full pathname ("/pt/scenarios/write-skew"). */
 export function metaForPath(route: RouteId, pathname: string): PageMeta {
   const { lang, path } = splitLocale(pathname);
-  const override = route === 'scenarios' ? scenarioMeta(scenarioSlugFromPath(pathname), lang) : undefined;
+  const override =
+    route === 'scenarios'
+      ? scenarioMeta(scenarioSlugFromPath(pathname), lang)
+      : route === 'docs'
+        ? docChapterMeta(docChapterFromPath(pathname), lang)
+        : undefined;
   return pageMeta(route, lang, path, override);
 }
 

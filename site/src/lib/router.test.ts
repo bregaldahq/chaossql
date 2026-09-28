@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { localizePath, pathFromLegacyHash, routeFromPath, scenarioSlugFromPath, splitLocale } from './router';
 import { pageMeta } from './seo';
 import { SCENARIO_SLUGS, SCENARIOS_DATA } from '../data/scenarios-data';
+import { CHAPTER_ORDER } from '../data/docs-content';
 // @ts-expect-error plain ESM build script without type declarations
 import { buildPagesWorker } from '../../scripts/build-pages-worker.mjs';
 import { ROUTE_META } from './route-meta';
@@ -29,6 +30,8 @@ describe('routeFromPath', () => {
     ['/pt/pricing', 'pricing'],
     ['/scenarios/lost-update', 'scenarios'],
     ['/pt/scenarios/write-skew', 'scenarios'],
+    ['/docs/cli-reference', 'docs'],
+    ['/pt/docs/go-sdk', 'docs'],
   ])('maps %s to %s', (path, expected) => {
     expect(routeFromPath(path)).toBe(expected);
   });
@@ -102,6 +105,13 @@ describe('sitemap.xml', () => {
     for (const lang of ['en', 'pt'] as const) {
       const loc = `<loc>https://chaossql.bregalda.com${localizePath(meta.path, lang)}</loc>`;
       expect(sitemap.includes(loc)).toBe(meta.indexable);
+    }
+  });
+
+  it('lists every docs chapter with its alternate', () => {
+    for (const id of CHAPTER_ORDER) {
+      expect(sitemap).toContain(`<loc>https://chaossql.bregalda.com/docs/${id}</loc>`);
+      expect(sitemap).toContain(`hreflang="pt-BR" href="https://chaossql.bregalda.com/pt/docs/${id}"`);
     }
   });
 

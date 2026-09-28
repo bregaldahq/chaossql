@@ -296,6 +296,13 @@ Cada fase é um PR independente, com `make verify` verde e screenshot antes/depo
 - [x] Lighthouse CI (`.github/workflows/lighthouse.yml`) com metas: performance >= 90, acessibilidade/boas práticas/SEO >= 95, CLS <= 0,1. Medido localmente no perfil mobile: 98–99 / 100 / 100 / 100, LCP ~2 s, CLS 0.
 - Corrigido no caminho: a página de cenários lia campos que não existem mais em `scenarios.json` (a correção quebrava e a invariante mostrava `SELECT 1;`). O tipo agora vem do JSON, sem cast.
 
+### Pós-plano: docs no novo visual
+- [x] `/docs` no tema escuro: índice de capítulos, sidebar fixa com busca (no mobile vira uma fila horizontal que rola até o capítulo atual), tipografia de leitura e blocos de código com o mesmo visual do resto do site.
+- [x] Cada capítulo com URL própria (`/docs/<capítulo>`, links `?chapter=` antigos redirecionados), título e descrição próprios, pré-renderizado nos dois idiomas (46 páginas pré-renderizadas no total) e no sitemap.
+- [x] 255 fórmulas LaTeX que apareciam cruas agora são renderizadas como texto matemático legível, sem biblioteca extra; todo bloco de código tem botão de copiar (antes 4 de 35, com `onclick` embutido).
+- [x] Lighthouse mobile: 96–97 / 100 / 100 / 100, CLS 0 (antes 73 de performance e falha de tamanho de fonte).
+- Próximo, se quiser: revisar o texto dos docs contra o `site/COPY.md` (ainda há "em milissegundos" e travessões) e migrar cenários, matriz, playground, visualizer e dashboard para o tema escuro.
+
 ### Fase 7: Lançamento e iteração (contínuo)
 - [ ] Comparar o funil com a baseline após 2–4 semanas. Ferramenta pronta: `node tools/site_funnel.mjs 28` (token da Cloudflare com Account Analytics: Read) imprime visitas, cada etapa do funil, eventos por idioma e principais referrers.
 - [ ] Teste A/B da headline (2 variantes) via Worker. Só vale com volume: com poucas centenas de visitas por semana, a diferença entre variantes não é mensurável. Decidir depois da primeira leitura do funil.

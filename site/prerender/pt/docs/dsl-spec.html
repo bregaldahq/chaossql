@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="lab" data-surface="light">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Especificação da Linguagem Declarativa (chaos.yaml DSL) | Documentação | ChaosSQL</title>
+    <meta
+      name="description"
+      content="Referência exaustiva da DSL declarativa YAML: taxonomia completa de campos, sintaxe de captura léxica, interpolação de expressões dinâmicas, predicados de gu..."
+    />
+    <link rel="canonical" href="https://chaossql.bregalda.com/pt/docs/dsl-spec" />
+    <link rel="alternate" hreflang="en" href="https://chaossql.bregalda.com/docs/dsl-spec" />
+    <link rel="alternate" hreflang="pt-BR" href="https://chaossql.bregalda.com/pt/docs/dsl-spec" />
+    <link rel="alternate" hreflang="x-default" href="https://chaossql.bregalda.com/docs/dsl-spec" />
+    <meta name="robots" content="index, follow, max-image-preview:large" />
+    <meta name="keywords" content="ChaosSQL, SQL concurrency testing, database fuzzer, isolation levels, lost update, write skew, Adya anomalies, delta debugging, PostgreSQL, MySQL, SQLite, Go" />
+    <meta name="author" content="Ricardo Bregalda — Studio Bregalda" />
+    <meta name="theme-color" content="#141021" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="ChaosSQL" />
+    <meta property="og:locale" content="pt_BR" />
+    <meta property="og:locale:alternate" content="en_US" />
+    <meta property="og:url" content="https://chaossql.bregalda.com/pt/docs/dsl-spec" />
+    <meta property="og:title" content="Especificação da Linguagem Declarativa (chaos.yaml DSL) | Documentação | ChaosSQL" />
+    <meta property="og:description" content="Referência exaustiva da DSL declarativa YAML: taxonomia completa de campos, sintaxe de captura léxica, interpolação de expressões dinâmicas, predicados de gu..." />
+    <meta property="og:image" content="https://chaossql.bregalda.com/og/docs.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Especificação da Linguagem Declarativa (chaos.yaml DSL) | Documentação | ChaosSQL" />
+    <meta name="twitter:description" content="Referência exaustiva da DSL declarativa YAML: taxonomia completa de campos, sintaxe de captura léxica, interpolação de expressões dinâmicas, predicados de gu..." />
+    <meta name="twitter:image" content="https://chaossql.bregalda.com/og/docs.png" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "ChaosSQL",
+        "url": "https://chaossql.bregalda.com/",
+        "description": "Deterministic concurrency and isolation fuzzer for SQL databases with causal delta-debugging and Adya cycle classification.",
+        "applicationCategory": "DeveloperApplication",
+        "operatingSystem": "Linux, macOS, Windows",
+        "programmingLanguage": "Go",
+        "license": "https://opensource.org/licenses/MIT",
+        "softwareVersion": "1.6.0",
+        "codeRepository": "https://github.com/bregaldahq/chaossql",
+        "sameAs": ["https://github.com/bregaldahq/chaossql"],
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+        "author": { "@type": "Person", "name": "Ricardo Bregalda" }
+      }
+    </script>
+    <link rel="icon" type="image/svg+xml" href="/brand/icone_bregalda.svg" />
+    <script type="module" crossorigin src="/assets/main-D4MZCY9i.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/main-DsdD8E9B.css">
+      <link rel="preload" as="font" type="font/woff2" crossorigin href="/assets/geist-latin-wght-normal-BgDaEnEv.woff2">
+    <link rel="preload" as="font" type="font/woff2" crossorigin href="/assets/jetbrains-mono-latin-wght-normal-B9CIFXIH.woff2">
+      <link rel="stylesheet" crossorigin href="/assets/DocsPage-BWkhtRW7.css">
+    <link rel="modulepreload" crossorigin href="/assets/DocsPage-Cir-9m4o.js">
+    <link rel="modulepreload" crossorigin href="/assets/search-Cso1hY8L.js">
+  </head>
+  <body>
+    <div id="root" data-prerendered><link rel="preload" as="image" href="/brand/icone_bregalda.svg"/><div style="min-height:100vh;display:flex;flex-direction:column"><a class="skip-link" href="#main">Pular para o conteúdo</a><header class="_nav_19ps6_2" data-nav="true"><a href="/pt" class="_brand_19ps6_17" aria-label="ChaosSQL by Studio Bregalda, início"><img src="/brand/icone_bregalda.svg" alt="" width="28" height="28"/><span>ChaosSQL</span></a><nav aria-label="Navegação principal" class="_links_19ps6_33"><a href="/pt#story" class="_link_19ps6_33">Como funciona</a><a href="/pt/scenarios" class="_link_19ps6_33">Cenários</a><a href="/pt/playground" class="_link_19ps6_33">Playground WASM</a><a href="/pt/docs" class="_link_19ps6_33" aria-current="page">Documentação</a><a href="/pt/pricing" class="_link_19ps6_33">Preços</a></nav><div class="_actions_19ps6_59"><div class="_lang_19ps6_66" role="group" aria-label="Seletor de idioma"><button type="button" aria-pressed="false">EN</button><button type="button" aria-pressed="true">PT</button></div><a href="https://github.com/bregaldahq/chaossql" target="_blank" rel="noreferrer" class="_github_19ps6_90">GitHub <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-up-right" aria-hidden="true"><path d="M7 7h10v10"></path><path d="M7 17 17 7"></path></svg></a><a href="/pt#story" class="_button_soy8p_1 _primary_soy8p_44 _md_soy8p_32 _cta_19ps6_146"><span>Ver o bug acontecer</span></a><button type="button" class="_menuToggle_19ps6_104" aria-expanded="false" aria-controls="mobile-nav" aria-label="Abrir menu de navegação"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-menu" aria-hidden="true"><path d="M4 5h16"></path><path d="M4 12h16"></path><path d="M4 19h16"></path></svg></button></div></header><main id="main" style="flex-grow:1"><!--$--><div class="_page_jeaxe_1"><div class="_layout_jeaxe_5"><aside class="_sidebar_1j18f_1"><a href="/pt/docs" class="_home_1j18f_11">Todos os capítulos</a><label class="_search_1j18f_21"><span class="sr-only">Buscar na documentação</span><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-search" aria-hidden="true"><path d="m21 21-4.34-4.34"></path><circle cx="11" cy="11" r="8"></circle></svg><input type="search" placeholder="Buscar na documentação" value=""/></label><nav aria-label="Capítulos da documentação"><div class="_group_1j18f_48"><p class="_category_1j18f_62">Começando</p><ul><li><a href="/pt/docs/getting-started" class="_link_1j18f_68">Guia de Início Rápido &amp; Primeiros Passos</a></li></ul></div><div class="_group_1j18f_48"><p class="_category_1j18f_62">Especificação</p><ul><li><a href="/pt/docs/dsl-spec" class="_link_1j18f_68" aria-current="page">Especificação da Linguagem Declarativa (chaos.yaml DSL)</a></li></ul></div><div class="_group_1j18f_48"><p class="_category_1j18f_62">Interface</p><ul><li><a href="/pt/docs/cli-reference" class="_link_1j18f_68">Manual Completo da CLI &amp; Todas as 12 Flags</a></li></ul></div><div class="_group_1j18f_48"><p class="_category_1j18f_62">Visualização</p><ul><li><a href="/pt/docs/trace-visualizer" class="_link_1j18f_68">Visualizador Interativo de Traces (chaossql ui)</a></li></ul></div><div class="_group_1j18f_48"><p class="_category_1j18f_62">CI/CD &amp; Segurança</p><ul><li><a href="/pt/docs/cicd-sarif" class="_link_1j18f_68">Integração com CI/CD, SARIF 2.1.0 &amp; GitHub Actions</a></li></ul></div><div class="_group_1j18f_48"><p class="_category_1j18f_62">Motores</p><ul><li><a href="/pt/docs/drivers" class="_link_1j18f_68">Motores Suportados &amp; Arquitetura de Drivers</a></li></ul></div><div class="_group_1j18f_48"><p class="_category_1j18f_62">SDK</p><ul><li><a href="/pt/docs/go-sdk" class="_link_1j18f_68">Go Developer Testing SDK (pkg/chaostest)</a></li></ul></div><div class="_group_1j18f_48"><p class="_category_1j18f_62">Teoria</p><ul><li><a href="/pt/docs/academic-theory" class="_link_1j18f_68">Teoria Formal &amp; Fundamentação Matemática</a></li></ul></div></nav></aside><article class="_article_1modt_1" aria-labelledby="chapter-title"><p class="_category_1modt_6">Especificação</p><h1 id="chapter-title" class="_title_1modt_12">Especificação da Linguagem Declarativa (chaos.yaml DSL)</h1><p class="_summary_1modt_22">Referência exaustiva da DSL declarativa YAML: taxonomia completa de campos, sintaxe de captura léxica, interpolação de expressões dinâmicas, predicados de guarda condicional, asserções de invariantes e injeção de falhas controladas.</p><div class="_prose_1modt_30"><h2>Visão Geral da Linguagem Declarativa (DSL)</h2>
+<p>O ChaosSQL utiliza uma DSL declarativa em YAML (<code>chaos.yaml</code>) para especificar cenários de teste de concorrência de forma desacoplada do código da aplicação. A especificação modela formalmente o ambiente de banco de dados, o agendamento de workers, as transações concorrentes e as invariantes indutivas que garantem a consistência dos dados.</p>
+
+<h2>Taxonomia Completa de Propriedades Raiz</h2>
+<table class="matrix-table">
+  <thead>
+    <tr>
+      <th>Campo</th>
+      <th>Tipo</th>
+      <th>Obrigatório</th>
+      <th>Descrição Técnica</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>version</code></td>
+      <td><code>string</code></td>
+      <td>Sim</td>
+      <td>Versão da especificação da DSL (suporta <code>"1.0"</code> e <code>"1.1"</code>).</td>
+    </tr>
+    <tr>
+      <td><code>name</code></td>
+      <td><code>string</code></td>
+      <td>Sim</td>
+      <td>Identificador único do cenário (ex: <code>banking_lost_update</code>).</td>
+    </tr>
+    <tr>
+      <td><code>description</code></td>
+      <td><code>string</code></td>
+      <td>Não</td>
+      <td>Documentação textual da hipótese concorrente e regras de negócio.</td>
+    </tr>
+    <tr>
+      <td><code>database</code></td>
+      <td><code>object</code></td>
+      <td>Sim</td>
+      <td>Configuração do driver, scripts DDL de esquema e DML de seed.</td>
+    </tr>
+    <tr>
+      <td><code>engine</code></td>
+      <td><code>object</code></td>
+      <td>Sim</td>
+      <td>Parâmetros do motor de execução: workers, semente PRNG e jitter.</td>
+    </tr>
+    <tr>
+      <td><code>operations</code></td>
+      <td><code>array</code></td>
+      <td>Sim</td>
+      <td>Lista de transações atômicas a serem executadas pelos workers.</td>
+    </tr>
+    <tr>
+      <td><code>invariants</code></td>
+      <td><code>array</code></td>
+      <td>Sim</td>
+      <td>Asserções de integridade global pós-execução e contínuas.</td>
+    </tr>
+    <tr>
+      <td><code>faults</code></td>
+      <td><code>object</code></td>
+      <td>Não</td>
+      <td>Configurações de injeção de falhas estocásticas (aborts, desconexões).</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>O Bloco <code>database</code></h2>
+<p>Define o motor de banco de dados alvo e os scripts de inicialização de estado:</p>
+<div class="code-container"><button type="button" class="copy-code-btn">Copiar</button>
+  <pre><code class="language-yaml">database:
+  driver: "sqlite"             # Suportados: "sqlite", "postgres", "mysql"
+  schema: "schema.sql"         # Caminho relativo para arquivo DDL ou string SQL inline
+  seed: "seed.sql"             # Caminho relativo para arquivo DML de dados iniciais
+  dsn: "file:memdb?mode=memory&cache=shared" # DSN opcional (obrigatório para Postgres/MySQL)</code></pre>
+</div>
+
+<h2>O Bloco <code>engine</code></h2>
+<p>Controla a orquestração concorrente do agendamento PCT-SQL:</p>
+<div class="code-container"><button type="button" class="copy-code-btn">Copiar</button>
+  <pre><code class="language-yaml">engine:
+  workers: 8                   # Quantidade de goroutines simultâneas
+  iterations: 50               # Total de transações a serem agendadas
+  seed: 1337                   # Semente do PRNG PCG64 (determinismo estrito)
+  jitter_ms: [1, 10]           # Faixa de atraso estocástico [min, max] entre passos SQL
+  isolation: "READ COMMITTED"  # Opcional: forçar nível transacional</code></pre>
+</div>
+
+<h2>Operações, Captura de Variáveis e Expressões Dinâmicas</h2>
+<p>Cada item em <code>operations</code> define uma transação concorrente atômica. Cada passo (<em>step</em>) é executado sequencialmente dentro da transação alocada para um worker.</p>
+
+<h3>Sintaxe de Captura Léxica (<code>-&gt; var_name</code> ou <code>=&gt; var_name</code>)</h3>
+<p>Permite ler valores de colunas de uma query <code>SELECT</code> e armazená-los no contexto léxico local da transação para uso em instruções subsequentes:</p>
+<div class="code-container"><button type="button" class="copy-code-btn">Copiar</button>
+  <pre><code class="language-yaml">operations:
+  - name: "transfer_funds"
+    steps:
+      # Captura a coluna 'balance' da linha retornada na variável 'current_bal'
+      - "SELECT balance FROM accounts WHERE id = 1 -> current_bal"
+      - "UPDATE accounts SET balance = {current_bal - 100} WHERE id = 1"</code></pre>
+</div>
+
+<h3>Interpolação de Expressões Dinâmicas (<code>{expr}</code>)</h3>
+<p>O ChaosSQL incorpora o motor de compilação <code>expr-lang</code>, permitindo operações aritméticas, lógicas e chamadas em tempo de execução:</p>
+<ul>
+  <li><strong>Operações Aritméticas:</strong> <code>{current_bal - 100}</code>, <code>{price * quantity * 0.9}</code></li>
+  <li><strong>Operações Condicionais:</strong> <code>{avail &gt; 0 ? avail - 1 : 0}</code></li>
+  <li><strong>Interpolação de Variáveis:</strong> <code>UPDATE products SET stock = {avail - 1} WHERE id = {target_product}</code></li>
+</ul>
+
+<h3>Predicados de Guarda Condicional em SQL</h3>
+<p>Você pode combinar a sintaxe de expressão com cláusulas <code>WHERE</code> para criar predicados de concorrência com guarda atômica:</p>
+<div class="code-container"><button type="button" class="copy-code-btn">Copiar</button>
+  <pre><code class="language-yaml">operations:
+  - name: "conditional_checkout"
+    steps:
+      - "SELECT stock FROM products WHERE id = 1 -> avail"
+      - "UPDATE products SET stock = {avail - 1} WHERE id = 1 AND {avail > 0}"</code></pre>
+</div>
+
+<h3>Parâmetros Dinâmicos (<code>params</code>)</h3>
+<p>A versão 1.1 da DSL permite declarar variáveis pseudoaleatórias por transação:</p>
+<div class="code-container"><button type="button" class="copy-code-btn">Copiar</button>
+  <pre><code class="language-yaml">operations:
+  - name: "dynamic_transfer"
+    params:
+      sender_id: "rand_int(1, 10)"
+      receiver_id: "rand_int(11, 20)"
+      amount: "rand_int(50, 200)"
+    steps:
+      - "UPDATE accounts SET balance = balance - {amount} WHERE id = {sender_id}"
+      - "UPDATE accounts SET balance = balance + {amount} WHERE id = {receiver_id}"</code></pre>
+</div>
+
+<h2>Asserções de Invariantes Globais (<code>invariants</code>)</h2>
+<p>As invariantes representam as leis de conservação do sistema que nunca podem ser violadas, independentemente da ordem de intercalação dos workers.</p>
+<table class="matrix-table">
+  <thead>
+    <tr>
+      <th>Campo</th>
+      <th>Tipo</th>
+      <th>Descrição</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>name</code></td>
+      <td><code>string</code></td>
+      <td>Nome descritivo da invariante (ex: <code>conservation_of_money</code>).</td>
+    </tr>
+    <tr>
+      <td><code>query</code></td>
+      <td><code>string</code></td>
+      <td>Query SQL agregada executada ao final do teste para obter o estado consolidado.</td>
+    </tr>
+    <tr>
+      <td><code>assert</code></td>
+      <td><code>string</code></td>
+      <td>Expressão booleana avaliada sobre o resultado da query.</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>Variáveis Especiais Injetadas no Contexto da Asserção</h3>
+<ul>
+  <li><code>col_name</code>: O valor retornado por qualquer coluna da query da invariante (ex: <code>total_balance</code>, <code>active_doctors</code>).</li>
+  <li><code>total_completed</code>: Quantidade total de transações confirmadas com sucesso (<code>EventCommit</code>).</li>
+  <li><code>total_aborted</code>: Quantidade de transações que abortaram por conflito de serialização ou deadlock.</li>
+  <li><code>total_operations</code>: Total absoluto de operações agendadas.</li>
+</ul>
+
+<div class="code-container"><button type="button" class="copy-code-btn">Copiar</button>
+  <pre><code class="language-yaml">invariants:
+  # 1. Lei de conservação de patrimônio
+  - name: "conservation_of_money"
+    query: "SELECT sum(balance) AS total FROM accounts;"
+    assert: "total == 2000"
+
+  # 2. Relação linear entre operações concluídas e saldo
+  - name: "balance_audit"
+    query: "SELECT balance FROM accounts WHERE id = 1;"
+    assert: "balance == 1000 - (total_completed * 100)"
+
+  # 3. Predicado de não-negatividade
+  - name: "stock_non_negative"
+    query: "SELECT stock FROM products WHERE id = 1;"
+    assert: "stock >= 0"
+
+  # 4. Quórum de segurança hospitalar
+  - name: "at_least_one_doctor_on_call"
+    query: "SELECT count(*) AS on_duty FROM doctors WHERE on_call = true;"
+    assert: "on_duty >= 1"</code></pre>
+</div>
+
+<h2>Injeção de Falhas Controladas (<code>faults</code>)</h2>
+<p>Permite injetar adversidades de rede e comportamento transacional estocástico:</p>
+<div class="code-container"><button type="button" class="copy-code-btn">Copiar</button>
+  <pre><code class="language-yaml">faults:
+  transient_abort_rate: 0.15  # 15% de chance de ROLLBACK abrupto no meio de uma transação (testa G1a)
+  connection_drop_rate: 0.05  # 5% de chance de corte de conexão durante a execução
+  latency_spikes:
+    probability: 0.10
+    delay_ms: 100             # Injeta 100ms de atraso assíncrono para ampliar janela de corrida</code></pre>
+</div>
+
+<div class="docs-callout warning">
+  <strong>Linter Estático Obrigatório:</strong> Antes de executar cenários complexos, utilize sempre o comando <code>chaossql validate &lt;arquivo.yaml&gt;</code> para compilar antecipadamente as expressões da DSL e prevenir falhas de tipagem durante a execução.
+</div></div><nav class="_pager_1modt_234" aria-label="Capítulos da documentação"><a href="/pt/docs/getting-started" class="_pagerLink_1modt_243" rel="prev"><span class="_pagerLabel_1modt_260"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-left" aria-hidden="true"><path d="m12 19-7-7 7-7"></path><path d="M19 12H5"></path></svg> <!-- -->Anterior</span><span class="_pagerTitle_1modt_272">Guia de Início Rápido &amp; Primeiros Passos</span></a><a href="/pt/docs/cli-reference" class="_pagerLink_1modt_243 _pagerNext_1modt_256" rel="next"><span class="_pagerLabel_1modt_260">Próximo<!-- --> <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-right" aria-hidden="true"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg></span><span class="_pagerTitle_1modt_272">Manual Completo da CLI &amp; Todas as 12 Flags</span></a></nav></article></div></div><!--/$--></main><footer class="_footer_ldgol_1"><div class="_inner_ldgol_8"><div class="_brand_ldgol_16"><a href="/pt" class="_logo_ldgol_24"><img src="/brand/icone_bregalda.svg" alt="" width="28" height="28"/><span>ChaosSQL</span></a><p>Feito pelo Studio Bregalda.</p></div><nav aria-label="Links de rodapé" class="_groups_ldgol_37"><div><h2 class="_groupTitle_ldgol_43">Produto</h2><ul><li><a href="/pt#story">Como funciona</a></li><li><a href="/pt/scenarios">Cenários</a></li><li><a href="/pt/pricing">Preços</a></li></ul></div><div><h2 class="_groupTitle_ldgol_43">Ferramentas</h2><ul><li><a href="/pt/playground">Playground WASM</a></li><li><a href="/pt/visualizer">Trace Visualizer</a></li><li><a href="/pt/matrix">Matriz Hermitage</a></li><li><a href="/pt/dashboard">Cloud Dashboard</a></li></ul></div><div><h2 class="_groupTitle_ldgol_43">Recursos</h2><ul><li><a href="/pt/docs">Documentação</a></li><li><a href="https://github.com/bregaldahq/chaossql" target="_blank" rel="noreferrer">GitHub</a></li><li><a href="https://github.com/bregaldahq/chaossql/releases" target="_blank" rel="noreferrer">Releases</a></li></ul></div></nav><p class="_copyright_ldgol_69"><span>© <!-- -->2026</span> Studio Bregalda. <!-- -->Todos os direitos reservados.</p></div></footer></div></div>
+  </body>
+</html>

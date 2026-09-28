@@ -42,15 +42,16 @@ Pages Functions are still hand-kept copies of the waitlist endpoint.
   https, without credentials, default port, and its host in
   `ALLOWED_WEBHOOK_HOSTS` (Discord variants, `hooks.slack.com`); sends a
   Discord/Slack/generic test message and returns `{success, status}`.
-- Page URLs (`appPath`): `/`, every section path, `/scenarios/<slug>`, each
-  also under `/pt`. Trailing slashes redirect (301) to the canonical path.
+- Page URLs (`appPath`): `/`, every section path, `/scenarios/<slug>` and
+  `/docs/<chapter>` (`DETAIL_PATH`), each also under `/pt`. Trailing slashes redirect (301) to the canonical path.
   If the path is in `/prerender/manifest.json` (read once per isolate), the
   worker serves `site/prerender/<path>.html` (`/` → `/prerender/home`) as is;
   otherwise `serveAppShell` fetches the `index.html` shell and injects
   `<html lang>`, title, description, robots, canonical, Open Graph/Twitter
   tags, `og:locale` and hreflang alternates from `pageMeta` in
-  `site/src/lib/seo.ts` (the module the app uses). An unknown scenario slug
-  gets the shell with `noindex` and status 404. The Web Analytics beacon is
+  `site/src/lib/seo.ts` (the module the app uses). A detail path that is not
+  prerendered (unknown scenario or chapter) gets the shell with `noindex` and
+  status 404. The Web Analytics beacon is
   appended to both (below).
 - `POST /api/event` (+ `OPTIONS`): cookieless site events. Origin must be
   allowed (403); body ≤ 1024 bytes (413); `event` must be in `SITE_EVENTS`
@@ -89,7 +90,8 @@ hex characters; otherwise the page is untouched.
 - `index.html` must stay a plain shell: other deployments (nginx, the Go
   `spaFileServer`) use it as their SPA fallback, which is why prerendered
   pages live under `site/prerender/` and only this worker maps them to URLs.
-- Paths under `/pt` and `/scenarios/*` must be in `run_worker_first`,
+- Paths under `/pt`, `/scenarios/*` and `/docs/*` must be in `run_worker_first`
+  (and wrangler rejects a literal rule that a wildcard already covers),
   otherwise the assets layer answers with the SPA fallback and the Portuguese
   metadata and prerendered HTML are never served.
 

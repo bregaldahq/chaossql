@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="lab" data-surface="light">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Interactive Trace Visualizer (chaossql ui) | Docs | ChaosSQL</title>
+    <meta
+      name="description"
+      content="Embedded HTTP visualizer with microsecond-resolution Gantt swimlanes, interactive Adya dependency graphs, and statement inspector."
+    />
+    <link rel="canonical" href="https://chaossql.bregalda.com/docs/trace-visualizer" />
+    <link rel="alternate" hreflang="en" href="https://chaossql.bregalda.com/docs/trace-visualizer" />
+    <link rel="alternate" hreflang="pt-BR" href="https://chaossql.bregalda.com/pt/docs/trace-visualizer" />
+    <link rel="alternate" hreflang="x-default" href="https://chaossql.bregalda.com/docs/trace-visualizer" />
+    <meta name="robots" content="index, follow, max-image-preview:large" />
+    <meta name="keywords" content="ChaosSQL, SQL concurrency testing, database fuzzer, isolation levels, lost update, write skew, Adya anomalies, delta debugging, PostgreSQL, MySQL, SQLite, Go" />
+    <meta name="author" content="Ricardo Bregalda — Studio Bregalda" />
+    <meta name="theme-color" content="#141021" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="ChaosSQL" />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:locale:alternate" content="pt_BR" />
+    <meta property="og:url" content="https://chaossql.bregalda.com/docs/trace-visualizer" />
+    <meta property="og:title" content="Interactive Trace Visualizer (chaossql ui) | Docs | ChaosSQL" />
+    <meta property="og:description" content="Embedded HTTP visualizer with microsecond-resolution Gantt swimlanes, interactive Adya dependency graphs, and statement inspector." />
+    <meta property="og:image" content="https://chaossql.bregalda.com/og/docs.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Interactive Trace Visualizer (chaossql ui) | Docs | ChaosSQL" />
+    <meta name="twitter:description" content="Embedded HTTP visualizer with microsecond-resolution Gantt swimlanes, interactive Adya dependency graphs, and statement inspector." />
+    <meta name="twitter:image" content="https://chaossql.bregalda.com/og/docs.png" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "ChaosSQL",
+        "url": "https://chaossql.bregalda.com/",
+        "description": "Deterministic concurrency and isolation fuzzer for SQL databases with causal delta-debugging and Adya cycle classification.",
+        "applicationCategory": "DeveloperApplication",
+        "operatingSystem": "Linux, macOS, Windows",
+        "programmingLanguage": "Go",
+        "license": "https://opensource.org/licenses/MIT",
+        "softwareVersion": "1.6.0",
+        "codeRepository": "https://github.com/bregaldahq/chaossql",
+        "sameAs": ["https://github.com/bregaldahq/chaossql"],
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+        "author": { "@type": "Person", "name": "Ricardo Bregalda" }
+      }
+    </script>
+    <link rel="icon" type="image/svg+xml" href="/brand/icone_bregalda.svg" />
+    <script type="module" crossorigin src="/assets/main-D4MZCY9i.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/main-DsdD8E9B.css">
+      <link rel="preload" as="font" type="font/woff2" crossorigin href="/assets/geist-latin-wght-normal-BgDaEnEv.woff2">
+    <link rel="preload" as="font" type="font/woff2" crossorigin href="/assets/jetbrains-mono-latin-wght-normal-B9CIFXIH.woff2">
+      <link rel="stylesheet" crossorigin href="/assets/DocsPage-BWkhtRW7.css">
+    <link rel="modulepreload" crossorigin href="/assets/DocsPage-Cir-9m4o.js">
+    <link rel="modulepreload" crossorigin href="/assets/search-Cso1hY8L.js">
+  </head>
+  <body>
+    <div id="root" data-prerendered><link rel="preload" as="image" href="/brand/icone_bregalda.svg"/><div style="min-height:100vh;display:flex;flex-direction:column"><a class="skip-link" href="#main">Skip to content</a><header class="_nav_19ps6_2" data-nav="true"><a href="/" class="_brand_19ps6_17" aria-label="ChaosSQL by Studio Bregalda, home"><img src="/brand/icone_bregalda.svg" alt="" width="28" height="28"/><span>ChaosSQL</span></a><nav aria-label="Main navigation" class="_links_19ps6_33"><a href="/#story" class="_link_19ps6_33">How it works</a><a href="/scenarios" class="_link_19ps6_33">Scenarios</a><a href="/playground" class="_link_19ps6_33">WASM Playground</a><a href="/docs" class="_link_19ps6_33" aria-current="page">Docs</a><a href="/pricing" class="_link_19ps6_33">Pricing</a></nav><div class="_actions_19ps6_59"><div class="_lang_19ps6_66" role="group" aria-label="Language selector"><button type="button" aria-pressed="true">EN</button><button type="button" aria-pressed="false">PT</button></div><a href="https://github.com/bregaldahq/chaossql" target="_blank" rel="noreferrer" class="_github_19ps6_90">GitHub <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-up-right" aria-hidden="true"><path d="M7 7h10v10"></path><path d="M7 17 17 7"></path></svg></a><a href="/#story" class="_button_soy8p_1 _primary_soy8p_44 _md_soy8p_32 _cta_19ps6_146"><span>See the bug happen</span></a><button type="button" class="_menuToggle_19ps6_104" aria-expanded="false" aria-controls="mobile-nav" aria-label="Open navigation menu"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-menu" aria-hidden="true"><path d="M4 5h16"></path><path d="M4 12h16"></path><path d="M4 19h16"></path></svg></button></div></header><main id="main" style="flex-grow:1"><!--$--><div class="_page_jeaxe_1"><div class="_layout_jeaxe_5"><aside class="_sidebar_1j18f_1"><a href="/docs" class="_home_1j18f_11">All chapters</a><label class="_search_1j18f_21"><span class="sr-only">Search the docs</span><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-search" aria-hidden="true"><path d="m21 21-4.34-4.34"></path><circle cx="11" cy="11" r="8"></circle></svg><input type="search" placeholder="Search the docs" value=""/></label><nav aria-label="Documentation chapters"><div class="_group_1j18f_48"><p class="_category_1j18f_62">Getting Started</p><ul><li><a href="/docs/getting-started" class="_link_1j18f_68">Quickstart Guide &amp; Core Architecture</a></li></ul></div><div class="_group_1j18f_48"><p class="_category_1j18f_62">Specification</p><ul><li><a href="/docs/dsl-spec" class="_link_1j18f_68">Declarative Language Specification</a></li></ul></div><div class="_group_1j18f_48"><p class="_category_1j18f_62">Interface</p><ul><li><a href="/docs/cli-reference" class="_link_1j18f_68">CLI Manual, Subcommands &amp; All 12 Flags</a></li></ul></div><div class="_group_1j18f_48"><p class="_category_1j18f_62">Visualization</p><ul><li><a href="/docs/trace-visualizer" class="_link_1j18f_68" aria-current="page">Interactive Trace Visualizer (chaossql ui)</a></li></ul></div><div class="_group_1j18f_48"><p class="_category_1j18f_62">CI/CD &amp; Security</p><ul><li><a href="/docs/cicd-sarif" class="_link_1j18f_68">CI/CD, SARIF 2.1.0 &amp; GitHub Actions</a></li></ul></div><div class="_group_1j18f_48"><p class="_category_1j18f_62">Engines</p><ul><li><a href="/docs/drivers" class="_link_1j18f_68">Supported Database Engines &amp; Drivers</a></li></ul></div><div class="_group_1j18f_48"><p class="_category_1j18f_62">SDK</p><ul><li><a href="/docs/go-sdk" class="_link_1j18f_68">Go Developer Testing SDK (chaostest)</a></li></ul></div><div class="_group_1j18f_48"><p class="_category_1j18f_62">Theory</p><ul><li><a href="/docs/academic-theory" class="_link_1j18f_68">Formal Theory &amp; Mathematical Foundation</a></li></ul></div></nav></aside><article class="_article_1modt_1" aria-labelledby="chapter-title"><p class="_category_1modt_6">Visualization</p><h1 id="chapter-title" class="_title_1modt_12">Interactive Trace Visualizer (chaossql ui)</h1><p class="_summary_1modt_22">Embedded HTTP visualizer with microsecond-resolution Gantt swimlanes, interactive Adya dependency graphs, and statement inspector.</p><div class="_prose_1modt_30"><h2>Architecture of the Local Web Visualizer (<code>chaossql ui</code>)</h2>
+<p>The ChaosSQL Interactive Trace Visualizer is a self-contained, editorial web application served directly by Go's native HTTP server (<code>net/http</code>). Designed following the official Studio Bregalda Design System, it features an immersive, restful color palette (Deep Ink <code>#120E1F</code>, Bregalda Purple <code>#4B2E83</code>, Warm Cream <code>#FCFBF8</code>, Signal Yellow <code>#F5C400</code>, and Ship Green <code>#22C55E</code>), crisp typography (JetBrains Mono), and strictly zero external dependencies (no CDNs, no Node.js runtime, and no analytics trackers).</p>
+
+<h2>How to Launch the Visualizer</h2>
+<h3>Option 1: Immediate Post-Execution Inspection</h3>
+<div class="code-container"><button type="button" class="copy-code-btn">Copy</button>
+  <pre><code>chaossql run specs/banking_lost_update.yaml --ui</code></pre>
+</div>
+<p>Upon completing the fuzzing run, ChaosSQL starts the local web server and automatically opens your system default browser (invoking <code>wslview</code> on WSL2, <code>open</code> on macOS, or <code>rundll32</code> on Windows).</p>
+
+<h3>Option 2: Inspecting Saved Traces from Disk</h3>
+<div class="code-container"><button type="button" class="copy-code-btn">Copy</button>
+  <pre><code>chaossql ui trace_banking_run_42.json --port=8090</code></pre>
+</div>
+
+<h2>The 4 Visual Inspection Modules</h2>
+
+<h3>1. Concurrency Gantt Swimlane (Microsecond Timeline)</h3>
+<p>The Gantt Swimlane maps each concurrent worker goroutine (<span class="math">W<sub>0</sub>, W<sub>1</sub>, W<sub>2</sub>, W<sub>3</sub>, …</span>) onto an independent horizontal time axis:</p>
+<ul>
+  <li><strong>Monotonic Microsecond Scale:</strong> Nanosecond-precision timestamps formatted as elapsed microseconds (<span class="math">μs</span>) from the start of the session, exposing overlapping transactions with pinpoint accuracy.</li>
+  <li><strong>Color-Coded Operation Blocks:</strong>
+    <ul>
+      <li><span style="color: #6366f1;">● Purple / Blue:</span> <code>BEGIN</code> and transaction snapshot acquisition.</li>
+      <li><span style="color: #94a3b8;">● Gray:</span> <code>SELECT</code> queries and intermediate read evaluation.</li>
+      <li><span style="color: #f59e0b;">● Orange:</span> <code>UPDATE</code>, <code>INSERT</code>, and mutation writes.</li>
+      <li><span style="color: #22c55e;">● Green:</span> <code>COMMIT</code> successfully applied.</li>
+      <li><span style="color: #ef4444;">● Red:</span> <code>ROLLBACK</code> or concurrency conflict abort.</li>
+    </ul>
+  </li>
+  <li><strong>Critical Race Window Diagnostic:</strong> Highlights the exact moment Worker <span class="math">W<sub>1</sub></span> read before Worker <span class="math">W<sub>0</sub></span> committed its write, visually pinning the lost update or dirty read.</li>
+</ul>
+
+<h3>2. Adya Directed Dependency Graph (Interactive SVG DSG)</h3>
+<p>Renders the Direct Serialization Graph (<span class="math">SG(S)</span>) where vertices represent committed transactions and directed edges represent conflicting data access pairs:</p>
+<ul>
+  <li><strong>Anti-Dependency Edge (<span class="math">rw</span>):</strong> Transaction <span class="math">T<sub>1</sub></span> read a prior version of entity <span class="math">x</span> before transaction <span class="math">T<sub>2</sub></span> overwrote it with a newer version.</li>
+  <li><strong>Overwrite Dependency Edge (<span class="math">ww</span>):</strong> Transaction <span class="math">T<sub>1</sub></span> wrote a version of record <span class="math">x</span> that was subsequently overwritten by transaction <span class="math">T<sub>2</sub></span>.</li>
+  <li><strong>Read Dependency Edge (<span class="math">wr</span>):</strong> Transaction <span class="math">T<sub>2</sub></span> read the specific value written and committed by transaction <span class="math">T<sub>1</sub></span>.</li>
+  <li><strong>Anomalous Cycle Highlighting:</strong> Edges forming directed cycles (<span class="math">T<sub>1</sub>  —<sup>rw</sup>→  T<sub>2</sub>  —<sup>ww</sup>→  T<sub>1</sub></span>) are illuminated in pulsing Bregalda Gold (<code>#F5C400</code>), providing mathematical visual proof of Conflict Serializability violation (CSR Theorem).</li>
+</ul>
+
+<h3>3. Causal Delta-Debugging (<span class="math">ddmin</span>) Panel — Raw Trace vs Minimal Trace</h3>
+<p>ChaosSQL's shrinker module purges noise from extensive fuzzing runs to deliver a minimal reproducible trace. The <span class="math">ddmin</span> card compares the raw execution against the irreducible counterexample:</p>
+<table class="matrix-table">
+  <thead>
+    <tr>
+      <th>Metric</th>
+      <th>Typical Value</th>
+      <th>Significance</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Raw Trace</td>
+      <td>20 to 100 operations</td>
+      <td>Complete execution history generated across workers during chaotic stress.</td>
+    </tr>
+    <tr>
+      <td>1-Minimal Shrunk Trace</td>
+      <td>2 operations</td>
+      <td>Irreducible <em>1-minimal</em> counterexample that deterministically triggers the anomaly.</td>
+    </tr>
+    <tr>
+      <td>Compression Ratio</td>
+      <td>&gt; 90.0%</td>
+      <td>Volume of irrelevant non-causal operations pruned by the algorithm.</td>
+    </tr>
+    <tr>
+      <td>Convergence Duration</td>
+      <td>&lt; 100ms</td>
+      <td>Time spent performing causal binary search to isolate the counterexample.</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>4. Tabular Query &amp; Resolved Parameters Inspector</h3>
+<p>An interactive, sortable statement ledger detailing every SQL instruction submitted to the database engine in strict chronological order:</p>
+<ul>
+  <li><strong>Resolved Parameter Inspection:</strong> Statements are rendered with dynamic expression variables evaluated (e.g., <code>UPDATE accounts SET balance = 900 WHERE id = 1</code> instead of raw template placeholders).</li>
+  <li><strong>Statement Latency:</strong> Engine execution duration recorded at microsecond resolution for every roundtrip.</li>
+  <li><strong>Goroutine Worker Affinity:</strong> Immediate identification of the originating worker, thread state, and database error codes.</li>
+</ul>
+
+<h2>Standalone HTML Report Export</h2>
+<p>Generate self-contained static audit artifacts suitable for attaching to Pull Requests or sharing in architecture reviews:</p>
+<div class="code-container"><button type="button" class="copy-code-btn">Copy</button>
+  <pre><code>chaossql run specs/banking_lost_update.yaml --export-html=audit_report.html</code></pre>
+</div>
+<p>The resulting HTML artifact is approximately 60KB, bundles all styling, interactivity, and SVG vector assets inline, and opens offline in any modern browser without network access.</p></div><nav class="_pager_1modt_234" aria-label="Documentation chapters"><a href="/docs/cli-reference" class="_pagerLink_1modt_243" rel="prev"><span class="_pagerLabel_1modt_260"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-left" aria-hidden="true"><path d="m12 19-7-7 7-7"></path><path d="M19 12H5"></path></svg> <!-- -->Previous</span><span class="_pagerTitle_1modt_272">CLI Manual, Subcommands &amp; All 12 Flags</span></a><a href="/docs/cicd-sarif" class="_pagerLink_1modt_243 _pagerNext_1modt_256" rel="next"><span class="_pagerLabel_1modt_260">Next<!-- --> <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-right" aria-hidden="true"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg></span><span class="_pagerTitle_1modt_272">CI/CD, SARIF 2.1.0 &amp; GitHub Actions</span></a></nav></article></div></div><!--/$--></main><footer class="_footer_ldgol_1"><div class="_inner_ldgol_8"><div class="_brand_ldgol_16"><a href="/" class="_logo_ldgol_24"><img src="/brand/icone_bregalda.svg" alt="" width="28" height="28"/><span>ChaosSQL</span></a><p>Built by Studio Bregalda.</p></div><nav aria-label="Footer links" class="_groups_ldgol_37"><div><h2 class="_groupTitle_ldgol_43">Product</h2><ul><li><a href="/#story">How it works</a></li><li><a href="/scenarios">Scenarios</a></li><li><a href="/pricing">Pricing</a></li></ul></div><div><h2 class="_groupTitle_ldgol_43">Tools</h2><ul><li><a href="/playground">WASM Playground</a></li><li><a href="/visualizer">Trace Visualizer</a></li><li><a href="/matrix">Hermitage Matrix</a></li><li><a href="/dashboard">Cloud Dashboard</a></li></ul></div><div><h2 class="_groupTitle_ldgol_43">Resources</h2><ul><li><a href="/docs">Documentation</a></li><li><a href="https://github.com/bregaldahq/chaossql" target="_blank" rel="noreferrer">GitHub</a></li><li><a href="https://github.com/bregaldahq/chaossql/releases" target="_blank" rel="noreferrer">Releases</a></li></ul></div></nav><p class="_copyright_ldgol_69"><span>© <!-- -->2026</span> Studio Bregalda. <!-- -->All rights reserved.</p></div></footer></div></div>
+  </body>
+</html>

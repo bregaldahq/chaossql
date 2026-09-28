@@ -7,7 +7,8 @@
         "http://127.0.0.1:4173/",
         "http://127.0.0.1:4173/pt",
         "http://127.0.0.1:4173/pricing",
-        "http://127.0.0.1:4173/scenarios/lost-update"
+        "http://127.0.0.1:4173/scenarios/lost-update",
+        "http://127.0.0.1:4173/docs/getting-started"
       ],
       "numberOfRuns": 2,
       "settings": {

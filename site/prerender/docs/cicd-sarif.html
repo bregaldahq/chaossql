@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="lab" data-surface="light">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CI/CD, SARIF 2.1.0 &amp; GitHub Actions | Docs | ChaosSQL</title>
+    <meta
+      name="description"
+      content="Automated pipeline integration with GitHub Code Scanning, OASIS SARIF 2.1.0 output, JUnit XML, and OpenTelemetry OTLP tracing."
+    />
+    <link rel="canonical" href="https://chaossql.bregalda.com/docs/cicd-sarif" />
+    <link rel="alternate" hreflang="en" href="https://chaossql.bregalda.com/docs/cicd-sarif" />
+    <link rel="alternate" hreflang="pt-BR" href="https://chaossql.bregalda.com/pt/docs/cicd-sarif" />
+    <link rel="alternate" hreflang="x-default" href="https://chaossql.bregalda.com/docs/cicd-sarif" />
+    <meta name="robots" content="index, follow, max-image-preview:large" />
+    <meta name="keywords" content="ChaosSQL, SQL concurrency testing, database fuzzer, isolation levels, lost update, write skew, Adya anomalies, delta debugging, PostgreSQL, MySQL, SQLite, Go" />
+    <meta name="author" content="Ricardo Bregalda — Studio Bregalda" />
+    <meta name="theme-color" content="#141021" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="ChaosSQL" />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:locale:alternate" content="pt_BR" />
+    <meta property="og:url" content="https://chaossql.bregalda.com/docs/cicd-sarif" />
+    <meta property="og:title" content="CI/CD, SARIF 2.1.0 &amp; GitHub Actions | Docs | ChaosSQL" />
+    <meta property="og:description" content="Automated pipeline integration with GitHub Code Scanning, OASIS SARIF 2.1.0 output, JUnit XML, and OpenTelemetry OTLP tracing." />
+    <meta property="og:image" content="https://chaossql.bregalda.com/og/docs.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="CI/CD, SARIF 2.1.0 &amp; GitHub Actions | Docs | ChaosSQL" />
+    <meta name="twitter:description" content="Automated pipeline integration with GitHub Code Scanning, OASIS SARIF 2.1.0 output, JUnit XML, and OpenTelemetry OTLP tracing." />
+    <meta name="twitter:image" content="https://chaossql.bregalda.com/og/docs.png" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "ChaosSQL",
+        "url": "https://chaossql.bregalda.com/",
+        "description": "Deterministic concurrency and isolation fuzzer for SQL databases with causal delta-debugging and Adya cycle classification.",
+        "applicationCategory": "DeveloperApplication",
+        "operatingSystem": "Linux, macOS, Windows",
+        "programmingLanguage": "Go",
+        "license": "https://opensource.org/licenses/MIT",
+        "softwareVersion": "1.6.0",
+        "codeRepository": "https://github.com/bregaldahq/chaossql",
+        "sameAs": ["https://github.com/bregaldahq/chaossql"],
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+        "author": { "@type": "Person", "name": "Ricardo Bregalda" }
+      }
+    </script>
+    <link rel="icon" type="image/svg+xml" href="/brand/icone_bregalda.svg" />
+    <script type="module" crossorigin src="/assets/main-D4MZCY9i.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/main-DsdD8E9B.css">
+      <link rel="preload" as="font" type="font/woff2" crossorigin href="/assets/geist-latin-wght-normal-BgDaEnEv.woff2">
+    <link rel="preload" as="font" type="font/woff2" crossorigin href="/assets/jetbrains-mono-latin-wght-normal-B9CIFXIH.woff2">
+      <link rel="stylesheet" crossorigin href="/assets/DocsPage-BWkhtRW7.css">
+    <link rel="modulepreload" crossorigin href="/assets/DocsPage-Cir-9m4o.js">
+    <link rel="modulepreload" crossorigin href="/assets/search-Cso1hY8L.js">
+  </head>
+  <body>
+    <div id="root" data-prerendered><link rel="preload" as="image" href="/brand/icone_bregalda.svg"/><div style="min-height:100vh;display:flex;flex-direction:column"><a class="skip-link" href="#main">Skip to content</a><header class="_nav_19ps6_2" data-nav="true"><a href="/" class="_brand_19ps6_17" aria-label="ChaosSQL by Studio Bregalda, home"><img src="/brand/icone_bregalda.svg" alt="" width="28" height="28"/><span>ChaosSQL</span></a><nav aria-label="Main navigation" class="_links_19ps6_33"><a href="/#story" class="_link_19ps6_33">How it works</a><a href="/scenarios" class="_link_19ps6_33">Scenarios</a><a href="/playground" class="_link_19ps6_33">WASM Playground</a><a href="/docs" class="_link_19ps6_33" aria-current="page">Docs</a><a href="/pricing" class="_link_19ps6_33">Pricing</a></nav><div class="_actions_19ps6_59"><div class="_lang_19ps6_66" role="group" aria-label="Language selector"><button type="button" aria-pressed="true">EN</button><button type="button" aria-pressed="false">PT</button></div><a href="https://github.com/bregaldahq/chaossql" target="_blank" rel="noreferrer" class="_github_19ps6_90">GitHub <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-up-right" aria-hidden="true"><path d="M7 7h10v10"></path><path d="M7 17 17 7"></path></svg></a><a href="/#story" class="_button_soy8p_1 _primary_soy8p_44 _md_soy8p_32 _cta_19ps6_146"><span>See the bug happen</span></a><button type="button" class="_menuToggle_19ps6_104" aria-expanded="false" aria-controls="mobile-nav" aria-label="Open navigation menu"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-menu" aria-hidden="true"><path d="M4 5h16"></path><path d="M4 12h16"></path><path d="M4 19h16"></path></svg></button></div></header><main id="main" style="flex-grow:1"><!--$--><div class="_page_jeaxe_1"><div class="_layout_jeaxe_5"><aside class="_sidebar_1j18f_1"><a href="/docs" class="_home_1j18f_11">All chapters</a><label class="_search_1j18f_21"><span class="sr-only">Search the docs</span><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-search" aria-hidden="true"><path d="m21 21-4.34-4.34"></path><circle cx="11" cy="11" r="8"></circle></svg><input type="search" placeholder="Search the docs" value=""/></label><nav aria-label="Documentation chapters"><div class="_group_1j18f_48"><p class="_category_1j18f_62">Getting Started</p><ul><li><a href="/docs/getting-started" class="_link_1j18f_68">Quickstart Guide &amp; Core Architecture</a></li></ul></div><div class="_group_1j18f_48"><p class="_category_1j18f_62">Specification</p><ul><li><a href="/docs/dsl-spec" class="_link_1j18f_68">Declarative Language Specification</a></li></ul></div><div class="_group_1j18f_48"><p class="_category_1j18f_62">Interface</p><ul><li><a href="/docs/cli-reference" class="_link_1j18f_68">CLI Manual, Subcommands &amp; All 12 Flags</a></li></ul></div><div class="_group_1j18f_48"><p class="_category_1j18f_62">Visualization</p><ul><li><a href="/docs/trace-visualizer" class="_link_1j18f_68">Interactive Trace Visualizer (chaossql ui)</a></li></ul></div><div class="_group_1j18f_48"><p class="_category_1j18f_62">CI/CD &amp; Security</p><ul><li><a href="/docs/cicd-sarif" class="_link_1j18f_68" aria-current="page">CI/CD, SARIF 2.1.0 &amp; GitHub Actions</a></li></ul></div><div class="_group_1j18f_48"><p class="_category_1j18f_62">Engines</p><ul><li><a href="/docs/drivers" class="_link_1j18f_68">Supported Database Engines &amp; Drivers</a></li></ul></div><div class="_group_1j18f_48"><p class="_category_1j18f_62">SDK</p><ul><li><a href="/docs/go-sdk" class="_link_1j18f_68">Go Developer Testing SDK (chaostest)</a></li></ul></div><div class="_group_1j18f_48"><p class="_category_1j18f_62">Theory</p><ul><li><a href="/docs/academic-theory" class="_link_1j18f_68">Formal Theory &amp; Mathematical Foundation</a></li></ul></div></nav></aside><article class="_article_1modt_1" aria-labelledby="chapter-title"><p class="_category_1modt_6">CI/CD &amp; Security</p><h1 id="chapter-title" class="_title_1modt_12">CI/CD, SARIF 2.1.0 &amp; GitHub Actions</h1><p class="_summary_1modt_22">Automated pipeline integration with GitHub Code Scanning, OASIS SARIF 2.1.0 output, JUnit XML, and OpenTelemetry OTLP tracing.</p><div class="_prose_1modt_30"><h2>Continuous Concurrency Security in CI/CD</h2>
+<p>Database concurrency vulnerabilities are formally classified under <strong>CWE-362 (Concurrent Execution using Shared Resource with Improper Synchronization)</strong>. In enterprise financial and mission-critical systems, an isolation defect that permits duplicate withdrawals or inventory overselling is not merely a software bug—it represents a high-severity security and financial vulnerability.</p>
+
+<p>ChaosSQL transforms database isolation testing into an automated Continuous Quality Gate, integrating seamlessly with GitHub's native <strong>Security / Code Scanning</strong> dashboard using the international <strong>OASIS SARIF 2.1.0</strong> standard.</p>
+
+<h2>Using the Official GitHub Action (<code>action.yml</code>)</h2>
+<p>Incorporate ChaosSQL into your GitHub Actions workflow by adding <code>.github/workflows/concurrency_fuzzer.yml</code>:</p>
+
+<div class="code-container"><button type="button" class="copy-code-btn">Copy</button>
+  <pre><code id="gh-workflow-code" class="language-yaml">name: Database Concurrency & Isolation Audit
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  concurrency-audit:
+    name: ChaosSQL Isolation Gating
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write # Required to publish findings to GitHub Security tab
+      contents: read
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Run ChaosSQL Action
+        uses: bregaldahq/chaossql@v1
+        with:
+          spec-path: 'specs/banking_lost_update.yaml'
+          workers: 8
+          iterations: 50
+          seed: 42
+          export-junit: 'reports/chaossql-junit.xml'
+          export-summary: '$GITHUB_STEP_SUMMARY'
+          export-repro: 'true'
+
+      - name: Run Audit with SARIF Export
+        if: always()
+        run: |
+          go run ./cmd/chaossql run specs/banking_lost_update.yaml \
+            --export-sarif=reports/chaossql.sarif || true
+
+      - name: Upload SARIF to GitHub Code Scanning
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: reports/chaossql.sarif
+          category: chaossql-isolation-audit</code></pre>
+</div>
+
+<h2>OASIS SARIF 2.1.0 Catalog: All 9 Formal Anomaly Rules</h2>
+<p>ChaosSQL's SARIF reporting engine (<code>internal/reporter/sarif.go</code>) generates structured reports adhering to <code>Static Analysis Results Interchange Format (SARIF) v2.1.0</code>, mapping each isolation anomaly to formal audit rules (<code>CHAOS001</code> through <code>CHAOS009</code>):</p>
+
+<table class="matrix-table">
+  <thead>
+    <tr>
+      <th>Rule ID</th>
+      <th>Formal Anomaly Name</th>
+      <th>Level</th>
+      <th>Phenomenon and Recommended Remediation</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>chaossql/P4-lost-update</code><br><small>(CHAOS001)</small></td>
+      <td>LostUpdateAnomaly</td>
+      <td><span class="badge badge-cycle" style="background: rgba(239,68,68,0.2); color: #ef4444;">error</span></td>
+      <td>Two concurrent transactions overwrite the same entity based on stale reads.<br><strong>Remediation:</strong> Upgrade to <code>SERIALIZABLE</code>, acquire pessimistic locks via <code>SELECT ... FOR UPDATE</code>, or execute atomic in-place increments.</td>
+    </tr>
+    <tr>
+      <td><code>chaossql/A5B-write-skew</code><br><small>(CHAOS002)</small></td>
+      <td>WriteSkewAnomaly</td>
+      <td><span class="badge badge-cycle" style="background: rgba(239,68,68,0.2); color: #ef4444;">error</span></td>
+      <td>Transactions with disjoint write sets violate a global invariant over overlapping read sets.<br><strong>Remediation:</strong> Enable Serializable Snapshot Isolation (SSI) or enforce table/materialized conflict locks.</td>
+    </tr>
+    <tr>
+      <td><code>chaossql/A5A-read-skew</code><br><small>(CHAOS003)</small></td>
+      <td>ReadSkewAnomaly</td>
+      <td><span class="badge badge-cycle" style="background: rgba(245,196,0,0.2); color: #f5c400;">warning</span></td>
+      <td>Transaction reads item X, concurrent transaction modifies X and Y, and first transaction reads inconsistent Y.<br><strong>Remediation:</strong> Elevate transaction isolation level to <code>REPEATABLE READ</code> or <code>SNAPSHOT ISOLATION</code>.</td>
+    </tr>
+    <tr>
+      <td><code>chaossql/G0-dirty-write</code><br><small>(CHAOS004)</small></td>
+      <td>DirtyWriteAnomaly</td>
+      <td><span class="badge badge-cycle" style="background: rgba(239,68,68,0.2); color: #ef4444;">error</span></td>
+      <td>Transaction modifies data previously written by another uncommitted transaction.<br><strong>Remediation:</strong> Enforce exclusive write locks throughout transaction duration (Strict 2PL).</td>
+    </tr>
+    <tr>
+      <td><code>chaossql/G1a-dirty-read</code><br><small>(CHAOS005)</small></td>
+      <td>DirtyReadAnomaly</td>
+      <td><span class="badge badge-cycle" style="background: rgba(239,68,68,0.2); color: #ef4444;">error</span></td>
+      <td>Transaction reads transient uncommitted mutations from another transaction that subsequently aborts.<br><strong>Remediation:</strong> Elevate isolation level to <code>READ COMMITTED</code> or higher.</td>
+    </tr>
+    <tr>
+      <td><code>chaossql/G1b-intermediate-read</code><br><small>(CHAOS006)</small></td>
+      <td>IntermediateReadAnomaly</td>
+      <td><span class="badge badge-cycle" style="background: rgba(239,68,68,0.2); color: #ef4444;">error</span></td>
+      <td>Transaction observes an intermediate, incomplete state of an active concurrent transaction.<br><strong>Remediation:</strong> Enforce atomic multi-version concurrency control (MVCC) visibility snapshots.</td>
+    </tr>
+    <tr>
+      <td><code>chaossql/G1c-circular-info</code><br><small>(CHAOS007)</small></td>
+      <td>CircularInfoAnomaly</td>
+      <td><span class="badge badge-cycle" style="background: rgba(239,68,68,0.2); color: #ef4444;">error</span></td>
+      <td>Circular read and write dependencies between concurrent transactions.<br><strong>Remediation:</strong> Upgrade to <code>SERIALIZABLE</code> to enforce an acyclic serialization graph order.</td>
+    </tr>
+    <tr>
+      <td><code>chaossql/G2-anti-dependency</code><br><small>(CHAOS008)</small></td>
+      <td>AntiDependencyCycle</td>
+      <td><span class="badge badge-cycle" style="background: rgba(239,68,68,0.2); color: #ef4444;">error</span></td>
+      <td>Serialization cycle containing anti-dependency edges (<span class="math">rw</span>), breaking strict serializability.<br><strong>Remediation:</strong> Enable true SSI (Serializable Snapshot Isolation) or predicate locking.</td>
+    </tr>
+    <tr>
+      <td><code>chaossql/G-DL-deadlock</code><br><small>(CHAOS009)</small></td>
+      <td>DeadlockCycleAnomaly</td>
+      <td><span class="badge badge-cycle" style="background: rgba(245,196,0,0.2); color: #f5c400;">warning</span></td>
+      <td>Circular lock wait between concurrent transactions resulting in transactional abort.<br><strong>Remediation:</strong> Adopt a global canonical lock acquisition order (e.g., sort entities by primary key).</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>JUnit XML &amp; GitHub Step Summary Reports</h2>
+<p>Beyond SARIF, ChaosSQL generates standard CI test reports for immediate visibility across delivery pipelines:</p>
+<ul>
+  <li><strong>JUnit XML (<code>--export-junit=junit.xml</code>):</strong> Emits test suites consumable by GitHub Actions Test Reporter, GitLab CI, and Azure Pipelines. Concurrency failures are mapped to <code>&lt;failure&gt;</code> tags containing anomaly classifications and embedded Mermaid sequence graphs.</li>
+  <li><strong>GitHub Step Summary (<code>--export-summary=$GITHUB_STEP_SUMMARY</code>):</strong> Renders rich GitHub-flavored Markdown tables summarizing execution metrics, caught anomalies, and the minimal reproducible counterexample directly on the GitHub Actions run summary page.</li>
+</ul>
+
+<h2>Observability with OpenTelemetry (OTLP JSON)</h2>
+<p>Supplying the <code>--export-otel=trace_otel.json</code> flag converts the entire concurrent execution schedule into a distributed trace conforming to the OpenTelemetry Tracing API. Each worker goroutine is represented as a root Span, and each SQL query is recorded as a child Span enriched with semantic conventions (<code>db.system</code>, <code>db.statement</code>, <code>db.operation</code>, <code>thread.id</code>). The exported JSON file can be ingested directly into Jaeger, Grafana Tempo, or Datadog for deep concurrency and latency profiling.</p></div><nav class="_pager_1modt_234" aria-label="Documentation chapters"><a href="/docs/trace-visualizer" class="_pagerLink_1modt_243" rel="prev"><span class="_pagerLabel_1modt_260"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-left" aria-hidden="true"><path d="m12 19-7-7 7-7"></path><path d="M19 12H5"></path></svg> <!-- -->Previous</span><span class="_pagerTitle_1modt_272">Interactive Trace Visualizer (chaossql ui)</span></a><a href="/docs/drivers" class="_pagerLink_1modt_243 _pagerNext_1modt_256" rel="next"><span class="_pagerLabel_1modt_260">Next<!-- --> <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-right" aria-hidden="true"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg></span><span class="_pagerTitle_1modt_272">Supported Database Engines &amp; Drivers</span></a></nav></article></div></div><!--/$--></main><footer class="_footer_ldgol_1"><div class="_inner_ldgol_8"><div class="_brand_ldgol_16"><a href="/" class="_logo_ldgol_24"><img src="/brand/icone_bregalda.svg" alt="" width="28" height="28"/><span>ChaosSQL</span></a><p>Built by Studio Bregalda.</p></div><nav aria-label="Footer links" class="_groups_ldgol_37"><div><h2 class="_groupTitle_ldgol_43">Product</h2><ul><li><a href="/#story">How it works</a></li><li><a href="/scenarios">Scenarios</a></li><li><a href="/pricing">Pricing</a></li></ul></div><div><h2 class="_groupTitle_ldgol_43">Tools</h2><ul><li><a href="/playground">WASM Playground</a></li><li><a href="/visualizer">Trace Visualizer</a></li><li><a href="/matrix">Hermitage Matrix</a></li><li><a href="/dashboard">Cloud Dashboard</a></li></ul></div><div><h2 class="_groupTitle_ldgol_43">Resources</h2><ul><li><a href="/docs">Documentation</a></li><li><a href="https://github.com/bregaldahq/chaossql" target="_blank" rel="noreferrer">GitHub</a></li><li><a href="https://github.com/bregaldahq/chaossql/releases" target="_blank" rel="noreferrer">Releases</a></li></ul></div></nav><p class="_copyright_ldgol_69"><span>© <!-- -->2026</span> Studio Bregalda. <!-- -->All rights reserved.</p></div></footer></div></div>
+  </body>
+</html>

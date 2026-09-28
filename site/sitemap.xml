@@ -204,4 +204,100 @@
     <xhtml:link rel="alternate" hreflang="pt-BR" href="https://chaossql.bregalda.com/pt/scenarios/foreign-key-cascade-deadlock" />
     <xhtml:link rel="alternate" hreflang="x-default" href="https://chaossql.bregalda.com/scenarios/foreign-key-cascade-deadlock" />
   </url>
+  <url>
+    <loc>https://chaossql.bregalda.com/docs/getting-started</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://chaossql.bregalda.com/docs/getting-started" />
+    <xhtml:link rel="alternate" hreflang="pt-BR" href="https://chaossql.bregalda.com/pt/docs/getting-started" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://chaossql.bregalda.com/docs/getting-started" />
+  </url>
+  <url>
+    <loc>https://chaossql.bregalda.com/pt/docs/getting-started</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://chaossql.bregalda.com/docs/getting-started" />
+    <xhtml:link rel="alternate" hreflang="pt-BR" href="https://chaossql.bregalda.com/pt/docs/getting-started" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://chaossql.bregalda.com/docs/getting-started" />
+  </url>
+  <url>
+    <loc>https://chaossql.bregalda.com/docs/dsl-spec</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://chaossql.bregalda.com/docs/dsl-spec" />
+    <xhtml:link rel="alternate" hreflang="pt-BR" href="https://chaossql.bregalda.com/pt/docs/dsl-spec" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://chaossql.bregalda.com/docs/dsl-spec" />
+  </url>
+  <url>
+    <loc>https://chaossql.bregalda.com/pt/docs/dsl-spec</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://chaossql.bregalda.com/docs/dsl-spec" />
+    <xhtml:link rel="alternate" hreflang="pt-BR" href="https://chaossql.bregalda.com/pt/docs/dsl-spec" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://chaossql.bregalda.com/docs/dsl-spec" />
+  </url>
+  <url>
+    <loc>https://chaossql.bregalda.com/docs/cli-reference</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://chaossql.bregalda.com/docs/cli-reference" />
+    <xhtml:link rel="alternate" hreflang="pt-BR" href="https://chaossql.bregalda.com/pt/docs/cli-reference" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://chaossql.bregalda.com/docs/cli-reference" />
+  </url>
+  <url>
+    <loc>https://chaossql.bregalda.com/pt/docs/cli-reference</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://chaossql.bregalda.com/docs/cli-reference" />
+    <xhtml:link rel="alternate" hreflang="pt-BR" href="https://chaossql.bregalda.com/pt/docs/cli-reference" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://chaossql.bregalda.com/docs/cli-reference" />
+  </url>
+  <url>
+    <loc>https://chaossql.bregalda.com/docs/trace-visualizer</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://chaossql.bregalda.com/docs/trace-visualizer" />
+    <xhtml:link rel="alternate" hreflang="pt-BR" href="https://chaossql.bregalda.com/pt/docs/trace-visualizer" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://chaossql.bregalda.com/docs/trace-visualizer" />
+  </url>
+  <url>
+    <loc>https://chaossql.bregalda.com/pt/docs/trace-visualizer</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://chaossql.bregalda.com/docs/trace-visualizer" />
+    <xhtml:link rel="alternate" hreflang="pt-BR" href="https://chaossql.bregalda.com/pt/docs/trace-visualizer" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://chaossql.bregalda.com/docs/trace-visualizer" />
+  </url>
+  <url>
+    <loc>https://chaossql.bregalda.com/docs/cicd-sarif</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://chaossql.bregalda.com/docs/cicd-sarif" />
+    <xhtml:link rel="alternate" hreflang="pt-BR" href="https://chaossql.bregalda.com/pt/docs/cicd-sarif" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://chaossql.bregalda.com/docs/cicd-sarif" />
+  </url>
+  <url>
+    <loc>https://chaossql.bregalda.com/pt/docs/cicd-sarif</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://chaossql.bregalda.com/docs/cicd-sarif" />
+    <xhtml:link rel="alternate" hreflang="pt-BR" href="https://chaossql.bregalda.com/pt/docs/cicd-sarif" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://chaossql.bregalda.com/docs/cicd-sarif" />
+  </url>
+  <url>
+    <loc>https://chaossql.bregalda.com/docs/drivers</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://chaossql.bregalda.com/docs/drivers" />
+    <xhtml:link rel="alternate" hreflang="pt-BR" href="https://chaossql.bregalda.com/pt/docs/drivers" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://chaossql.bregalda.com/docs/drivers" />
+  </url>
+  <url>
+    <loc>https://chaossql.bregalda.com/pt/docs/drivers</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://chaossql.bregalda.com/docs/drivers" />
+    <xhtml:link rel="alternate" hreflang="pt-BR" href="https://chaossql.bregalda.com/pt/docs/drivers" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://chaossql.bregalda.com/docs/drivers" />
+  </url>
+  <url>
+    <loc>https://chaossql.bregalda.com/docs/go-sdk</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://chaossql.bregalda.com/docs/go-sdk" />
+    <xhtml:link rel="alternate" hreflang="pt-BR" href="https://chaossql.bregalda.com/pt/docs/go-sdk" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://chaossql.bregalda.com/docs/go-sdk" />
+  </url>
+  <url>
+    <loc>https://chaossql.bregalda.com/pt/docs/go-sdk</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://chaossql.bregalda.com/docs/go-sdk" />
+    <xhtml:link rel="alternate" hreflang="pt-BR" href="https://chaossql.bregalda.com/pt/docs/go-sdk" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://chaossql.bregalda.com/docs/go-sdk" />
+  </url>
+  <url>
+    <loc>https://chaossql.bregalda.com/docs/academic-theory</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://chaossql.bregalda.com/docs/academic-theory" />
+    <xhtml:link rel="alternate" hreflang="pt-BR" href="https://chaossql.bregalda.com/pt/docs/academic-theory" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://chaossql.bregalda.com/docs/academic-theory" />
+  </url>
+  <url>
+    <loc>https://chaossql.bregalda.com/pt/docs/academic-theory</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://chaossql.bregalda.com/docs/academic-theory" />
+    <xhtml:link rel="alternate" hreflang="pt-BR" href="https://chaossql.bregalda.com/pt/docs/academic-theory" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://chaossql.bregalda.com/docs/academic-theory" />
+  </url>
 </urlset>

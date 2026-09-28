@@ -1,77 +1,69 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Search } from 'lucide-react';
-import { DocChapter, CHAPTER_ORDER, ChapterId } from '../../data/docs-content';
+import { DocChapter, CHAPTER_ORDER } from '../../data/docs-content';
+import { localizePath } from '../../lib/router';
+import { messages, type Language } from '../../i18n';
 import styles from './DocsSidebar.module.css';
 
 export interface DocsSidebarProps {
   chapters: Record<string, DocChapter>;
-  activeChapterId: string;
-  onSelectChapter: (id: ChapterId) => void;
-  lang?: 'pt' | 'en';
+  activeChapterId: string | null;
+  lang?: Language;
 }
 
-export function DocsSidebar({
-  chapters,
-  activeChapterId,
-  onSelectChapter,
-  lang = 'en',
-}: DocsSidebarProps) {
+/** Chapter list grouped by category, with a filter. Links are real URLs. */
+export function DocsSidebar({ chapters, activeChapterId, lang = 'en' }: DocsSidebarProps) {
+  const t = messages[lang].docs;
   const [query, setQuery] = useState('');
+  const q = query.trim().toLowerCase();
+  const navRef = useRef<HTMLElement>(null);
 
-  const filteredChapterIds = CHAPTER_ORDER.filter((id) => {
+  // On phones the list is a horizontal row: bring the current chapter into view.
+  useEffect(() => {
+    const nav = navRef.current;
+    const active = nav?.querySelector<HTMLElement>('[aria-current="page"]');
+    if (!nav || !active || nav.scrollWidth <= nav.clientWidth) return;
+    nav.scrollLeft = active.offsetLeft - (nav.clientWidth - active.offsetWidth) / 2;
+  }, [activeChapterId]);
+
+  const visible = CHAPTER_ORDER.filter((id) => {
     const ch = chapters[id];
-    if (!ch) return false;
-    const matchTitle = ch.title.toLowerCase().includes(query.toLowerCase());
-    const matchCat = ch.category.toLowerCase().includes(query.toLowerCase());
-    const matchSummary = ch.summary.toLowerCase().includes(query.toLowerCase());
-    return matchTitle || matchCat || matchSummary;
+    return ch && (!q || [ch.title, ch.category, ch.summary].some((text) => text.toLowerCase().includes(q)));
   });
-
-  // Agrupar por categorias
-  const categories: Record<string, ChapterId[]> = {};
-  filteredChapterIds.forEach((id) => {
-    const cat = chapters[id]?.category || 'Geral';
-    if (!categories[cat]) categories[cat] = [];
-    categories[cat].push(id);
-  });
+  const categories = new Map<string, string[]>();
+  for (const id of visible) {
+    const category = chapters[id].category;
+    categories.set(category, [...(categories.get(category) ?? []), id]);
+  }
 
   return (
-    <aside className={styles.sidebar} aria-label={lang === 'pt' ? 'Navegação da documentação' : 'Documentation navigation'}>
-      <div className={styles.searchBox}>
-        <input
-          type="text"
-          className={styles.searchInput}
-          placeholder={lang === 'pt' ? 'Buscar tópicos (/)...' : 'Search topics (/)...'}
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-        />
-        <Search size={14} className={styles.searchIcon} />
-      </div>
-
-      <nav className={styles.navGroup}>
-        {Object.entries(categories).map(([category, ids]) => (
-          <div key={category} style={{ marginBottom: 'var(--space-2)' }}>
-            <div className={styles.categoryTitle}>{category}</div>
-            {ids.map((id, idx) => {
-              const ch = chapters[id];
-              const isActive = activeChapterId === id;
-              return (
-                <a
-                  key={id}
-                  href={`/docs?chapter=${id}`}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    onSelectChapter(id);
-                  }}
-                  className={`${styles.chapterLink} ${isActive ? styles.chapterLinkActive : ''}`}
-                >
-                  <span className="technical-label" style={{ fontSize: '0.68rem', color: 'var(--text-secondary)' }}>
-                    0{idx + 1}
-                  </span>
-                  <span>{ch.title}</span>
-                </a>
-              );
-            })}
+    <aside className={styles.sidebar}>
+      <a href={localizePath('/docs', lang)} className={styles.home} aria-current={activeChapterId === null ? 'page' : undefined}>
+        {t.allChapters}
+      </a>
+      <label className={styles.search}>
+        <span className="sr-only">{t.search}</span>
+        <Search size={14} aria-hidden="true" />
+        <input type="search" placeholder={t.search} value={query} onChange={(e) => setQuery(e.target.value)} />
+      </label>
+      <nav ref={navRef} aria-label={t.chaptersLabel}>
+        {visible.length === 0 && <p className={styles.empty}>{t.noResults}</p>}
+        {[...categories.entries()].map(([category, ids]) => (
+          <div key={category} className={styles.group}>
+            <p className={styles.category}>{category}</p>
+            <ul>
+              {ids.map((id) => (
+                <li key={id}>
+                  <a
+                    href={localizePath(`/docs/${id}`, lang)}
+                    className={styles.link}
+                    aria-current={activeChapterId === id ? 'page' : undefined}
+                  >
+                    {chapters[id].title}
+                  </a>
+                </li>
+              ))}
+            </ul>
           </div>
         ))}
       </nav>
