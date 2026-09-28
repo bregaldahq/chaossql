@@ -47,6 +47,8 @@ interface RunItem {
   status: string;
   anomalyType: string;
   anomalyName: string;
+  /** Demo runs: localized anomaly label (live runs use anomalyName). */
+  anomalyLabel?: { en: string; pt: string };
   isRegression: boolean | null;
   baselineStatus?: string;
   driver: string;
@@ -57,6 +59,8 @@ interface RunItem {
   seed: number | null;
   durationMS: number | null;
   timestamp: string;
+  /** Demo runs: age in minutes, formatted in the page language. */
+  ageMinutes?: number;
   failingInvariant?: InvariantViolation;
   traceSteps?: TraceStep[];
   reproGoCode?: string;
@@ -81,7 +85,8 @@ const INITIAL_RUNS: RunItem[] = [
     failedSchedules: 31,
     seed: 184729,
     durationMS: 340,
-    timestamp: '12m atrás',
+    timestamp: '',
+    ageMinutes: 12,
     failingInvariant: {
       name: 'total_wealth_conserved',
       query: 'SELECT sum(balance) FROM accounts;',
@@ -119,7 +124,8 @@ func TestReproduce_P4_LostUpdate(t *testing.T) {
     commitSHA: '4f281e0',
     status: 'passed',
     anomalyType: 'NONE',
-    anomalyName: 'Baseline Verificado',
+    anomalyName: 'Baseline verified',
+    anomalyLabel: { en: 'Baseline verified', pt: 'Baseline verificado' },
     isRegression: false,
     driver: 'PostgreSQL 16',
     isolation: 'READ COMMITTED',
@@ -128,7 +134,8 @@ func TestReproduce_P4_LostUpdate(t *testing.T) {
     failedSchedules: 0,
     seed: 42100,
     durationMS: 290,
-    timestamp: '1h atrás',
+    timestamp: '',
+    ageMinutes: 60,
   },
   {
     id: 'run_771822c',
@@ -148,7 +155,8 @@ func TestReproduce_P4_LostUpdate(t *testing.T) {
     failedSchedules: 18,
     seed: 99182,
     durationMS: 510,
-    timestamp: '3h atrás',
+    timestamp: '',
+    ageMinutes: 180,
     failingInvariant: {
       name: 'no_deadlock_aborts',
       query: "SELECT count(*) FROM pg_stat_activity WHERE state = 'active';",
@@ -173,7 +181,8 @@ func TestReproduce_P4_LostUpdate(t *testing.T) {
     commitSHA: '11e892b',
     status: 'passed',
     anomalyType: 'NONE',
-    anomalyName: 'Livre de Anomalias',
+    anomalyName: 'No anomalies',
+    anomalyLabel: { en: 'No anomalies', pt: 'Livre de anomalias' },
     isRegression: false,
     driver: 'MySQL 8.0',
     isolation: 'READ COMMITTED',
@@ -182,7 +191,8 @@ func TestReproduce_P4_LostUpdate(t *testing.T) {
     failedSchedules: 0,
     seed: 77123,
     durationMS: 410,
-    timestamp: '5h atrás',
+    timestamp: '',
+    ageMinutes: 300,
   },
   {
     id: 'run_551934e',
@@ -191,8 +201,8 @@ func TestReproduce_P4_LostUpdate(t *testing.T) {
     prNumber: 92,
     commitSHA: '33b190f',
     status: 'failed',
-    anomalyType: 'A5A',
-    anomalyName: 'Write Skew (A5A)',
+    anomalyType: 'A5B',
+    anomalyName: 'Write Skew (A5B)',
     isRegression: true,
     baselineStatus: 'PASS',
     driver: 'PostgreSQL 16',
@@ -202,7 +212,8 @@ func TestReproduce_P4_LostUpdate(t *testing.T) {
     failedSchedules: 44,
     seed: 55410,
     durationMS: 380,
-    timestamp: '1d atrás',
+    timestamp: '',
+    ageMinutes: 1440,
     failingInvariant: {
       name: 'at_least_one_active',
       query: 'SELECT count(*) FROM doctors WHERE on_call = true;',
@@ -226,7 +237,8 @@ func TestReproduce_P4_LostUpdate(t *testing.T) {
     commitSHA: '9a012ff',
     status: 'passed',
     anomalyType: 'NONE',
-    anomalyName: 'Baseline Verificado',
+    anomalyName: 'Baseline verified',
+    anomalyLabel: { en: 'Baseline verified', pt: 'Baseline verificado' },
     isRegression: false,
     driver: 'SQLite 3.45',
     isolation: 'WAL Mode',
@@ -235,7 +247,8 @@ func TestReproduce_P4_LostUpdate(t *testing.T) {
     failedSchedules: 0,
     seed: 12044,
     durationMS: 120,
-    timestamp: '2d atrás',
+    timestamp: '',
+    ageMinutes: 2880,
   },
 ];
 
@@ -326,6 +339,18 @@ export function DashboardPage({ lang }: DashboardPageProps) {
     setWebhookBusy(false); setTokenBusy(false); setTestingWebhookId(null); setTestSuccessId(null);
   };
 
+  const L = (pt: string, en: string) => (lang === 'pt' ? pt : en);
+  const locale = lang === 'pt' ? 'pt-BR' : 'en';
+  // Demo runs carry an age in minutes; live runs a timestamp from the API.
+  const when = (r: RunItem) => {
+    if (r.ageMinutes === undefined) return r.timestamp;
+    const rtf = new Intl.RelativeTimeFormat(locale, { numeric: 'auto', style: 'short' });
+    if (r.ageMinutes < 60) return rtf.format(-r.ageMinutes, 'minute');
+    if (r.ageMinutes < 1440) return rtf.format(-Math.round(r.ageMinutes / 60), 'hour');
+    return rtf.format(-Math.round(r.ageMinutes / 1440), 'day');
+  };
+  const anomalyLabel = (r: RunItem) => r.anomalyLabel?.[lang] ?? r.anomalyName;
+
   const t = {
     title: lang === 'pt' ? 'Dashboard de Concorrência' : 'Concurrency Health Dashboard',
     subtitle: lang === 'pt'
@@ -337,7 +362,7 @@ export function DashboardPage({ lang }: DashboardPageProps) {
     totalSchedules: lang === 'pt' ? 'Schedules Testados' : 'Schedules Tested',
     regressionsCaught: lang === 'pt' ? 'Regressões Detectadas' : 'Regressions Caught',
     openRegressions: lang === 'pt' ? 'nas execuções exibidas' : 'in displayed runs',
-    allRuns: lang === 'pt' ? 'Todos os Runs' : 'All Runs',
+    allRuns: lang === 'pt' ? 'Todas as execuções' : 'All Runs',
     regressionsOnly: lang === 'pt' ? 'Apenas Regressões' : 'Regressions Only',
     prsOnly: lang === 'pt' ? 'Pull Requests' : 'Pull Requests',
     passedOnly: lang === 'pt' ? 'Passados' : 'Passed',
@@ -614,7 +639,7 @@ jobs:
           </div>
           <div className={styles.metricValue}>{totalRunsCount}</div>
           <div className={styles.metricSub}>
-            <span>{passedRunsCount} passados • {runs.length - passedRunsCount} com anomalias</span>
+            <span>{L(`${passedRunsCount} sem anomalias, ${runs.length - passedRunsCount} com anomalias`, `${passedRunsCount} passed, ${runs.length - passedRunsCount} with anomalies`)}</span>
           </div>
         </div>
 
@@ -648,19 +673,19 @@ jobs:
         <div className={styles.legendItemsGroup}>
           <div className={styles.legendItem}>
             <span style={{ width: 10, height: 10, borderRadius: '50%', background: 'var(--ok)' }} />
-            <span>PASS: Sem anomalias</span>
+            <span>{L('PASS: sem anomalias', 'PASS: no anomalies')}</span>
           </div>
           <div className={styles.legendItem}>
             <span style={{ width: 10, height: 10, borderRadius: '50%', background: 'var(--signal)' }} />
-            <span>ANOMALY: Risco transacional detectado</span>
+            <span>{L('ANOMALY: risco transacional detectado', 'ANOMALY: transactional risk detected')}</span>
           </div>
           <div className={styles.legendItem}>
             <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#EF4444' }} />
-            <span>REGRESSION: Quebra vs Branch Base</span>
+            <span>{L('REGRESSION: quebra em relação à branch base', 'REGRESSION: breaks against the base branch')}</span>
           </div>
           <div className={styles.legendItem}>
             <span style={{ width: 10, height: 10, borderRadius: '50%', background: 'var(--brand)' }} />
-            <span>CICLO: Deadlock / Serializability Cycle</span>
+            <span>{L('CICLO: deadlock ou ciclo de serialização', 'CYCLE: deadlock or serializability cycle')}</span>
           </div>
         </div>
       </div>
@@ -801,7 +826,7 @@ jobs:
                       >
                         {r.anomalyType}
                       </span>
-                      <span style={{ fontWeight: 600, fontSize: '0.85rem' }}>{r.anomalyName}</span>
+                      <span style={{ fontWeight: 600, fontSize: '0.85rem' }}>{anomalyLabel(r)}</span>
                     </div>
                     {r.isRegression && (
                       <div>
@@ -825,7 +850,7 @@ jobs:
                   </td>
                   <td>
                     <span style={{ color: 'var(--text-body)', fontSize: '0.8rem', fontFamily: 'var(--font-jetbrains-mono)' }}>
-                      {r.timestamp}
+                      {when(r)}
                     </span>
                   </td>
                   <td style={{ textAlign: 'right' }}>
@@ -853,9 +878,9 @@ jobs:
           <div className={styles.modalCard} onClick={(e) => e.stopPropagation()}>
             <div className={styles.modalHeader}>
               <div>
-                <span className={styles.modalTag}>RUN FINDING EXPLORER // {selectedRun.id}</span>
+                <span className={styles.modalTag}>{L('DETALHES DA EXECUÇÃO', 'RUN DETAILS')} // {selectedRun.id}</span>
                 <h2 className={styles.modalTitle}>
-                  {selectedRun.anomalyName} ({selectedRun.anomalyType})
+                  {anomalyLabel(selectedRun)} ({selectedRun.anomalyType})
                 </h2>
                 <div className={styles.modalMetaRow}>
                   <span>{selectedRun.repo}</span>
@@ -892,19 +917,19 @@ jobs:
                   <h4 className={styles.sectionTitle}>{t.invariantBoxTitle}</h4>
                   <div className={styles.invariantGrid}>
                     <div>
-                      <span className={styles.labelMuted}>Invariante:</span>
+                      <span className={styles.labelMuted}>{L('Invariante:', 'Invariant:')}</span>
                       <code>{selectedRun.failingInvariant.name}</code>
                     </div>
                     <div>
-                      <span className={styles.labelMuted}>Query de Verificação:</span>
+                      <span className={styles.labelMuted}>{L('Query de verificação:', 'Check query:')}</span>
                       <code>{selectedRun.failingInvariant.query}</code>
                     </div>
                     <div>
-                      <span className={styles.labelMuted}>Condição Esperada:</span>
+                      <span className={styles.labelMuted}>{L('Condição esperada:', 'Expected condition:')}</span>
                       <span style={{ color: 'var(--ok)', fontWeight: 600 }}>{selectedRun.failingInvariant.assertion}</span>
                     </div>
                     <div>
-                      <span className={styles.labelMuted}>Valor Real Violado:</span>
+                      <span className={styles.labelMuted}>{L('Valor real (violado):', 'Actual value (violated):')}</span>
                       <span style={{ color: 'var(--danger)', fontWeight: 600 }}>{selectedRun.failingInvariant.actual}</span>
                     </div>
                   </div>
@@ -988,8 +1013,8 @@ jobs:
           <div className={styles.onboardingCard} onClick={(e) => e.stopPropagation()}>
             <div className={styles.modalHeader}>
               <div>
-                <span className={styles.modalTag}>SETUP EM 60 SEGUNDOS</span>
-                <h3 className={styles.modalTitle}>Conectar Repositório ao ChaosSQL Cloud</h3>
+                <span className={styles.modalTag}>{L('SETUP EM 60 SEGUNDOS', 'SETUP IN 60 SECONDS')}</span>
+                <h3 className={styles.modalTitle}>{L('Conectar repositório ao ChaosSQL Cloud', 'Connect a repository to ChaosSQL Cloud')}</h3>
               </div>
               <button type="button" className={styles.closeBtn} onClick={() => (setOnboardingOpen(false), setIssuedToken(''), setTokenError(null))}>
                 <X size={20} />
@@ -1009,10 +1034,10 @@ jobs:
                     <code>{issuedToken}</code>
                     <button type="button" className={styles.actionBtnSmall} onClick={handleCopyToken}>
                       {copiedToken ? <Check size={14} /> : <Copy size={14} />}
-                      {copiedToken ? 'Copied' : 'Copy Token'}
+                      {copiedToken ? L('Copiado', 'Copied') : L('Copiar token', 'Copy token')}
                     </button>
                   </div> : <button type="button" className={styles.actionBtnSmall} disabled={!isLiveMode || apiStatus !== 'online' || tokenBusy} onClick={handleCreateToken}>
-                    {tokenBusy ? 'Creating…' : (lang === 'pt' ? 'Criar token de CI' : 'Create CI Token')}
+                    {tokenBusy ? L('Criando…', 'Creating…') : L('Criar token de CI', 'Create CI token')}
                   </button>}
                 </div>
               </div>
@@ -1020,11 +1045,12 @@ jobs:
               <div className={styles.onboardingStep}>
                 <div className={styles.stepNum}>2</div>
                 <div className={styles.stepContent}>
-                  <h4>Configure o Secret no GitHub</h4>
+                  <h4>{L('Configure o secret no GitHub', 'Add the secret on GitHub')}</h4>
                   <p>{lang === 'pt' ? 'Defina também a variável CHAOSSQL_CLOUD_URL com a URL da API acessível pelo runner.' : 'Also set the CHAOSSQL_CLOUD_URL repository variable to the API URL reachable from the runner.'}</p>
                   <p>
-                    No seu repositório no GitHub, acesse <strong>Settings → Secrets and variables → Actions → New repository secret</strong>.
-                    Defina o nome como <code style={{ color: 'var(--brand-text)', background: 'var(--surface-raised)', padding: '2px 6px', borderRadius: 3 }}>CHAOSSQL_CLOUD_TOKEN</code>.
+                    {L('No seu repositório no GitHub, acesse', 'In your GitHub repository, open')}{' '}
+                    <strong>Settings → Secrets and variables → Actions → New repository secret</strong>.{' '}
+                    {L('Defina o nome como', 'Name it')} <code style={{ color: 'var(--brand-text)', background: 'var(--surface-raised)', padding: '2px 6px', borderRadius: 3 }}>CHAOSSQL_CLOUD_TOKEN</code>.
                   </p>
                 </div>
               </div>
@@ -1033,13 +1059,16 @@ jobs:
                 <div className={styles.stepNum}>3</div>
                 <div className={styles.stepContent}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                    <h4>Adicione o Workflow no Repositório</h4>
+                    <h4>{L('Adicione o workflow no repositório', 'Add the workflow to the repository')}</h4>
                     <button type="button" className={styles.actionBtnSmall} onClick={handleCopyWorkflow}>
                       {copiedWorkflow ? <Check size={14} /> : <Copy size={14} />}
-                      {copiedWorkflow ? 'YAML Copiado!' : 'Copiar Workflow YAML'}
+                      {copiedWorkflow ? L('YAML copiado', 'YAML copied') : L('Copiar YAML do workflow', 'Copy workflow YAML')}
                     </button>
                   </div>
-                  <p>Crie o arquivo <code>.github/workflows/concurrency.yml</code> com o conteúdo abaixo:</p>
+                  <p>
+                    {L('Crie o arquivo', 'Create')} <code>.github/workflows/concurrency.yml</code>{' '}
+                    {L('com o conteúdo abaixo:', 'with this content:')}
+                  </p>
                   <pre className={styles.yamlPre}>
                     <code>{`name: Concurrency Verification (ChaosSQL)
 
@@ -1072,9 +1101,12 @@ jobs:
               <div className={styles.onboardingStep}>
                 <div className={styles.stepNum}>4</div>
                 <div className={styles.stepContent}>
-                  <h4>Abra um Pull Request de Teste</h4>
+                  <h4>{L('Abra um pull request de teste', 'Open a test pull request')}</h4>
                   <p>
-                    O ChaosSQL executará os testes de concorrência em paralelo, comentará o resultado no PR e sincronizará o histórico aqui no Dashboard automaticamente!
+                    {L(
+                      'O ChaosSQL roda os cenários de concorrência, comenta o resultado no PR e envia o histórico para este dashboard.',
+                      'ChaosSQL runs your concurrency scenarios, comments the result on the PR and sends the history to this dashboard.'
+                    )}
                   </p>
                 </div>
               </div>
@@ -1082,7 +1114,7 @@ jobs:
 
             <div className={styles.modalFooter}>
               <button type="button" className={styles.copyCmdBtn} onClick={() => (setOnboardingOpen(false), setIssuedToken(''), setTokenError(null))}>
-                Concluir & Voltar ao Dashboard
+                {L('Concluir e voltar ao dashboard', 'Done, back to the dashboard')}
               </button>
             </div>
           </div>

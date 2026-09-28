@@ -104,12 +104,12 @@ describe('live dashboard', () => {
     render(<DashboardPage lang="en" />);
     await connect();
     fireEvent.click(screen.getByRole('button', { name: /Connect Repository/ }));
-    fireEvent.click(screen.getByRole('button', { name: 'Create CI Token' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Create CI token' }));
     if (allowed) expect(await screen.findByText('new-ci-token')).toBeTruthy();
     else {
       expect(await screen.findByRole('alert')).toHaveProperty('textContent', expect.stringContaining('Administrator permission required'));
       expect(screen.getByText(/chaossql server create-token/)).toBeTruthy();
-      expect(screen.queryByRole('button', { name: 'Copy Token' })).toBeNull();
+      expect(screen.queryByRole('button', { name: 'Copy token' })).toBeNull();
     }
   });
 
@@ -123,7 +123,7 @@ describe('live dashboard', () => {
     });
     render(<DashboardPage lang="en" />);
     await connect();
-    expect(await screen.findByText(/RUN FINDING EXPLORER \/\/ older-run/)).toBeTruthy();
+    expect(await screen.findByText(/RUN DETAILS \/\/ older-run/)).toBeTruthy();
     expect(requests).toContain('/v1/runs/older-run');
     expect(screen.queryByText('NEVER RENDER THIS')).toBeNull();
   });
@@ -234,4 +234,26 @@ it('audit form reports delivery failures and sends the audit intent and timeline
   expect(screen.queryByText('Request received')).toBeNull();
   expect(body).toMatchObject({ wantAudit: true, source: 'pricing_page', timeline: 'In 1 to 3 months', company: 'Team' });
   expect(body.plan).toMatch(/Audit/);
+});
+
+describe.each(['en', 'pt'] as const)('dashboard demo in %s', (lang) => {
+  it('shows relative times and labels in the page language', () => {
+    render(<DashboardPage lang={lang} />);
+    const text = document.body.textContent ?? '';
+    if (lang === 'en') {
+      expect(text).not.toMatch(/atrás|passados|Baseline Verificado|Livre de Anomalias|Sem anomalias|Quebra vs/);
+      expect(text).toMatch(/12 min\. ago|12 min ago/);
+    } else {
+      expect(text).toMatch(/há 12 min/);
+      expect(text).toContain('Baseline verificado');
+      expect(text).not.toMatch(/\bpassed\b|with anomalies|RUN FINDING EXPLORER/);
+    }
+    cleanup();
+  });
+});
+
+it('labels the demo write skew run with its Adya class A5B', () => {
+  render(<DashboardPage lang="en" />);
+  expect(document.body.textContent).toContain('Write Skew (A5B)');
+  expect(document.body.textContent).not.toContain('Write Skew (A5A)');
 });
