@@ -1,8 +1,8 @@
 /* VisualizerPage.module.css — Redesigned for Bregalda Design System */
 .pageContainer {
-  background-color: var(--cream);
   min-height: 100vh;
-  padding: calc(var(--nav-height) + 32px) var(--page-gutter) 80px;
+  /* The nav is sticky, not fixed: no need to offset by its height. */
+  padding: clamp(2rem, 1.5rem + 2vw, 3.5rem) var(--gutter) 80px;
 }
 
 .inner {
@@ -22,7 +22,7 @@
   font-family: var(--font-jetbrains-mono);
   font-size: 0.75rem;
   font-weight: 700;
-  color: var(--purple);
+  color: var(--brand-text);
   text-transform: uppercase;
   letter-spacing: 0.08em;
   margin-bottom: 8px;
@@ -32,7 +32,7 @@
 .title {
   font-size: clamp(2.2rem, 3.8vw, 3rem);
   font-weight: 700;
-  color: var(--ink);
+  color: var(--text-strong);
   line-height: 1.1;
   letter-spacing: -0.04em;
   margin-bottom: 12px;
@@ -42,17 +42,17 @@
   font-family: var(--font-inter);
   font-size: 1.05rem;
   line-height: 1.6;
-  color: var(--text-secondary);
+  color: var(--text-body);
   max-width: 52rem;
 }
 
 /* Controls Bar */
 .controlsBar {
-  background: #FFFFFF;
-  border: 1px solid color-mix(in srgb, var(--ink) 14%, transparent);
+  background: var(--surface-raised);
+  border: 1px solid var(--line);
   border-radius: var(--radius-card);
   padding: 14px 20px;
-  box-shadow: 0 4px 16px color-mix(in srgb, var(--ink) 4%, transparent);
+  box-shadow: 0 4px 16px var(--line);
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -61,8 +61,8 @@
 }
 
 .modeSegmentedGroup {
-  background: #EFECE6;
-  border: 1px solid color-mix(in srgb, var(--ink) 12%, transparent);
+  background: var(--surface-sunken);
+  border: 1px solid var(--line);
   border-radius: var(--radius-control);
   padding: 3px;
   display: inline-flex;
@@ -77,17 +77,17 @@
   border-radius: 2px;
   border: none;
   background: transparent;
-  color: var(--ink);
+  color: var(--text-strong);
   cursor: pointer;
   transition: all 0.15s ease;
 }
 
 .modeBtn:hover {
-  color: var(--purple);
+  color: var(--brand-text);
 }
 
 .modeBtnActive {
-  background: var(--purple);
+  background: var(--brand);
   color: #FFFFFF !important;
   box-shadow: 0 2px 6px rgba(75, 46, 131, 0.35);
 }
@@ -103,7 +103,7 @@
   font-family: var(--font-jetbrains-mono);
   font-size: 0.75rem;
   font-weight: 600;
-  color: var(--text-secondary);
+  color: var(--text-body);
   margin-right: 4px;
 }
 
@@ -113,22 +113,22 @@
   font-weight: 600;
   padding: 6px 12px;
   border-radius: var(--radius-control);
-  border: 1px solid color-mix(in srgb, var(--ink) 18%, transparent);
-  background: #FFFFFF;
-  color: var(--ink);
+  border: 1px solid var(--line);
+  background: var(--surface-raised);
+  color: var(--text-strong);
   cursor: pointer;
   transition: all 0.15s ease;
 }
 
 .filterBtn:hover {
-  border-color: var(--purple);
-  color: var(--purple);
+  border-color: var(--brand-text);
+  color: var(--brand-text);
 }
 
 .filterBtnActive {
-  background: var(--ink);
-  border-color: var(--ink);
-  color: var(--yellow);
+  background: var(--surface-sunken);
+  border-color: var(--line-strong);
+  color: var(--signal);
 }
 
 .animateBtn {
@@ -137,9 +137,9 @@
   font-weight: 600;
   padding: 7px 14px;
   border-radius: var(--radius-control);
-  border: 1px solid var(--purple);
-  background: color-mix(in srgb, var(--purple) 8%, transparent);
-  color: var(--purple);
+  border: 1px solid var(--brand-text);
+  background: var(--surface-raised);
+  color: var(--brand-text);
   cursor: pointer;
   display: inline-flex;
   align-items: center;
@@ -148,7 +148,7 @@
 }
 
 .animateBtn:hover {
-  background: var(--purple);
+  background: var(--brand);
   color: #FFFFFF;
 }
 
@@ -162,25 +162,27 @@
   padding: 6px 12px;
   font-family: var(--font-jetbrains-mono);
   font-size: 0.76rem;
-  color: #DC2626;
+  color: var(--danger);
   font-weight: 700;
 }
 
 /* Gantt Card */
 .ganttCard {
-  background: color-mix(in srgb, var(--ink) 95%, var(--purple));
-  border: 1px solid color-mix(in srgb, var(--cream) 18%, transparent);
+  background: var(--surface-code);
+  border: 1px solid var(--line);
   border-radius: var(--radius-card);
   padding: 22px 24px;
   box-shadow: 0 20px 60px rgba(10, 5, 20, 0.35);
   overflow-x: auto;
+  /* Lets the timeline scroll inside the card instead of widening the page. */
+  min-width: 0;
 }
 
 .ganttHeader {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border-bottom: 1px solid color-mix(in srgb, var(--cream) 14%, transparent);
+  border-bottom: 1px solid var(--line);
   padding-bottom: 14px;
   margin-bottom: 16px;
 }
@@ -189,7 +191,7 @@
   font-family: var(--font-jetbrains-mono);
   font-size: 0.8rem;
   font-weight: 700;
-  color: var(--cream);
+  color: var(--text-strong);
   text-transform: uppercase;
   letter-spacing: 0.08em;
 }
@@ -200,7 +202,7 @@
   gap: 16px;
   font-family: var(--font-jetbrains-mono);
   font-size: 0.72rem;
-  color: color-mix(in srgb, var(--cream) 70%, transparent);
+  color: var(--text-body);
 }
 
 .legendItem {
@@ -239,11 +241,11 @@
 .ganttAxis {
   display: flex;
   margin-left: 90px;
-  border-bottom: 1px solid color-mix(in srgb, var(--cream) 14%, transparent);
+  border-bottom: 1px solid var(--line);
   padding-bottom: 6px;
   font-family: var(--font-jetbrains-mono);
   font-size: 0.72rem;
-  color: color-mix(in srgb, var(--cream) 55%, transparent);
+  color: var(--text-muted);
 }
 
 .axisTick {
@@ -270,7 +272,7 @@
   width: 90px;
   font-family: var(--font-jetbrains-mono);
   font-size: 0.78rem;
-  color: var(--cream);
+  color: var(--text-strong);
   font-weight: 600;
 }
 
@@ -278,7 +280,7 @@
   flex-grow: 1;
   height: 40px;
   background: rgba(255, 255, 255, 0.03);
-  border: 1px solid color-mix(in srgb, var(--cream) 12%, transparent);
+  border: 1px solid var(--line);
   border-radius: var(--radius-control);
   position: relative;
   overflow: hidden;
@@ -309,7 +311,7 @@
 }
 
 .ganttBlockActive {
-  outline: 2px solid var(--yellow) !important;
+  outline: 2px solid var(--signal) !important;
   box-shadow: 0 0 14px rgba(245, 196, 0, 0.7) !important;
   z-index: 12;
 }
@@ -347,8 +349,9 @@
   position: absolute;
   top: -24px;
   transform: translateX(-50%);
-  background: #EF4444;
-  color: #FFFFFF;
+  /* Darker red keeps white text above 4.5:1. */
+  background: #b42318;
+  color: #ffffff;
   font-family: var(--font-jetbrains-mono);
   font-size: 0.68rem;
   font-weight: 700;
@@ -362,31 +365,32 @@
 /* Dual Pane Split */
 .splitGrid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 24px;
 }
 
 @media (max-width: 960px) {
   .splitGrid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
 .detailCard {
-  background: color-mix(in srgb, var(--ink) 95%, var(--purple));
-  border: 1px solid color-mix(in srgb, var(--cream) 18%, transparent);
+  background: var(--surface-code);
+  border: 1px solid var(--line);
   border-radius: var(--radius-card);
   padding: 20px;
   box-shadow: 0 16px 40px rgba(10, 5, 20, 0.25);
   display: flex;
   flex-direction: column;
+  min-width: 0;
 }
 
 .cardToolbar {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border-bottom: 1px solid color-mix(in srgb, var(--cream) 14%, transparent);
+  border-bottom: 1px solid var(--line);
   padding-bottom: 12px;
   margin-bottom: 16px;
 }
@@ -395,7 +399,7 @@
   font-family: var(--font-jetbrains-mono);
   font-size: 0.78rem;
   font-weight: 700;
-  color: var(--cream);
+  color: var(--text-strong);
   text-transform: uppercase;
   letter-spacing: 0.08em;
 }
@@ -439,10 +443,10 @@
 .adyaFootnote {
   font-family: var(--font-jetbrains-mono);
   font-size: 0.75rem;
-  color: color-mix(in srgb, var(--cream) 70%, transparent);
+  color: var(--text-body);
   line-height: 1.55;
   margin-top: 14px;
-  border-top: 1px solid color-mix(in srgb, var(--cream) 14%, transparent);
+  border-top: 1px solid var(--line);
   padding-top: 10px;
   width: 100%;
 }
@@ -450,7 +454,7 @@
 /* Inspector */
 .inspectorGrid {
   display: grid;
-  grid-template-columns: 150px 1fr;
+  grid-template-columns: 150px minmax(0, 1fr);
   row-gap: 12px;
   column-gap: 12px;
   font-size: 0.85rem;
@@ -460,18 +464,18 @@
 .inspectorKey {
   font-family: var(--font-jetbrains-mono);
   font-size: 0.75rem;
-  color: color-mix(in srgb, var(--cream) 60%, transparent);
+  color: var(--text-muted);
   font-weight: 600;
 }
 
 .inspectorVal {
   font-family: var(--font-jetbrains-mono);
   font-size: 0.82rem;
-  color: var(--cream);
+  color: var(--text-strong);
 }
 
 .inspectorValHighlight {
-  color: var(--yellow);
+  color: var(--signal);
   font-weight: 700;
 }
 
@@ -504,7 +508,7 @@
   flex-wrap: wrap;
   gap: 12px;
   font-size: 0.88rem;
-  color: var(--cream);
+  color: var(--text-strong);
 }
 
 .deepLinkBadge {

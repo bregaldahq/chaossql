@@ -476,10 +476,10 @@ jobs:
   };
 
   return (
-    <div className={styles.pageContainer} data-surface="light">
+    <div className={styles.pageContainer}>
       {/* Header matching MatrixPage standard */}
       <div className={styles.header}>
-        <p className="technical-label" style={{ color: 'var(--purple)' }}>
+        <p className="technical-label" style={{ color: 'var(--brand-text)' }}>
           {lang === 'pt' ? 'Observabilidade de Isolamento Concorrente // Control Plane' : 'Concurrency Isolation Observability // Control Plane'}
         </p>
         <div className={styles.headerTitleRow}>
@@ -518,8 +518,8 @@ jobs:
               {webhooks.length > 0 && (
                 <span
                   style={{
-                    background: 'var(--purple)',
-                    color: 'var(--cream)',
+                    background: 'var(--brand)',
+                    color: 'var(--text-strong)',
                     borderRadius: '10px',
                     padding: '1px 6px',
                     fontSize: '0.68rem',
@@ -547,7 +547,7 @@ jobs:
       {isLiveMode && (
         <div className={styles.liveConfigStrip}>
           <div className={styles.liveEndpointBox}>
-            <span style={{ fontSize: 'var(--type-meta)', fontFamily: 'var(--font-jetbrains-mono)', color: 'var(--text-secondary)' }}>
+            <span style={{ fontSize: 'var(--type-meta)', fontFamily: 'var(--font-jetbrains-mono)', color: 'var(--text-body)' }}>
               {lang === 'pt' ? 'Servidor ChaosSQL:' : 'ChaosSQL Server:'}
             </span>
             {apiStatus === 'online' && (
@@ -601,16 +601,16 @@ jobs:
             <span className={styles.metricTitle}>{t.healthLabel}</span>
             <Activity size={16} color="var(--green)" />
           </div>
-          <div className={styles.metricValue} style={{ color: 'var(--green)' }}>{healthScore === '—' ? '—' : `${healthScore}%`}</div>
+          <div className={styles.metricValue} style={{ color: 'var(--ok)' }}>{healthScore === '—' ? '—' : `${healthScore}%`}</div>
           <div className={styles.metricSub}>
-            <span style={{ color: 'var(--green)' }}>●</span> {t.healthStatus}
+            <span style={{ color: 'var(--ok)' }}>●</span> {t.healthStatus}
           </div>
         </div>
 
         <div className={styles.metricCard}>
           <div className={styles.metricHeader}>
             <span className={styles.metricTitle}>{t.totalRuns}</span>
-            <Layers size={16} color="var(--purple)" />
+            <Layers size={16} color="var(--brand-text)" />
           </div>
           <div className={styles.metricValue}>{totalRunsCount}</div>
           <div className={styles.metricSub}>
@@ -621,7 +621,7 @@ jobs:
         <div className={styles.metricCard}>
           <div className={styles.metricHeader}>
             <span className={styles.metricTitle}>{t.totalSchedules}</span>
-            <Activity size={16} color="var(--purple)" />
+            <Activity size={16} color="var(--brand-text)" />
           </div>
           <div className={styles.metricValue}>{totalSchedulesSum === null || !runs.length ? '—' : totalSchedulesSum.toLocaleString()}</div>
           <div className={styles.metricSub}>
@@ -632,11 +632,11 @@ jobs:
         <div className={styles.metricCard}>
           <div className={styles.metricHeader}>
             <span className={styles.metricTitle}>{t.regressionsCaught}</span>
-            <ShieldAlert size={16} color={regressionsCount > 0 ? '#EF4444' : 'var(--text-secondary)'} />
+            <ShieldAlert size={16} color={regressionsCount > 0 ? '#EF4444' : 'var(--text-body)'} />
           </div>
           <div className={regressionsCount > 0 ? styles.metricValueAlert : styles.metricValue}>{regressionsCount}</div>
           <div className={styles.metricSub}>
-            <span style={{ color: regressionsCount > 0 ? '#DC2626' : 'inherit' }}>
+            <span style={{ color: regressionsCount > 0 ? 'var(--danger)' : 'inherit' }}>
               {regressionsCount} {t.openRegressions}{runs.some(r => r.isRegression === null) ? (lang === 'pt' ? ' (dados incompletos)' : ' (incomplete metadata)') : ''}
             </span>
           </div>
@@ -647,11 +647,11 @@ jobs:
       <div className={styles.legendBar}>
         <div className={styles.legendItemsGroup}>
           <div className={styles.legendItem}>
-            <span style={{ width: 10, height: 10, borderRadius: '50%', background: 'var(--green)' }} />
+            <span style={{ width: 10, height: 10, borderRadius: '50%', background: 'var(--ok)' }} />
             <span>PASS: Sem anomalias</span>
           </div>
           <div className={styles.legendItem}>
-            <span style={{ width: 10, height: 10, borderRadius: '50%', background: 'var(--yellow)' }} />
+            <span style={{ width: 10, height: 10, borderRadius: '50%', background: 'var(--signal)' }} />
             <span>ANOMALY: Risco transacional detectado</span>
           </div>
           <div className={styles.legendItem}>
@@ -659,7 +659,7 @@ jobs:
             <span>REGRESSION: Quebra vs Branch Base</span>
           </div>
           <div className={styles.legendItem}>
-            <span style={{ width: 10, height: 10, borderRadius: '50%', background: 'var(--purple)' }} />
+            <span style={{ width: 10, height: 10, borderRadius: '50%', background: 'var(--brand)' }} />
             <span>CICLO: Deadlock / Serializability Cycle</span>
           </div>
         </div>
@@ -714,7 +714,7 @@ jobs:
       <div className={styles.tableCard}>
         {filteredRuns.length === 0 ? (
           <div className={styles.emptyState}>
-            <Layers size={36} color="var(--purple)" style={{ opacity: 0.5, marginBottom: 8 }} />
+            <Layers size={36} color="var(--brand-text)" style={{ opacity: 0.5, marginBottom: 8 }} />
             <h3>{lang === 'pt' ? 'Nenhuma execução encontrada' : 'No executions found'}</h3>
             <p>
               {isLiveMode
@@ -824,7 +824,7 @@ jobs:
                     </div>
                   </td>
                   <td>
-                    <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', fontFamily: 'var(--font-jetbrains-mono)' }}>
+                    <span style={{ color: 'var(--text-body)', fontSize: '0.8rem', fontFamily: 'var(--font-jetbrains-mono)' }}>
                       {r.timestamp}
                     </span>
                   </td>
@@ -901,11 +901,11 @@ jobs:
                     </div>
                     <div>
                       <span className={styles.labelMuted}>Condição Esperada:</span>
-                      <span style={{ color: 'var(--green)', fontWeight: 600 }}>{selectedRun.failingInvariant.assertion}</span>
+                      <span style={{ color: 'var(--ok)', fontWeight: 600 }}>{selectedRun.failingInvariant.assertion}</span>
                     </div>
                     <div>
                       <span className={styles.labelMuted}>Valor Real Violado:</span>
-                      <span style={{ color: '#DC2626', fontWeight: 600 }}>{selectedRun.failingInvariant.actual}</span>
+                      <span style={{ color: 'var(--danger)', fontWeight: 600 }}>{selectedRun.failingInvariant.actual}</span>
                     </div>
                   </div>
                 </div>
@@ -1024,7 +1024,7 @@ jobs:
                   <p>{lang === 'pt' ? 'Defina também a variável CHAOSSQL_CLOUD_URL com a URL da API acessível pelo runner.' : 'Also set the CHAOSSQL_CLOUD_URL repository variable to the API URL reachable from the runner.'}</p>
                   <p>
                     No seu repositório no GitHub, acesse <strong>Settings → Secrets and variables → Actions → New repository secret</strong>.
-                    Defina o nome como <code style={{ color: 'var(--purple)', background: 'color-mix(in srgb, var(--purple) 8%, var(--cream))', padding: '2px 6px', borderRadius: 3 }}>CHAOSSQL_CLOUD_TOKEN</code>.
+                    Defina o nome como <code style={{ color: 'var(--brand-text)', background: 'var(--surface-raised)', padding: '2px 6px', borderRadius: 3 }}>CHAOSSQL_CLOUD_TOKEN</code>.
                   </p>
                 </div>
               </div>
@@ -1096,7 +1096,7 @@ jobs:
             <div className={styles.modalHeader}>
               <div>
                 <h3 className={styles.modalTitle}>
-                  <Bell size={18} style={{ marginRight: 8, verticalAlign: 'text-bottom', color: 'var(--purple)' }} />
+                  <Bell size={18} style={{ marginRight: 8, verticalAlign: 'text-bottom', color: 'var(--brand-text)' }} />
                   {lang === 'pt' ? 'Alertas & Webhooks em Tempo Real' : 'Real-Time Alert Webhooks'}
                 </h3>
                 <p className={styles.modalSubtitle}>
@@ -1124,7 +1124,7 @@ jobs:
                   style={{
                     fontFamily: 'var(--font-jetbrains-mono)',
                     fontSize: '0.82rem',
-                    color: 'var(--ink)',
+                    color: 'var(--text-strong)',
                     textTransform: 'uppercase',
                     letterSpacing: '0.05em',
                     marginBottom: 'var(--space-2)',
@@ -1134,7 +1134,7 @@ jobs:
                 </h4>
 
                 {webhooks.length === 0 ? (
-                  <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', padding: '16px 0' }}>
+                  <p style={{ fontSize: '0.85rem', color: 'var(--text-body)', padding: '16px 0' }}>
                     {lang === 'pt' ? 'Nenhum webhook configurado ainda.' : 'No webhooks configured yet.'}
                   </p>
                 ) : (
@@ -1158,7 +1158,7 @@ jobs:
                                 Generic JSON
                               </span>
                             )}
-                            <strong style={{ fontFamily: 'var(--font-inter)', fontSize: '0.88rem', color: 'var(--ink)' }}>
+                            <strong style={{ fontFamily: 'var(--font-inter)', fontSize: '0.88rem', color: 'var(--text-strong)' }}>
                               {wh.id}
                             </strong>
                           </div>
@@ -1213,7 +1213,7 @@ jobs:
                             alignItems: 'center',
                             gap: 12,
                             fontSize: '0.75rem',
-                            color: 'var(--text-secondary)',
+                            color: 'var(--text-body)',
                             fontFamily: 'var(--font-jetbrains-mono)',
                           }}
                         >
@@ -1241,7 +1241,7 @@ jobs:
                   style={{
                     fontFamily: 'var(--font-jetbrains-mono)',
                     fontSize: '0.82rem',
-                    color: 'var(--ink)',
+                    color: 'var(--text-strong)',
                     textTransform: 'uppercase',
                     letterSpacing: '0.05em',
                     margin: 0,

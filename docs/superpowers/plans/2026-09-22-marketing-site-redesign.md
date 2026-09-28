@@ -301,7 +301,12 @@ Cada fase é um PR independente, com `make verify` verde e screenshot antes/depo
 - [x] Cada capítulo com URL própria (`/docs/<capítulo>`, links `?chapter=` antigos redirecionados), título e descrição próprios, pré-renderizado nos dois idiomas (46 páginas pré-renderizadas no total) e no sitemap.
 - [x] 255 fórmulas LaTeX que apareciam cruas agora são renderizadas como texto matemático legível, sem biblioteca extra; todo bloco de código tem botão de copiar (antes 4 de 35, com `onclick` embutido).
 - [x] Lighthouse mobile: 96–97 / 100 / 100 / 100, CLS 0 (antes 73 de performance e falha de tamanho de fonte).
-- Próximo, se quiser: revisar o texto dos docs contra o `site/COPY.md` (ainda há "em milissegundos" e travessões) e migrar cenários, matriz, playground, visualizer e dashboard para o tema escuro.
+- Próximo, se quiser: revisar o texto dos docs contra o `site/COPY.md` (ainda há "em milissegundos" e travessões).
+
+### Pós-plano: todas as páginas no tema escuro
+- [x] Cenários, matriz, playground, visualizer e dashboard migrados para os tokens semânticos (conversão por propriedade: texto, fundo, borda) e para o tema escuro; nenhuma página usa mais os tokens antigos.
+- [x] Acessibilidade 100 em todas (contraste do rótulo de colisão e do vermelho do dashboard, hierarquia de títulos, rótulos dos controles do playground); sem erros de hidratação; sem rolagem horizontal no mobile (o visualizer estourava).
+- Pendente, fora do visual: o dashboard mostra textos em português no modo EN ("3 passados", "12m atrás", legenda de status).
 
 ### Fase 7: Lançamento e iteração (contínuo)
 - [ ] Comparar o funil com a baseline após 2–4 semanas. Ferramenta pronta: `node tools/site_funnel.mjs 28` (token da Cloudflare com Account Analytics: Read) imprime visitas, cada etapa do funil, eventos por idioma e principais referrers.

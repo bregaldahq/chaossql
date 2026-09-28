@@ -34,11 +34,8 @@ describe('prerendered pages', () => {
     expect(html).not.toContain('<template id="B:');
   });
 
-  it('renders the landing and pricing in the lab theme from the first byte', () => {
-    for (const path of ['/', '/pt', '/pricing', '/pt/pricing', '/docs', '/pt/docs/go-sdk']) {
-      expect(fileFor(path)).toMatch(/<html [^>]*data-theme="lab"/);
-    }
-    expect(fileFor('/scenarios')).not.toMatch(/<html [^>]*data-theme="lab"/);
+  it.each(manifest)('%s renders in the lab theme from the first byte', (path) => {
+    expect(fileFor(path)).toMatch(/<html [^>]*data-theme="lab"/);
   });
 
   it('links the lazy page stylesheet so prerendered markup is styled on first paint', () => {

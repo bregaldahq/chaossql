@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pt-BR" data-theme="lab" data-surface="light">
+<html lang="pt-BR" data-theme="lab">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -49,8 +49,8 @@
       }
     </script>
     <link rel="icon" type="image/svg+xml" href="/brand/icone_bregalda.svg" />
-    <script type="module" crossorigin src="/assets/main-CrNNEqIa.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/main-DsdD8E9B.css">
+    <script type="module" crossorigin src="/assets/main-B0klgZf3.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/main-CdqTirtY.css">
       <link rel="preload" as="font" type="font/woff2" crossorigin href="/assets/geist-latin-wght-normal-BgDaEnEv.woff2">
     <link rel="preload" as="font" type="font/woff2" crossorigin href="/assets/jetbrains-mono-latin-wght-normal-B9CIFXIH.woff2">
       <script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"Ele roda contra meu banco de produção?","acceptedAnswer":{"@type":"Answer","text":"Não, e não deve. Toda execução recria o schema e os dados iniciais, então aponte para um banco descartável: um container de serviço no CI ou uma cópia local."}},{"@type":"Question","name":"Quais bancos são suportados?","acceptedAnswer":{"@type":"Answer","text":"PostgreSQL, MySQL e SQLite, além de um driver em memória para o playground no navegador. O SQLite serializa escritas no nível padrão, então a maioria das anomalias aparece no PostgreSQL, no MySQL ou em níveis de isolamento mais fracos."}},{"@type":"Question","name":"Qual a diferença para um teste de carga?","acceptedAnswer":{"@type":"Answer","text":"Um teste de carga mede throughput e torce para uma corrida acontecer. O ChaosSQL escolhe o intercalamento a partir de uma seed, verifica uma regra de negócio ao fim de cada execução e repete a ordem exata que quebrou."}},{"@type":"Question","name":"É determinístico de verdade?","acceptedAnswer":{"@type":"Answer","text":"A mesma especificação com a mesma seed sempre gera o mesmo escalonamento. O banco ainda decide parte do timing sozinho, e o ChaosSQL reporta essa diferença em vez de escondê-la."}},{"@type":"Question","name":"Uma violação vai quebrar meu build?","acceptedAnswer":{"@type":"Answer","text":"Não sozinha: o comando termina com sucesso e registra a violação no relatório JUnit e no resumo do job. Bloqueie por eles, ou pela saída is-regression do ChaosSQL Cloud."}},{"@type":"Question","name":"O que preciso instalar?","acceptedAnswer":{"@type":"Answer","text":"Só o binário: o go install entrega um único programa Go estático, sem CGO. Os SDKs de Python e TypeScript chamam o mesmo binário."}},{"@type":"Question","name":"O que a auditoria inclui?","acceptedAnswer":{"@type":"Answer","text":"Um kickoff de 45 minutos, as cinco transações mais críticas mapeadas, mais de 100.000 escalonamentos explorados, testes de reprodução em Go, um relatório final apresentado ao time e três meses de Cloud Team."}}]}</script>

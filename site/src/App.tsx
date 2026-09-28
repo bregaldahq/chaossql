@@ -17,9 +17,17 @@ const MatrixPage = lazy(() => import('./pages/MatrixPage').then((m) => ({ defaul
 const VisualizerPage = lazy(() => import('./pages/VisualizerPage').then((m) => ({ default: m.VisualizerPage })));
 const PlaygroundPage = lazy(() => import('./pages/PlaygroundPage').then((m) => ({ default: m.PlaygroundPage })));
 
-// Pages rendered in the dark "lab" theme. The rest keep the legacy light look
-// until they are migrated.
-export const LAB_ROUTES: ReadonlySet<RouteId> = new Set(['landing', 'pricing', 'docs']);
+// Pages rendered in the dark "lab" theme: every route since the redesign.
+export const LAB_ROUTES: ReadonlySet<RouteId> = new Set([
+  'landing',
+  'pricing',
+  'docs',
+  'scenarios',
+  'matrix',
+  'playground',
+  'visualizer',
+  'dashboard',
+]);
 
 export default function App() {
   const { lang, setLang } = useI18n();

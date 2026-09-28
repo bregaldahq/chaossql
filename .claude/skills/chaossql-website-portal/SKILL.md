@@ -18,7 +18,7 @@ English is canonical); the English purity gate skips `site/`.
 - Entry: `site/template.html` → `src/main.tsx` → `src/App.tsx` (nav, page by
   route, footer). The landing is in the main bundle; every other page is a
   `React.lazy` chunk behind a `Suspense` fallback. `LAB_ROUTES` in `App.tsx`
-  lists the routes rendered in the dark lab theme (`landing`, `pricing`, `docs`): App
+  lists the routes rendered in the dark lab theme (every route): App
   sets `data-theme="lab"` on `<html>` and the `theme-color` meta for them. The dev server (`vite.config.ts`, port 3000) serves
   `template.html` for every extension-less app route, so deep links in dev
   never load the committed prebuilt bundle. `design-preview.html`
@@ -49,6 +49,12 @@ English is canonical); the English purity gate skips `site/`.
   `action.yml` workflow, plans (`#plans`), FAQ (`<details>`), final CTA with
   `WaitlistForm` (`#waitlist`). Components in `src/components/landing/`;
   animation is CSS plus IntersectionObserver, no animation library.
+- Every page now uses the semantic tokens; the legacy palette tokens
+  (`--cream`, `--ink`, `--purple`, `--border-subtle`, `--text-secondary`)
+  remain in `tokens.css` only for the vanilla files in `site/app.js` and
+  `site/assets/style.css`. Do not use them in new CSS: `--cream` meant both a
+  background and a text color, which is why each page was migrated by
+  property.
 - Shared chrome (`SiteNav`, `SiteFooter`) uses only semantic tokens, which
   have light values in `:root`, so it renders in both themes. Nav links:
   How it works, Scenarios, Playground, Docs, Pricing; the visualizer, matrix

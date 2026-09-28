@@ -29,13 +29,13 @@
   font-size: var(--type-h2);
   font-weight: 500;
   letter-spacing: -0.05em;
-  color: var(--ink);
+  color: var(--text-strong);
   margin: 0;
   line-height: 1.05;
 }
 
 .subtitle {
-  color: var(--text-secondary);
+  color: var(--text-body);
   font-size: var(--type-body-lg);
   max-width: 50rem;
   margin: var(--space-1) 0 0 0;
@@ -52,16 +52,16 @@
 /* Mode Segmented Controls (Demo vs Live) */
 .modeSegmentedGroup {
   display: inline-flex;
-  background: color-mix(in srgb, var(--purple) 6%, var(--cream));
+  background: var(--surface-raised);
   padding: 3px;
   border-radius: var(--radius-control);
-  border: 1px solid var(--border-subtle);
+  border: 1px solid var(--line);
 }
 
 .modeBtn {
   background: transparent;
   border: none;
-  color: var(--text-secondary);
+  color: var(--text-body);
   font-family: var(--font-jetbrains-mono), monospace;
   font-size: var(--type-meta);
   font-weight: 600;
@@ -74,15 +74,15 @@
 }
 
 .modeBtnActive {
-  background: var(--purple);
-  color: var(--cream);
-  box-shadow: 0 1px 4px color-mix(in srgb, var(--ink) 15%, transparent);
+  background: var(--brand);
+  color: var(--text-strong);
+  box-shadow: 0 1px 4px var(--line);
 }
 
 .connectRepoBtn {
-  background: var(--purple);
-  color: var(--cream);
-  border: 1px solid var(--purple);
+  background: var(--brand);
+  color: var(--text-strong);
+  border: 1px solid var(--brand-text);
   font-family: var(--font-inter), sans-serif;
   font-size: var(--type-action);
   font-weight: 600;
@@ -93,7 +93,7 @@
   align-items: center;
   gap: 6px;
   transition: all 0.2s ease;
-  box-shadow: 0 2px 8px color-mix(in srgb, var(--purple) 25%, transparent);
+  box-shadow: 0 2px 8px var(--line);
 }
 
 .connectRepoBtn:hover {
@@ -111,10 +111,10 @@
   margin-bottom: var(--space-4);
   font-size: var(--type-meta);
   font-family: var(--font-jetbrains-mono), monospace;
-  color: var(--text-secondary);
+  color: var(--text-body);
   padding: var(--space-2) var(--space-3);
-  background: color-mix(in srgb, var(--purple) 3%, var(--cream));
-  border: 1px solid var(--border-subtle);
+  background: var(--surface-raised);
+  border: 1px solid var(--line);
   border-radius: var(--radius-card);
 }
 
@@ -133,8 +133,8 @@
 
 /* Live Cloud Config Strip */
 .liveConfigStrip {
-  background: color-mix(in srgb, var(--purple) 5%, var(--cream));
-  border: 1px solid var(--border-subtle);
+  background: var(--surface-raised);
+  border: 1px solid var(--line);
   border-radius: var(--radius-card);
   padding: 12px 18px;
   margin-bottom: var(--space-4);
@@ -152,25 +152,25 @@
 }
 
 .apiUrlInput {
-  background: var(--cream);
-  border: 1px solid var(--border-subtle);
+  background: var(--surface-raised);
+  border: 1px solid var(--line);
   border-radius: var(--radius-control);
   padding: 5px 10px;
   font-family: var(--font-jetbrains-mono), monospace;
   font-size: 0.82rem;
-  color: var(--ink);
+  color: var(--text-strong);
   width: 220px;
   outline: none;
 }
 
 .apiUrlInput:focus {
-  border-color: var(--purple);
+  border-color: var(--brand-text);
 }
 
 .refreshBtn {
-  background: color-mix(in srgb, var(--purple) 8%, var(--cream));
-  border: 1px solid var(--border-subtle);
-  color: var(--purple);
+  background: var(--surface-raised);
+  border: 1px solid var(--line);
+  color: var(--brand-text);
   font-family: var(--font-jetbrains-mono), monospace;
   font-size: var(--type-meta);
   font-weight: 600;
@@ -184,9 +184,9 @@
 }
 
 .refreshBtn:hover {
-  background: var(--purple);
-  color: var(--cream);
-  border-color: var(--purple);
+  background: var(--brand);
+  color: var(--text-strong);
+  border-color: var(--brand-text);
 }
 
 .spin {
@@ -219,11 +219,11 @@
 }
 
 .metricCard {
-  background: var(--cream);
-  border: 1px solid var(--border-subtle);
+  background: var(--surface-raised);
+  border: 1px solid var(--line);
   border-radius: var(--radius-card);
   padding: var(--space-3);
-  box-shadow: 0 4px 20px color-mix(in srgb, var(--ink) 4%, transparent);
+  box-shadow: 0 4px 20px var(--line);
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -232,7 +232,7 @@
 
 .metricCard:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 24px color-mix(in srgb, var(--ink) 7%, transparent);
+  box-shadow: 0 6px 24px var(--line);
 }
 
 .metricHeader {
@@ -247,7 +247,7 @@
   font-size: var(--type-meta);
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: var(--text-secondary);
+  color: var(--text-body);
   font-weight: 600;
 }
 
@@ -255,7 +255,7 @@
   font-family: var(--font-jetbrains-mono), monospace;
   font-size: 2.2rem;
   font-weight: 600;
-  color: var(--ink);
+  color: var(--text-strong);
   letter-spacing: -0.03em;
   line-height: 1.1;
   margin: 6px 0;
@@ -273,7 +273,7 @@
 
 .metricSub {
   font-size: 0.8rem;
-  color: var(--text-secondary);
+  color: var(--text-body);
   display: flex;
   align-items: center;
   gap: 6px;
@@ -296,9 +296,9 @@
 }
 
 .tabBtn {
-  background: var(--cream);
-  border: 1px solid var(--border-subtle);
-  color: var(--text-secondary);
+  background: var(--surface-raised);
+  border: 1px solid var(--line);
+  color: var(--text-body);
   font-family: var(--font-jetbrains-mono), monospace;
   font-size: var(--type-meta);
   text-transform: uppercase;
@@ -311,14 +311,14 @@
 }
 
 .tabBtn:hover {
-  background: color-mix(in srgb, var(--purple) 4%, var(--cream));
-  color: var(--ink);
+  background: var(--surface-raised);
+  color: var(--text-strong);
 }
 
 .tabBtnActive {
-  background: var(--purple);
-  border-color: var(--purple);
-  color: var(--cream);
+  background: var(--brand);
+  border-color: var(--brand-text);
+  color: var(--text-strong);
 }
 
 .tabBtnActiveAlert {
@@ -336,16 +336,16 @@
 .searchIcon {
   position: absolute;
   left: 12px;
-  color: var(--text-secondary);
+  color: var(--text-body);
   pointer-events: none;
 }
 
 .searchInput {
-  background: var(--cream);
-  border: 1px solid var(--border-subtle);
+  background: var(--surface-raised);
+  border: 1px solid var(--line);
   border-radius: var(--radius-control);
   padding: 7px 12px 7px 34px;
-  color: var(--ink);
+  color: var(--text-strong);
   font-size: 0.85rem;
   font-family: var(--font-inter), sans-serif;
   width: 280px;
@@ -354,16 +354,16 @@
 }
 
 .searchInput:focus {
-  border-color: var(--purple);
+  border-color: var(--brand-text);
 }
 
 /* Table Card (Identical to MatrixTable) */
 .tableCard {
-  background: var(--cream);
-  border: 1px solid var(--border-subtle);
+  background: var(--surface-raised);
+  border: 1px solid var(--line);
   border-radius: var(--radius-card);
   overflow-x: auto;
-  box-shadow: 0 4px 20px color-mix(in srgb, var(--ink) 4%, transparent);
+  box-shadow: 0 4px 20px var(--line);
   margin-bottom: var(--space-4);
 }
 
@@ -376,21 +376,21 @@
 
 .table th {
   padding: 0.85rem 1rem;
-  border-bottom: 2px solid var(--border-subtle);
+  border-bottom: 2px solid var(--line);
   font-family: var(--font-jetbrains-mono), monospace;
   font-size: var(--type-meta);
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: var(--text-secondary);
-  background: color-mix(in srgb, var(--purple) 3%, var(--cream));
+  color: var(--text-body);
+  background: var(--surface-raised);
   white-space: nowrap;
 }
 
 .table td {
   padding: 0.85rem 1rem;
-  border-bottom: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--line);
   vertical-align: middle;
-  color: var(--ink);
+  color: var(--text-strong);
 }
 
 .row {
@@ -399,24 +399,24 @@
 }
 
 .row:hover {
-  background: color-mix(in srgb, var(--purple) 4%, var(--cream));
+  background: var(--surface-raised);
 }
 
 .rowRegression {
-  background: color-mix(in srgb, #EF4444 3%, var(--cream));
+  background: color-mix(in srgb, #EF4444 3%, var(--surface-raised));
 }
 
 .rowRegression:hover {
-  background: color-mix(in srgb, #EF4444 7%, var(--cream));
+  background: color-mix(in srgb, #EF4444 7%, var(--surface-raised));
 }
 
 /* Badges (Identical to MatrixTable) */
 .badgePrevented {
   display: inline-block;
   padding: 0.2rem 0.55rem;
-  background: color-mix(in srgb, var(--green) 12%, var(--cream));
-  border: 1px solid color-mix(in srgb, var(--green) 35%, transparent);
-  color: color-mix(in srgb, var(--ink) 80%, var(--green));
+  background: var(--ok-soft);
+  border: 1px solid var(--ok);
+  color: var(--text-body);
   border-radius: var(--radius-badge);
   font-family: var(--font-jetbrains-mono), monospace;
   font-size: 0.72rem;
@@ -427,9 +427,9 @@
 .badgePermitted {
   display: inline-block;
   padding: 0.2rem 0.55rem;
-  background: color-mix(in srgb, var(--yellow) 15%, var(--cream));
-  border: 1px solid color-mix(in srgb, var(--yellow) 45%, transparent);
-  color: var(--ink);
+  background: var(--signal-soft);
+  border: 1px solid var(--signal);
+  color: var(--text-strong);
   border-radius: var(--radius-badge);
   font-family: var(--font-jetbrains-mono), monospace;
   font-size: 0.72rem;
@@ -440,9 +440,9 @@
 .badgeCycle {
   display: inline-block;
   padding: 0.2rem 0.55rem;
-  background: color-mix(in srgb, var(--purple) 12%, var(--cream));
-  border: 1px solid color-mix(in srgb, var(--purple) 35%, transparent);
-  color: var(--purple);
+  background: var(--surface-brand);
+  border: 1px solid var(--line-strong);
+  color: var(--brand-text);
   border-radius: var(--radius-badge);
   font-family: var(--font-jetbrains-mono), monospace;
   font-size: 0.72rem;
@@ -453,9 +453,9 @@
 .badgeRegression {
   display: inline-block;
   padding: 0.15rem 0.45rem;
-  background: color-mix(in srgb, #EF4444 14%, var(--cream));
+  background: color-mix(in srgb, #EF4444 14%, var(--surface-raised));
   border: 1px solid color-mix(in srgb, #EF4444 40%, transparent);
-  color: #DC2626;
+  color: var(--danger);
   border-radius: var(--radius-badge);
   font-family: var(--font-jetbrains-mono), monospace;
   font-size: 0.68rem;
@@ -473,13 +473,13 @@
 
 .repoName {
   font-weight: 600;
-  color: var(--ink);
+  color: var(--text-strong);
 }
 
 .scenarioName {
   font-family: var(--font-jetbrains-mono), monospace;
   font-size: 0.78rem;
-  color: var(--text-secondary);
+  color: var(--text-body);
 }
 
 .branchCell {
@@ -491,7 +491,7 @@
 .branchCode {
   font-family: var(--font-jetbrains-mono), monospace;
   font-size: 0.8rem;
-  color: var(--ink);
+  color: var(--text-strong);
 }
 
 .prGithubBadge {
@@ -499,20 +499,20 @@
   align-items: center;
   font-size: 0.72rem;
   font-family: var(--font-jetbrains-mono), monospace;
-  color: var(--purple);
+  color: var(--brand-text);
   text-decoration: none;
-  background: color-mix(in srgb, var(--purple) 8%, var(--cream));
+  background: var(--surface-raised);
   padding: 2px 6px;
   border-radius: 3px;
-  border: 1px solid var(--border-subtle);
+  border: 1px solid var(--line);
   width: fit-content;
   transition: all 0.15s ease;
 }
 
 .prGithubBadge:hover {
-  background: var(--purple);
-  color: var(--cream);
-  border-color: var(--purple);
+  background: var(--brand);
+  color: var(--text-strong);
+  border-color: var(--brand-text);
 }
 
 .engineCell {
@@ -523,13 +523,13 @@
 
 .driverText {
   font-weight: 500;
-  color: var(--ink);
+  color: var(--text-strong);
 }
 
 .isolationText {
   font-family: var(--font-jetbrains-mono), monospace;
   font-size: 0.75rem;
-  color: var(--text-secondary);
+  color: var(--text-body);
 }
 
 .durationCell {
@@ -542,19 +542,19 @@
   font-family: var(--font-jetbrains-mono), monospace;
   font-size: 0.82rem;
   font-weight: 600;
-  color: var(--ink);
+  color: var(--text-strong);
 }
 
 .schedulesMono {
   font-family: var(--font-jetbrains-mono), monospace;
   font-size: 0.75rem;
-  color: var(--text-secondary);
+  color: var(--text-body);
 }
 
 .inspectBtn {
-  background: color-mix(in srgb, var(--purple) 8%, var(--cream));
-  border: 1px solid var(--border-subtle);
-  color: var(--purple);
+  background: var(--surface-raised);
+  border: 1px solid var(--line);
+  color: var(--brand-text);
   font-family: var(--font-jetbrains-mono), monospace;
   font-size: 0.75rem;
   font-weight: 600;
@@ -565,9 +565,9 @@
 }
 
 .inspectBtn:hover {
-  background: var(--purple);
-  color: var(--cream);
-  border-color: var(--purple);
+  background: var(--brand);
+  color: var(--text-strong);
+  border-color: var(--brand-text);
 }
 
 /* Modals & Drawers */
@@ -584,8 +584,8 @@
 }
 
 .modalCard {
-  background: var(--cream);
-  border: 1px solid var(--border-subtle);
+  background: var(--surface-raised);
+  border: 1px solid var(--line);
   border-radius: var(--radius-modal);
   width: 100%;
   max-width: 820px;
@@ -598,7 +598,7 @@
 
 .modalHeader {
   padding: var(--space-3) var(--space-4);
-  border-bottom: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--line);
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
@@ -609,14 +609,14 @@
   font-size: var(--type-meta);
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: var(--purple);
+  color: var(--brand-text);
   font-weight: 600;
 }
 
 .modalTitle {
   font-size: 1.35rem;
   font-weight: 600;
-  color: var(--ink);
+  color: var(--text-strong);
   margin: 4px 0 6px 0;
 }
 
@@ -625,14 +625,14 @@
   align-items: center;
   gap: 8px;
   font-size: 0.85rem;
-  color: var(--text-secondary);
+  color: var(--text-body);
   font-family: var(--font-jetbrains-mono), monospace;
 }
 
 .closeBtn {
   background: transparent;
   border: none;
-  color: var(--text-secondary);
+  color: var(--text-body);
   cursor: pointer;
   padding: 4px;
   border-radius: var(--radius-control);
@@ -640,7 +640,7 @@
 }
 
 .closeBtn:hover {
-  color: var(--ink);
+  color: var(--text-strong);
 }
 
 .modalBody {
@@ -651,8 +651,8 @@
 }
 
 .sectionBox {
-  background: color-mix(in srgb, var(--purple) 3%, var(--cream));
-  border: 1px solid var(--border-subtle);
+  background: var(--surface-raised);
+  border: 1px solid var(--line);
   border-radius: var(--radius-card);
   padding: var(--space-3);
 }
@@ -662,7 +662,7 @@
   font-size: var(--type-meta);
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: var(--purple);
+  color: var(--brand-text);
   margin: 0 0 var(--space-2) 0;
   font-weight: 700;
 }
@@ -677,7 +677,7 @@
 .invariantGrid code {
   font-family: var(--font-jetbrains-mono), monospace;
   font-size: 0.8rem;
-  background: color-mix(in srgb, var(--purple) 6%, var(--cream));
+  background: var(--surface-raised);
   padding: 2px 6px;
   border-radius: 3px;
   display: inline-block;
@@ -687,7 +687,7 @@
 .labelMuted {
   display: block;
   font-size: 0.75rem;
-  color: var(--text-secondary);
+  color: var(--text-body);
   font-family: var(--font-jetbrains-mono), monospace;
   text-transform: uppercase;
 }
@@ -703,8 +703,8 @@
   align-items: center;
   gap: 8px;
   font-size: 0.82rem;
-  background: var(--cream);
-  border: 1px solid var(--border-subtle);
+  background: var(--surface-raised);
+  border: 1px solid var(--line);
   padding: 6px 10px;
   border-radius: 4px;
 }
@@ -713,8 +713,8 @@
   font-family: var(--font-jetbrains-mono), monospace;
   font-weight: 700;
   font-size: 0.72rem;
-  background: color-mix(in srgb, var(--purple) 15%, var(--cream));
-  color: var(--purple);
+  background: var(--surface-brand);
+  color: var(--brand-text);
   padding: 2px 6px;
   border-radius: 3px;
 }
@@ -736,7 +736,7 @@
 .sqlSnippet {
   font-family: var(--font-jetbrains-mono), monospace;
   font-size: 0.8rem;
-  color: var(--ink);
+  color: var(--text-strong);
 }
 
 .codePre {
@@ -748,25 +748,25 @@
   font-family: var(--font-jetbrains-mono), monospace;
   font-size: 0.82rem;
   line-height: 1.5;
-  border: 1px solid var(--border-subtle);
+  border: 1px solid var(--line);
   margin: var(--space-1) 0 0 0;
 }
 
 .modalFooter {
   padding: var(--space-3) var(--space-4);
-  border-top: 1px solid var(--border-subtle);
+  border-top: 1px solid var(--line);
   display: flex;
   align-items: center;
   justify-content: flex-end;
   flex-wrap: wrap;
   gap: var(--space-2);
-  background: color-mix(in srgb, var(--purple) 2%, var(--cream));
+  background: var(--surface-raised);
 }
 
 .openVisualizerBtn {
-  background: var(--purple);
-  color: var(--cream);
-  border: 1px solid var(--purple);
+  background: var(--brand);
+  color: var(--text-strong);
+  border: 1px solid var(--brand-text);
   font-family: var(--font-jetbrains-mono), monospace;
   font-size: 0.78rem;
   font-weight: 600;
@@ -784,9 +784,9 @@
 }
 
 .downloadBtn, .copyCmdBtn, .copyBtn {
-  background: color-mix(in srgb, var(--purple) 8%, var(--cream));
-  color: var(--purple);
-  border: 1px solid var(--border-subtle);
+  background: var(--surface-raised);
+  color: var(--brand-text);
+  border: 1px solid var(--line);
   font-family: var(--font-jetbrains-mono), monospace;
   font-size: 0.78rem;
   font-weight: 600;
@@ -800,15 +800,15 @@
 }
 
 .downloadBtn:hover, .copyCmdBtn:hover, .copyBtn:hover {
-  background: var(--purple);
-  color: var(--cream);
-  border-color: var(--purple);
+  background: var(--brand);
+  color: var(--text-strong);
+  border-color: var(--brand-text);
 }
 
 .playgroundBtn {
-  background: color-mix(in srgb, var(--yellow) 15%, var(--cream));
-  border: 1px solid color-mix(in srgb, var(--yellow) 45%, transparent);
-  color: var(--ink);
+  background: var(--signal-soft);
+  border: 1px solid var(--signal);
+  color: var(--text-strong);
   font-family: var(--font-jetbrains-mono), monospace;
   font-size: 0.78rem;
   font-weight: 700;
@@ -822,18 +822,18 @@
 }
 
 .playgroundBtn:hover {
-  background: var(--yellow);
+  background: var(--signal);
 }
 
 /* Empty State */
 .emptyState {
   padding: 48px 24px;
   text-align: center;
-  color: var(--text-secondary);
+  color: var(--text-body);
 }
 
 .emptyState h3 {
-  color: var(--ink);
+  color: var(--text-strong);
   font-size: 1.1rem;
   margin-bottom: 8px;
 }
@@ -847,8 +847,8 @@
 
 /* Onboarding Card */
 .onboardingCard {
-  background: var(--cream);
-  border: 1px solid var(--border-subtle);
+  background: var(--surface-raised);
+  border: 1px solid var(--line);
   border-radius: var(--radius-modal);
   width: 100%;
   max-width: 740px;
@@ -874,8 +874,8 @@
   width: 28px;
   height: 28px;
   border-radius: 50%;
-  background: var(--purple);
-  color: var(--cream);
+  background: var(--brand);
+  color: var(--text-strong);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -891,7 +891,7 @@
 
 .stepContent h4 {
   margin: 0 0 4px 0;
-  color: var(--ink);
+  color: var(--text-strong);
   font-size: 0.95rem;
   font-weight: 600;
 }
@@ -899,7 +899,7 @@
 .stepContent p {
   margin: 0 0 8px 0;
   font-size: 0.85rem;
-  color: var(--text-secondary);
+  color: var(--text-body);
   line-height: 1.5;
 }
 
@@ -907,8 +907,8 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  background: color-mix(in srgb, var(--purple) 6%, var(--cream));
-  border: 1px solid var(--border-subtle);
+  background: var(--surface-raised);
+  border: 1px solid var(--line);
   padding: 6px 12px;
   border-radius: var(--radius-control);
 }
@@ -916,15 +916,15 @@
 .tokenBox code {
   font-family: var(--font-jetbrains-mono), monospace;
   font-size: 0.85rem;
-  color: var(--purple);
+  color: var(--brand-text);
   font-weight: 600;
   flex: 1;
 }
 
 .actionBtnSmall {
-  background: var(--cream);
-  border: 1px solid var(--border-subtle);
-  color: var(--purple);
+  background: var(--surface-raised);
+  border: 1px solid var(--line);
+  color: var(--brand-text);
   font-family: var(--font-jetbrains-mono), monospace;
   font-size: 0.72rem;
   font-weight: 600;
@@ -938,9 +938,9 @@
 }
 
 .actionBtnSmall:hover {
-  background: var(--purple);
-  color: var(--cream);
-  border-color: var(--purple);
+  background: var(--brand);
+  color: var(--text-strong);
+  border-color: var(--brand-text);
 }
 
 .yamlPre {
@@ -952,15 +952,15 @@
   font-family: var(--font-jetbrains-mono), monospace;
   font-size: 0.78rem;
   line-height: 1.45;
-  border: 1px solid var(--border-subtle);
+  border: 1px solid var(--line);
 }
 
 
 /* Webhook Alerts & Dispatcher Modal */
 .webhookModalBtn {
-  background: color-mix(in srgb, var(--purple) 8%, var(--cream));
-  border: 1px solid var(--border-subtle);
-  color: var(--purple);
+  background: var(--surface-raised);
+  border: 1px solid var(--line);
+  color: var(--brand-text);
   font-family: var(--font-inter), sans-serif;
   font-size: var(--type-action);
   font-weight: 600;
@@ -974,14 +974,14 @@
 }
 
 .webhookModalBtn:hover {
-  background: var(--purple);
-  color: var(--cream);
-  border-color: var(--purple);
+  background: var(--brand);
+  color: var(--text-strong);
+  border-color: var(--brand-text);
 }
 
 .webhookModalCard {
-  background: var(--cream);
-  border: 1px solid var(--border-subtle);
+  background: var(--surface-raised);
+  border: 1px solid var(--line);
   border-radius: var(--radius-modal);
   width: 100%;
   max-width: 800px;
@@ -997,8 +997,8 @@
 }
 
 .webhookItem {
-  background: color-mix(in srgb, var(--purple) 3%, var(--cream));
-  border: 1px solid var(--border-subtle);
+  background: var(--surface-raised);
+  border: 1px solid var(--line);
   border-radius: var(--radius-card);
   padding: var(--space-3);
   display: flex;
@@ -1043,8 +1043,8 @@
 }
 
 .webhookTargetBadgeGeneric {
-  background: color-mix(in srgb, var(--purple) 15%, var(--cream));
-  color: var(--purple);
+  background: var(--surface-brand);
+  color: var(--brand-text);
   padding: 2px 8px;
   border-radius: 3px;
   font-family: var(--font-jetbrains-mono), monospace;
@@ -1058,9 +1058,9 @@
 .webhookUrlCode {
   font-family: var(--font-jetbrains-mono), monospace;
   font-size: 0.78rem;
-  color: var(--text-secondary);
-  background: var(--cream);
-  border: 1px solid var(--border-subtle);
+  color: var(--text-body);
+  background: var(--surface-raised);
+  border: 1px solid var(--line);
   padding: 4px 8px;
   border-radius: 3px;
   word-break: break-all;
@@ -1073,9 +1073,9 @@
 }
 
 .webhookTestBtn {
-  background: var(--cream);
-  border: 1px solid var(--border-subtle);
-  color: var(--purple);
+  background: var(--surface-raised);
+  border: 1px solid var(--line);
+  color: var(--brand-text);
   font-family: var(--font-jetbrains-mono), monospace;
   font-size: 0.72rem;
   font-weight: 600;
@@ -1089,15 +1089,15 @@
 }
 
 .webhookTestBtn:hover {
-  background: var(--purple);
-  color: var(--cream);
-  border-color: var(--purple);
+  background: var(--brand);
+  color: var(--text-strong);
+  border-color: var(--brand-text);
 }
 
 .webhookDeleteBtn {
   background: transparent;
   border: 1px solid color-mix(in srgb, #EF4444 30%, transparent);
-  color: #DC2626;
+  color: var(--danger);
   font-family: var(--font-jetbrains-mono), monospace;
   font-size: 0.72rem;
   font-weight: 600;
@@ -1116,8 +1116,8 @@
 }
 
 .webhookFormCard {
-  background: var(--cream);
-  border: 1px solid var(--border-subtle);
+  background: var(--surface-raised);
+  border: 1px solid var(--line);
   border-radius: var(--radius-card);
   padding: var(--space-3);
   display: flex;
@@ -1140,35 +1140,35 @@
 }
 
 .webhookSelect {
-  background: var(--cream);
-  border: 1px solid var(--border-subtle);
+  background: var(--surface-raised);
+  border: 1px solid var(--line);
   border-radius: var(--radius-control);
   padding: 7px 10px;
-  color: var(--ink);
+  color: var(--text-strong);
   font-family: var(--font-inter), sans-serif;
   font-size: 0.85rem;
   outline: none;
 }
 
 .webhookInput {
-  background: var(--cream);
-  border: 1px solid var(--border-subtle);
+  background: var(--surface-raised);
+  border: 1px solid var(--line);
   border-radius: var(--radius-control);
   padding: 7px 12px;
-  color: var(--ink);
+  color: var(--text-strong);
   font-family: var(--font-jetbrains-mono), monospace;
   font-size: 0.82rem;
   outline: none;
 }
 
 .webhookInput:focus, .webhookSelect:focus {
-  border-color: var(--purple);
+  border-color: var(--brand-text);
 }
 
 .webhookSaveBtn {
-  background: var(--purple);
-  color: var(--cream);
-  border: 1px solid var(--purple);
+  background: var(--brand);
+  color: var(--text-strong);
+  border: 1px solid var(--brand-text);
   font-family: var(--font-jetbrains-mono), monospace;
   font-size: 0.78rem;
   font-weight: 600;

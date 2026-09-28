@@ -29,13 +29,13 @@ export function ScenariosPage({ lang = 'en' }: ScenariosPageProps) {
   const SectionHeading = isDetail ? 'h2' : 'h3';
 
   return (
-    <div className={styles.pageContainer} data-surface="light">
+    <div className={styles.pageContainer}>
       <div className={styles.header}>
-        <p className="technical-label" style={{ color: 'var(--purple)' }}>
+        <p className="technical-label" style={{ color: 'var(--brand-text)' }}>
           {lang === 'pt' ? 'Catálogo de Concorrência' : 'Concurrency Catalog'}
         </p>
         {isDetail ? (
-          <p style={{ fontSize: 'var(--type-h3)', fontWeight: 500, letterSpacing: '-0.04em', color: 'var(--ink)' }}>
+          <p style={{ fontSize: 'var(--type-h3)', fontWeight: 500, letterSpacing: '-0.04em', color: 'var(--text-strong)' }}>
             {pt ? 'Cenários Canônicos & Mitigações' : 'Canonical Scenarios & Fixes'}
           </p>
         ) : (
@@ -43,7 +43,7 @@ export function ScenariosPage({ lang = 'en' }: ScenariosPageProps) {
             {pt ? 'Cenários Canônicos & Mitigações' : 'Canonical Scenarios & Fixes'}
           </h1>
         )}
-        <p style={{ color: 'var(--text-secondary)', fontSize: 'var(--type-body-lg)', maxWidth: '42rem' }}>
+        <p style={{ color: 'var(--text-body)', fontSize: 'var(--type-body-lg)', maxWidth: '42rem' }}>
           {lang === 'pt'
             ? 'Explore 10 cenários de falhas de concorrência baseados em pesquisas acadêmicas de isolamento e casos reais de sistemas financeiros e distribuídos.'
             : 'Inspect 10 concurrency failure scenarios based on academic isolation literature and real-world financial/distributed systems.'}
@@ -63,7 +63,7 @@ export function ScenariosPage({ lang = 'en' }: ScenariosPageProps) {
                 aria-current={isActive ? 'page' : undefined}
               >
                 <span>
-                  <span className="technical-label" style={{ fontSize: '0.68rem', marginRight: '0.5rem', color: 'var(--text-secondary)' }}>
+                  <span className="technical-label" style={{ fontSize: '0.68rem', marginRight: '0.5rem', color: 'var(--text-body)' }}>
                     0{idx + 1}
                   </span>
                   {sc.name[lang] || sc.name.pt}
@@ -96,9 +96,9 @@ export function ScenariosPage({ lang = 'en' }: ScenariosPageProps) {
           <section className={styles.section} aria-labelledby="scenario-analysis">
             <SectionHeading id="scenario-analysis" className={styles.sectionTitle}>{pt ? 'Por que a invariante quebra' : 'Why the invariant breaks'}</SectionHeading>
             <p className={styles.summary}>{currentScenario.analysis[lang]}</p>
-            <div className={styles.infoBox} style={{ borderLeftColor: 'var(--yellow)' }}>
-              <code style={{ display: 'block', fontSize: '0.95rem', color: 'var(--purple)' }}>{currentScenario.reduction.cycle}</code>
-              <p style={{ margin: '0.4rem 0 0', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
+            <div className={styles.infoBox} style={{ borderLeftColor: 'var(--signal)' }}>
+              <code style={{ display: 'block', fontSize: '0.95rem', color: 'var(--brand-text)' }}>{currentScenario.reduction.cycle}</code>
+              <p style={{ margin: '0.4rem 0 0', fontSize: '0.9rem', color: 'var(--text-body)' }}>
                 {pt
                   ? `Delta debugging reduz ${currentScenario.reduction.originalOps} operações às ${currentScenario.reduction.minimalOps} que causam a falha.`
                   : `Delta debugging reduces ${currentScenario.reduction.originalOps} operations to the ${currentScenario.reduction.minimalOps} that cause the failure.`}
@@ -108,7 +108,7 @@ export function ScenariosPage({ lang = 'en' }: ScenariosPageProps) {
 
           <section className={styles.section} aria-labelledby="scenario-fix">
             <SectionHeading id="scenario-fix" className={styles.sectionTitle}>{pt ? 'Correção em produção' : 'Production fix'}</SectionHeading>
-            <div className={styles.infoBox} style={{ borderLeftColor: 'var(--green)' }}>
+            <div className={styles.infoBox} style={{ borderLeftColor: 'var(--ok)' }}>
               <p style={{ margin: 0, fontWeight: 600 }}>{currentScenario.fix[lang].title}</p>
               <p style={{ margin: '0.4rem 0 0' }}>{currentScenario.fix[lang].explanation}</p>
               <div className={styles.enginesTagList}>
@@ -118,7 +118,7 @@ export function ScenariosPage({ lang = 'en' }: ScenariosPageProps) {
                   </span>
                 ))}
               </div>
-              <p style={{ margin: '0.6rem 0 0', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{currentScenario.fix[lang].driverNotes}</p>
+              <p style={{ margin: '0.6rem 0 0', fontSize: '0.85rem', color: 'var(--text-body)' }}>{currentScenario.fix[lang].driverNotes}</p>
             </div>
             <CodeBlock lang={lang} code={currentScenario.fix[lang].code} language="sql" filename="remediation_fix.sql" />
           </section>

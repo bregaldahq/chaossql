@@ -161,7 +161,7 @@ export const VisualizerPage: React.FC<VisualizerPageProps> = ({ lang = 'en' }) =
         </div>
 
         {/* Gantt Chart Terminal */}
-        <div className={styles.ganttCard} data-surface="dark">
+        <div className={styles.ganttCard}>
           <div className={styles.ganttHeader}>
             <span className={styles.ganttTitle}>
               {isPt ? 'Linha do Tempo de Concorrência (Gantt μs)' : 'Concurrency Timeline (Gantt μs)'}
@@ -254,7 +254,7 @@ export const VisualizerPage: React.FC<VisualizerPageProps> = ({ lang = 'en' }) =
         {/* Detail Split Grid: Adya Graph & Query Inspector */}
         <div className={styles.splitGrid}>
           {/* Adya Dependency Graph (DSG) */}
-          <div className={styles.detailCard} data-surface="dark">
+          <div className={styles.detailCard}>
             <div className={styles.cardToolbar}>
               <span className={styles.cardTitle}>
                 {isPt ? 'Grafo de Dependências Adya (DSG)' : 'Adya Dependency Graph (DSG)'}
@@ -374,7 +374,7 @@ export const VisualizerPage: React.FC<VisualizerPageProps> = ({ lang = 'en' }) =
           </div>
 
           {/* Operation & Query Inspector */}
-          <div className={styles.detailCard} data-surface="dark">
+          <div className={styles.detailCard}>
             <div className={styles.cardToolbar}>
               <span className={styles.cardTitle}>
                 {isPt ? 'Inspetor de Operações & Queries' : 'Operation & Query Inspector'}

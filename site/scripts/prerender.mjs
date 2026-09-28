@@ -105,7 +105,7 @@ function documentFor(page) {
   const { html: body, meta: m, route } = page;
   let doc = shell;
   const lab = LAB_ROUTES.has(route);
-  doc = doc.replace(/<html lang="[^"]*"/, `<html lang="${m.htmlLang}"${lab ? ' data-theme="lab"' : ''}`);
+  doc = doc.replace(/<html[^>]*>/, `<html lang="${m.htmlLang}"${lab ? ' data-theme="lab"' : ''}>`);
   doc = doc.replace(/<title>[\s\S]*?<\/title>/, `<title>${escapeText(m.title)}</title>`);
   doc = setAttr(doc, meta('description'), 'content', m.description);
   doc = setAttr(doc, meta('robots'), 'content', m.robots);
