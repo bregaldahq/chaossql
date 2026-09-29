@@ -67,6 +67,8 @@ func TestOfficialActionPassesInputsAsDataAndPreservesExit(t *testing.T) {
 			env = append(env, key+"=true")
 		case "${{ inputs.post-pr-comment }}":
 			env = append(env, key+"=false")
+		case "${{ inputs.fail-on }}":
+			env = append(env, key+"=never")
 		default:
 			env = append(env, key+"=")
 		}
@@ -81,7 +83,7 @@ func TestOfficialActionPassesInputsAsDataAndPreservesExit(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := "run\x00" + malicious + "\x00--export-html\x00" + malicious + "\x00--cloud-fail-fast\x00--pr-comment=false\x00"
+	want := "run\x00" + malicious + "\x00--export-html\x00" + malicious + "\x00--cloud-fail-fast\x00--pr-comment=false\x00--fail-on\x00never\x00"
 	if string(args) != want {
 		t.Fatalf("inputs changed or split: %q want %q", args, want)
 	}

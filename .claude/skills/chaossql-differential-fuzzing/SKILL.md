@@ -25,7 +25,8 @@ level (the transaction-semantics design rejects silent changes there).
 ## `chaossql diff <spec.yaml>`
 
 Flags: `--driver-a sqlite`, `--driver-b sqlite`, `--dsn-a :memory:`,
-`--dsn-b :memory:`, `--seed` (only when set), `--json`.
+`--dsn-b :memory:`, `--seed` (only when set), `--json`,
+`--fail-on-divergence` (exit 1 when divergent, after printing).
 
 `engine.RunDifferentialFuzzing(ctx, spec, A, B, seed)`:
 1. `GenerateSchedule` once; `RunSchedule` on A, then on B (sequential).
@@ -49,7 +50,8 @@ Paths are tried from the CWD, then `../../` (test working directory).
 ## `chaossql swarm [dir]` (also `swarm diff`, `swarm run`)
 
 Flags (persistent): `--scenarios-dir ./examples`, `--drivers sqlite,mock`,
-`--concurrency 4`, `--json`, `--markdown-summary PATH`.
+`--concurrency 4`, `--json`, `--markdown-summary PATH`, `--fail-on-divergence`
+(exit 1 when `DivergentCount > 0`, after the summary and output).
 
 1. Discovery (`discoverAndLoadSpecs`): walk the dir for `chaos.yaml`/`chaos.yml`
    and `variant_*.yaml|yml` (outputs of `mutate`); if none, any YAML. Sorted;
@@ -81,7 +83,9 @@ Flags (persistent): `--scenarios-dir ./examples`, `--drivers sqlite,mock`,
   and A5A as permitted only because those examples set READ_UNCOMMITTED.
 - Detected anomaly labels come from possibly random cycle order
   (`chaossql-adya-anomaly-classification`), so label-based divergence can be noisy.
-- Exit code is 0 even when divergence is found.
+- Exit code is 0 on divergence unless `--fail-on-divergence` is set (opt-in:
+  `swarm.yml` compares engines where divergence is expected). `matrix` has no
+  such flag.
 
 ## Change checklist
 

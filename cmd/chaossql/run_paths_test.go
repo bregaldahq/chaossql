@@ -33,7 +33,7 @@ func TestRunCmd_WritesEveryRequestedExport(t *testing.T) {
 	cmd.SetArgs([]string{specPath, "--workers", "2", "--iterations", "20", "--seed", "42",
 		"--export-repro", "--export-mermaid",
 		"--export-html", "report.html", "--export-otel", "trace.otel.json",
-		"--export-junit", "junit.xml", "--export-summary", "summary.md"})
+		"--export-junit", "junit.xml", "--export-summary", "summary.md", "--fail-on", "never"})
 	output := captureStdout(t, func() {
 		if err := cmd.Execute(); err != nil {
 			t.Errorf("run failed: %v", err)
@@ -73,7 +73,7 @@ func TestRunCmd_ReportsUnwritableExportPaths(t *testing.T) {
 
 func TestRunCmd_JSONOutputDescribesTheRun(t *testing.T) {
 	cmd := newRunCmd()
-	cmd.SetArgs([]string{bankingSpecPath(t), "--workers", "2", "--iterations", "20", "--seed", "42", "--json"})
+	cmd.SetArgs([]string{bankingSpecPath(t), "--workers", "2", "--iterations", "20", "--seed", "42", "--json", "--fail-on", "never"})
 	var runErr error
 	output := captureStdout(t, func() { runErr = cmd.Execute() })
 	if runErr != nil {

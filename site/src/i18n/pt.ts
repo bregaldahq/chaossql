@@ -245,7 +245,7 @@ export const pt: Messages = {
   ci: {
     title: 'Rode em todo pull request',
     lead: 'A GitHub Action executa seus cenários, gera um relatório JUnit e um resumo do job e anexa a reprodução.',
-    gate: 'Uma violação não reprova o job sozinha: bloqueie o merge pelo relatório JUnit, ou pela saída is-regression do ChaosSQL Cloud, que compara cada pull request com a main e comenta o trace mínimo.',
+    gate: 'Uma violação reprova o job: torne-o um check obrigatório e o bug não entra. Com o ChaosSQL Cloud você pode reprovar só regressões: ele compara cada pull request com a main e comenta o trace mínimo.',
   },
   plans: {
     title: 'Comece de graça. Pague quando proteger produção.',
@@ -287,7 +287,7 @@ export const pt: Messages = {
       },
       ci: {
         q: 'Uma violação vai quebrar meu build?',
-        a: 'Não sozinha: o comando termina com sucesso e registra a violação no relatório JUnit e no resumo do job. Bloqueie por eles, ou pela saída is-regression do ChaosSQL Cloud.',
+        a: 'Sim. O chaossql run retorna 1 em uma violação, depois de gravar o relatório JUnit e o resumo do job, e a GitHub Action reprova o step. Use fail-on: regression com o ChaosSQL Cloud para reprovar só problemas novos, ou fail-on: never para apenas reportar.',
       },
       runtime: {
         q: 'O que preciso instalar?',

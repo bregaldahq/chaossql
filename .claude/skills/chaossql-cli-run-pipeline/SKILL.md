@@ -15,7 +15,7 @@ the whole engine; other surfaces (IPC, SDK, WASM) re-implement parts of it.
 - Changing the `--json` payload (SDKs and the pytest plugin parse it).
 - Unexpected exit codes or missing artifacts.
 
-## Flags (`newRunCmd`; `demo` has all except `--seed/--workers/--iterations`)
+## Flags (`newRunCmd`; `demo` has all except `--seed/--workers/--iterations/--fail-on`)
 
 | Flag | Default / env | Effect |
 | :--- | :--- | :--- |
@@ -23,6 +23,7 @@ the whole engine; other surfaces (IPC, SDK, WASM) re-implement parts of it.
 | `--workers`, `--iterations` | 0 | override when `> 0` |
 | `--driver` | "" | overrides `database.driver`; a different engine drops the spec DSN, and a spec isolation it does not support falls back to its default with a stderr warning (unless `--isolation` is set) |
 | `--dsn` | "" | overrides `database.dsn` |
+| `--fail-on` | `violation` | which trustworthy result exits 1: `violation`, `regression` (Cloud verdict; needs a token, checked before the run) or `never`; `demo` always runs with `never` |
 | `--isolation` | "" | overrides `database.isolation`; `domain.ParseIsolationLevel` accepts `READ_COMMITTED`, `read-committed`, `"read committed"`; unknown values fail before the run |
 | `--json` | false | print one JSON document to stdout; suppress terminal report |
 | `--export-repro` | false | write `repro_test.go` **in the current directory** |
@@ -83,7 +84,10 @@ walking up to `go.mod` (`findRepoRoot`), then the copy embedded in the binary
    `passed` SQLite run at SERIALIZABLE never interleaved: the note suggests
    `--isolation READ_UNCOMMITTED` or PostgreSQL/MySQL), Cloud publish,
    optional `--ui`.
-10. Return `unreliableRunError(result)`.
+10. Return `runOutcomeError(result, anomaly, failOn, cloudResp)`
+    (`cmd/chaossql/exit.go`), joined with the Cloud error under
+    `--cloud-fail-fast`. `runChaosTest` and `runDemo` set `SilenceUsage` so a
+    finding is not followed by the usage text.
 
 ### JSON output keys
 
@@ -97,11 +101,19 @@ stable or update `sdks/python/chaossql/pytest_plugin.py`.
 
 ## Exit codes (verified)
 
-`unreliableRunError` returns nil for `passed` **and `violation`**; only
-`execution_error`, `inconclusive`, `canceled` (and setup failures) exit 1.
-So `chaossql run` exits **0 when it finds an anomaly**, and the composite
-GitHub Action does not fail the step on violations. With `--cloud-fail-fast`,
-Cloud errors are joined into the returned error.
+`main` exits with `exitCode(err)` (`cmd/chaossql/exit.go`), for every command:
+
+| Code | Meaning |
+| :--- | :--- |
+| 0 | no error, or a finding `--fail-on` did not select (`never`; `demo` always) |
+| 1 | `*findingError`: violation (default `--fail-on violation`), Cloud regression (`--fail-on regression`), divergence with `--fail-on-divergence` (`diff`, `swarm`) |
+| 2 | any other error: bad flags or spec, driver failure, `execution_error`/`inconclusive`/`canceled` (`unreliableRunError`, checked first), `--fail-on regression` without a Cloud verdict |
+
+A joined error exits with its most serious part, so a violation plus a
+`--cloud-fail-fast` Cloud failure exits 2. Every export and the Cloud
+publish happen before the exit. Tests that run a scenario with a bug and
+expect `nil` must pass `--fail-on never` (see `run_paths_test.go`); the
+rules are covered in `exit_test.go`.
 
 ## Gotchas
 
@@ -127,6 +139,8 @@ Cloud errors are joined into the returned error.
 - `cmd/chaossql/root_finder.go`
 - `cmd/chaossql/demo_test.go`
 - `cmd/chaossql/first_run_test.go`
+- `cmd/chaossql/exit.go`
+- `cmd/chaossql/exit_test.go`
 - `cmd/chaossql/sarif_cli_test.go`
 - `cmd/chaossql/cloud_integration_test.go`
 - `cmd/chaossql/run_paths_test.go`

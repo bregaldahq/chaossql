@@ -28,11 +28,21 @@ describe('docs copy', () => {
     }
   });
 
-  it('documents the real exit codes: a violation exits 0 and there is no exit 2', () => {
+  it('documents the real exit codes: a violation exits 1 and no trustworthy answer exits 2', () => {
     for (const lang of ['en', 'pt'] as const) {
       const cli = (docs[lang] as Record<string, Chapter>)['cli-reference'].content;
-      expect(cli, lang).not.toMatch(/<code>2<\/code>:/);
-      expect(cli, lang).toMatch(/<code>0<\/code>:[^\n]*<code>violation<\/code>/);
+      expect(cli, lang).toMatch(/<code>1<\/code>:[^\n]*<code>--fail-on violation<\/code>/);
+      expect(cli, lang).toMatch(/<code>2<\/code>:[^\n]*<code>--fail-on regression<\/code>/);
+      expect(cli, lang).not.toMatch(/<code>0<\/code>:[^\n]*<code>violation<\/code>/);
+    }
+  });
+
+  it('documents every run flag', () => {
+    for (const lang of ['en', 'pt'] as const) {
+      const cli = (docs[lang] as Record<string, Chapter>)['cli-reference'].content;
+      for (const flag of ['--driver', '--dsn', '--isolation', '--fail-on']) {
+        expect(cli, `${lang} ${flag}`).toContain(`<td><code>${flag}</code></td>`);
+      }
     }
   });
 });

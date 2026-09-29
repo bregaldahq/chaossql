@@ -41,7 +41,7 @@ Every topic is written in three layers, and a page never skips a layer:
 - Numbers are either measured (with a source below) or not written. "In
   milliseconds", "< 200ms" and invented seeds or balances are not allowed.
 - Say what the product does *not* do when a reader would otherwise assume it
-  (see "Will a violation fail my build?").
+  (for example: pull request comments and `is-regression` need ChaosSQL Cloud).
 
 ## Claims register
 
@@ -56,7 +56,8 @@ Re-check this table when the engine, the action or the prices change.
 | Same spec and seed give the same schedule | `evals/03_deterministic_replay.md` (schedule identity); physical timing is explicitly *not* promised |
 | Every run resets schema and seed data | Runner lifecycle: `driver.Reset` before each run and shrink trial (`internal/engine/runner.go`) |
 | SQLite serializes writes at its default level | `chaossql-database-drivers` skill; example outcomes in `chaossql-example-scenarios` |
-| A violation does not fail the build | `chaossql run` exits 0 on `violation` (`unreliableRunError`); `action.yml` step stays green |
+| A violation fails the build | `chaossql run` exits 1 on `violation` (`--fail-on violation`, the default; `runOutcomeError` in `cmd/chaossql/exit.go`); `action.yml` input `fail-on` defaults to `violation` |
+| Fail only on regressions with Cloud | `--fail-on regression` exits 1 only when Cloud returns `is_regression` and 2 without a verdict |
 | JUnit report and job summary from the action | `action.yml` inputs `export-junit`, `export-summary` (defaults to `$GITHUB_STEP_SUMMARY`) |
 | PR comment and `is-regression` need Cloud | Both are produced only after a successful Cloud publish (`publishToCloud` in `cmd/chaossql/main.go`) |
 | One static Go binary, no CGO | `AGENTS.md` principle 6; `go install ./cmd/chaossql` with `CGO_ENABLED=0` |

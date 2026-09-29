@@ -143,7 +143,9 @@ jobs:
           post-pr-comment: 'true'
 ```
 
-When an invariant fails, the action writes a GitHub Step Summary and can export a JUnit report and a local `repro_test.go`. A violation does **not** fail the job by itself (`chaossql run` exits 0 on violations): gate merges on the JUnit report, or on the `is-regression` output, which is set after a successful ChaosSQL Cloud publish together with the metadata-only PR comment. SQL, invariant values, and reproduction source are not included in the remote summary or PR comment.
+When an invariant fails, the action writes a GitHub Step Summary, can export a JUnit report and a local `repro_test.go`, and then **fails the step** (`chaossql run` exits 1 on a violation). Mark the job as a required check to keep the bug out of `main`. The `fail-on` input changes what fails: `violation` (default), `regression` (only a regression that ChaosSQL Cloud finds against the `main` baseline, useful while known violations are being fixed) or `never` (report only). The `is-regression` output and the metadata-only PR comment are set after a successful Cloud publish. SQL, invariant values, and reproduction source are not included in the remote summary or PR comment.
+
+Exit codes: `0` nothing to fail on, `1` a finding (violation, Cloud regression, or divergence with `diff`/`swarm --fail-on-divergence`), `2` no trustworthy answer (invalid input, connection or execution error, inconclusive run).
 
 ---
 
@@ -359,12 +361,12 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version: '1.23'
+          go-version: '1.25'
 
       - name: Run ChaosSQL Fuzzer
         run: |
           go install github.com/bregaldahq/chaossql/cmd/chaossql@latest
-          chaossql run examples/banking_lost_update/chaos.yaml --export-sarif results.sarif || true
+          chaossql run examples/banking_lost_update/chaos.yaml --export-sarif results.sarif --fail-on never
 
       - name: Upload SARIF to GitHub Code Scanning
         uses: github/codeql-action/upload-sarif@v3

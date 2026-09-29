@@ -23,6 +23,7 @@ func newSwarmCmd() *cobra.Command {
 		concurrencyFlag     int
 		jsonOutput          bool
 		markdownSummaryPath string
+		failOnDivergence    bool
 	)
 
 	runMatrix := func(cmd *cobra.Command, args []string) error {
@@ -73,11 +74,18 @@ func newSwarmCmd() *cobra.Command {
 		if jsonOutput {
 			enc := json.NewEncoder(cmd.OutOrStdout())
 			enc.SetIndent("", "  ")
-			return enc.Encode(report)
+			if err := enc.Encode(report); err != nil {
+				return err
+			}
+		} else {
+			cmd.Println(reporter.RenderBanner())
+			renderSwarmTerminal(cmd, report, driverNames)
 		}
 
-		cmd.Println(reporter.RenderBanner())
-		renderSwarmTerminal(cmd, report, driverNames)
+		if failOnDivergence && report.DivergentCount > 0 {
+			cmd.SilenceUsage = true
+			return &findingError{msg: fmt.Sprintf("%d of %d scenarios diverge between engines", report.DivergentCount, report.TotalScenarios)}
+		}
 		return nil
 	}
 
@@ -107,6 +115,8 @@ permits an anomaly while another enforces isolation.`,
 	rootSwarm.PersistentFlags().IntVar(&concurrencyFlag, "concurrency", 4, "Maximum concurrent scenario/driver executions")
 	rootSwarm.PersistentFlags().BoolVar(&jsonOutput, "json", false, "Output results in JSON format")
 	rootSwarm.PersistentFlags().StringVar(&markdownSummaryPath, "markdown-summary", "", "Path to write GitHub Flavored Markdown summary report (e.g. $GITHUB_STEP_SUMMARY)")
+
+	rootSwarm.PersistentFlags().BoolVar(&failOnDivergence, "fail-on-divergence", false, "Exit 1 when any scenario diverges between engines")
 
 	rootSwarm.AddCommand(diffCmd, runCmd)
 	return rootSwarm

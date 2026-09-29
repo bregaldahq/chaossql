@@ -26,13 +26,13 @@ type firstRunOutput struct {
 func executeJSON(t *testing.T, cmd interface {
 	SetArgs([]string)
 	Execute() error
-}, args ...string) firstRunOutput {
+}, wantExit int, args ...string) firstRunOutput {
 	t.Helper()
 	cmd.SetArgs(append(args, "--json"))
 	var runErr error
 	raw := captureStdout(t, func() { runErr = cmd.Execute() })
-	if runErr != nil {
-		t.Fatalf("command failed: %v\n%s", runErr, raw)
+	if got := exitCode(runErr); got != wantExit {
+		t.Fatalf("exit code %d, want %d (err %v)\n%s", got, wantExit, runErr, raw)
 	}
 	var out firstRunOutput
 	if err := json.Unmarshal([]byte(raw), &out); err != nil {
@@ -51,16 +51,17 @@ func assertFindsLostUpdate(t *testing.T, out firstRunOutput) {
 	}
 }
 
-// The README quickstart must show the bug it promises; a clean run here means
-// a new user sees "all invariants satisfied" and leaves.
+// The README quickstart must show the bug it promises (and fail, exit 1); a
+// clean run here means a new user sees "all invariants satisfied" and leaves.
 func TestQuickstartFindsLostUpdate(t *testing.T) {
-	assertFindsLostUpdate(t, executeJSON(t, newRunCmd(), bankingSpecPath(t)))
+	assertFindsLostUpdate(t, executeJSON(t, newRunCmd(), exitFinding, bankingSpecPath(t)))
 }
 
-// An installed binary has no examples directory: demo must use the embedded copy.
+// An installed binary has no examples directory: demo must use the embedded
+// copy. Showing the bug is what a demo is for, so it exits 0.
 func TestDemoFindsLostUpdateOutsideTheRepository(t *testing.T) {
 	t.Chdir(t.TempDir())
-	assertFindsLostUpdate(t, executeJSON(t, newDemoCmd(), "banking"))
+	assertFindsLostUpdate(t, executeJSON(t, newDemoCmd(), exitOK, "banking"))
 }
 
 func TestEveryDemoAliasLoadsFromTheEmbeddedExamples(t *testing.T) {
@@ -88,11 +89,11 @@ func TestInitScaffoldFindsLostUpdate(t *testing.T) {
 			t.Fatal(err)
 		}
 	})
-	assertFindsLostUpdate(t, executeJSON(t, newRunCmd(), filepath.Join(dir, "chaos.yaml")))
+	assertFindsLostUpdate(t, executeJSON(t, newRunCmd(), exitFinding, filepath.Join(dir, "chaos.yaml")))
 }
 
 func TestIsolationFlagOverridesSpec(t *testing.T) {
-	out := executeJSON(t, newRunCmd(), bankingSpecPath(t), "--isolation", "serializable")
+	out := executeJSON(t, newRunCmd(), exitOK, bankingSpecPath(t), "--isolation", "serializable")
 	if out.Status != domain.StatusPassed || out.Isolation != domain.LevelSerializable {
 		t.Fatalf("expected a serialized, passing run, got status %q at %q", out.Status, out.Isolation)
 	}
