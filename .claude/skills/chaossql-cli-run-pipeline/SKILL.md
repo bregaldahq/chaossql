@@ -21,6 +21,9 @@ the whole engine; other surfaces (IPC, SDK, WASM) re-implement parts of it.
 | :--- | :--- | :--- |
 | `--seed` | 0 | overrides `engine.seed` only when explicitly set (`--seed 0` works) |
 | `--workers`, `--iterations` | 0 | override when `> 0` |
+| `--driver` | "" | overrides `database.driver`; a different engine drops the spec DSN, and a spec isolation it does not support falls back to its default with a stderr warning (unless `--isolation` is set) |
+| `--dsn` | "" | overrides `database.dsn` |
+| `--isolation` | "" | overrides `database.isolation`; `domain.ParseIsolationLevel` accepts `READ_COMMITTED`, `read-committed`, `"read committed"`; unknown values fail before the run |
 | `--json` | false | print one JSON document to stdout; suppress terminal report |
 | `--export-repro` | false | write `repro_test.go` **in the current directory** |
 | `--export-mermaid` | false | write `trace.mermaid` in the current directory |
@@ -44,16 +47,22 @@ execute commands must reset them.
 
 `resolveDemoPath` maps aliases (`banking`, `inventory`, `hospital`,
 `financial`, `auction`, `crypto`, `flash_crash`, `ticket`, `deadlock`, `fk` and
-synonyms) to `examples/<dir>/chaos.yaml`; default `banking`. The relative path
-is tried from the CWD, then from the repository root found by walking up to
-`go.mod` (`findRepoRoot`). `demo` never overrides the seed.
+synonyms) to `examples/<dir>/chaos.yaml`; default `banking`. `loadDemoSpec`
+tries the relative path from the CWD, then from the repository root found by
+walking up to `go.mod` (`findRepoRoot`), then the copy embedded in the binary
+(`examples.FS` via `domain.LoadSpecFS`), so `demo` works after `go install`.
+`demo` never overrides the seed.
 
 ## Pipeline (`executeChaos`)
 
-1. `executeChaos(cmd.Context(), ...)` wraps the command context with
+1. `executeChaos(cmd.Context(), path, ...)` (or `executeChaosSpec` with a
+   loader, used by `demo`) wraps the command context with
    `signal.NotifyContext` (SIGINT/SIGTERM) → `ctx` (tests cancel via the parent).
-2. `domain.LoadSpec`; apply seed/workers/iterations overrides.
-3. `drivers.GetDriver(driver, dsn)`, `Open`, deferred `Close`.
+2. Load the spec; apply seed/workers/iterations overrides, then
+   `applyDatabaseOverrides` (`--driver`/`--dsn`/`--isolation`).
+3. `drivers.GetDriver(driver, dsn)`; when `--driver` switched engines and no
+   `--isolation` was given, `engine.SupportedIsolation` drops a level the new
+   engine lacks. `Open`, deferred `Close`.
 4. `runner.Run(ctx, spec)`; `preserveRunResult` keeps a non-nil result even
    when an error accompanied it (cancellation), else returns the error.
 5. Classify the **full** trace with `dominantAnomaly`
@@ -70,7 +79,10 @@ is tried from the CWD, then from the repository root found by walking up to
    Step Summary → SARIF.
 8. `--json`: encode the output map (below), optionally publish to Cloud and
    attach `cloud`/`cloud_error`, then return.
-9. Otherwise: `reporter.PrintTerminalReport`, Cloud publish, optional `--ui`.
+9. Otherwise: `reporter.PrintTerminalReport`, then `serializedRunHint` (a
+   `passed` SQLite run at SERIALIZABLE never interleaved: the note suggests
+   `--isolation READ_UNCOMMITTED` or PostgreSQL/MySQL), Cloud publish,
+   optional `--ui`.
 10. Return `unreliableRunError(result)`.
 
 ### JSON output keys
@@ -106,7 +118,7 @@ Cloud errors are joined into the returned error.
 - Mirror in `action.yml` inputs (`chaossql-github-action`) if CI users need it.
 - Update JSON consumers (pytest plugin), README CLI docs, portal docs data.
 - Tests in `cmd/chaossql/*_test.go` (e.g. `sarif_cli_test.go`, `demo_test.go`,
-  `cloud_integration_test.go`, `action_integration_test.go`).
+  `first_run_test.go`, `cloud_integration_test.go`, `action_integration_test.go`).
 
 ## Source map
 
@@ -114,6 +126,7 @@ Cloud errors are joined into the returned error.
 - `cmd/chaossql/root.go`
 - `cmd/chaossql/root_finder.go`
 - `cmd/chaossql/demo_test.go`
+- `cmd/chaossql/first_run_test.go`
 - `cmd/chaossql/sarif_cli_test.go`
 - `cmd/chaossql/cloud_integration_test.go`
 - `cmd/chaossql/run_paths_test.go`

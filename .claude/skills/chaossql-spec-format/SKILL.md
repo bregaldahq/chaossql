@@ -65,6 +65,13 @@ operations:               # at least one; each needs a name
    replaced by the file content. Otherwise the value is used as inline SQL.
 4. `ParseSpecString(yaml, schemaSQL, seedSQL)` parses without disk access and
    overrides schema/seed with non-empty arguments (used by in-memory callers).
+5. `LoadSpecFS(fsys, name)` is `LoadSpec` over an `fs.FS` (slash paths,
+   `.sql` files resolved next to the spec inside `fsys`); `demo` uses it on
+   the embedded `examples.FS`.
+
+`domain.ParseIsolationLevel` turns command-line spellings (`read-committed`,
+`"read committed"`, any case) into an `IsolationLevel`; unknown values wrap
+`ErrSpecValidationFailed`.
 
 `ParseSpecBytes` (no disk access) does **not** resolve `.sql` paths — the WASM
 bridge and `mutate` therefore see the literal `"schema.sql"` string.

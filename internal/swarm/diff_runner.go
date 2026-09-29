@@ -22,6 +22,10 @@ type DriverExecutionResult struct {
 	ViolationDetected bool   `json:"violation_detected"`
 	FailingInvariant  string `json:"failing_invariant,omitempty"`
 	DetectedAnomaly   string `json:"detected_anomaly,omitempty"`
+	// Isolation is the level the engine ran at. IsolationFallback names the
+	// spec level it does not support, when it ran at its default instead.
+	Isolation         string `json:"isolation,omitempty"`
+	IsolationFallback string `json:"isolation_fallback,omitempty"`
 	DurationMs        int64  `json:"duration_ms"`
 	Error             string `json:"error,omitempty"`
 }
@@ -220,6 +224,7 @@ func executeDriverRun(ctx context.Context, spec domain.Spec, ops []domain.Schedu
 	runCtx, runCancel := context.WithTimeout(ctx, 15*time.Second)
 	defer runCancel()
 
+	spec, dropped := engine.SupportedIsolation(spec, driver)
 	runner := engine.NewRunner(driver, spec.Engine.Seed)
 	runResult, err := runner.RunSchedule(runCtx, spec, ops)
 	if err != nil {
@@ -249,6 +254,8 @@ func executeDriverRun(ctx context.Context, spec domain.Spec, ops []domain.Schedu
 		ViolationDetected: runResult.ViolationDetected,
 		FailingInvariant:  failingInv,
 		DetectedAnomaly:   anomaly,
+		Isolation:         string(runResult.Isolation),
+		IsolationFallback: string(dropped),
 		DurationMs:        runResult.Duration.Milliseconds(),
 	}, nil
 }

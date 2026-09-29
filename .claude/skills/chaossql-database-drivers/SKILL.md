@@ -65,11 +65,16 @@ Details:
 ## Gotchas (verified by running the CLI)
 
 - On SQLite at the default SERIALIZABLE level the single pooled connection is
-  held for the whole transaction, so transactions run one at a time and the
-  canonical examples **pass** (e.g. `banking_lost_update`). With
-  `isolation: READ_UNCOMMITTED` the same scenario produces `violation`
-  `P4_LOST_UPDATE` shrunk to 2 operations. Real anomaly hunting needs
-  READ_UNCOMMITTED on SQLite, or PostgreSQL/MySQL.
+  held for the whole transaction, so transactions run one at a time and
+  scenarios **pass** (`run examples/banking_lost_update/chaos.yaml
+  --isolation SERIALIZABLE`). At READ_UNCOMMITTED, which that example sets,
+  it produces `violation` `P4_LOST_UPDATE` shrunk to 2 operations. Real
+  anomaly hunting needs READ_UNCOMMITTED on SQLite, or PostgreSQL/MySQL; the
+  CLI prints a note after a clean SQLite SERIALIZABLE run.
+- PostgreSQL rejects READ_UNCOMMITTED on purpose (it would silently run Read
+  Committed). Commands that move a spec across engines use
+  `engine.SupportedIsolation` to fall back to the default instead
+  (`chaossql-differential-fuzzing`).
 - The Mock driver makes every invariant see zeros, so outcomes depend only on
   whether the assertion holds for zeros (the banking invariant passes); it is
   a plumbing/perf driver, not an isolation model. The WASM playground always

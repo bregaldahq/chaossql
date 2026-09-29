@@ -4,6 +4,10 @@ description: "Detects Read Skew (A5A) anomaly during concurrent financial accoun
 
 database:
   driver: "sqlite"
+  # SQLite serializes transactions at its default level (SERIALIZABLE), so the
+  # anomaly only appears when reads can see uncommitted writes. On PostgreSQL or
+  # MySQL use their own levels (for example --isolation READ_COMMITTED).
+  isolation: "READ_UNCOMMITTED"
   schema: "schema.sql"
   seed: "seed.sql"
 

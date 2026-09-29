@@ -74,8 +74,11 @@ func newMatrixCmd() *cobra.Command {
 					continue
 				}
 
-				runner := engine.NewRunner(driver, spec.Engine.Seed)
-				res, err := runner.Run(ctx, *spec)
+				// An error reads as "prevented" below, so a level this engine
+				// lacks must fall back to its default instead of failing.
+				runSpec, _ := engine.SupportedIsolation(*spec, driver)
+				runner := engine.NewRunner(driver, runSpec.Engine.Seed)
+				res, err := runner.Run(ctx, runSpec)
 				permitted := false
 				if err == nil && res.ViolationDetected {
 					permitted = true

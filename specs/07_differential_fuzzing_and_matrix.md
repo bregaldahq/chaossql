@@ -8,6 +8,7 @@
   3. Compares:
      - Invariant evaluation results (Divergence = True if Driver A fails while Driver B passes).
      - Execution traces and Serialization Graphs.
+- Isolation: each engine runs at the spec's `database.isolation` when it supports that level. Otherwise it runs at its own default and the result names the level it could not use (for example READ_UNCOMMITTED, which PostgreSQL rejects). The same rule applies to `chaossql matrix` and `chaossql swarm`; a single `chaossql run` still fails on an unsupported level.
 
 ## 2. Hermitage Isolation Matrix (`chaossql matrix`)
 - Runs the canonical Hermitage test suite (P1 Dirty Read, P2 Non-Repeatable Read, P3 Phantom Read, P4 Lost Update, A5A Read Skew, A5B Write Skew, G0 Dirty Write, G1c Circular Info) against target engine.

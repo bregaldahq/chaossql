@@ -7,7 +7,9 @@ description: The canonical anomaly scenarios in examples/ — what each one targ
 
 Each example is a directory with `chaos.yaml`, `schema.sql`, `seed.sql`,
 `README.md`. They drive `demo`, `matrix`, `swarm`, portal content, docs and
-several tests.
+several tests. `examples/examples.go` embeds every `*/chaos.yaml`,
+`*/schema.sql` and `*/seed.sql` (`examples.FS`), so `chaossql demo` works from
+an installed binary; the copy on disk wins inside a checkout.
 
 ## When to use
 
@@ -16,32 +18,41 @@ several tests.
 
 ## Catalog
 
-Observed with `chaossql run --json` at each spec's own seed (outcomes on a
-real database are timing dependent; labels can vary between runs):
+Observed with `chaossql run --json --isolation <level>` at each spec's own
+seed (outcomes on a real database are timing dependent; labels can vary
+between runs). **Bold** marks the level the spec itself sets.
 
-| Directory | Target | Demo alias | Matrix | SQLite default (SERIALIZABLE) | SQLite `READ_UNCOMMITTED` |
+| Directory | Target | Demo alias | Matrix | SQLite SERIALIZABLE | SQLite `READ_UNCOMMITTED` |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| `banking_lost_update` | P4 lost update | `banking` | P4 | passed | violation, P4, 2 ops |
-| `inventory_oversell` | A3/oversell | `inventory` | A3 | execution_error (`CHECK stock >= 0`) | violation, labeled P4, 2 ops |
-| `hospital_write_skew` | A5B write skew | `hospital` | A5B | passed | violation, A5B, 2 ops |
-| `read_skew_financial_audit` | A5A read skew | `financial` | A5A | passed | violation, labeled P4, 2 ops |
-| `dirty_write_auction` | G0 dirty write | `auction` | G0 | passed | passed |
-| `circular_info_crypto_arbitrage` | G1c circular information | `crypto` | G1c | passed | passed |
-| `dirty_read_flash_crash` | G1a dirty read | `flash_crash` | G1a | passed | passed |
+| `banking_lost_update` | P4 lost update | `banking` | P4 | passed | **violation, P4, 2 ops** |
+| `inventory_oversell` | A3/oversell | `inventory` | A3 | execution_error (`CHECK stock >= 0`) | **violation, labeled P4, 2 ops** |
+| `hospital_write_skew` | A5B write skew | `hospital` | A5B | passed | **violation, A5B, 2 ops** |
+| `read_skew_financial_audit` | A5A read skew | `financial` | A5A | passed | **violation, labeled P4, 2 ops** |
+| `dirty_write_auction` | G0 dirty write | `auction` | G0 | **passed** | passed |
+| `circular_info_crypto_arbitrage` | G1c circular information | `crypto` | G1c | **passed** | passed |
+| `dirty_read_flash_crash` | G1a dirty read | `flash_crash` | G1a | **passed** | passed |
 | `ticket_booking_anti_dependency` | G2 anti-dependency | `ticket` | G2 | **violation** (3 bookings) | violation, G2, 3 ops |
-| `deadlock_cycle` | deadlock diagnostics | `deadlock` | G-DL | passed | passed |
-| `foreign_key_cascade_deadlock` | FK cascade deadlock | `fk` | — | passed | passed |
+| `deadlock_cycle` | deadlock diagnostics | `deadlock` | G-DL | **passed** | passed |
+| `foreign_key_cascade_deadlock` | FK cascade deadlock | `fk` | — | **passed** | passed |
 
 Takeaways:
 - On SQLite's default level transactions are serialized
-  (`chaossql-database-drivers`); use PostgreSQL/MySQL or READ_UNCOMMITTED to
-  observe anomalies.
+  (`chaossql-database-drivers`), so the four examples that show their anomaly
+  on SQLite set `database.isolation: READ_UNCOMMITTED` (banking, inventory,
+  hospital, read skew). The others leave it unset. PostgreSQL rejects
+  READ_UNCOMMITTED, so `run --driver postgres` falls back to its default
+  level (with a warning) and `diff`/`matrix`/`swarm` do the same
+  (`chaossql-differential-fuzzing`).
+- `cmd/chaossql/first_run_test.go` requires the README quickstart
+  (`run examples/banking_lost_update/chaos.yaml`), `demo banking` from outside
+  the repository and the `init` scaffold to find a P4 shrunk to 2 operations.
+  Changing the banking spec, its seed or the SQLite driver can break it on
+  purpose: the first run must show the bug.
 - `ticket_booking_anti_dependency` violates `total_booked <= 2` even when every
   transaction runs serially, so its invariant also fails on serializable
   histories — a false positive with respect to `evals/02_false_positive_rate.md`.
 - `inventory_oversell`'s CHECK constraint turns serialized oversell attempts
   into operation errors (`execution_error`).
-- None of the examples sets `database.isolation`.
 
 ## README format
 
@@ -55,7 +66,11 @@ anomaly breakdown or mathematical formulation, the consistency invariant, and
 2. `chaossql validate` it; run it on SQLite RU and, if possible, PostgreSQL.
 3. `internal/domain/parser_test.go` example list.
 4. Demo alias in `resolveDemoPath` (`cmd/chaossql/main.go`), its usage string,
-   `cmd/chaossql/demo_test.go`, and the `demo` target in `Makefile`.
+   `cmd/chaossql/demo_test.go`, the alias list in
+   `TestEveryDemoAliasLoadsFromTheEmbeddedExamples`
+   (`cmd/chaossql/first_run_test.go`), and the `demo` target in `Makefile`.
+   The embed patterns pick up a new directory automatically, but only the
+   three file names above (other SQL files are not embedded).
 5. Matrix list in `cmd/chaossql/matrix.go` (if it is an anomaly row).
 6. Portal: `site/src/data/scenarios.json` (and matrix data/pages).
 7. `docs/SCENARIO_ACADEMIC_AUDIT.md`, README scenario table, specs if relevant.
@@ -75,9 +90,11 @@ anomaly breakdown or mathematical formulation, the consistency invariant, and
 - `examples/ticket_booking_anti_dependency/chaos.yaml`
 - `examples/deadlock_cycle/chaos.yaml`
 - `examples/foreign_key_cascade_deadlock/chaos.yaml`
+- `examples/examples.go`
 - `cmd/chaossql/main.go`
 - `cmd/chaossql/matrix.go`
 - `cmd/chaossql/demo_test.go`
+- `cmd/chaossql/first_run_test.go`
 - `internal/domain/parser_test.go`
 - `site/src/data/scenarios.json`
 - `docs/SCENARIO_ACADEMIC_AUDIT.md`

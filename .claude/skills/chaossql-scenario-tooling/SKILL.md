@@ -13,13 +13,25 @@ description: Authoring-time commands — chaossql init (scaffold), chaossql vali
 ## `chaossql init <dir>`
 
 Flags: `--driver sqlite`, `--name` (default: dir base name), `--force`.
-Creates the dir and writes `schema.sql` (accounts table), `seed.sql` (Alice and
-Bob with 1000 each), `chaos.yaml` (4 workers, 20 iterations, seed 42, jitter
-`[0, 5]`, invariant `total_balance == 2000`, two transfer operations) and a
-`README.md` skeleton. Refuses if `chaos.yaml` exists unless `--force`.
+Creates the dir and writes `schema.sql` (`accounts` and `withdrawals`),
+`seed.sql` (account 1 with 1000), `chaos.yaml` (4 workers, 20 iterations,
+seed 42, jitter `[1, 10]`, invariant
+`int(balance) + int(withdrawn) == 1000`, one `withdraw` operation) and a
+`README.md` that explains the anomaly and the fix. It prints the next command
+(`chaossql run <dir>/chaos.yaml`). Refuses if `chaos.yaml` exists unless
+`--force`.
 
-The template's transfers use `balance = balance ± 100` (atomic updates), so it
-passes by design — it is a starting point, not an anomaly.
+The template **finds a bug on purpose**: `withdraw` reads the balance,
+captures it and writes `{current_balance - amount}`, a lost update (P4)
+shrunk to 2 operations (`TestInitScaffoldFindsLostUpdate`). For
+`--driver sqlite` (or `sqlite3`) it sets `isolation: READ_UNCOMMITTED`
+(`initIsolationBlock`); other drivers get no level. Verified on PostgreSQL 16
+at its default READ COMMITTED: violation found, but labeled `A5A_READ_SKEW`
+every time (classifier issue, `chaossql-adya-anomaly-classification`). Not
+verified on MySQL, where captures arrive as `[]byte` and break the
+`{current_balance - amount}` substitution (`chaossql-param-generators`).
+On SQLite, jitter `[0, 5]` flipped the label between P4 and A5A in about half
+the runs; keep `[1, 10]`.
 
 ## `chaossql validate <chaos.yaml>`
 

@@ -2,6 +2,7 @@ package domain
 
 import (
 	"fmt"
+	"strings"
 	"time"
 )
 
@@ -31,6 +32,17 @@ const (
 	LevelRepeatableRead  IsolationLevel = "REPEATABLE_READ"
 	LevelSerializable    IsolationLevel = "SERIALIZABLE"
 )
+
+// ParseIsolationLevel reads a level written as in a spec (READ_COMMITTED) or
+// as people type it on a command line (read-committed, "read committed").
+func ParseIsolationLevel(s string) (IsolationLevel, error) {
+	normalized := strings.NewReplacer("-", "_", " ", "_").Replace(strings.ToUpper(strings.TrimSpace(s)))
+	switch level := IsolationLevel(normalized); level {
+	case LevelReadUncommitted, LevelReadCommitted, LevelRepeatableRead, LevelSerializable:
+		return level, nil
+	}
+	return "", fmt.Errorf("%w: unsupported database isolation %q (use READ_UNCOMMITTED, READ_COMMITTED, REPEATABLE_READ or SERIALIZABLE)", ErrSpecValidationFailed, s)
+}
 
 // ExecutionStatus describes whether a run produced a trustworthy conclusion.
 type ExecutionStatus string

@@ -70,13 +70,28 @@ Install the standalone CLI binary with zero CGO dependencies:
 # Install CLI via Go (Go 1.25+)
 go install github.com/bregaldahq/chaossql/cmd/chaossql@latest
 
-# Run the flagship banking lost-update scenario
-chaossql run examples/banking_lost_update/chaos.yaml
+# Watch a lost update happen (the scenarios ship inside the binary)
+chaossql demo banking
 ```
 
-ChaosSQL schedules concurrent worker transactions, detects invariant violations, and generates a standalone Go reproduction test (`repro_test.go`) ready for your test suite.
+Four workers run twenty withdrawals against SQLite, two of them read the same balance, the second write erases the first, and the ledger invariant fails. ChaosSQL shrinks the run to the 2 transactions that collide and can write them as a standalone Go test (`--export-repro`).
 
-Export a portable finding and verify the same logical schedule and invariant failure later:
+Write your own scenario: `init` scaffolds one that finds a lost update, with the fix in its README.
+
+```bash
+chaossql init my_scenario
+chaossql run my_scenario/chaos.yaml
+```
+
+Point a scenario at another engine or isolation level without editing it (the `init` scaffold uses portable SQL; the bundled examples use SQLite syntax):
+
+```bash
+chaossql run my_scenario/chaos.yaml --driver postgres --dsn "$DATABASE_URL" --isolation READ_COMMITTED
+```
+
+> SQLite at its default level (`SERIALIZABLE`) runs transactions one at a time, so nothing can interleave. The SQLite examples therefore set `isolation: READ_UNCOMMITTED`; use PostgreSQL or MySQL to test their real isolation levels. Every run resets the target database: never point one at data you care about.
+
+From a checkout, export a portable finding and verify the same logical schedule and invariant failure later:
 
 ```bash
 chaossql run examples/banking_lost_update/chaos.yaml --export-result finding.json
@@ -93,9 +108,9 @@ Explore classic race conditions with pre-packaged scenarios, or test them 100% i
 
 | Scenario | Anomaly & Impact | Test in Browser | CLI Command |
 | :--- | :--- | :---: | :--- |
-| **🏦 Banking Transfer** | **Lost Update ($P4$):** Concurrent debits overwrite balance changes under `READ COMMITTED`. | [Launch Playground](https://chaossql.bregalda.com/playground) | `chaossql run examples/banking_lost_update/chaos.yaml` |
-| **🏥 Hospital Shift** | **Write Skew ($A5B$):** Two doctors concurrently drop shift, leaving 0 on duty under `REPEATABLE READ`. | [Launch Playground](https://chaossql.bregalda.com/playground) | `chaossql run examples/hospital_write_skew/chaos.yaml` |
-| **🔒 Deadlock Cycle** | **Resource Deadlock ($G\text{-DL}$):** Inverted key lock acquisitions lock worker goroutines permanently. | [Launch Playground](https://chaossql.bregalda.com/playground) | `chaossql run examples/deadlock_cycle/chaos.yaml` |
+| **🏦 Banking Transfer** | **Lost Update ($P4$):** Concurrent debits overwrite balance changes under `READ COMMITTED`. | [Launch Playground](https://chaossql.bregalda.com/playground) | `chaossql demo banking` |
+| **🏥 Hospital Shift** | **Write Skew ($A5B$):** Two doctors concurrently drop shift, leaving 0 on duty under `REPEATABLE READ`. | [Launch Playground](https://chaossql.bregalda.com/playground) | `chaossql demo hospital` |
+| **🔒 Deadlock Cycle** | **Resource Deadlock ($G\text{-DL}$):** Inverted key lock acquisitions lock worker goroutines permanently. | [Launch Playground](https://chaossql.bregalda.com/playground) | `chaossql demo deadlock` |
 
 ---
 
