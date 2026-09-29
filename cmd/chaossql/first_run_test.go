@@ -2,6 +2,9 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
+	"io"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -137,5 +140,61 @@ func TestSerializedRunHint(t *testing.T) {
 		if hint := serializedRunHint(tc.driver, tc.result); hint != "" {
 			t.Errorf("%s: unexpected hint %q", name, hint)
 		}
+	}
+}
+
+func TestInitScaffoldSetsIsolationOnlyForSQLite(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "pg")
+	initCmd := newInitCmd()
+	initCmd.SetArgs([]string{dir, "--driver", "postgres"})
+	captureStdout(t, func() {
+		if err := initCmd.Execute(); err != nil {
+			t.Fatal(err)
+		}
+	})
+	spec, err := domain.LoadSpec(filepath.Join(dir, "chaos.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if spec.Database.Driver != "postgres" || spec.Database.Isolation != "" {
+		t.Fatalf("PostgreSQL shows the lost update at its default level; got %q at %q", spec.Database.Driver, spec.Database.Isolation)
+	}
+}
+
+func TestRunRejectsUnknownIsolationFlag(t *testing.T) {
+	cmd := newRunCmd()
+	cmd.SetArgs([]string{bankingSpecPath(t), "--isolation", "snapshot"})
+	cmd.SetOut(io.Discard)
+	cmd.SetErr(io.Discard)
+	if err := cmd.Execute(); err == nil || !errors.Is(err, domain.ErrSpecValidationFailed) {
+		t.Fatalf("expected a validation error for --isolation snapshot, got %v", err)
+	}
+}
+
+// Switching the banking example (READ_UNCOMMITTED) to PostgreSQL must warn and
+// fall back to PostgreSQL's default level before connecting.
+func TestRunWarnsWhenSwitchedDriverLacksSpecIsolation(t *testing.T) {
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	original := os.Stderr
+	os.Stderr = w
+	defer func() { os.Stderr = original }()
+
+	cmd := newRunCmd()
+	cmd.SetArgs([]string{bankingSpecPath(t), "--driver", "postgres", "--dsn", "postgres://chaossql:unused@127.0.0.1:1/none?sslmode=disable&connect_timeout=1"})
+	cmd.SetOut(io.Discard)
+	cmd.SetErr(io.Discard)
+	runErr := cmd.Execute()
+	w.Close()
+	os.Stderr = original
+	warning, _ := io.ReadAll(r)
+
+	if runErr == nil || !strings.Contains(runErr.Error(), "failed to initialize database driver") {
+		t.Fatalf("expected the unreachable database to fail after the fallback, got %v", runErr)
+	}
+	if !strings.Contains(string(warning), "postgres does not support the spec isolation READ_UNCOMMITTED") {
+		t.Fatalf("missing fallback warning, stderr was %q", warning)
 	}
 }
