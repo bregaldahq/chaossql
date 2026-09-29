@@ -8,6 +8,14 @@ description: Cross-engine comparison flows — chaossql diff (two drivers, one s
 All three run the **same deterministic schedule** on different engines and
 compare invariant outcomes. None of them shrink or export artifacts.
 
+Isolation fallback (`engine.SupportedIsolation`, `internal/engine/isolation.go`):
+each engine keeps the spec's `isolation` when it supports it; otherwise the
+level is cleared and the engine runs at its default. `diff` appends
+"<driver> does not support <level> and ran at <effective>." to the summary,
+swarm records `isolation` and `isolation_fallback` per driver result, and
+`matrix` falls back silently. A plain `run` still fails on an unsupported
+level (the transaction-semantics design rejects silent changes there).
+
 ## When to use
 
 - Changing `cmd/chaossql/diff.go`, `matrix.go`, `swarm.go`,
@@ -61,15 +69,16 @@ Flags (persistent): `--scenarios-dir ./examples`, `--drivers sqlite,mock`,
 
 ## Gotchas
 
-- Every driver runs with the spec's `isolation`; a level unsupported by one
-  engine (e.g. READ_UNCOMMITTED on PostgreSQL) becomes an error for that
-  driver and removes it from the comparison.
+- A spec level unsupported by one engine (e.g. READ_UNCOMMITTED, which four
+  SQLite examples set, on PostgreSQL) makes that engine run at its default,
+  so the comparison is between different levels: read `isolation` /
+  `isolation_fallback` before calling a divergence a bug.
 - Schema/seed SQL must be portable across the compared engines.
 - The mock driver answers every query with zeros, so comparing against
   `mock` mostly tests the assertion's behavior on zeros.
 - On SQLite's default SERIALIZABLE level transactions are serialized (see
-  `chaossql-database-drivers`), so `matrix --driver sqlite` reports most
-  anomalies as prevented.
+  `chaossql-database-drivers`); `matrix --driver sqlite` reports P4, A3, A5B
+  and A5A as permitted only because those examples set READ_UNCOMMITTED.
 - Detected anomaly labels come from possibly random cycle order
   (`chaossql-adya-anomaly-classification`), so label-based divergence can be noisy.
 - Exit code is 0 even when divergence is found.
@@ -84,7 +93,8 @@ Flags (persistent): `--scenarios-dir ./examples`, `--drivers sqlite,mock`,
 
 ## Tests
 
-- `internal/engine/diff_test.go`, `internal/swarm/diff_runner_test.go`,
+- `internal/engine/diff_test.go`, `internal/engine/isolation_test.go`,
+  `internal/swarm/diff_runner_test.go`,
   `cmd/chaossql/diff_matrix_test.go`, `cmd/chaossql/swarm_test.go`,
   `internal/swarm/diff_runner_internal_test.go`, `internal/reporter/swarm_summary_test.go`
 
@@ -94,6 +104,7 @@ Flags (persistent): `--scenarios-dir ./examples`, `--drivers sqlite,mock`,
 - `cmd/chaossql/matrix.go`
 - `cmd/chaossql/swarm.go`
 - `internal/engine/diff.go`
+- `internal/engine/isolation.go`
 - `internal/swarm/diff_runner.go`
 - `internal/reporter/swarm_summary.go`
 - `.github/workflows/swarm.yml`

@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [Unreleased]
+
+### Added
+- `--driver`, `--dsn` and `--isolation` on `run` and `demo` retarget a
+  scenario at another engine or isolation level without editing its YAML.
+- The example scenarios are embedded in the binary, so `chaossql demo` works
+  after `go install` without a checkout.
+- A clean SQLite run at `SERIALIZABLE` now says that the transactions ran one
+  at a time and how to look for anomalies.
+
+### Changed
+- The README quickstart and `chaossql demo banking` now show the lost update
+  they describe: `banking_lost_update`, `inventory_oversell`,
+  `hospital_write_skew` and `read_skew_financial_audit` set
+  `isolation: READ_UNCOMMITTED`, because SQLite serializes transactions at its
+  default level and the runs used to pass.
+- `chaossql init` scaffolds a scenario that finds a lost update, with the fix
+  explained in its README, instead of one that always passes.
+- `diff`, `matrix` and `swarm` run an engine at its default level when it
+  does not support the spec's isolation level, and report it, instead of
+  failing that engine (`matrix` used to count the failure as "prevented").
+
+---
+
 ## [1.6.0] - 2026-09-23
 
 Reliability and security release for ChaosSQL Cloud, plus the first managed

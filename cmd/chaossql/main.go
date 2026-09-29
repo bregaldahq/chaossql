@@ -13,6 +13,7 @@ import (
 
 	"time"
 
+	"github.com/bregaldahq/chaossql/examples"
 	"github.com/bregaldahq/chaossql/internal/analyzer"
 	"github.com/bregaldahq/chaossql/internal/cloud"
 	"github.com/bregaldahq/chaossql/internal/domain"
@@ -42,7 +43,18 @@ var (
 	cloudFailFastFlag bool
 	githubTokenFlag   string
 	prCommentFlag     bool
+	driverFlag        string
+	dsnFlag           string
+	isolationFlag     string
 )
+
+// registerDatabaseFlags adds the flags that retarget a scenario at another
+// engine or isolation level without editing its YAML.
+func registerDatabaseFlags(cmd *cobra.Command) {
+	cmd.Flags().StringVar(&driverFlag, "driver", "", "Database driver: sqlite, postgres, mysql or mock (overrides spec; drops the spec DSN)")
+	cmd.Flags().StringVar(&dsnFlag, "dsn", "", "Database connection string (overrides spec)")
+	cmd.Flags().StringVar(&isolationFlag, "isolation", "", "Transaction isolation: READ_UNCOMMITTED, READ_COMMITTED, REPEATABLE_READ or SERIALIZABLE (overrides spec)")
+}
 
 func defaultCloudURL() string {
 	if u := os.Getenv("CHAOSSQL_CLOUD_URL"); u != "" {
@@ -77,6 +89,7 @@ func newRunCmd() *cobra.Command {
 	runCmd.Flags().BoolVar(&cloudFailFastFlag, "cloud-fail-fast", false, "Abort execution with error if Cloud publishing fails")
 	runCmd.Flags().StringVar(&githubTokenFlag, "github-token", os.Getenv("GITHUB_TOKEN"), "GitHub Token for publishing PR comments (or set GITHUB_TOKEN)")
 	runCmd.Flags().BoolVar(&prCommentFlag, "pr-comment", true, "Post automated concurrency report comment on Pull Request (if in CI)")
+	registerDatabaseFlags(runCmd)
 
 	return runCmd
 }
@@ -103,6 +116,7 @@ func newDemoCmd() *cobra.Command {
 	demoCmd.Flags().BoolVar(&cloudFailFastFlag, "cloud-fail-fast", false, "Abort execution with error if Cloud publishing fails")
 	demoCmd.Flags().StringVar(&githubTokenFlag, "github-token", os.Getenv("GITHUB_TOKEN"), "GitHub Token for publishing PR comments (or set GITHUB_TOKEN)")
 	demoCmd.Flags().BoolVar(&prCommentFlag, "pr-comment", true, "Post automated concurrency report comment on Pull Request (if in CI)")
+	registerDatabaseFlags(demoCmd)
 
 	return demoCmd
 }
@@ -158,24 +172,31 @@ func runDemo(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	if _, err := os.Stat(specPath); os.IsNotExist(err) {
-		altPath := filepath.Join(findRepoRoot(), specPath)
-		if _, err := os.Stat(altPath); err == nil {
-			specPath = altPath
-		} else {
-			return fmt.Errorf("demo spec file %q not found on disk: %w", specPath, err)
+	return executeChaosSpec(cmd.Context(), func() (*domain.Spec, error) { return loadDemoSpec(specPath) }, false)
+}
+
+// loadDemoSpec prefers the examples on disk (the working directory, then the
+// repository root) so edits in a checkout take effect, and falls back to the
+// copies embedded in the binary, which is all an installed CLI has.
+func loadDemoSpec(specPath string) (*domain.Spec, error) {
+	for _, candidate := range []string{specPath, filepath.Join(findRepoRoot(), specPath)} {
+		if _, err := os.Stat(candidate); err == nil {
+			return domain.LoadSpec(candidate)
 		}
 	}
-
-	return executeChaos(cmd.Context(), specPath, false)
+	return domain.LoadSpecFS(examples.FS, strings.TrimPrefix(specPath, "examples/"))
 }
 
 // executeChaos runs one scenario; it stops on Ctrl+C/SIGTERM or when parent is cancelled.
 func executeChaos(parent context.Context, specPath string, seedOverride ...bool) error {
+	return executeChaosSpec(parent, func() (*domain.Spec, error) { return domain.LoadSpec(specPath) }, seedOverride...)
+}
+
+func executeChaosSpec(parent context.Context, loadSpec func() (*domain.Spec, error), seedOverride ...bool) error {
 	ctx, cancel := signal.NotifyContext(parent, os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
-	spec, err := domain.LoadSpec(specPath)
+	spec, err := loadSpec()
 	if err != nil {
 		return fmt.Errorf("failed to load chaos spec: %w", err)
 	}
@@ -191,10 +212,21 @@ func executeChaos(parent context.Context, specPath string, seedOverride ...bool)
 	if iterationsFlag > 0 {
 		spec.Engine.Iterations = iterationsFlag
 	}
+	driverSwitched, err := applyDatabaseOverrides(spec)
+	if err != nil {
+		return err
+	}
 
 	driver, err := drivers.GetDriver(spec.Database.Driver, spec.Database.DSN)
 	if err != nil {
 		return fmt.Errorf("failed to initialize database driver: %w", err)
+	}
+	if driverSwitched && isolationFlag == "" {
+		var dropped domain.IsolationLevel
+		*spec, dropped = engine.SupportedIsolation(*spec, driver)
+		if dropped != "" {
+			fmt.Fprintf(os.Stderr, "  [!] %s does not support the spec isolation %s; running at its default level (set --isolation to choose one)\n", spec.Database.Driver, dropped)
+		}
 	}
 
 	if err := driver.Open(ctx); err != nil {
@@ -410,6 +442,9 @@ func executeChaos(parent context.Context, specPath string, seedOverride ...bool)
 	}
 
 	reporter.PrintTerminalReport(*spec, runResult, shrinkResult, anomaly)
+	if hint := serializedRunHint(driver.DriverName(), runResult); hint != "" {
+		fmt.Println(hint)
+	}
 
 	if cloudTokenFlag != "" {
 		if _, err := publishToCloud(ctx, *spec, runResult, shrinkResult, minimalTrace, anomaly, reproCode, mermaidCode); err != nil && cloudFailFastFlag {
@@ -423,6 +458,40 @@ func executeChaos(parent context.Context, specPath string, seedOverride ...bool)
 	}
 
 	return unreliableRunError(runResult)
+}
+
+// applyDatabaseOverrides applies --driver, --dsn and --isolation to spec and
+// reports whether --driver moved it to another engine. The spec DSN belongs
+// to the old engine, so a new driver drops it unless --dsn replaces it.
+func applyDatabaseOverrides(spec *domain.Spec) (bool, error) {
+	switched := false
+	if driverFlag != "" && driverFlag != spec.Database.Driver {
+		spec.Database.Driver = driverFlag
+		spec.Database.DSN = ""
+		switched = true
+	}
+	if dsnFlag != "" {
+		spec.Database.DSN = dsnFlag
+	}
+	if isolationFlag != "" {
+		level, err := domain.ParseIsolationLevel(isolationFlag)
+		if err != nil {
+			return false, err
+		}
+		spec.Database.Isolation = level
+	}
+	return switched, nil
+}
+
+// serializedRunHint explains a clean SQLite run at SERIALIZABLE: one
+// connection runs the transactions one after another, so no interleaving
+// happened and the pass says nothing about concurrency.
+func serializedRunHint(driverName string, result *engine.RunResult) string {
+	if driverName != "sqlite" || result == nil || result.Status != domain.StatusPassed || result.Isolation != domain.LevelSerializable {
+		return ""
+	}
+	return "  Note: SQLite at SERIALIZABLE runs these transactions one at a time, so they never interleaved.\n" +
+		"  To look for anomalies, rerun with --isolation READ_UNCOMMITTED, or on PostgreSQL/MySQL (--driver postgres --dsn ...)."
 }
 
 func preserveRunResult(result *engine.RunResult, runErr error) (*engine.RunResult, error) {

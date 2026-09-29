@@ -16,13 +16,15 @@ func RunDifferentialFuzzing(ctx context.Context, spec domain.Spec, driverA, driv
 
 	runnerA := NewRunner(driverA, seed)
 	runnerB := NewRunner(driverB, seed)
+	specA, droppedA := SupportedIsolation(spec, driverA)
+	specB, droppedB := SupportedIsolation(spec, driverB)
 
-	resA, errA := runnerA.RunSchedule(ctx, spec, scheduledOps)
+	resA, errA := runnerA.RunSchedule(ctx, specA, scheduledOps)
 	if errA != nil {
 		return nil, fmt.Errorf("driver A (%s) execution error: %w", driverA.DriverName(), errA)
 	}
 
-	resB, errB := runnerB.RunSchedule(ctx, spec, scheduledOps)
+	resB, errB := runnerB.RunSchedule(ctx, specB, scheduledOps)
 	if errB != nil {
 		return nil, fmt.Errorf("driver B (%s) execution error: %w", driverB.DriverName(), errB)
 	}
@@ -44,6 +46,15 @@ func RunDifferentialFuzzing(ctx context.Context, spec domain.Spec, driverA, driv
 		}
 	} else {
 		diffSummary = fmt.Sprintf("Both drivers (%s and %s) satisfied all invariants consistently.", driverA.DriverName(), driverB.DriverName())
+	}
+	for _, fallback := range []struct {
+		driver  drivers.DatabaseDriver
+		dropped domain.IsolationLevel
+		ran     domain.IsolationLevel
+	}{{driverA, droppedA, resA.Isolation}, {driverB, droppedB, resB.Isolation}} {
+		if fallback.dropped != "" {
+			diffSummary += fmt.Sprintf(" %s does not support %s and ran at %s.", fallback.driver.DriverName(), fallback.dropped, fallback.ran)
+		}
 	}
 
 	return &domain.DiffResult{

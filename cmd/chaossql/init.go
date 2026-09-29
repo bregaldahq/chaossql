@@ -10,9 +10,9 @@ import (
 
 func newInitCmd() *cobra.Command {
 	var (
-		driverName string
+		driverName   string
 		scenarioName string
-		force bool
+		force        bool
 	)
 
 	cmd := &cobra.Command{
@@ -43,57 +43,84 @@ func newInitCmd() *cobra.Command {
 			schemaContent := fmt.Sprintf(`-- Schema for %s
 CREATE TABLE accounts (
     id INT PRIMARY KEY,
-    name TEXT NOT NULL,
     balance INT NOT NULL
+);
+
+CREATE TABLE withdrawals (
+    account_id INT NOT NULL,
+    amount INT NOT NULL
 );
 `, scenarioName)
 
 			seedContent := `-- Seed data
-INSERT INTO accounts (id, name, balance) VALUES (1, 'Alice', 1000);
-INSERT INTO accounts (id, name, balance) VALUES (2, 'Bob', 1000);
+INSERT INTO accounts (id, balance) VALUES (1, 1000);
 `
 
 			yamlContent := fmt.Sprintf(`version: "1.0"
 name: "%s"
-description: "Generated chaos test scenario for %s"
+description: "Concurrent withdrawals that read, then write, the balance (lost update)"
 
 database:
   driver: "%s"
-  schema: "schema.sql"
+%s  schema: "schema.sql"
   seed: "seed.sql"
 
 engine:
   workers: 4
   iterations: 20
   seed: 42
-  jitter_ms: [0, 5]
+  jitter_ms: [1, 10]
 
 invariants:
-  - name: "total_wealth_preservation"
-    query: "SELECT sum(balance) AS total_balance FROM accounts;"
-    assert: "total_balance == 2000"
+  # Every recorded withdrawal must have left the balance. int() keeps the
+  # comparison numeric on drivers that return text values (MySQL).
+  - name: "balance_matches_withdrawals"
+    query: >
+      SELECT
+        (SELECT balance FROM accounts WHERE id = 1) AS balance,
+        (SELECT COALESCE(SUM(amount), 0) FROM withdrawals WHERE account_id = 1) AS withdrawn;
+    assert: "int(balance) + int(withdrawn) == 1000"
 
 operations:
-  - name: "transfer_alice_to_bob"
+  # Reads the balance, computes the new value in the application, writes it
+  # back. Two withdrawals that read the same balance erase each other.
+  # The fix: UPDATE accounts SET balance = balance - {amount} WHERE id = 1;
+  - name: "withdraw"
     weight: 1.0
+    params:
+      amount: "$random_int(5, 25)"
     steps:
-      - sql: "UPDATE accounts SET balance = balance - 100 WHERE id = 1;"
-      - sql: "UPDATE accounts SET balance = balance + 100 WHERE id = 2;"
-
-  - name: "transfer_bob_to_alice"
-    weight: 1.0
-    steps:
-      - sql: "UPDATE accounts SET balance = balance - 100 WHERE id = 2;"
-      - sql: "UPDATE accounts SET balance = balance + 100 WHERE id = 1;"
-`, scenarioName, scenarioName, driverName)
+      - sql: "SELECT balance FROM accounts WHERE id = 1;"
+        capture: "current_balance"
+      - sql: "UPDATE accounts SET balance = {current_balance - amount} WHERE id = 1;"
+      - sql: "INSERT INTO withdrawals (account_id, amount) VALUES (1, {amount});"
+`, scenarioName, driverName, initIsolationBlock(driverName))
 
 			readmeContent := fmt.Sprintf(`# %s
 
 ## Business Context
-Describe the domain logic, invariants, and expected transactional isolation semantics.
+Withdrawals read the account balance, subtract the amount in the application
+and write the result back. Every withdrawal is also recorded in the
+withdrawals table, so the balance plus everything withdrawn must stay 1000.
 
-## Theoretical Anomaly
-Document the Adya/Berenson isolation anomaly phenomena targeted by this scenario.
+## Anomaly
+Lost update (P4). Two withdrawals read the same balance, both write, and the
+second write erases the first. Run it and ChaosSQL shrinks the failure to the
+two transactions that collide:
+
+    chaossql run chaos.yaml
+
+## Fix
+Let the database compute the new balance in one statement, so no write is
+based on a stale read:
+
+    UPDATE accounts SET balance = balance - {amount} WHERE id = 1;
+
+Replace the SELECT and UPDATE steps in chaos.yaml with that single step and
+run again: the invariant holds. SELECT ... FOR UPDATE (PostgreSQL, MySQL) is
+the other common fix.
+
+Now replace the tables, the invariant and the operations with your own.
 `, scenarioName)
 
 			if err := os.WriteFile(schemaPath, []byte(schemaContent), 0644); err != nil {
@@ -114,6 +141,7 @@ Document the Adya/Berenson isolation anomaly phenomena targeted by this scenario
 			cmd.Printf("  • %s\n", schemaPath)
 			cmd.Printf("  • %s\n", seedPath)
 			cmd.Printf("  • %s\n", readmePath)
+			cmd.Printf("\nNext: chaossql run %s\n", yamlPath)
 			return nil
 		},
 	}
@@ -123,4 +151,15 @@ Document the Adya/Berenson isolation anomaly phenomena targeted by this scenario
 	cmd.Flags().BoolVar(&force, "force", false, "Overwrite existing files if scenario already exists")
 
 	return cmd
+}
+
+// initIsolationBlock sets READ_UNCOMMITTED for SQLite, whose default level
+// runs transactions one at a time and would hide the lost update. PostgreSQL
+// shows it at its default, READ COMMITTED.
+func initIsolationBlock(driverName string) string {
+	if driverName != "sqlite" && driverName != "sqlite3" {
+		return ""
+	}
+	return "  # SQLite's default level (SERIALIZABLE) runs transactions one at a time.\n" +
+		"  isolation: \"READ_UNCOMMITTED\"\n"
 }
