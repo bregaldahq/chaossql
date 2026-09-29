@@ -159,7 +159,7 @@ operations:
 	cmd := newRunCmd()
 	cmd.SetOut(new(bytes.Buffer))
 	cmd.SetErr(new(bytes.Buffer))
-	cmd.SetArgs([]string{specPath, "--export-result", artifactPath})
+	cmd.SetArgs([]string{specPath, "--export-result", artifactPath, "--fail-on", "never"})
 	if err := cmd.Execute(); err != nil {
 		t.Fatal(err)
 	}

@@ -248,7 +248,7 @@ export const en = {
   ci: {
     title: 'Run it on every pull request',
     lead: 'The GitHub Action runs your scenarios, writes a JUnit report and a job summary, and attaches the reproduction.',
-    gate: 'A violation does not fail the job by itself: gate merges on the JUnit report, or on the is-regression output from ChaosSQL Cloud, which compares each pull request against main and comments the minimal trace.',
+    gate: 'A violation fails the job: make it a required check and the bug cannot merge. With ChaosSQL Cloud you can fail only on regressions: it compares each pull request against main and comments the minimal trace.',
   },
   plans: {
     title: 'Start free. Pay when it protects production.',
@@ -290,7 +290,7 @@ export const en = {
       },
       ci: {
         q: 'Will a violation fail my build?',
-        a: 'Not by itself: the command exits successfully and records the violation in the JUnit report and job summary. Gate on those, or on the is-regression output from ChaosSQL Cloud.',
+        a: 'Yes. chaossql run exits 1 on a violation, after writing the JUnit report and job summary, and the GitHub Action fails its step. Use fail-on: regression with ChaosSQL Cloud to fail only on new problems, or fail-on: never to only report.',
       },
       runtime: {
         q: 'What do I need to install?',

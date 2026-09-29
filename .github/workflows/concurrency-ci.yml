@@ -24,11 +24,20 @@ jobs:
           go-version: 'stable'
           cache: true
 
-      - name: Run ChaosSQL Concurrency Fuzzer
+      # The banking example has a lost update on purpose, so a working gate
+      # fails this step. The next step turns that expected failure into a pass.
+      - name: Run ChaosSQL on a scenario with a known lost update
+        id: gate
         uses: ./
+        continue-on-error: true
         with:
           spec-path: 'examples/banking_lost_update/chaos.yaml'
           cloud-token: ${{ secrets.CHAOSSQL_CLOUD_TOKEN }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
           post-pr-comment: 'true'
-          export-summary: 'true'
+
+      - name: Require the gate to fail on the lost update
+        if: steps.gate.outcome != 'failure'
+        run: |
+          echo "::error::ChaosSQL did not fail on a scenario with a known lost update (outcome: ${{ steps.gate.outcome }})"
+          exit 1

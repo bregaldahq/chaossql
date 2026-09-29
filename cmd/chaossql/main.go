@@ -46,6 +46,7 @@ var (
 	driverFlag        string
 	dsnFlag           string
 	isolationFlag     string
+	failOnFlag        string
 )
 
 // registerDatabaseFlags adds the flags that retarget a scenario at another
@@ -90,6 +91,7 @@ func newRunCmd() *cobra.Command {
 	runCmd.Flags().StringVar(&githubTokenFlag, "github-token", os.Getenv("GITHUB_TOKEN"), "GitHub Token for publishing PR comments (or set GITHUB_TOKEN)")
 	runCmd.Flags().BoolVar(&prCommentFlag, "pr-comment", true, "Post automated concurrency report comment on Pull Request (if in CI)")
 	registerDatabaseFlags(runCmd)
+	runCmd.Flags().StringVar(&failOnFlag, "fail-on", failOnViolation, "Exit 1 on: violation (invariant violated), regression (Cloud verdict against the default-branch baseline; needs --cloud-token) or never")
 
 	return runCmd
 }
@@ -125,11 +127,13 @@ func main() {
 	rootCmd := newRootCmd()
 
 	if err := rootCmd.Execute(); err != nil {
-		os.Exit(1)
+		os.Exit(exitCode(err))
 	}
 }
 
 func runChaosTest(cmd *cobra.Command, args []string) error {
+	// Flags parsed fine: from here on a usage dump would only bury the finding.
+	cmd.SilenceUsage = true
 	specPath := args[0]
 	return executeChaos(cmd.Context(), specPath, cmd.Flags().Changed("seed"))
 }
@@ -172,7 +176,9 @@ func runDemo(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	return executeChaosSpec(cmd.Context(), func() (*domain.Spec, error) { return loadDemoSpec(specPath) }, false)
+	// A demo exists to show the bug, so finding it is success (make demo runs all ten).
+	cmd.SilenceUsage = true
+	return executeChaosSpec(cmd.Context(), func() (*domain.Spec, error) { return loadDemoSpec(specPath) }, failOnNever, false)
 }
 
 // loadDemoSpec prefers the examples on disk (the working directory, then the
@@ -188,11 +194,19 @@ func loadDemoSpec(specPath string) (*domain.Spec, error) {
 }
 
 // executeChaos runs one scenario; it stops on Ctrl+C/SIGTERM or when parent is cancelled.
+// It fails on what --fail-on selects (a violation by default).
 func executeChaos(parent context.Context, specPath string, seedOverride ...bool) error {
-	return executeChaosSpec(parent, func() (*domain.Spec, error) { return domain.LoadSpec(specPath) }, seedOverride...)
+	failOn := failOnFlag
+	if failOn == "" {
+		failOn = failOnViolation
+	}
+	return executeChaosSpec(parent, func() (*domain.Spec, error) { return domain.LoadSpec(specPath) }, failOn, seedOverride...)
 }
 
-func executeChaosSpec(parent context.Context, loadSpec func() (*domain.Spec, error), seedOverride ...bool) error {
+func executeChaosSpec(parent context.Context, loadSpec func() (*domain.Spec, error), failOn string, seedOverride ...bool) error {
+	if err := checkFailOn(failOn, cloudTokenFlag); err != nil {
+		return err
+	}
 	ctx, cancel := signal.NotifyContext(parent, os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
@@ -419,8 +433,8 @@ func executeChaosSpec(parent context.Context, loadSpec func() (*domain.Spec, err
 			output["error"] = runResult.Error.Error()
 		}
 		var cloudErr error
+		var cloudResp *cloud.RunIngestResponse
 		if cloudTokenFlag != "" {
-			var cloudResp *cloud.RunIngestResponse
 			cloudResp, cloudErr = publishToCloud(ctx, *spec, runResult, shrinkResult, minimalTrace, anomaly, reproCode, mermaidCode)
 			if cloudResp != nil {
 				output["cloud"] = cloudResp
@@ -435,10 +449,11 @@ func executeChaosSpec(parent context.Context, loadSpec func() (*domain.Spec, err
 		if err := enc.Encode(output); err != nil {
 			return err
 		}
+		outcome := runOutcomeError(runResult, anomaly, failOn, cloudResp)
 		if cloudFailFastFlag {
-			return errors.Join(unreliableRunError(runResult), cloudErr)
+			return errors.Join(outcome, cloudErr)
 		}
-		return unreliableRunError(runResult)
+		return outcome
 	}
 
 	reporter.PrintTerminalReport(*spec, runResult, shrinkResult, anomaly)
@@ -446,18 +461,23 @@ func executeChaosSpec(parent context.Context, loadSpec func() (*domain.Spec, err
 		fmt.Println(hint)
 	}
 
+	var cloudResp *cloud.RunIngestResponse
 	if cloudTokenFlag != "" {
-		if _, err := publishToCloud(ctx, *spec, runResult, shrinkResult, minimalTrace, anomaly, reproCode, mermaidCode); err != nil && cloudFailFastFlag {
-			return errors.Join(unreliableRunError(runResult), err)
+		var err error
+		cloudResp, err = publishToCloud(ctx, *spec, runResult, shrinkResult, minimalTrace, anomaly, reproCode, mermaidCode)
+		if err != nil && cloudFailFastFlag {
+			return errors.Join(runOutcomeError(runResult, anomaly, failOn, cloudResp), err)
 		}
 	}
 
 	if uiFlag {
 		htmlContent := reporter.GenerateEmbeddedTraceViewerHTML(minimalTrace, *spec, graph, shrinkResult, invResults)
-		return serveTraceViewer(ctx, "127.0.0.1:8090", htmlContent, false)
+		if err := serveTraceViewer(ctx, "127.0.0.1:8090", htmlContent, false); err != nil {
+			return err
+		}
 	}
 
-	return unreliableRunError(runResult)
+	return runOutcomeError(runResult, anomaly, failOn, cloudResp)
 }
 
 // applyDatabaseOverrides applies --driver, --dsn and --isolation to spec and

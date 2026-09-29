@@ -60,12 +60,16 @@ function exportScenario(cli, name, version) {
   cpSync(join(ROOT, 'examples', name), dir, { recursive: true });
   const specPath = join(dir, 'chaos.yaml');
   const spec = readFileSync(specPath, 'utf8');
-  if (/^\s+isolation:/m.test(spec)) throw new Error(`${name}: example already pins an isolation level`);
-  writeFileSync(specPath, spec.replace(/^(database:\s*\n)/m, `$1  isolation: "${ISOLATION}"\n`));
+  // The featured examples pin READ_UNCOMMITTED themselves; pin it when missing
+  // and refuse any other level, which would record a different run.
+  const pinned = spec.match(/^\s+isolation:\s*"?([A-Z_]+)"?/m);
+  if (pinned && pinned[1] !== ISOLATION) throw new Error(`${name}: example pins ${pinned[1]}, expected ${ISOLATION}`);
+  if (!pinned) writeFileSync(specPath, spec.replace(/^(database:\s*\n)/m, `$1  isolation: "${ISOLATION}"\n`));
 
   const artifactPath = join(dir, 'result.json');
   const out = JSON.parse(
-    execFileSync(cli, ['run', specPath, '--json', '--export-result', artifactPath], {
+    // --fail-on never: the violation is what we record, not an error.
+    execFileSync(cli, ['run', specPath, '--json', '--export-result', artifactPath, '--fail-on', 'never'], {
       cwd: dir,
       encoding: 'utf8',
       maxBuffer: 64 * 1024 * 1024,

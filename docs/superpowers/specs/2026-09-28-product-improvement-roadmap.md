@@ -95,6 +95,12 @@ Proposta:
 - Atualizar `site/COPY.md` ("A violation does not fail the build") e as
   skills `chaossql-cli-run-pipeline` e `chaossql-github-action`.
 
+**Status (2026-09-28): implementado.** Decisão: reprovar por padrão (breaking
+change registrado no CHANGELOG). Códigos 0/1/2, `--fail-on` no `run` e no
+Action, `--fail-on-divergence` opt-in no `diff`/`swarm` (o `swarm.yml`
+compara motores onde a divergência é esperada). O `concurrency-ci.yml` virou
+teste do próprio gate: ele exige que o Action falhe no exemplo com bug.
+
 ### P0.3 Distribuição: não dá para instalar fora do Go [verificado]
 
 - Release v1.6.0: **0 assets**. Só existe `go install`, o que exige Go 1.25.

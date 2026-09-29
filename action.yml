@@ -61,6 +61,10 @@ inputs:
     description: 'Automatically post concurrency report comment on Pull Request (true|false)'
     required: false
     default: 'true'
+  fail-on:
+    description: 'Fail the step on: violation (any invariant violation), regression (only a ChaosSQL Cloud regression against the default-branch baseline; needs cloud-token) or never'
+    required: false
+    default: 'violation'
 
 
 outputs:
@@ -110,6 +114,7 @@ runs:
         CLOUD_FAIL_FAST: ${{ inputs.cloud-fail-fast }}
         GITHUB_TOKEN: ${{ inputs.github-token }}
         POST_PR_COMMENT: ${{ inputs.post-pr-comment }}
+        FAIL_ON: ${{ inputs.fail-on }}
       run: |
         ARGS=("run" "$SPEC_PATH")
         if [ -n "$WORKERS" ]; then
@@ -143,6 +148,9 @@ runs:
         fi
         if [ "$POST_PR_COMMENT" = "false" ]; then
           ARGS+=("--pr-comment=false")
+        fi
+        if [ -n "$FAIL_ON" ]; then
+          ARGS+=("--fail-on" "$FAIL_ON")
         fi
 
         "$RUNNER_TEMP/chaossql" "${ARGS[@]}"

@@ -9,7 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Breaking
+- `chaossql run` exits **1 when it finds a violation** (it used to exit 0),
+  so a CI job and the GitHub Action step fail on the bug. `--fail-on never`
+  restores the old behavior. Errors, inconclusive and canceled runs now exit
+  **2** instead of 1, for every command. `demo` still exits 0.
+
 ### Added
+- `--fail-on violation|regression|never` on `run` and the `fail-on` Action
+  input (default `violation`). `regression` fails only when ChaosSQL Cloud
+  reports a regression against the default-branch baseline.
+- `--fail-on-divergence` on `diff` and `swarm` (opt-in) exits 1 when engines
+  diverge.
 - `--driver`, `--dsn` and `--isolation` on `run` and `demo` retarget a
   scenario at another engine or isolation level without editing its YAML.
 - The example scenarios are embedded in the binary, so `chaossql demo` works

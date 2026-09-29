@@ -30,6 +30,7 @@ Steps:
 | `cloud-fail-fast` | `--cloud-fail-fast` when `true` |
 | `github-token` (default `github.token`) | `GITHUB_TOKEN` env for PR comments |
 | `post-pr-comment` | `--pr-comment=false` when `false` |
+| `fail-on` (default `violation`) | `--fail-on <value>` when non-empty |
 
 Outputs `cloud-run-id`, `cloud-run-url`, `is-regression` come from the CLI
 appending to `$GITHUB_OUTPUT` after a successful Cloud publish
@@ -37,15 +38,19 @@ appending to `$GITHUB_OUTPUT` after a successful Cloud publish
 
 ### Exit behavior (verified)
 
-The step fails only when `chaossql run` exits non-zero: execution errors,
+The step fails whenever `chaossql run` exits non-zero
+(`chaossql-cli-run-pipeline`): **1 on a violation** by default, or only on a
+Cloud regression with `fail-on: regression`; 2 on execution errors,
 inconclusive or canceled runs, setup failures, or Cloud failures with
-`cloud-fail-fast`. **A detected violation exits 0**, so the step stays green;
-gate on `is-regression`, the JUnit report, or parse `--json` if you need a red
-build on anomalies.
+`cloud-fail-fast`. `fail-on: never` keeps the step green on findings. Reports,
+Step Summary and Cloud outputs are written before the exit.
 
 ## `concurrency-ci.yml`
 
-Runs the action from the repository itself (`uses: ./`) on push/PR to `main`.
+Runs the action from the repository itself (`uses: ./`) on push/PR to `main`
+as a test of the gate: the step (`id: gate`, `continue-on-error`) runs the
+banking example, which has a lost update, and the next step fails the job
+unless `steps.gate.outcome` is `failure`.
 
 ## `swarm.yml`
 

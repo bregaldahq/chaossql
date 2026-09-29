@@ -21,6 +21,7 @@ func newDiffCmd() *cobra.Command {
 		dsnB        string
 		seedFlag    uint64
 		jsonOutput  bool
+		failOnDiff  bool
 	)
 
 	cmd := &cobra.Command{
@@ -54,11 +55,18 @@ func newDiffCmd() *cobra.Command {
 			if jsonOutput {
 				enc := json.NewEncoder(cmd.OutOrStdout())
 				enc.SetIndent("", "  ")
-				return enc.Encode(diffRes)
+				if err := enc.Encode(diffRes); err != nil {
+					return err
+				}
+			} else {
+				cmd.Println(reporter.RenderBanner())
+				renderDiffTerminal(cmd, diffRes)
 			}
 
-			cmd.Println(reporter.RenderBanner())
-			renderDiffTerminal(cmd, diffRes)
+			if failOnDiff && diffRes.Divergent {
+				cmd.SilenceUsage = true
+				return &findingError{msg: "engines diverge: " + diffRes.DiffSummary}
+			}
 			return nil
 		},
 	}
@@ -69,6 +77,7 @@ func newDiffCmd() *cobra.Command {
 	cmd.Flags().StringVar(&dsnB, "dsn-b", ":memory:", "DSN for driver B")
 	cmd.Flags().Uint64Var(&seedFlag, "seed", 0, "Override random seed")
 	cmd.Flags().BoolVar(&jsonOutput, "json", false, "Output results in JSON format")
+	cmd.Flags().BoolVar(&failOnDiff, "fail-on-divergence", false, "Exit 1 when the engines diverge")
 
 	return cmd
 }

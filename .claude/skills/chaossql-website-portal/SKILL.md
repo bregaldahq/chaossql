@@ -83,7 +83,7 @@ English is canonical); the English purity gate skips `site/`.
   legacy inline `onclick` handlers are stripped). Chapter HTML is styled with
   `:global` rules in `DocsContent.module.css`.
 - Docs copy follows `site/COPY.md` like the rest of the site and must match
-  the code: `run` exits 0 on `violation` and 1 on any error (no exit 2); the
+  the code: `run` exits 1 on a finding (`--fail-on`) and 2 on any error; the
   flag table lists only the flags registered in `cmd/chaossql/main.go`; the
   engine uses seeded jitter (PCT-style scheduling is proxy only); the shrinker
   is memoized ddmin plus a 1-minimality audit on the failure signature, with
@@ -260,9 +260,9 @@ vanilla portal) are required by `make check-harness` and exercised by
   `ticket_booking_anti_dependency` also fails on serial histories. Durations
   and full-run invariant values vary between regenerations; schedules, shrink
   results and minimal traces do not.
-- The GitHub Action does not fail a job on a violation, and PR comments and
-  `is-regression` require Cloud: marketing copy must not claim that CI blocks
-  merges by itself (see `site/COPY.md`).
+- A violation fails the GitHub Action step (`fail-on`, default `violation`),
+  but it only blocks a merge when the check is required in branch protection;
+  PR comments and `is-regression` still require Cloud (see `site/COPY.md`).
 
 ## Source map
 
